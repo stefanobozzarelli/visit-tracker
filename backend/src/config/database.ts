@@ -22,7 +22,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_DATABASE || 'visit_tracker',
-  synchronize: isDevelopment,
+  synchronize: true,
   logging: isDevelopment,
   entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, CustomerOrder, CustomerOrderItem],
   migrations: ['src/migrations/**/*.ts'],
