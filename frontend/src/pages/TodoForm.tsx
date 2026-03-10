@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { Client, Company, User } from '../types';
 import '../styles/TodoForm.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { config } from '../config';
+const API_BASE_URL = config.API_BASE_URL;
 
 interface TodoFormProps {
   initialData?: {

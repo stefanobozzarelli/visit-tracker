@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { TodoItem, Client, Company, User } from '../types';
 import '../styles/MyTodos.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { config } from '../config';
+const API_BASE_URL = config.API_BASE_URL;
 
 export const AdminTodos = () => {
   const navigate = useNavigate();

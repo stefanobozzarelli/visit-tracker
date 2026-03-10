@@ -3,7 +3,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import '../styles/AdminPermissions.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { config } from '../config';
+const API_BASE_URL = config.API_BASE_URL;
 
 interface User {
   id: string;
