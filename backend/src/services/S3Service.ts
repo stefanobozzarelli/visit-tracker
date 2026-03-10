@@ -15,6 +15,11 @@ export class S3Service {
   }
 
   async generatePresignedUrl(filename: string, fileSize: number): Promise<{ url: string; s3Key: string }> {
+    // Check if AWS credentials are configured
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      throw new Error('AWS S3 is not configured. File upload is disabled.');
+    }
+
     const fileExtension = filename.split('.').pop();
     const s3Key = `uploads/${uuidv4()}.${fileExtension}`;
 
