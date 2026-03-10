@@ -1,0 +1,257 @@
+.order-form-page {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.order-form-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.order-header h1 {
+  margin: 0;
+  color: #1d1d1d;
+  font-size: 1.8rem;
+}
+
+.btn-back {
+  background: var(--color-bg-secondary);
+  color: #1d1d1d;
+  border: 1px solid var(--color-border);
+  padding: 0.65rem 1.2rem;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.btn-back:hover {
+  background: #e8e8e8;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.alert-error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef5350;
+}
+
+.alert-success {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #66bb6a;
+}
+
+.order-testata {
+  margin-bottom: 2rem;
+}
+
+.order-testata h2 {
+  color: #1d1d1d;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.testata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: #f6f6f6;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.testata-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.testata-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.testata-field label {
+  font-weight: 500;
+  color: #1d1d1d;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.testata-field input,
+.testata-field textarea,
+.testata-field select {
+  padding: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.testata-field input:focus,
+.testata-field textarea:focus,
+.testata-field select:focus {
+  outline: none;
+  border: 2px solid var(--color-info);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.input-disabled {
+  background: #f0f0f0;
+  color: #555;
+  cursor: not-allowed;
+}
+
+.input-disabled:focus {
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+
+.order-totals {
+  background: #f6f6f6;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin: 2rem 0;
+  text-align: right;
+}
+
+.order-totals h3 {
+  margin: 0;
+  color: #1d1d1d;
+  font-size: 1.3rem;
+}
+
+.order-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.btn-save-order,
+.btn-delete-order,
+.btn-cancel,
+.btn-export {
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.btn-save-order {
+  background: var(--color-info);
+  color: white;
+}
+
+.btn-save-order:hover:not(:disabled) {
+  background: #0066cc;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-save-order:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-delete-order {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef5350;
+}
+
+.btn-delete-order:hover:not(:disabled) {
+  background: #ffcdd2;
+}
+
+.btn-delete-order:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-cancel {
+  background: var(--color-bg-secondary);
+  color: #1d1d1d;
+  border: 1px solid var(--color-border);
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-export {
+  background: #f0f0f0;
+  color: #1d1d1d;
+  border: 1px solid var(--color-border);
+}
+
+.btn-export:hover:not(:disabled) {
+  background: #e0e0e0;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #999;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .order-form-container {
+    padding: 1rem;
+  }
+
+  .order-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .testata-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-actions {
+    flex-direction: column;
+  }
+
+  .order-actions button {
+    width: 100%;
+  }
+}

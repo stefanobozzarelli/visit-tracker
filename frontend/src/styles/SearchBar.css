@@ -1,0 +1,104 @@
+.search-bar {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.search-input-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 12px 15px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.15s ease-out;
+  background-color: var(--color-white);
+  color: var(--color-text-primary);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.search-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.search-btn {
+  padding: 12px 24px;
+  background-color: var(--color-info);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  white-space: nowrap;
+}
+
+.search-btn:hover:not(:disabled) {
+  background-color: #0051cc;
+  box-shadow: var(--shadow-md);
+}
+
+.search-btn:active:not(:disabled) {
+  background-color: #004599;
+}
+
+.search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.search-clear-btn {
+  padding: 12px 15px;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s ease-out;
+}
+
+.search-clear-btn:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+}
+
+.search-clear-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.search-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .search-input-group {
+    flex-direction: column;
+  }
+
+  .search-btn,
+  .search-clear-btn {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+}
