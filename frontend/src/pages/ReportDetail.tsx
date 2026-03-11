@@ -199,7 +199,9 @@ export const ReportDetail: React.FC = () => {
                   <button
                     onClick={() => {
                       // Open in new window
-                      window.open(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`, '_blank');
+                      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+                      const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
+                      window.open(url, '_blank');
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
@@ -209,7 +211,8 @@ export const ReportDetail: React.FC = () => {
                   <button
                     onClick={() => {
                       // Download via backend endpoint (backend streams from Cloudinary)
-                      const url = `/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
+                      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+                      const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
                       const a = document.createElement('a');
                       a.href = url;
                       a.download = att.filename;
