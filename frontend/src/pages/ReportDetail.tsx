@@ -53,46 +53,49 @@ export const ReportDetail: React.FC = () => {
 
     try {
       for (const file of Array.from(files)) {
-        // Get presigned URL and signature from backend
-        const presignedRes = await (apiService as any).fetch(
-          `/api/visits/${visitId}/reports/${reportId}/upload`,
-          'POST',
-          {
-            filename: file.name,
-            fileSize: file.size,
-          }
-        );
+        try {
+          // Get presigned URL and signature from backend
+          const presignedRes = await apiService.getPresignedUrl(
+            visitId,
+            reportId,
+            file.name,
+            file.size
+          );
 
-        if (presignedRes.success && presignedRes.data) {
-          const { uploadUrl, publicId, timestamp, signature, apiKey } = presignedRes.data;
+          if (presignedRes.success && presignedRes.data) {
+            const { uploadUrl, publicId, timestamp, signature, apiKey } = presignedRes.data;
 
-          // Upload file to Cloudinary with proper authentication
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('public_id', publicId);
-          formData.append('api_key', apiKey);
-          formData.append('timestamp', timestamp.toString());
-          formData.append('signature', signature);
-          formData.append('folder', 'visit-tracker');
+            // Upload file to Cloudinary with proper authentication
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('public_id', publicId);
+            formData.append('api_key', apiKey);
+            formData.append('timestamp', timestamp.toString());
+            formData.append('signature', signature);
+            formData.append('folder', 'visit-tracker');
 
-          const uploadResponse = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData,
-          });
+            const uploadResponse = await fetch(uploadUrl, {
+              method: 'POST',
+              body: formData,
+            });
 
-          if (uploadResponse.ok) {
-            console.log(`Successfully uploaded: ${file.name}`);
-            // Reload report to show new attachment
-            loadReport();
+            if (uploadResponse.ok) {
+              console.log(`Successfully uploaded: ${file.name}`);
+            } else {
+              const errorData = await uploadResponse.text();
+              console.error('Upload error response:', errorData);
+              setError(`Failed to upload ${file.name}: ${uploadResponse.statusText}`);
+            }
           } else {
-            const errorData = await uploadResponse.text();
-            console.error('Upload error response:', errorData);
-            setError(`Failed to upload ${file.name}: ${uploadResponse.statusText}`);
+            setError(presignedRes.error || 'Failed to get upload URL');
           }
-        } else {
-          setError(presignedRes.error || 'Failed to get upload URL');
+        } catch (fileErr) {
+          console.error(`Error uploading ${file.name}:`, fileErr);
+          setError(`Error uploading ${file.name}: ${(fileErr as Error).message}`);
         }
       }
+      // Reload report after all uploads
+      loadReport();
     } catch (err) {
       setError((err as Error).message);
     } finally {
