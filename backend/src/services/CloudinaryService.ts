@@ -53,9 +53,10 @@ export class CloudinaryService {
 
   async getDownloadUrl(publicId: string, expiresIn: number = 3600): Promise<string> {
     try {
-      // Return public URL for files (Cloudinary allows delivery with public URL)
+      // Return public URL for files with download parameter
       const url = cloudinary.utils.url(publicId, {
         secure: true,
+        fetch: 'attachment',
       });
 
       return url;
