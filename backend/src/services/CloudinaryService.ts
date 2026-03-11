@@ -14,7 +14,10 @@ export class CloudinaryService {
       throw new Error('Cloudinary is not configured. File upload is disabled.');
     }
 
-    const publicId = `uploads/${uuidv4()}`;
+    const folder = 'visit-tracker';
+    const uploadId = uuidv4();
+    // Include folder in public_id to match how Cloudinary stores it
+    const publicId = `${folder}/uploads/${uploadId}`;
 
     try {
       // Generate signature for direct upload from frontend
@@ -23,7 +26,6 @@ export class CloudinaryService {
         {
           timestamp,
           public_id: publicId,
-          folder: 'visit-tracker',
         },
         process.env.CLOUDINARY_API_SECRET
       );
@@ -51,9 +53,9 @@ export class CloudinaryService {
 
   async getDownloadUrl(publicId: string, expiresIn: number = 3600): Promise<string> {
     try {
-      const url = cloudinary.url(publicId, {
-        secure: true,
-      });
+      // Generate direct download URL for any file type
+      // For raw files (PDFs, documents), use /raw/upload/ path
+      const url = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/f_auto/q_auto/${publicId}`;
       return url;
     } catch (error) {
       throw new Error(`Failed to generate download URL: ${(error as Error).message}`);
