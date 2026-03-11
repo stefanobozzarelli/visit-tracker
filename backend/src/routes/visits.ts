@@ -26,11 +26,19 @@ router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', asy
     // Fetch file from Cloudinary and return directly
     const https = require('https');
     https.get(downloadUrl, (fileRes: any) => {
-      res.setHeader('Content-Type', fileRes.headers['content-type'] || 'application/octet-stream');
+      const contentType = fileRes.headers['content-type'] || 'application/octet-stream';
+      const contentLength = fileRes.headers['content-length'];
+
+      res.setHeader('Content-Type', contentType);
       res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
-      res.setHeader('Content-Length', fileRes.headers['content-length']);
+      if (contentLength) {
+        res.setHeader('Content-Length', contentLength);
+      }
+
+      // Pipe the file response directly to the client
       fileRes.pipe(res);
     }).on('error', (err: Error) => {
+      console.error('[Download] Error fetching from Cloudinary:', err.message);
       res.status(500).json({ success: false, error: err.message });
     });
   } catch (error) {
