@@ -210,7 +210,9 @@ export const ReportDetail: React.FC = () => {
                     onClick={async () => {
                       try {
                         // Fetch with redirect to download as blob
-                        const response = await fetch(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`);
+                        const response = await fetch(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`, {
+                          redirect: 'follow'
+                        });
                         const blob = await response.blob();
                         const url = window.URL.createObjectURL(blob);
                         const link = document.createElement('a');
