@@ -198,13 +198,28 @@ export const ReportDetail: React.FC = () => {
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
                     onClick={() => {
-                      // Open download URL in new window (allows browser to handle redirects)
+                      // Open in new window
                       window.open(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`, '_blank');
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
                   >
                     Apri
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Download file
+                      const link = document.createElement('a');
+                      link.href = `/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
+                      link.download = att.filename;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
+                  >
+                    ⬇️ Scarica
                   </button>
                   <button
                     onClick={() => {
