@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import axios from 'axios';
 import { VisitService } from '../services/VisitService';
 import { PermissionService } from '../services/PermissionService';
 import { CloudinaryService } from '../services/CloudinaryService';
@@ -23,8 +24,18 @@ router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', asy
 
     const downloadUrl = await cloudinaryService.getDownloadUrl(attachment.s3_key);
 
-    // Redirect to Cloudinary - let browser download directly
-    res.redirect(downloadUrl);
+    // Stream file from Cloudinary through backend
+    const response = await axios.get(downloadUrl, { responseType: 'stream' });
+
+    // Set headers for download
+    res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+    if (response.headers['content-length']) {
+      res.setHeader('Content-Length', response.headers['content-length']);
+    }
+
+    // Pipe the stream to response
+    response.data.pipe(res);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
   }
