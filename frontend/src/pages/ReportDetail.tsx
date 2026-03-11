@@ -12,12 +12,38 @@ export const ReportDetail: React.FC = () => {
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [visitId, setVisitId] = useState<string>('');
 
   useEffect(() => {
-    // In a real scenario, we would fetch the report details
-    // For now, we'll show a placeholder
-    setIsLoading(false);
+    loadReport();
   }, [reportId]);
+
+  const loadReport = async () => {
+    try {
+      setIsLoading(true);
+      if (!reportId) {
+        setError('Report ID not found');
+        return;
+      }
+
+      // Fetch report details - adjust endpoint as needed
+      const response = await (apiService as any).getReportDetails?.(reportId);
+      if (response?.success && response.data) {
+        setReport(response.data);
+        // Extract visitId from report or URL
+        if (response.data.visit_id) {
+          setVisitId(response.data.visit_id);
+        }
+      } else {
+        // Fallback: extract from URL or show placeholder
+        setError('Could not load report details');
+      }
+    } catch (err) {
+      setError((err as Error).message || 'Error loading report');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -29,19 +55,50 @@ export const ReportDetail: React.FC = () => {
   };
 
   const handleFileUpload = async (files: FileList) => {
-    if (!files.length || !reportId) return;
+    if (!files.length || !reportId || !visitId) {
+      setError('Missing required information to upload file');
+      return;
+    }
 
     setIsUploading(true);
     setError('');
 
     try {
       for (const file of Array.from(files)) {
-        // Here we would call the S3 presigned URL API
-        // const presignedRes = await apiService.getPresignedUrl(visitId, reportId, file.name, file.size);
-        // Then upload to S3 using presignedRes.presignedUrl
+        // Get presigned URL from backend
+        const presignedRes = await (apiService as any).fetch(
+          `/api/visits/${visitId}/reports/${reportId}/upload`,
+          'POST',
+          {
+            filename: file.name,
+            fileSize: file.size,
+          }
+        );
 
-        console.log(`Uploading file: ${file.name} (${file.size} bytes)`);
-        // For now, just show a message
+        if (presignedRes.success && presignedRes.data) {
+          const { uploadUrl, publicId } = presignedRes.data;
+
+          // Upload file to Cloudinary using the URL from backend
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('public_id', publicId);
+          formData.append('api_key', (window as any).CLOUDINARY_API_KEY || '');
+
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (uploadResponse.ok) {
+            console.log(`Successfully uploaded: ${file.name}`);
+            // Reload report to show new attachment
+            loadReport();
+          } else {
+            setError(`Failed to upload ${file.name}`);
+          }
+        } else {
+          setError(presignedRes.error || 'Failed to get upload URL');
+        }
       }
     } catch (err) {
       setError((err as Error).message);
@@ -126,7 +183,7 @@ export const ReportDetail: React.FC = () => {
                 </span>
                 <button
                   onClick={() => {
-                    // Delete attachment
+                    // Delete attachment logic here
                   }}
                   className="btn-danger"
                   style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
