@@ -208,14 +208,9 @@ export const ReportDetail: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // Direct download link - let browser handle it natively
-                      const link = document.createElement('a');
-                      link.href = `/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
-                      link.download = att.filename;
-                      link.target = '_blank';
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
+                      // Download with browser native handling - let it detect file type
+                      const url = `/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
+                      window.open(url, '_blank');
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
