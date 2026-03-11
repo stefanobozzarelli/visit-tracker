@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { VisitService } from '../services/VisitService';
 import { PermissionService } from '../services/PermissionService';
-import { S3Service } from '../services/S3Service';
+import { CloudinaryService } from '../services/CloudinaryService';
 import { PdfService } from '../services/PdfService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
@@ -10,7 +10,7 @@ import { ApiResponse, CreateVisitRequest, CreateVisitReportRequest } from '../ty
 const router = Router();
 const visitService = new VisitService();
 const permissionService = new PermissionService();
-const s3Service = new S3Service();
+const cloudinaryService = new CloudinaryService();
 const pdfService = new PdfService();
 
 router.use(authMiddleware);
@@ -166,23 +166,23 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
 router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Response) => {
   try {
     const { filename, fileSize } = req.body;
-    const { url, s3Key } = await s3Service.generatePresignedUrl(filename, fileSize);
+    const { url, publicId } = await cloudinaryService.generatePresignedUrl(filename, fileSize);
 
     // Save attachment metadata after successful upload
-    // Note: In real scenario, this would be done after the file is uploaded to S3
+    // Note: In real scenario, this would be done after the file is uploaded to Cloudinary
     const attachment = await visitService.addAttachment(
       req.params.reportId,
       req.user!.id,
       filename,
       fileSize,
-      s3Key
+      publicId
     );
 
     const response: ApiResponse<any> = {
       success: true,
       data: {
-        presignedUrl: url,
-        s3Key,
+        uploadUrl: url,
+        publicId,
         attachmentId: attachment.id,
       },
     };
@@ -196,7 +196,7 @@ router.delete('/:visitId/reports/:reportId/attachments/:attachmentId', async (re
   try {
     const attachment = await visitService.getAttachment(req.params.attachmentId);
     if (attachment) {
-      await s3Service.deleteFile(attachment.s3_key);
+      await cloudinaryService.deleteFile(attachment.s3_key);
     }
     await visitService.deleteAttachment(req.params.attachmentId);
     const response: ApiResponse<any> = { success: true, message: 'Attachment deleted' };
