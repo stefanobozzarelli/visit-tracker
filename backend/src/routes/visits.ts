@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
-import axios from 'axios';
 import { VisitService } from '../services/VisitService';
 import { PermissionService } from '../services/PermissionService';
-import { CloudinaryService } from '../services/CloudinaryService';
+import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
@@ -11,40 +10,21 @@ import { ApiResponse, CreateVisitRequest, CreateVisitReportRequest } from '../ty
 const router = Router();
 const visitService = new VisitService();
 const permissionService = new PermissionService();
-const cloudinaryService = new CloudinaryService();
+const s3Service = new S3Service();
 const pdfService = new PdfService();
 
 // Public download endpoint (no auth required for file access)
 router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
   try {
-    console.log(`[Download] Requested: attachmentId=${req.params.attachmentId}`);
-
     const attachment = await visitService.getAttachment(req.params.attachmentId);
     if (!attachment) {
-      console.log(`[Download] ERROR: Attachment not found for ID: ${req.params.attachmentId}`);
       return res.status(404).json({ success: false, error: 'Attachment not found' });
     }
 
-    console.log(`[Download] Found attachment: filename=${attachment.filename}, s3_key=${attachment.s3_key}`);
-
-    const downloadUrl = await cloudinaryService.getDownloadUrl(attachment.s3_key);
-    console.log(`[Download] Generated URL: ${downloadUrl}`);
-
-    // Stream file from Cloudinary through backend
-    const response = await axios.get(downloadUrl, { responseType: 'stream' });
-    console.log(`[Download] Axios response: status=${response.status}, content-type=${response.headers['content-type']}, content-length=${response.headers['content-length']}`);
-
-    // Set headers for download
-    res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
-    if (response.headers['content-length']) {
-      res.setHeader('Content-Length', response.headers['content-length']);
-    }
-
-    // Pipe the stream to response
-    response.data.pipe(res);
+    // Generate presigned S3 download URL and redirect
+    const downloadUrl = await s3Service.getDownloadUrl(attachment.s3_key);
+    res.redirect(downloadUrl);
   } catch (error) {
-    console.error(`[Download] ERROR: ${(error as Error).message}`);
     res.status(400).json({ success: false, error: (error as Error).message });
   }
 });
@@ -202,37 +182,27 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
 router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Response) => {
   try {
     const { filename, fileSize } = req.body;
-    console.log(`[Upload] Generating presigned URL for: ${filename} (${fileSize} bytes)`);
+    const { url, s3Key } = await s3Service.generatePresignedUrl(filename, fileSize);
 
-    const { url, publicId, timestamp, signature, apiKey, cloudName } = await cloudinaryService.generatePresignedUrl(filename, fileSize);
-
-    console.log(`[Upload] Generated - publicId: ${publicId}, timestamp: ${timestamp}`);
-
-    // Save attachment metadata after successful upload
-    // Note: In real scenario, this would be done after the file is uploaded to Cloudinary
+    // Save attachment metadata with S3 key
     const attachment = await visitService.addAttachment(
       req.params.reportId,
       req.user!.id,
       filename,
       fileSize,
-      publicId
+      s3Key
     );
 
     const response: ApiResponse<any> = {
       success: true,
       data: {
         uploadUrl: url,
-        publicId,
-        timestamp,
-        signature,
-        apiKey,
-        cloudName,
+        s3Key,
         attachmentId: attachment.id,
       },
     };
     res.json(response);
   } catch (error) {
-    console.error('[Upload] Error:', (error as Error).message);
     res.status(400).json({ success: false, error: (error as Error).message });
   }
 });

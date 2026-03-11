@@ -77,32 +77,23 @@ export const ReportDetail: React.FC = () => {
           );
 
           if (presignedRes.success && presignedRes.data) {
-            const { uploadUrl, publicId, timestamp, signature, apiKey } = presignedRes.data;
+            const { uploadUrl } = presignedRes.data;
 
-            // Upload file to Cloudinary with proper authentication
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('public_id', publicId);
-            formData.append('api_key', apiKey);
-            formData.append('timestamp', timestamp.toString());
-            formData.append('signature', signature);
-
-            console.log('Uploading to:', uploadUrl);
-            console.log('FormData contents:', { publicId, timestamp, signature: signature.substring(0, 20) + '...' });
-
+            // Upload file to S3 using presigned URL
             const uploadResponse = await fetch(uploadUrl, {
-              method: 'POST',
-              body: formData,
+              method: 'PUT',
+              body: file,
+              headers: {
+                'Content-Type': file.type || 'application/octet-stream',
+              },
             });
-
-            console.log('Upload response status:', uploadResponse.status, uploadResponse.statusText);
 
             if (uploadResponse.ok) {
               console.log(`Successfully uploaded: ${file.name}`);
             } else {
               const errorData = await uploadResponse.text();
               console.error('Upload error response:', errorData);
-              setError(`Failed to upload ${file.name}: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorData.substring(0, 100)}`);
+              setError(`Failed to upload ${file.name}: ${uploadResponse.status} ${uploadResponse.statusText}`);
             }
           } else {
             setError(presignedRes.error || 'Failed to get upload URL');
