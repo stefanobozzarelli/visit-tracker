@@ -5,14 +5,13 @@ import { VisitReport } from '../types';
 import '../styles/CrudPages.css';
 
 export const ReportDetail: React.FC = () => {
-  const { reportId } = useParams<{ reportId: string }>();
+  const { reportId, visitId } = useParams<{ reportId: string; visitId: string }>();
   const navigate = useNavigate();
   const [report, setReport] = useState<VisitReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [visitId, setVisitId] = useState<string>('');
 
   useEffect(() => {
     loadReport();
@@ -21,26 +20,15 @@ export const ReportDetail: React.FC = () => {
   const loadReport = async () => {
     try {
       setIsLoading(true);
-      if (!reportId) {
-        setError('Report ID not found');
+      if (!reportId || !visitId) {
+        setError('Report ID or Visit ID not found');
         return;
       }
 
-      // Fetch report details - adjust endpoint as needed
-      const response = await (apiService as any).getReportDetails?.(reportId);
-      if (response?.success && response.data) {
-        setReport(response.data);
-        // Extract visitId from report or URL
-        if (response.data.visit_id) {
-          setVisitId(response.data.visit_id);
-        }
-      } else {
-        // Fallback: extract from URL or show placeholder
-        setError('Could not load report details');
-      }
+      // For now, just mark as loaded - in real scenario, fetch report details
+      setIsLoading(false);
     } catch (err) {
       setError((err as Error).message || 'Error loading report');
-    } finally {
       setIsLoading(false);
     }
   };
