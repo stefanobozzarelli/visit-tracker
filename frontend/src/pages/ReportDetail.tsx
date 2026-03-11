@@ -207,14 +207,22 @@ export const ReportDetail: React.FC = () => {
                     Apri
                   </button>
                   <button
-                    onClick={() => {
-                      // Download file
-                      const link = document.createElement('a');
-                      link.href = `/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
-                      link.download = att.filename;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
+                    onClick={async () => {
+                      try {
+                        // Fetch with redirect to download as blob
+                        const response = await fetch(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`);
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = att.filename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                      } catch (err) {
+                        alert(`Errore: ${(err as Error).message}`);
+                      }
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
