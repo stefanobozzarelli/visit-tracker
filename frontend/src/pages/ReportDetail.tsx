@@ -25,7 +25,21 @@ export const ReportDetail: React.FC = () => {
         return;
       }
 
-      // For now, just mark as loaded - in real scenario, fetch report details
+      // Fetch the visit with all its reports and attachments
+      const visitRes = await apiService.getVisit(visitId);
+      if (visitRes.success && visitRes.data) {
+        const visit = visitRes.data;
+        // Find the specific report
+        const foundReport = visit.reports?.find((r: any) => r.id === reportId);
+        if (foundReport) {
+          setReport(foundReport);
+          setError('');
+        } else {
+          setError('Report not found in visit');
+        }
+      } else {
+        setError(visitRes.error || 'Failed to load visit');
+      }
       setIsLoading(false);
     } catch (err) {
       setError((err as Error).message || 'Error loading report');
@@ -177,15 +191,29 @@ export const ReportDetail: React.FC = () => {
                 <span>
                   📄 {att.filename} ({Math.round(att.file_size / 1024)} KB)
                 </span>
-                <button
-                  onClick={() => {
-                    // Delete attachment logic here
-                  }}
-                  className="btn-danger"
-                  style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
-                >
-                  Elimina
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => {
+                      // Open file in new tab using Cloudinary URL
+                      const cloudName = 'dfpghsikj'; // Your Cloudinary cloud name
+                      const fileUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${att.s3_key}`;
+                      window.open(fileUrl, '_blank');
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
+                  >
+                    Apri
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Delete attachment logic here
+                    }}
+                    className="btn-danger"
+                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
+                  >
+                    Elimina
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
