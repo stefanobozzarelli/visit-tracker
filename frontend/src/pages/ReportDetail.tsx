@@ -208,9 +208,12 @@ export const ReportDetail: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // Download with browser native handling - let it detect file type
-                      const url = `/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
-                      window.open(url, '_blank');
+                      // Direct download from Cloudinary (file is public)
+                      const cloudinaryUrl = `https://res.cloudinary.com/dfpghsikj/raw/upload/v1/${att.s3_key}`;
+                      const link = document.createElement('a');
+                      link.href = cloudinaryUrl;
+                      link.download = att.filename;
+                      link.click();
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
