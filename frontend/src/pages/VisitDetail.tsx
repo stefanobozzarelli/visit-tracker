@@ -229,7 +229,7 @@ export const VisitDetail: React.FC = () => {
                       Elimina
                     </button>
                     <button
-                      onClick={() => navigate(`/reports/${report.id}`)}
+                      onClick={() => navigate(`/visits/${id}/reports/${report.id}`)}
                       className="btn-info"
                     >
                       Allegati

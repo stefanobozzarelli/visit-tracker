@@ -87,7 +87,7 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="/reports/:reportId"
+              path="/visits/:visitId/reports/:reportId"
               element={
                 <ProtectedRoute>
                   <ReportDetail />
