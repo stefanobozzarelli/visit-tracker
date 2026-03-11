@@ -208,8 +208,8 @@ export const ReportDetail: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // Download file from Cloudinary to local folder
-                      const url = `https://res.cloudinary.com/dfpghsikj/raw/upload/${att.s3_key}`;
+                      // Download via backend endpoint (backend streams from Cloudinary)
+                      const url = `/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
                       const a = document.createElement('a');
                       a.href = url;
                       a.download = att.filename;

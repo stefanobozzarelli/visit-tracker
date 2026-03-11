@@ -23,8 +23,16 @@ router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', asy
 
     const downloadUrl = await cloudinaryService.getDownloadUrl(attachment.s3_key);
 
-    // Redirect to the Cloudinary URL
-    res.redirect(downloadUrl);
+    // Fetch file from Cloudinary and return directly
+    const https = require('https');
+    https.get(downloadUrl, (fileRes: any) => {
+      res.setHeader('Content-Type', fileRes.headers['content-type'] || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+      res.setHeader('Content-Length', fileRes.headers['content-length']);
+      fileRes.pipe(res);
+    }).on('error', (err: Error) => {
+      res.status(500).json({ success: false, error: err.message });
+    });
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
   }
