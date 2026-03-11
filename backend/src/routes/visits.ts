@@ -166,7 +166,7 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
 router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Response) => {
   try {
     const { filename, fileSize } = req.body;
-    const { url, publicId } = await cloudinaryService.generatePresignedUrl(filename, fileSize);
+    const { url, publicId, timestamp, signature, apiKey, cloudName } = await cloudinaryService.generatePresignedUrl(filename, fileSize);
 
     // Save attachment metadata after successful upload
     // Note: In real scenario, this would be done after the file is uploaded to Cloudinary
@@ -183,6 +183,10 @@ router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Resp
       data: {
         uploadUrl: url,
         publicId,
+        timestamp,
+        signature,
+        apiKey,
+        cloudName,
         attachmentId: attachment.id,
       },
     };

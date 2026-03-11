@@ -8,7 +8,7 @@ cloudinary.config({
 });
 
 export class CloudinaryService {
-  async generatePresignedUrl(filename: string, fileSize: number): Promise<{ url: string; publicId: string }> {
+  async generatePresignedUrl(filename: string, fileSize: number): Promise<{ url: string; publicId: string; timestamp: number; signature: string; apiKey: string; cloudName: string }> {
     // Check if Cloudinary credentials are configured
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
       throw new Error('Cloudinary is not configured. File upload is disabled.');
@@ -31,6 +31,10 @@ export class CloudinaryService {
       return {
         url: `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/auto/upload`,
         publicId,
+        timestamp,
+        signature,
+        apiKey: process.env.CLOUDINARY_API_KEY,
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
       };
     } catch (error) {
       throw new Error(`Failed to generate upload signature: ${(error as Error).message}`);

@@ -53,7 +53,7 @@ export const ReportDetail: React.FC = () => {
 
     try {
       for (const file of Array.from(files)) {
-        // Get presigned URL from backend
+        // Get presigned URL and signature from backend
         const presignedRes = await (apiService as any).fetch(
           `/api/visits/${visitId}/reports/${reportId}/upload`,
           'POST',
@@ -64,13 +64,16 @@ export const ReportDetail: React.FC = () => {
         );
 
         if (presignedRes.success && presignedRes.data) {
-          const { uploadUrl, publicId } = presignedRes.data;
+          const { uploadUrl, publicId, timestamp, signature, apiKey } = presignedRes.data;
 
-          // Upload file to Cloudinary using the URL from backend
+          // Upload file to Cloudinary with proper authentication
           const formData = new FormData();
           formData.append('file', file);
           formData.append('public_id', publicId);
-          formData.append('api_key', (window as any).CLOUDINARY_API_KEY || '');
+          formData.append('api_key', apiKey);
+          formData.append('timestamp', timestamp.toString());
+          formData.append('signature', signature);
+          formData.append('folder', 'visit-tracker');
 
           const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
@@ -82,7 +85,9 @@ export const ReportDetail: React.FC = () => {
             // Reload report to show new attachment
             loadReport();
           } else {
-            setError(`Failed to upload ${file.name}`);
+            const errorData = await uploadResponse.text();
+            console.error('Upload error response:', errorData);
+            setError(`Failed to upload ${file.name}: ${uploadResponse.statusText}`);
           }
         } else {
           setError(presignedRes.error || 'Failed to get upload URL');
