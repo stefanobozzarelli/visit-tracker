@@ -197,24 +197,9 @@ export const ReportDetail: React.FC = () => {
                 </span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
-                    onClick={async () => {
-                      try {
-                        // Use fetch to go through Vite proxy, then download
-                        const response = await fetch(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`);
-                        if (response.ok) {
-                          const blob = await response.blob();
-                          const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = att.filename;
-                          a.click();
-                          window.URL.revokeObjectURL(url);
-                        } else {
-                          alert('Errore nel download del file');
-                        }
-                      } catch (err) {
-                        alert(`Errore: ${(err as Error).message}`);
-                      }
+                    onClick={() => {
+                      // Open download URL in new window (allows browser to handle redirects)
+                      window.open(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`, '_blank');
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
