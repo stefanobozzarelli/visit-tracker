@@ -211,7 +211,7 @@ router.delete('/:visitId/reports/:reportId/attachments/:attachmentId', async (re
   try {
     const attachment = await visitService.getAttachment(req.params.attachmentId);
     if (attachment) {
-      await cloudinaryService.deleteFile(attachment.s3_key);
+      await s3Service.deleteFile(attachment.s3_key);
     }
     await visitService.deleteAttachment(req.params.attachmentId);
     const response: ApiResponse<any> = { success: true, message: 'Attachment deleted' };
