@@ -208,10 +208,8 @@ export const ReportDetail: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // Direct download from Cloudinary - detect file type
-                      const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(att.filename);
-                      const resourceType = isImage ? 'image' : 'raw';
-                      const cloudinaryUrl = `https://res.cloudinary.com/dfpghsikj/${resourceType}/upload/v1/${att.s3_key}`;
+                      // Direct download from Cloudinary using raw upload (works for all file types)
+                      const cloudinaryUrl = `https://res.cloudinary.com/dfpghsikj/raw/upload/v1/${att.s3_key}`;
                       const link = document.createElement('a');
                       link.href = cloudinaryUrl;
                       link.download = att.filename;
