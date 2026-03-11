@@ -17,15 +17,22 @@ const pdfService = new PdfService();
 // Public download endpoint (no auth required for file access)
 router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
   try {
+    console.log(`[Download] Requested: attachmentId=${req.params.attachmentId}`);
+
     const attachment = await visitService.getAttachment(req.params.attachmentId);
     if (!attachment) {
+      console.log(`[Download] ERROR: Attachment not found for ID: ${req.params.attachmentId}`);
       return res.status(404).json({ success: false, error: 'Attachment not found' });
     }
 
+    console.log(`[Download] Found attachment: filename=${attachment.filename}, s3_key=${attachment.s3_key}`);
+
     const downloadUrl = await cloudinaryService.getDownloadUrl(attachment.s3_key);
+    console.log(`[Download] Generated URL: ${downloadUrl}`);
 
     // Stream file from Cloudinary through backend
     const response = await axios.get(downloadUrl, { responseType: 'stream' });
+    console.log(`[Download] Axios response: status=${response.status}, content-type=${response.headers['content-type']}, content-length=${response.headers['content-length']}`);
 
     // Set headers for download
     res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
@@ -37,6 +44,7 @@ router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', asy
     // Pipe the stream to response
     response.data.pipe(res);
   } catch (error) {
+    console.error(`[Download] ERROR: ${(error as Error).message}`);
     res.status(400).json({ success: false, error: (error as Error).message });
   }
 });
