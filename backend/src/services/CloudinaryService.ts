@@ -53,9 +53,23 @@ export class CloudinaryService {
 
   async getDownloadUrl(publicId: string, expiresIn: number = 3600): Promise<string> {
     try {
-      // Generate direct download URL for any file type
-      // For raw files (PDFs, documents), use /raw/upload/ path
-      const url = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/f_auto/q_auto/${publicId}`;
+      // Generate authenticated token URL that works with "Blocked for delivery"
+      // Use auth_token with expiration timestamp
+      const endTimestamp = Math.floor(Date.now() / 1000) + expiresIn;
+
+      // Generate auth token using HMAC
+      const authString = `__cld_token__=st=${endTimestamp}~end=${endTimestamp}~auth_token_key`;
+      const crypto = require('crypto');
+      const authToken = crypto
+        .createHmac('sha256', process.env.CLOUDINARY_API_SECRET!)
+        .update(authString)
+        .digest('hex');
+
+      const url = cloudinary.utils.url(publicId, {
+        secure: true,
+        auth_token: `st=${endTimestamp}~end=${endTimestamp}~auth_token_key`,
+      });
+
       return url;
     } catch (error) {
       throw new Error(`Failed to generate download URL: ${(error as Error).message}`);

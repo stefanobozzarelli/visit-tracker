@@ -186,6 +186,13 @@ class ApiService {
     return response.data;
   }
 
+  async getAttachmentDownloadUrl(visitId: string, reportId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(
+      `/visits/${visitId}/reports/${reportId}/attachments/${attachmentId}/download`
+    );
+    return response.data;
+  }
+
   async deleteAttachment(visitId: string, reportId: string, attachmentId: string) {
     const response = await this.api.delete<ApiResponse<any>>(
       `/visits/${visitId}/reports/${reportId}/attachments/${attachmentId}`

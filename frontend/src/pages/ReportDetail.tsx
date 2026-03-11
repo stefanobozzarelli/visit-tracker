@@ -86,19 +86,23 @@ export const ReportDetail: React.FC = () => {
             formData.append('api_key', apiKey);
             formData.append('timestamp', timestamp.toString());
             formData.append('signature', signature);
-            formData.append('folder', 'visit-tracker');
+
+            console.log('Uploading to:', uploadUrl);
+            console.log('FormData contents:', { publicId, timestamp, signature: signature.substring(0, 20) + '...' });
 
             const uploadResponse = await fetch(uploadUrl, {
               method: 'POST',
               body: formData,
             });
 
+            console.log('Upload response status:', uploadResponse.status, uploadResponse.statusText);
+
             if (uploadResponse.ok) {
               console.log(`Successfully uploaded: ${file.name}`);
             } else {
               const errorData = await uploadResponse.text();
               console.error('Upload error response:', errorData);
-              setError(`Failed to upload ${file.name}: ${uploadResponse.statusText}`);
+              setError(`Failed to upload ${file.name}: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorData.substring(0, 100)}`);
             }
           } else {
             setError(presignedRes.error || 'Failed to get upload URL');
@@ -193,11 +197,24 @@ export const ReportDetail: React.FC = () => {
                 </span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
-                    onClick={() => {
-                      // Open file in new tab using Cloudinary URL
-                      const cloudName = 'dfpghsikj'; // Your Cloudinary cloud name
-                      const fileUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${att.s3_key}`;
-                      window.open(fileUrl, '_blank');
+                    onClick={async () => {
+                      try {
+                        // Use fetch to go through Vite proxy, then download
+                        const response = await fetch(`/api/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`);
+                        if (response.ok) {
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = att.filename;
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                        } else {
+                          alert('Errore nel download del file');
+                        }
+                      } catch (err) {
+                        alert(`Errore: ${(err as Error).message}`);
+                      }
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}

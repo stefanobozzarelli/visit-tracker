@@ -13,6 +13,23 @@ const permissionService = new PermissionService();
 const cloudinaryService = new CloudinaryService();
 const pdfService = new PdfService();
 
+// Public download endpoint (no auth required for file access)
+router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
+  try {
+    const attachment = await visitService.getAttachment(req.params.attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+
+    const downloadUrl = await cloudinaryService.getDownloadUrl(attachment.s3_key);
+
+    // Redirect to the Cloudinary URL
+    res.redirect(downloadUrl);
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
 router.use(authMiddleware);
 
 router.post('/', async (req: Request, res: Response) => {
@@ -166,7 +183,11 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
 router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Response) => {
   try {
     const { filename, fileSize } = req.body;
+    console.log(`[Upload] Generating presigned URL for: ${filename} (${fileSize} bytes)`);
+
     const { url, publicId, timestamp, signature, apiKey, cloudName } = await cloudinaryService.generatePresignedUrl(filename, fileSize);
+
+    console.log(`[Upload] Generated - publicId: ${publicId}, timestamp: ${timestamp}`);
 
     // Save attachment metadata after successful upload
     // Note: In real scenario, this would be done after the file is uploaded to Cloudinary
@@ -192,6 +213,7 @@ router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Resp
     };
     res.json(response);
   } catch (error) {
+    console.error('[Upload] Error:', (error as Error).message);
     res.status(400).json({ success: false, error: (error as Error).message });
   }
 });
