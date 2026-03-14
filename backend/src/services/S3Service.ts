@@ -28,7 +28,6 @@ export class S3Service {
       Key: s3Key,
       ContentType: 'application/octet-stream',
       Expires: 3600,
-      ContentLength: fileSize,
     };
 
     try {
