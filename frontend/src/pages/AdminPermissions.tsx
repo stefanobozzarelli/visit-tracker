@@ -50,6 +50,11 @@ export const AdminPermissions = () => {
   const [canCreate, setCanCreate] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
 
+  const [editingPermission, setEditingPermission] = useState<Permission | null>(null);
+  const [editCanView, setEditCanView] = useState(true);
+  const [editCanCreate, setEditCanCreate] = useState(false);
+  const [editCanEdit, setEditCanEdit] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -149,6 +154,39 @@ export const AdminPermissions = () => {
       loadData();
     } catch (err) {
       setError('Errore nella revoca del permesso');
+      console.error(err);
+    }
+  };
+
+  const handleEditPermission = (perm: Permission) => {
+    setEditingPermission(perm);
+    setEditCanView(perm.can_view);
+    setEditCanCreate(perm.can_create);
+    setEditCanEdit(perm.can_edit);
+  };
+
+  const handleSavePermission = async () => {
+    if (!editingPermission) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `${API_BASE_URL}/admin/permissions/${editingPermission.id}`,
+        {
+          can_view: editCanView,
+          can_create: editCanCreate,
+          can_edit: editCanEdit,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setSuccess('Permesso aggiornato con successo');
+      setEditingPermission(null);
+      loadData();
+    } catch (err) {
+      setError('Errore nell\'aggiornamento del permesso');
       console.error(err);
     }
   };
@@ -330,6 +368,12 @@ export const AdminPermissions = () => {
                     <td>{perm.can_edit ? '✓' : '-'}</td>
                     <td>
                       <button
+                        className="btn btn-small btn-warning"
+                        onClick={() => handleEditPermission(perm)}
+                      >
+                        Modifica
+                      </button>
+                      <button
                         className="btn btn-small btn-danger"
                         onClick={() => handleRevokePermission(perm.id)}
                       >
@@ -378,6 +422,66 @@ export const AdminPermissions = () => {
           </table>
         )}
       </div>
+
+      {editingPermission && (
+        <div className="modal-overlay" onClick={() => setEditingPermission(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Modifica Permesso</h2>
+            <div className="modal-body">
+              <p>
+                <strong>Utente:</strong> {editingPermission.user?.name || editingPermission.user_id}
+              </p>
+              <p>
+                <strong>Cliente:</strong> {editingPermission.client?.name || editingPermission.client_id}
+              </p>
+              <p>
+                <strong>Azienda:</strong> {editingPermission.company?.name || editingPermission.company_id}
+              </p>
+
+              <div className="permissions-checkboxes">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={editCanView}
+                    onChange={(e) => setEditCanView(e.target.checked)}
+                  />
+                  Visualizzare
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={editCanCreate}
+                    onChange={(e) => setEditCanCreate(e.target.checked)}
+                  />
+                  Creare visite
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={editCanEdit}
+                    onChange={(e) => setEditCanEdit(e.target.checked)}
+                  />
+                  Modificare report
+                </label>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                onClick={() => setEditingPermission(null)}
+                className="btn btn-secondary"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleSavePermission}
+                className="btn btn-primary"
+              >
+                Salva Modifiche
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
