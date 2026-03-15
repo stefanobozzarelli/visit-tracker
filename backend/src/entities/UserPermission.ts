@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, Unique, ForeignKey, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, Unique, JoinColumn } from 'typeorm';
 import { User } from './User';
 import { Client } from './Client';
 import { Company } from './Company';
@@ -10,15 +10,12 @@ export class UserPermission {
   id: string;
 
   @Column()
-  @ForeignKey(() => User)
   user_id: string;
 
   @Column()
-  @ForeignKey(() => Client)
   client_id: string;
 
   @Column()
-  @ForeignKey(() => Company)
   company_id: string;
 
   @Column({ default: true })
