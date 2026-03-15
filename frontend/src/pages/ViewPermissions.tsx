@@ -48,6 +48,8 @@ export const ViewPermissions = () => {
   const [editCanCreate, setEditCanCreate] = useState(false);
   const [editCanEdit, setEditCanEdit] = useState(false);
 
+  const [searchClient, setSearchClient] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -143,7 +145,15 @@ export const ViewPermissions = () => {
   const getCompanyName = (companyId: string) => companies.find((c) => c.id === companyId)?.name || companyId;
 
   const getSortedPermissions = () => {
-    return [...permissions].sort((a, b) => {
+    let filtered = [...permissions];
+
+    if (searchClient) {
+      filtered = filtered.filter((perm) =>
+        getClientName(perm.client_id).toLowerCase().includes(searchClient.toLowerCase())
+      );
+    }
+
+    return filtered.sort((a, b) => {
       const userNameA = getUserName(a.user_id).toLowerCase();
       const userNameB = getUserName(b.user_id).toLowerCase();
       if (userNameA !== userNameB) return userNameA.localeCompare(userNameB);
@@ -178,6 +188,25 @@ export const ViewPermissions = () => {
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
+
+      {permissions.length > 0 && (
+        <div className="form-group" style={{ marginBottom: '20px' }}>
+          <label>Cerca Cliente</label>
+          <input
+            type="text"
+            placeholder="Digita il nome del cliente..."
+            value={searchClient}
+            onChange={(e) => setSearchClient(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              border: '1px solid var(--color-border)',
+              borderRadius: '4px',
+              fontSize: '14px',
+            }}
+          />
+        </div>
+      )}
 
       <div className="table-section">
         {permissions.length === 0 ? (
