@@ -213,8 +213,25 @@ export const ReportDetail: React.FC = () => {
                     ⬇️ Scarica
                   </button>
                   <button
-                    onClick={() => {
-                      // Delete attachment logic here
+                    onClick={async () => {
+                      if (!window.confirm(`Eliminare ${att.filename}?`)) return;
+                      try {
+                        const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+                        const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}`;
+                        const res = await fetch(url, {
+                          method: 'DELETE',
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                          },
+                        });
+                        if (res.ok) {
+                          loadReport();
+                        } else {
+                          setError('Errore nell\'eliminazione del file');
+                        }
+                      } catch (err) {
+                        setError((err as Error).message);
+                      }
                     }}
                     className="btn-danger"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}

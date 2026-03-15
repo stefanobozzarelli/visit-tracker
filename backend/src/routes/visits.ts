@@ -22,8 +22,9 @@ router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', asy
       return res.status(404).json({ success: false, error: 'Attachment not found' });
     }
 
-    // Generate presigned S3 download URL and redirect
+    // Generate presigned S3 download URL and redirect with Content-Disposition
     const downloadUrl = await s3Service.getDownloadUrl(attachment.s3_key);
+    res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
     res.redirect(downloadUrl);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
