@@ -134,10 +134,15 @@
   height: 16px;
 }
 
+.table-section {
+  overflow-x: auto;
+}
+
 .permissions-table {
   width: 100%;
   border-collapse: collapse;
   background: var(--color-white);
+  min-width: 600px;
 }
 
 .permissions-table thead {
@@ -168,6 +173,18 @@
 .permissions-table .btn-danger {
   padding: 5px 10px;
   font-size: 12px;
+}
+
+.permissions-table .btn-warning {
+  padding: 5px 10px;
+  font-size: 12px;
+  background-color: #ff9800;
+  color: white;
+  margin-right: 5px;
+}
+
+.permissions-table .btn-warning:hover {
+  background-color: #f57c00;
 }
 
 .btn {
