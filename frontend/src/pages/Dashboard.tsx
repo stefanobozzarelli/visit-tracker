@@ -13,8 +13,10 @@ export const Dashboard: React.FC = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadVisits();
-  }, []);
+    if (user?.id) {
+      loadVisits();
+    }
+  }, [user?.id]);
 
   const loadVisits = async () => {
     try {
