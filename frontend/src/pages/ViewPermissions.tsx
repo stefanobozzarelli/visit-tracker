@@ -138,6 +138,10 @@ export const ViewPermissions = () => {
     }
   };
 
+  const getUserName = (userId: string) => users.find((u) => u.id === userId)?.name || userId;
+  const getClientName = (clientId: string) => clients.find((c) => c.id === clientId)?.name || clientId;
+  const getCompanyName = (companyId: string) => companies.find((c) => c.id === companyId)?.name || companyId;
+
   if (loading) {
     return <div className="admin-permissions"><p>Caricamento...</p></div>;
   }
@@ -178,9 +182,9 @@ export const ViewPermissions = () => {
             <tbody>
               {permissions.map((perm) => (
                 <tr key={perm.id}>
-                  <td>{perm.user?.name || perm.user_id}</td>
-                  <td>{perm.client?.name || perm.client_id}</td>
-                  <td>{perm.company?.name || perm.company_id}</td>
+                  <td>{getUserName(perm.user_id)}</td>
+                  <td>{getClientName(perm.client_id)}</td>
+                  <td>{getCompanyName(perm.company_id)}</td>
                   <td>{perm.can_view ? '✓' : '-'}</td>
                   <td>{perm.can_create ? '✓' : '-'}</td>
                   <td>{perm.can_edit ? '✓' : '-'}</td>
@@ -211,13 +215,13 @@ export const ViewPermissions = () => {
             <h2>Modifica Permesso</h2>
             <div className="modal-body">
               <p>
-                <strong>Utente:</strong> {editingPermission.user?.name || editingPermission.user_id}
+                <strong>Utente:</strong> {getUserName(editingPermission.user_id)}
               </p>
               <p>
-                <strong>Cliente:</strong> {editingPermission.client?.name || editingPermission.client_id}
+                <strong>Cliente:</strong> {getClientName(editingPermission.client_id)}
               </p>
               <p>
-                <strong>Azienda:</strong> {editingPermission.company?.name || editingPermission.company_id}
+                <strong>Azienda:</strong> {getCompanyName(editingPermission.company_id)}
               </p>
 
               <div className="permissions-checkboxes">
