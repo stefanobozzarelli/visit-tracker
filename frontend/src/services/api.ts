@@ -178,10 +178,10 @@ class ApiService {
   }
 
   // File Upload
-  async getPresignedUrl(visitId: string, reportId: string, filename: string, fileSize: number) {
+  async getPresignedUrl(visitId: string, reportId: string, filename: string, fileSize: number, contentType: string = 'application/octet-stream') {
     const response = await this.api.post<ApiResponse<any>>(
       `/visits/${visitId}/reports/${reportId}/upload`,
-      { filename, fileSize }
+      { filename, fileSize, contentType }
     );
     return response.data;
   }

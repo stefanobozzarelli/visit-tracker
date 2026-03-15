@@ -181,8 +181,8 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
 
 router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Response) => {
   try {
-    const { filename, fileSize } = req.body;
-    const { url, s3Key } = await s3Service.generatePresignedUrl(filename, fileSize);
+    const { filename, fileSize, contentType } = req.body;
+    const { url, s3Key } = await s3Service.generatePresignedUrl(filename, fileSize, contentType || 'application/octet-stream');
 
     // Save attachment metadata with S3 key
     const attachment = await visitService.addAttachment(

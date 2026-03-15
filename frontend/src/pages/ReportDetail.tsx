@@ -73,7 +73,8 @@ export const ReportDetail: React.FC = () => {
             visitId,
             reportId,
             file.name,
-            file.size
+            file.size,
+            file.type || 'application/octet-stream'
           );
 
           if (presignedRes.success && presignedRes.data) {
