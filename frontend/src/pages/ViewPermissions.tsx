@@ -142,6 +142,22 @@ export const ViewPermissions = () => {
   const getClientName = (clientId: string) => clients.find((c) => c.id === clientId)?.name || clientId;
   const getCompanyName = (companyId: string) => companies.find((c) => c.id === companyId)?.name || companyId;
 
+  const getSortedPermissions = () => {
+    return [...permissions].sort((a, b) => {
+      const userNameA = getUserName(a.user_id).toLowerCase();
+      const userNameB = getUserName(b.user_id).toLowerCase();
+      if (userNameA !== userNameB) return userNameA.localeCompare(userNameB);
+
+      const clientNameA = getClientName(a.client_id).toLowerCase();
+      const clientNameB = getClientName(b.client_id).toLowerCase();
+      if (clientNameA !== clientNameB) return clientNameA.localeCompare(clientNameB);
+
+      const companyNameA = getCompanyName(a.company_id).toLowerCase();
+      const companyNameB = getCompanyName(b.company_id).toLowerCase();
+      return companyNameA.localeCompare(companyNameB);
+    });
+  };
+
   if (loading) {
     return <div className="admin-permissions"><p>Caricamento...</p></div>;
   }
@@ -180,7 +196,7 @@ export const ViewPermissions = () => {
               </tr>
             </thead>
             <tbody>
-              {permissions.map((perm) => (
+              {getSortedPermissions().map((perm) => (
                 <tr key={perm.id}>
                   <td>{getUserName(perm.user_id)}</td>
                   <td>{getClientName(perm.client_id)}</td>
