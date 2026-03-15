@@ -22,9 +22,25 @@ router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', asy
       return res.status(404).json({ success: false, error: 'Attachment not found' });
     }
 
-    // Generate presigned S3 download URL and redirect with Content-Disposition
-    const downloadUrl = await s3Service.getDownloadUrl(attachment.s3_key);
-    res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+    // Generate presigned S3 download URL with response-content-disposition parameter to force download
+    const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+    const s3Client = new S3Client({
+      region: process.env.AWS_REGION || 'eu-north-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+      },
+    });
+
+    const s3Command = new GetObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
+      Key: attachment.s3_key,
+      ResponseContentDisposition: `attachment; filename="${attachment.filename}"`,
+    });
+
+    const downloadUrl = await getSignedUrl(s3Client, s3Command, { expiresIn: 3600 });
     res.redirect(downloadUrl);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
