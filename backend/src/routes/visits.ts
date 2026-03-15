@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { VisitService } from '../services/VisitService';
 import { PermissionService } from '../services/PermissionService';
 import { S3Service } from '../services/S3Service';
@@ -179,8 +180,6 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
   }
 });
 
-// Import multer for file upload
-import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/:visitId/reports/:reportId/upload', upload.single('file'), async (req: Request, res: Response) => {
