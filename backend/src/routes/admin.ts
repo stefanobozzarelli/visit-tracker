@@ -98,6 +98,34 @@ router.get('/permissions', authMiddleware, adminOnly, async (req: Request, res: 
 });
 
 /**
+ * PUT /api/admin/permissions/:permissionId
+ * Aggiorna i permessi di un utente
+ */
+router.put('/permissions/:permissionId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { permissionId } = req.params;
+    const { can_view, can_create, can_edit } = req.body;
+
+    const permission = await permissionService.updatePermission(
+      permissionId,
+      can_view !== false,
+      can_create === true,
+      can_edit === true
+    );
+
+    res.json({
+      success: true,
+      data: permission,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
  * DELETE /api/admin/permissions/:permissionId
  * Revoca un permesso
  */

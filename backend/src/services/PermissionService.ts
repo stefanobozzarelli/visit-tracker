@@ -59,6 +59,30 @@ export class PermissionService {
   }
 
   /**
+   * Aggiorna i permessi di un utente per una combinazione cliente + azienda
+   */
+  async updatePermission(
+    permissionId: string,
+    canView: boolean,
+    canCreate: boolean,
+    canEdit: boolean
+  ): Promise<UserPermission> {
+    const permission = await this.permissionRepository.findOne({
+      where: { id: permissionId },
+    });
+
+    if (!permission) {
+      throw new Error('Permesso non trovato');
+    }
+
+    permission.can_view = canView;
+    permission.can_create = canCreate;
+    permission.can_edit = canEdit;
+
+    return await this.permissionRepository.save(permission);
+  }
+
+  /**
    * Verifica se un utente ha accesso a una combinazione cliente + azienda
    */
   async checkPermission(
