@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, Unique, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, Unique } from 'typeorm';
 import { User } from './User';
 import { Client } from './Client';
 import { Company } from './Company';
@@ -35,18 +35,14 @@ export class UserPermission {
 
   // Relations
   @ManyToOne(() => User, user => user.permissions)
-  @JoinColumn({ name: 'user_id' })
   user: User;
 
   @ManyToOne(() => Client, client => client.permissions)
-  @JoinColumn({ name: 'client_id' })
   client: Client;
 
   @ManyToOne(() => Company, company => company.permissions)
-  @JoinColumn({ name: 'company_id' })
   company: Company;
 
   @ManyToOne(() => User, user => user.assigned_permissions)
-  @JoinColumn({ name: 'assigned_by_user_id' })
   assigned_by_user: User;
 }
