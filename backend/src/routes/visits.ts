@@ -14,7 +14,44 @@ const permissionService = new PermissionService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 
-// Public download endpoint (no auth required for file access)
+// Helper function to generate S3 presigned URL
+async function generateS3Url(s3Key: string, filename: string, forceDownload: boolean = false) {
+  const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+  const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+  const s3Client = new S3Client({
+    region: process.env.AWS_REGION || 'eu-north-1',
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    },
+  });
+
+  const s3Command = new GetObjectCommand({
+    Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
+    Key: s3Key,
+    ...(forceDownload && { ResponseContentDisposition: `attachment; filename="${filename}"` }),
+  });
+
+  return await getSignedUrl(s3Client, s3Command, { expiresIn: 3600 });
+}
+
+// Public preview endpoint (opens file in browser - no auth required)
+router.get('/:visitId/reports/:reportId/attachments/:attachmentId/preview', async (req: Request, res: Response) => {
+  try {
+    const attachment = await visitService.getAttachment(req.params.attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+
+    const previewUrl = await generateS3Url(attachment.s3_key, attachment.filename, false);
+    res.redirect(previewUrl);
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Public download endpoint (forces download - no auth required)
 router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
   try {
     const attachment = await visitService.getAttachment(req.params.attachmentId);
@@ -22,25 +59,7 @@ router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', asy
       return res.status(404).json({ success: false, error: 'Attachment not found' });
     }
 
-    // Generate presigned S3 download URL with response-content-disposition parameter to force download
-    const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
-    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-
-    const s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'eu-north-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
-    });
-
-    const s3Command = new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
-      Key: attachment.s3_key,
-      ResponseContentDisposition: `attachment; filename="${attachment.filename}"`,
-    });
-
-    const downloadUrl = await getSignedUrl(s3Client, s3Command, { expiresIn: 3600 });
+    const downloadUrl = await generateS3Url(attachment.s3_key, attachment.filename, true);
     res.redirect(downloadUrl);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });

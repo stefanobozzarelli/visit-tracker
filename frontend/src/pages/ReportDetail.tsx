@@ -185,9 +185,9 @@ export const ReportDetail: React.FC = () => {
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
                     onClick={() => {
-                      // Open in new window
+                      // Open in new window (preview, not download)
                       const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-                      const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
+                      const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}/preview`;
                       window.open(url, '_blank');
                     }}
                     className="btn-primary"
