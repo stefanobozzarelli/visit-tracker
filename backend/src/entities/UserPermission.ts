@@ -9,13 +9,13 @@ export class UserPermission {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ nullable: true })
   user_id: string;
 
-  @Column()
+  @Column({ nullable: true })
   client_id: string;
 
-  @Column()
+  @Column({ nullable: true })
   company_id: string;
 
   @Column({ default: true })
@@ -27,7 +27,7 @@ export class UserPermission {
   @Column({ default: false })
   can_edit: boolean;
 
-  @Column()
+  @Column({ nullable: true })
   assigned_by_user_id: string;
 
   @CreateDateColumn()
