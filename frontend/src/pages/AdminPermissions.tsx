@@ -45,7 +45,7 @@ export const AdminPermissions = () => {
 
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedClient, setSelectedClient] = useState('');
-  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [canView, setCanView] = useState(true);
   const [canCreate, setCanCreate] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
@@ -99,33 +99,39 @@ export const AdminPermissions = () => {
     setError('');
     setSuccess('');
 
-    if (!selectedUser || !selectedClient || !selectedCompany) {
-      setError('Seleziona utente, cliente e azienda');
+    if (!selectedUser || !selectedClient || selectedCompanies.length === 0) {
+      setError('Seleziona utente, cliente e almeno una azienda');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_BASE_URL}/admin/permissions`,
-        {
-          userId: selectedUser,
-          clientId: selectedClient,
-          companyId: selectedCompany,
-          can_view: canView,
-          can_create: canCreate,
-          can_edit: canEdit,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+
+      // Crea un permesso per ogni azienda selezionata
+      const promises = selectedCompanies.map((companyId) =>
+        axios.post(
+          `${API_BASE_URL}/admin/permissions`,
+          {
+            userId: selectedUser,
+            clientId: selectedClient,
+            companyId: companyId,
+            can_view: canView,
+            can_create: canCreate,
+            can_edit: canEdit,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
       );
 
-      setSuccess('Permesso assegnato con successo');
+      await Promise.all(promises);
+
+      setSuccess(`Permessi assegnati con successo per ${selectedCompanies.length} azienda(e)`);
       resetForm();
       loadData();
     } catch (err) {
-      setError('Errore nell\'assegnazione del permesso');
+      setError('Errore nell\'assegnazione dei permessi');
       console.error(err);
     }
   };
@@ -167,7 +173,7 @@ export const AdminPermissions = () => {
   const resetForm = () => {
     setSelectedUser('');
     setSelectedClient('');
-    setSelectedCompany('');
+    setSelectedCompanies([]);
     setCanView(true);
     setCanCreate(false);
     setCanEdit(false);
@@ -209,37 +215,57 @@ export const AdminPermissions = () => {
               </select>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>Cliente</label>
-                <select
-                  value={selectedClient}
-                  onChange={(e) => setSelectedClient(e.target.value)}
-                  required
-                >
-                  <option value="">Seleziona cliente...</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="form-group">
+              <label>Cliente</label>
+              <select
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                required
+              >
+                <option value="">Seleziona cliente...</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <div className="form-group">
-                <label>Azienda</label>
-                <select
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
-                  required
-                >
-                  <option value="">Seleziona azienda...</option>
+            <div className="form-group">
+              <label>Aziende</label>
+              <div className="companies-checkboxes">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedCompanies.length === companies.length && companies.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedCompanies(companies.map((c) => c.id));
+                      } else {
+                        setSelectedCompanies([]);
+                      }
+                    }}
+                  />
+                  <strong>Seleziona tutte</strong>
+                </label>
+                <div style={{ marginTop: '0.5rem' }}>
                   {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
+                    <label key={company.id}>
+                      <input
+                        type="checkbox"
+                        checked={selectedCompanies.includes(company.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCompanies([...selectedCompanies, company.id]);
+                          } else {
+                            setSelectedCompanies(selectedCompanies.filter((id) => id !== company.id));
+                          }
+                        }}
+                      />
                       {company.name}
-                    </option>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
 
