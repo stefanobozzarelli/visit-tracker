@@ -25,7 +25,7 @@ export const Header: React.FC = () => {
                 <Link to="/admin/todos" className="admin-link">
                   📋 Tutti i TODO
                 </Link>
-                <Link to="/admin/permissions" className="admin-link">
+                <Link to="/admin/permissions/view" className="admin-link">
                   ⚙️ Gestione Permessi
                 </Link>
               </>
