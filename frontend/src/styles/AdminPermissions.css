@@ -142,7 +142,7 @@
   width: 100%;
   border-collapse: collapse;
   background: var(--color-white);
-  min-width: 600px;
+  min-width: 900px;
 }
 
 .permissions-table thead {
