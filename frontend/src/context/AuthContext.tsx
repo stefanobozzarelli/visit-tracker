@@ -9,6 +9,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     // Load token and user from localStorage
@@ -18,6 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
     }
+    setIsInitializing(false);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -79,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         isLoading,
         error,
+        isInitializing,
       }}
     >
       {children}

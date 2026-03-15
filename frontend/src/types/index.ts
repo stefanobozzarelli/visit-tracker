@@ -13,6 +13,7 @@ export interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   error: string | null;
+  isInitializing: boolean;
 }
 
 export interface Client {
