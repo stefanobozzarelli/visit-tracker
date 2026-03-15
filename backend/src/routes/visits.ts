@@ -179,17 +179,47 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
   }
 });
 
-router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Response) => {
+// Import multer for file upload
+import multer from 'multer';
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.post('/:visitId/reports/:reportId/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
-    const { filename, fileSize, contentType } = req.body;
-    const { url, s3Key } = await s3Service.generatePresignedUrl(filename, fileSize, contentType || 'application/octet-stream');
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file provided' });
+    }
 
-    console.log(`[UPLOAD] Generating presigned URL for file: ${filename}`);
-    console.log(`[UPLOAD] S3 Key: ${s3Key}`);
-    console.log(`[UPLOAD] Content-Type: ${contentType || 'application/octet-stream'}`);
-    console.log(`[UPLOAD] Presigned URL: ${url.substring(0, 100)}...`);
+    const filename = req.file.originalname;
+    const fileBuffer = req.file.buffer;
+    const fileSize = req.file.size;
+    const contentType = req.file.mimetype;
 
-    // Save attachment metadata with S3 key
+    console.log(`[UPLOAD] Uploading file: ${filename} (${fileSize} bytes, ${contentType})`);
+
+    // Upload directly to S3
+    const { v4: uuidv4 } = require('uuid');
+    const s3Key = `uploads/${uuidv4()}.${filename.split('.').pop()}`;
+
+    const { PutObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+    const s3Client = new S3Client({
+      region: process.env.AWS_REGION || 'eu-north-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+      },
+    });
+
+    const s3Command = new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
+      Key: s3Key,
+      Body: fileBuffer,
+      ContentType: contentType,
+    });
+
+    await s3Client.send(s3Command);
+    console.log(`[UPLOAD] File uploaded to S3: ${s3Key}`);
+
+    // Save attachment metadata AFTER successful S3 upload
     const attachment = await visitService.addAttachment(
       req.params.reportId,
       req.user!.id,
@@ -201,9 +231,9 @@ router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Resp
     const response: ApiResponse<any> = {
       success: true,
       data: {
-        uploadUrl: url,
-        s3Key,
         attachmentId: attachment.id,
+        filename: attachment.filename,
+        file_size: attachment.file_size,
       },
     };
     res.json(response);

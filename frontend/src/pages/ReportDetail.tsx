@@ -68,39 +68,31 @@ export const ReportDetail: React.FC = () => {
     try {
       for (const file of Array.from(files)) {
         try {
-          // Get presigned URL and signature from backend
-          const presignedRes = await apiService.getPresignedUrl(
-            visitId,
-            reportId,
-            file.name,
-            file.size,
-            file.type || 'application/octet-stream'
-          );
+          // Create FormData and send to backend
+          const formData = new FormData();
+          formData.append('file', file);
 
-          if (presignedRes.success && presignedRes.data) {
-            const { uploadUrl, s3Key } = presignedRes.data;
-            console.log(`[FRONTEND] Got presigned URL for ${file.name}`);
-            console.log(`[FRONTEND] S3 Key: ${s3Key}`);
-            console.log(`[FRONTEND] File type: ${file.type}`);
-            console.log(`[FRONTEND] Upload URL: ${uploadUrl.substring(0, 100)}...`);
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+          const uploadUrl = `${baseUrl}/visits/${visitId}/reports/${reportId}/upload`;
 
-            // Upload file to S3 using presigned URL
-            const uploadResponse = await fetch(uploadUrl, {
-              method: 'PUT',
-              body: file,
-            });
+          console.log(`[FRONTEND] Uploading ${file.name} to backend`);
 
-            console.log(`[FRONTEND] Upload response status: ${uploadResponse.status}`);
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
 
-            if (uploadResponse.ok) {
-              console.log(`Successfully uploaded: ${file.name}`);
-            } else {
-              const errorData = await uploadResponse.text();
-              console.error('Upload error response:', errorData);
-              setError(`Failed to upload ${file.name}: ${uploadResponse.status} ${uploadResponse.statusText}`);
-            }
+          console.log(`[FRONTEND] Upload response status: ${uploadResponse.status}`);
+
+          if (uploadResponse.ok) {
+            const result = await uploadResponse.json();
+            console.log(`Successfully uploaded: ${file.name}`);
           } else {
-            setError(presignedRes.error || 'Failed to get upload URL');
+            const errorData = await uploadResponse.json();
+            setError(`Failed to upload ${file.name}: ${errorData.error}`);
           }
         } catch (fileErr) {
           console.error(`Error uploading ${file.name}:`, fileErr);
