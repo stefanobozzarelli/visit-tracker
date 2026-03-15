@@ -88,9 +88,6 @@ export const ReportDetail: React.FC = () => {
             const uploadResponse = await fetch(uploadUrl, {
               method: 'PUT',
               body: file,
-              headers: {
-                'Content-Type': file.type || 'application/octet-stream',
-              },
             });
 
             console.log(`[FRONTEND] Upload response status: ${uploadResponse.status}`);
