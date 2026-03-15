@@ -13,7 +13,8 @@ import { Visits } from './pages/Visits';
 import { NewVisit } from './pages/NewVisit';
 import { VisitDetail } from './pages/VisitDetail';
 import { ReportDetail } from './pages/ReportDetail';
-import { AdminPermissions } from './pages/AdminPermissions';
+import { AssignPermissions } from './pages/AssignPermissions';
+import { ViewPermissions } from './pages/ViewPermissions';
 import { ExportPdf } from './pages/ExportPdf';
 import { MyTodos } from './pages/MyTodos';
 import { AdminTodos } from './pages/AdminTodos';
@@ -95,10 +96,18 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="/admin/permissions"
+              path="/admin/permissions/assign"
               element={
                 <ProtectedRoute>
-                  <AdminPermissions />
+                  <AssignPermissions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/permissions/view"
+              element={
+                <ProtectedRoute>
+                  <ViewPermissions />
                 </ProtectedRoute>
               }
             />
