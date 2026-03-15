@@ -184,6 +184,11 @@ router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Resp
     const { filename, fileSize, contentType } = req.body;
     const { url, s3Key } = await s3Service.generatePresignedUrl(filename, fileSize, contentType || 'application/octet-stream');
 
+    console.log(`[UPLOAD] Generating presigned URL for file: ${filename}`);
+    console.log(`[UPLOAD] S3 Key: ${s3Key}`);
+    console.log(`[UPLOAD] Content-Type: ${contentType || 'application/octet-stream'}`);
+    console.log(`[UPLOAD] Presigned URL: ${url.substring(0, 100)}...`);
+
     // Save attachment metadata with S3 key
     const attachment = await visitService.addAttachment(
       req.params.reportId,
@@ -203,6 +208,7 @@ router.post('/:visitId/reports/:reportId/upload', async (req: Request, res: Resp
     };
     res.json(response);
   } catch (error) {
+    console.error(`[UPLOAD ERROR] ${(error as Error).message}`);
     res.status(400).json({ success: false, error: (error as Error).message });
   }
 });

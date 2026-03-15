@@ -78,7 +78,11 @@ export const ReportDetail: React.FC = () => {
           );
 
           if (presignedRes.success && presignedRes.data) {
-            const { uploadUrl } = presignedRes.data;
+            const { uploadUrl, s3Key } = presignedRes.data;
+            console.log(`[FRONTEND] Got presigned URL for ${file.name}`);
+            console.log(`[FRONTEND] S3 Key: ${s3Key}`);
+            console.log(`[FRONTEND] File type: ${file.type}`);
+            console.log(`[FRONTEND] Upload URL: ${uploadUrl.substring(0, 100)}...`);
 
             // Upload file to S3 using presigned URL
             const uploadResponse = await fetch(uploadUrl, {
@@ -88,6 +92,8 @@ export const ReportDetail: React.FC = () => {
                 'Content-Type': file.type || 'application/octet-stream',
               },
             });
+
+            console.log(`[FRONTEND] Upload response status: ${uploadResponse.status}`);
 
             if (uploadResponse.ok) {
               console.log(`Successfully uploaded: ${file.name}`);
