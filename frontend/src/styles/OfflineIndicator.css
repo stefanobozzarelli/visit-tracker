@@ -1,0 +1,80 @@
+.offline-indicator {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.offline-indicator.offline {
+  background-color: #ff9800;
+  color: white;
+  border-top: 2px solid #f57c00;
+}
+
+.offline-indicator.online.syncing {
+  background-color: #2196f3;
+  color: white;
+  border-top: 2px solid #1976d2;
+}
+
+.offline-indicator.online.synced {
+  background-color: #4caf50;
+  color: white;
+  border-top: 2px solid #388e3c;
+}
+
+.offline-indicator .indicator-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.offline-indicator .spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.offline-indicator .check-icon {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.offline-indicator .wifi-icon {
+  font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .offline-indicator .indicator-content {
+    padding: 10px 15px;
+    font-size: 13px;
+    gap: 8px;
+  }
+}
