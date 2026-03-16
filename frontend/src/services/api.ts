@@ -483,6 +483,43 @@ class ApiService {
     });
     return response.data;
   }
+
+  // Users Management
+  async createUser(email: string, name: string, password: string, role: string = 'sales_rep', company_id?: string) {
+    const response = await this.api.post<ApiResponse<any>>('/admin/users', {
+      email,
+      name,
+      password,
+      role,
+      company_id,
+    });
+    return response.data;
+  }
+
+  async getUsers(filters?: { role?: string; company_id?: string }) {
+    const response = await this.api.get<ApiResponse<any>>('/admin/users', { params: filters });
+    return response.data;
+  }
+
+  async getUserById(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/admin/users/${id}`);
+    return response.data;
+  }
+
+  async updateUser(id: string, data: { name?: string; email?: string; role?: string; company_id?: string }) {
+    const response = await this.api.put<ApiResponse<any>>(`/admin/users/${id}`, data);
+    return response.data;
+  }
+
+  async changeUserPassword(id: string, newPassword: string) {
+    const response = await this.api.patch<ApiResponse<any>>(`/admin/users/${id}/password`, { newPassword });
+    return response.data;
+  }
+
+  async deleteUser(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/admin/users/${id}`);
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

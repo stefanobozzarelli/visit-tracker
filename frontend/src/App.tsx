@@ -17,6 +17,7 @@ import { VisitDetail } from './pages/VisitDetail';
 import { ReportDetail } from './pages/ReportDetail';
 import { AssignPermissions } from './pages/AssignPermissions';
 import { ViewPermissions } from './pages/ViewPermissions';
+import { AdminUsers } from './pages/AdminUsers';
 import { ExportPdf } from './pages/ExportPdf';
 import { MyTodos } from './pages/MyTodos';
 import { AdminTodos } from './pages/AdminTodos';
@@ -114,6 +115,14 @@ export const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <ViewPermissions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute>
+                  <AdminUsers />
                 </ProtectedRoute>
               }
             />

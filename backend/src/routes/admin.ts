@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { PermissionService } from '../services/PermissionService';
+import { UserService } from '../services/UserService';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 const permissionService = new PermissionService();
+const userService = new UserService();
 
 // Middleware: solo admin
 function adminOnly(req: Request, res: Response, next: Function) {
@@ -29,6 +31,134 @@ router.get('/users', authMiddleware, async (req: Request, res: Response) => {
     });
   } catch (error) {
     res.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * POST /api/admin/users
+ * Crea un nuovo utente
+ */
+router.post('/users', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { email, name, password, role, company_id } = req.body;
+
+    if (!email || !name || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'email, name, and password are required',
+      });
+    }
+
+    const user = await userService.createUser(email, name, password, role, company_id);
+    res.status(201).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * GET /api/admin/users/:userId
+ * Ottiene dettagli di un utente specifico
+ */
+router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const user = await userService.getUserById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+    res.json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:userId
+ * Aggiorna i dati di un utente
+ */
+router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { name, email, role, company_id } = req.body;
+    const user = await userService.updateUser(req.params.userId, {
+      name,
+      email,
+      role,
+      company_id,
+    });
+    res.json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * PATCH /api/admin/users/:userId/password
+ * Cambia la password di un utente
+ */
+router.patch('/users/:userId/password', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'newPassword is required',
+      });
+    }
+
+    await userService.changePassword(req.params.userId, newPassword);
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/users/:userId
+ * Cancella un utente e tutti i suoi dati associati
+ */
+router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    await permissionService.deleteUser(userId);
+
+    res.json({
+      success: true,
+      message: 'User deleted successfully',
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
       error: (error as Error).message,
     });
