@@ -31,8 +31,8 @@ class ApiService {
     this.api.interceptors.response.use(
       (response) => {
         console.log(`[Interceptor] Response received: ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
-        // Cache successful GET requests
-        if (response.config.method === 'get' && response.status === 200) {
+        // Cache successful GET requests (200 and 304 which browser resolves to cached data)
+        if (response.config.method === 'get' && (response.status === 200 || response.status === 304)) {
           console.log(`[Cache] Caching response: ${response.config.url}`, response.data);
           this.cacheResponse(response.config.url || '', response.data);
         }

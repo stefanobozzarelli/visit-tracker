@@ -23,11 +23,20 @@ class OfflineDB {
     'metadata',
   ];
 
+  private initPromise: Promise<void> | null = null;
+
   async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    // Prevent multiple concurrent init calls
+    if (this.db) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        this.initPromise = null;
+        reject(request.error);
+      };
       request.onsuccess = () => {
         this.db = request.result;
         resolve();
@@ -39,26 +48,35 @@ class OfflineDB {
         // Create object stores
         this.objectStores.forEach((storeName) => {
           if (!db.objectStoreNames.contains(storeName)) {
-            const store = db.createObjectStore(storeName, { keyPath: 'id' });
-            store.createIndex('timestamp', 'timestamp', { unique: false });
+            if (storeName === 'syncQueue') {
+              // syncQueue needs autoIncrement
+              const store = db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+            } else {
+              const store = db.createObjectStore(storeName, { keyPath: 'id' });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
           }
         });
-
-        // Create syncQueue store with compound key and timestamp index for FIFO ordering
-        if (!db.objectStoreNames.contains('syncQueue')) {
-          const syncQueueStore = db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
-          syncQueueStore.createIndex('timestamp', 'timestamp', { unique: false });
-        }
       };
     });
+
+    return this.initPromise;
   }
 
   isReady(): boolean {
     return this.db !== null;
   }
 
+  // Auto-initialize DB if not ready - prevents timing issues
+  private async ensureReady(): Promise<void> {
+    if (!this.db) {
+      await this.init();
+    }
+  }
+
   async saveData(storeName: string, data: any[]): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readwrite');
@@ -90,7 +108,7 @@ class OfflineDB {
   }
 
   async getData(storeName: string): Promise<any[]> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readonly');
@@ -108,7 +126,7 @@ class OfflineDB {
     data: any,
     headers: any = {}
   ): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(['syncQueue'], 'readwrite');
@@ -132,7 +150,7 @@ class OfflineDB {
   }
 
   async getSyncQueue(): Promise<any[]> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(['syncQueue'], 'readonly');
@@ -159,7 +177,7 @@ class OfflineDB {
   }
 
   async removeSyncQueueItem(id: number): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(['syncQueue'], 'readwrite');
@@ -172,7 +190,7 @@ class OfflineDB {
   }
 
   async clearOldData(days: number = 30): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     const cutoffTime = Date.now() - days * 24 * 60 * 60 * 1000;
 
@@ -201,7 +219,7 @@ class OfflineDB {
   }
 
   async getLastSyncTime(): Promise<number> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve) => {
       const transaction = this.db!.transaction(['metadata'], 'readonly');
@@ -215,7 +233,7 @@ class OfflineDB {
   }
 
   async setLastSyncTime(): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(['metadata'], 'readwrite');
@@ -232,7 +250,7 @@ class OfflineDB {
   }
 
   async markAsPending(storeName: string, id: string): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readwrite');
@@ -260,7 +278,7 @@ class OfflineDB {
   }
 
   async getPendingItems(storeName: string): Promise<any[]> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readonly');
@@ -276,7 +294,7 @@ class OfflineDB {
   }
 
   async getConflictedItems(): Promise<any[]> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     const conflicted: any[] = [];
     const storesToCheck = ['clients', 'companies', 'visits', 'reports', 'attachments', 'permissions'];
@@ -302,7 +320,7 @@ class OfflineDB {
   }
 
   async resolveConflict(storeName: string, id: string, resolution: 'server' | 'client', serverData?: any): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readwrite');
@@ -347,7 +365,7 @@ class OfflineDB {
   }
 
   async updateSyncStatus(storeName: string, id: string, status: 'pending' | 'synced' | 'conflict'): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    await this.ensureReady();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([storeName], 'readwrite');
