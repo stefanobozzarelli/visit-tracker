@@ -97,6 +97,16 @@ router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
 router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const { name, email, role, company_id } = req.body;
+    console.log('PUT /users/:userId received:', { userId: req.params.userId, name, email, role, company_id });
+
+    // Validazione base
+    if (!name || !email || !role) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name, email, and role are required',
+      });
+    }
+
     const updateData: any = {
       name,
       email,
