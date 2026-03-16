@@ -43,9 +43,10 @@ class OfflineDB {
           }
         });
 
-        // Create syncQueue store with compound key
+        // Create syncQueue store with compound key and timestamp index for FIFO ordering
         if (!db.objectStoreNames.contains('syncQueue')) {
-          db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+          const syncQueueStore = db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+          syncQueueStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
       };
     });
@@ -108,13 +109,16 @@ class OfflineDB {
       const transaction = this.db!.transaction(['syncQueue'], 'readwrite');
       const store = transaction.objectStore('syncQueue');
 
-      const request = store.add({
+      // Use put() instead of add() and let autoIncrement generate the id
+      // This is more reliable than add() when dealing with autoIncrement
+      const request = store.put({
         method,
         url,
         data,
         headers,
         timestamp: Date.now(),
         status: 'pending',
+        // Don't include id - let autoIncrement generate it
       });
 
       request.onerror = () => reject(request.error);
@@ -129,13 +133,22 @@ class OfflineDB {
       const transaction = this.db!.transaction(['syncQueue'], 'readonly');
       const store = transaction.objectStore('syncQueue');
       const index = store.index('timestamp');
-      const request = index.getAll();
+      // Get all items ordered by timestamp (FIFO) - 'next' means ascending order (oldest first)
+      const request = index.openCursor(null, 'next');
+
+      const items: any[] = [];
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        // Filter only pending items
-        const pending = request.result.filter((item) => item.status === 'pending');
-        resolve(pending);
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result;
+        if (cursor) {
+          items.push(cursor.value);
+          cursor.continue();
+        } else {
+          // Filter only pending items, maintaining FIFO order
+          const pending = items.filter((item) => item.status === 'pending');
+          resolve(pending);
+        }
       };
     });
   }
