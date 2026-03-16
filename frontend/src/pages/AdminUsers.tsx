@@ -132,6 +132,7 @@ export const AdminUsers: React.FC = () => {
     }
 
     try {
+      // Update user data
       const response = await apiService.updateUser(editingUserId, {
         name: formData.name,
         email: formData.email,
@@ -139,20 +140,30 @@ export const AdminUsers: React.FC = () => {
         company_id: formData.company_id || undefined,
       });
 
-      if (response.success) {
-        setSuccess('User updated successfully');
-        setFormData({
-          name: '',
-          email: '',
-          password: '',
-          role: 'sales_rep',
-          company_id: '',
-        });
-        setEditingUserId(null);
-        await loadUsers();
-      } else {
+      if (!response.success) {
         setError(response.error || 'Failed to update user');
+        return;
       }
+
+      // If password is provided, update it separately
+      if (formData.password) {
+        const passwordResponse = await apiService.changeUserPassword(editingUserId, formData.password);
+        if (!passwordResponse.success) {
+          setError(passwordResponse.error || 'Failed to update password');
+          return;
+        }
+      }
+
+      setSuccess('User updated successfully');
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        role: 'sales_rep',
+        company_id: '',
+      });
+      setEditingUserId(null);
+      await loadUsers();
     } catch (err) {
       setError((err as Error).message || 'Error updating user');
     }
@@ -227,7 +238,6 @@ export const AdminUsers: React.FC = () => {
                 value={formData.email}
                 onChange={handleFormChange}
                 placeholder="user@example.com"
-                disabled={!!editingUserId}
               />
             </div>
 
@@ -242,7 +252,7 @@ export const AdminUsers: React.FC = () => {
               />
             </div>
 
-            {!editingUserId && (
+            {!editingUserId ? (
               <div className="form-group">
                 <label>Password</label>
                 <input
@@ -251,6 +261,17 @@ export const AdminUsers: React.FC = () => {
                   value={formData.password}
                   onChange={handleFormChange}
                   placeholder="Min 8 characters"
+                />
+              </div>
+            ) : (
+              <div className="form-group">
+                <label>New Password (optional)</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleFormChange}
+                  placeholder="Leave empty to keep current password"
                 />
               </div>
             )}

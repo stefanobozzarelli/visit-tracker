@@ -43,7 +43,7 @@
 
 .users-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 2fr;
   gap: 30px;
   margin-top: 20px;
 }
@@ -242,6 +242,7 @@ form {
 .users-table .actions {
   display: flex;
   gap: 5px;
+  white-space: nowrap;
 }
 
 .loading,
