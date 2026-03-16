@@ -27,7 +27,7 @@ export class UserService {
     }
 
     // Validazione ruolo
-    const validRoles = ['admin', 'manager', 'sales_rep'];
+    const validRoles = ['admin', 'backoffice', 'sales_rep'];
     if (!validRoles.includes(role)) {
       throw new Error('Invalid role');
     }
@@ -97,7 +97,7 @@ export class UserService {
 
     // Validazione ruolo se viene modificato
     if (data.role) {
-      const validRoles = ['admin', 'manager', 'sales_rep'];
+      const validRoles = ['admin', 'backoffice', 'sales_rep'];
       if (!validRoles.includes(data.role)) {
         throw new Error('Invalid role');
       }

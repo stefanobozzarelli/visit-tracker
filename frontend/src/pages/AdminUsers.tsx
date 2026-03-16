@@ -259,7 +259,7 @@ export const AdminUsers: React.FC = () => {
               <label>Role</label>
               <select name="role" value={formData.role} onChange={handleFormChange}>
                 <option value="sales_rep">Sales Rep</option>
-                <option value="manager">Manager</option>
+                <option value="backoffice">Backoffice</option>
                 <option value="admin">Admin</option>
               </select>
             </div>

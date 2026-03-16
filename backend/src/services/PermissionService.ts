@@ -98,7 +98,7 @@ export class PermissionService {
     }
 
     // Manager ha accesso totale
-    if (user?.role === 'manager') {
+    if (user?.role === 'backoffice') {
       return true;
     }
 
@@ -143,7 +143,7 @@ export class PermissionService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
     // Admin vede tutti i clienti
-    if (user?.role === 'admin' || user?.role === 'manager') {
+    if (user?.role === 'admin' || user?.role === 'backoffice') {
       return ['*']; // Wildcard per indicare "tutti"
     }
 
@@ -163,7 +163,7 @@ export class PermissionService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
     // Admin vede tutte
-    if (user?.role === 'admin' || user?.role === 'manager') {
+    if (user?.role === 'admin' || user?.role === 'backoffice') {
       return ['*'];
     }
 
