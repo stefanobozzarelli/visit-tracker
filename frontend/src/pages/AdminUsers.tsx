@@ -133,12 +133,15 @@ export const AdminUsers: React.FC = () => {
 
     try {
       // Update user data
-      const response = await apiService.updateUser(editingUserId, {
+      const updateData: any = {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        company_id: formData.company_id || undefined,
-      });
+      };
+      if (formData.company_id) {
+        updateData.company_id = formData.company_id;
+      }
+      const response = await apiService.updateUser(editingUserId, updateData);
 
       if (!response.success) {
         setError(response.error || 'Failed to update user');
