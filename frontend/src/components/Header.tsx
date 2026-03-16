@@ -28,6 +28,9 @@ export const Header: React.FC = () => {
                 <Link to="/admin/permissions/view" className="admin-link">
                   ⚙️ Gestione Permessi
                 </Link>
+                <Link to="/admin/users" className="admin-link">
+                  👥 Gestione Utenti
+                </Link>
               </>
             )}
             <div className="user-info">
