@@ -39,10 +39,12 @@ class ApiService {
         return response;
       },
       async (error: AxiosError) => {
-        console.log(`[Error Handler] Offline: ${!navigator.onLine}, Method: ${error.config?.method}, URL: ${error.config?.url}`);
+        // Detect network error: no response means server is unreachable (offline or server down)
+        const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || error.code === 'ERR_INTERNET_DISCONNECTED');
+        console.log(`[Error Handler] Offline: ${!navigator.onLine}, NetworkError: ${isNetworkError}, Method: ${error.config?.method}, URL: ${error.config?.url}`);
 
-        // If offline and GET request, try to get from cache
-        if (!navigator.onLine && error.config?.method === 'get') {
+        // If offline/network error and GET request, try to get from cache
+        if ((isNetworkError || !navigator.onLine) && error.config?.method === 'get') {
           console.log(`[Offline] Attempting to fetch from cache for: ${error.config.url}`);
           const cachedData = await this.getCachedResponse(error.config.url || '');
           if (cachedData) {
@@ -64,10 +66,10 @@ class ApiService {
           }
         }
 
-        // If offline and POST/PUT/DELETE, handle optimistic update
+        // If offline/network error and POST/PUT/DELETE, handle optimistic update
         // SKIP auth endpoints - they must fail so AuthContext can handle offline auth
         const requestUrl = error.config?.url || '';
-        if (!navigator.onLine && ['post', 'put', 'delete'].includes(error.config?.method || '') && !requestUrl.includes('/auth/')) {
+        if ((isNetworkError || !navigator.onLine) && ['post', 'put', 'delete'].includes(error.config?.method || '') && !requestUrl.includes('/auth/')) {
           const method = error.config?.method?.toUpperCase() || 'POST';
           const url = error.config?.url || '';
           const data = error.config?.data;
