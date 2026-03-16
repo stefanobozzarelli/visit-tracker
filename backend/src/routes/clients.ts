@@ -104,6 +104,10 @@ router.delete('/:id', checkVisitPermission, async (req: Request, res: Response) 
       return res.status(403).json({ success: false, error: 'Solo gli amministratori possono cancellare clienti' });
     }
 
+    // Cancella prima i permessi associati al cliente
+    await permissionService.deletePermissionsByClientId(req.params.id);
+
+    // Poi cancella il cliente
     await clientService.deleteClient(req.params.id);
     const response: ApiResponse<any> = { success: true, message: 'Client deleted' };
     res.json(response);

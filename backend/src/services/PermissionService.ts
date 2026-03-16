@@ -210,6 +210,13 @@ export class PermissionService {
   }
 
   /**
+   * Cancella tutti i permessi di un cliente
+   */
+  async deletePermissionsByClientId(clientId: string): Promise<void> {
+    await this.permissionRepository.delete({ client_id: clientId });
+  }
+
+  /**
    * Cancella un utente e tutti i suoi dati associati
    */
   async deleteUser(userId: string): Promise<void> {
