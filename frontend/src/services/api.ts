@@ -247,12 +247,32 @@ class ApiService {
       } else if (url.includes('/admin/reports')) {
         storeName = 'reports';
       } else {
-        const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
-        if (!match) {
-          console.warn(`[Cache] Could not extract store name for reading: ${url}`);
+        // Search for valid store names in URL parts (right to left)
+        const parts = url.split('/').filter(p => p.length > 0);
+        const validStoresSet = new Set([
+          'users',
+          'clients',
+          'companies',
+          'visits',
+          'reports',
+          'attachments',
+          'permissions',
+          'todos',
+          'orders',
+          'auth',
+        ]);
+
+        for (let i = parts.length - 1; i >= 0; i--) {
+          if (validStoresSet.has(parts[i])) {
+            storeName = parts[i];
+            break;
+          }
+        }
+
+        if (!storeName) {
+          console.warn(`[Cache] Could not extract store name from URL: ${url}`);
           return null;
         }
-        storeName = match[1];
       }
 
       const validStores = [

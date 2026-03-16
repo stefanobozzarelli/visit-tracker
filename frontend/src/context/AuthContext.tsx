@@ -8,6 +8,7 @@ import {
   saveOfflineCredentials,
   clearOfflineCredentials,
   getOfflineUser,
+  getOfflineToken,
 } from '../services/offlineAuth';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,10 +55,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('user', JSON.stringify(userData));
         setAuthMode('online');
 
-        // Save credentials for offline access
+        // Save credentials for offline access (including token)
         try {
           const passwordHash = await hashPassword(password);
-          await saveOfflineCredentials(email, passwordHash, {
+          await saveOfflineCredentials(email, passwordHash, newToken, {
             id: userData.id,
             email: userData.email,
             name: userData.name,
@@ -75,7 +76,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (offlineUser) {
           console.log('Offline authentication successful');
           setUser(offlineUser as User);
-          setToken('offline-token'); // Placeholder for offline mode
+          // Use the saved JWT token from previous online login
+          const savedToken = getOfflineToken();
+          if (savedToken) {
+            setToken(savedToken);
+          } else {
+            // Fallback: create a placeholder token if no saved token exists
+            setToken('offline-temp-token');
+          }
           setAuthMode('offline');
           // Don't clear error, show that we're in offline mode
           setError('Working offline - changes will sync when you go online');

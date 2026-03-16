@@ -48,15 +48,16 @@ function simpleHash(str: string): string {
  * Save credentials and user info for offline access
  * Called after successful online login
  */
-export async function saveOfflineCredentials(email: string, passwordHash: string, user: OfflineUser): Promise<void> {
+export async function saveOfflineCredentials(email: string, passwordHash: string, token: string, user: OfflineUser): Promise<void> {
   try {
     // Save user object
     localStorage.setItem(OFFLINE_USER_KEY, JSON.stringify(user))
 
-    // Save credentials for verification
+    // Save credentials for verification (including token for offline use)
     localStorage.setItem(OFFLINE_CREDS_KEY, JSON.stringify({
       email,
       passwordHash,
+      token, // Save the actual JWT token for offline authentication
       savedAt: Date.now(),
     }))
   } catch (error) {
@@ -93,6 +94,24 @@ export async function validateOfflineCredentials(email: string, password: string
     return user as OfflineUser
   } catch (error) {
     console.error('Error validating offline credentials:', error)
+    return null
+  }
+}
+
+/**
+ * Get the saved JWT token for offline authentication
+ * Returns the token string if available, null otherwise
+ */
+export function getOfflineToken(): string | null {
+  try {
+    const credsStr = localStorage.getItem(OFFLINE_CREDS_KEY)
+    if (!credsStr) {
+      return null
+    }
+    const creds = JSON.parse(credsStr)
+    return creds.token || null
+  } catch (error) {
+    console.error('Error getting offline token:', error)
     return null
   }
 }
