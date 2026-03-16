@@ -204,10 +204,34 @@ export const AdminUsers: React.FC = () => {
       return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1;
     });
 
+  const resetForm = () => {
+    setEditingUserId(null);
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      role: 'sales_rep',
+      company_id: '',
+    });
+    setError('');
+    setSuccess('');
+  };
+
   return (
     <div className="admin-users">
       <div className="header">
-        <h1>Users Management</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1>Users Management</h1>
+          {editingUserId && (
+            <button
+              className="btn btn-primary"
+              onClick={resetForm}
+              style={{ marginBottom: '0' }}
+            >
+              + Create New User
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
