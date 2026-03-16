@@ -172,67 +172,45 @@ class ApiService {
     );
   }
 
+  // Single helper to extract store name from any URL
+  // Handles query params, admin endpoints, and ID segments
+  private static readonly VALID_STORES = new Set([
+    'users', 'clients', 'companies', 'visits', 'reports',
+    'attachments', 'permissions', 'todos', 'orders',
+  ]);
+
+  private getStoreNameFromUrl(url: string): string | null {
+    // Strip query parameters first
+    const cleanUrl = url.split('?')[0];
+
+    // Handle admin endpoints
+    if (cleanUrl.includes('/admin/users')) return 'users';
+    if (cleanUrl.includes('/admin/permissions')) return 'permissions';
+    if (cleanUrl.includes('/admin/reports')) return 'reports';
+
+    // Split path and search right-to-left for a valid store name
+    const parts = cleanUrl.split('/').filter(p => p.length > 0);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (ApiService.VALID_STORES.has(parts[i])) {
+        return parts[i];
+      }
+    }
+    return null;
+  }
+
   private async cacheResponse(url: string, data: any): Promise<void> {
     try {
-      // Extract store name from URL (e.g., /visits -> visits, /clients -> clients)
-      // Handle admin endpoints specially
-      let storeName = null;
-      if (url.includes('/admin/users')) {
-        storeName = 'users';
-      } else if (url.includes('/admin/permissions')) {
-        storeName = 'permissions';
-      } else if (url.includes('/admin/reports')) {
-        storeName = 'reports';
-      } else {
-        // Get the last path segment that's a valid store name
-        const parts = url.split('/').filter(p => p.length > 0);
-        // Look for a valid store name in the URL parts
-        const validStoresSet = new Set([
-          'users',
-          'clients',
-          'companies',
-          'visits',
-          'reports',
-          'attachments',
-          'permissions',
-          'todos',
-          'orders',
-        ]);
-
-        for (let i = parts.length - 1; i >= 0; i--) {
-          if (validStoresSet.has(parts[i])) {
-            storeName = parts[i];
-            break;
-          }
-        }
-      }
-
+      const storeName = this.getStoreNameFromUrl(url);
       if (!storeName) {
         console.warn(`[Cache] Could not extract store name from URL: ${url}`);
         return;
       }
 
-      const validStores = [
-        'users',
-        'clients',
-        'companies',
-        'visits',
-        'reports',
-        'attachments',
-        'permissions',
-        'todos',
-        'orders',
-      ];
-
-      if (validStores.includes(storeName)) {
-        // If data is an array, save it; if it's an object with data array, extract it
-        const dataToCache = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [data];
-        console.log(`[Cache] Saving ${dataToCache.length} items to store: ${storeName}`);
-        await offlineDB.saveData(storeName, dataToCache);
-        console.log(`[Cache] Successfully saved to ${storeName}`);
-      } else {
-        console.warn(`[Cache] Store name not valid: ${storeName}`);
-      }
+      // Extract the actual data array to cache
+      const dataToCache = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [data];
+      console.log(`[Cache] Saving ${dataToCache.length} items to store: ${storeName}`);
+      await offlineDB.saveData(storeName, dataToCache);
+      console.log(`[Cache] Successfully saved to ${storeName}`);
     } catch (error) {
       console.warn('Failed to cache response:', error);
     }
@@ -240,56 +218,9 @@ class ApiService {
 
   private async getCachedResponse(url: string): Promise<any | null> {
     try {
-      // Handle admin endpoints specially
-      let storeName = null;
-      if (url.includes('/admin/users')) {
-        storeName = 'users';
-      } else if (url.includes('/admin/permissions')) {
-        storeName = 'permissions';
-      } else if (url.includes('/admin/reports')) {
-        storeName = 'reports';
-      } else {
-        // Search for valid store names in URL parts (right to left)
-        const parts = url.split('/').filter(p => p.length > 0);
-        const validStoresSet = new Set([
-          'users',
-          'clients',
-          'companies',
-          'visits',
-          'reports',
-          'attachments',
-          'permissions',
-          'todos',
-          'orders',
-          'auth',
-        ]);
-
-        for (let i = parts.length - 1; i >= 0; i--) {
-          if (validStoresSet.has(parts[i])) {
-            storeName = parts[i];
-            break;
-          }
-        }
-
-        if (!storeName) {
-          console.warn(`[Cache] Could not extract store name from URL: ${url}`);
-          return null;
-        }
-      }
-
-      const validStores = [
-        'users',
-        'clients',
-        'companies',
-        'visits',
-        'reports',
-        'attachments',
-        'permissions',
-        'todos',
-      ];
-
-      if (!validStores.includes(storeName)) {
-        console.warn(`[Cache] Store name not valid for reading: ${storeName}`);
+      const storeName = this.getStoreNameFromUrl(url);
+      if (!storeName) {
+        console.warn(`[Cache] Could not extract store name from URL: ${url}`);
         return null;
       }
 
@@ -301,16 +232,16 @@ class ApiService {
         return null;
       }
 
-      // If URL ends with an ID, find that specific item
-      const idMatch = url.match(/\/([a-f0-9-]+)$/);
+      // If URL path ends with a UUID, find that specific item
+      const cleanUrl = url.split('?')[0];
+      const idMatch = cleanUrl.match(/\/([a-f0-9-]{8,})$/);
       if (idMatch) {
         const id = idMatch[1];
-        const item = cachedData.find((item) => item.id === id);
+        const item = cachedData.find((item: any) => item.id === id);
         console.log(`[Cache] Found item with ID ${id}: ${item ? 'yes' : 'no'}`);
         return item || null;
       }
 
-      // Return all cached data
       return cachedData;
     } catch (error) {
       console.warn('Failed to retrieve cached response:', error);
@@ -319,28 +250,7 @@ class ApiService {
   }
 
   private extractStoreNameFromUrl(url: string): string | null {
-    // Handle admin endpoints specially
-    if (url.includes('/admin/users')) return 'users';
-    if (url.includes('/admin/permissions')) return 'permissions';
-    if (url.includes('/admin/reports')) return 'reports';
-
-    const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
-    if (!match) return null;
-
-    const storeName = match[1];
-    const validStores = [
-      'users',
-      'clients',
-      'companies',
-      'visits',
-      'reports',
-      'attachments',
-      'permissions',
-      'todos',
-      'orders',
-    ];
-
-    return validStores.includes(storeName) ? storeName : null;
+    return this.getStoreNameFromUrl(url);
   }
 
   private async saveOptimisticData(storeName: string, item: any): Promise<void> {
