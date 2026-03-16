@@ -27,7 +27,7 @@ import { TodoForm } from './pages/TodoForm';
 import { OrderForm } from './pages/OrderForm';
 import './styles/App.css';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   // Initialize offline database
   useOfflineDatabaseInit();
   // Enable offline sync
@@ -36,12 +36,11 @@ export const App: React.FC = () => {
   useDataPreload();
 
   return (
-    <Router>
-      <AuthProvider>
-        <OfflineIndicator />
-        <Header />
-        <main>
-          <Routes>
+    <>
+      <OfflineIndicator />
+      <Header />
+      <main>
+        <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route
@@ -183,6 +182,15 @@ export const App: React.FC = () => {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
+      </>
+    );
+  };
+
+export const App: React.FC = () => {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
       </AuthProvider>
     </Router>
   );
