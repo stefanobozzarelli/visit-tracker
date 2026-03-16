@@ -62,7 +62,8 @@ class OfflineDB {
 
       // Add new data with timestamp, sync_status, and version
       data.forEach((item) => {
-        store.add({
+        // Use put instead of add to handle items with or without existing keys
+        store.put({
           ...item,
           timestamp: Date.now(),
           sync_status: 'synced',
