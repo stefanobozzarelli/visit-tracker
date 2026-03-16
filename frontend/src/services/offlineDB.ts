@@ -1,7 +1,7 @@
 // IndexedDB utilities for 30-day offline support
 
 const DB_NAME = 'visit-tracker-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface StoredData {
   [key: string]: any[];
@@ -17,9 +17,10 @@ class OfflineDB {
     'reports',
     'attachments',
     'permissions',
-    'todos', // For user todos/tasks
-    'syncQueue', // For pending operations
-    'metadata', // For last sync time, etc
+    'todos',
+    'orders',
+    'syncQueue',
+    'metadata',
   ];
 
   async init(): Promise<void> {
@@ -50,6 +51,10 @@ class OfflineDB {
         }
       };
     });
+  }
+
+  isReady(): boolean {
+    return this.db !== null;
   }
 
   async saveData(storeName: string, data: any[]): Promise<void> {
@@ -162,7 +167,7 @@ class OfflineDB {
       const request = store.delete(id);
 
       request.onerror = () => reject(request.error);
-      request.oncomplete = () => resolve();
+      request.onsuccess = () => resolve();
     });
   }
 
@@ -222,7 +227,7 @@ class OfflineDB {
       });
 
       request.onerror = () => reject(request.error);
-      request.oncomplete = () => resolve();
+      request.onsuccess = () => resolve();
     });
   }
 

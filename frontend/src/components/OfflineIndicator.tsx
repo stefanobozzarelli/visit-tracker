@@ -21,7 +21,7 @@ export function OfflineIndicator() {
   const updatePendingCounts = async () => {
     try {
       // Ensure DB is initialized before accessing it
-      if (!offlineDB['db']) {
+      if (!offlineDB.isReady()) {
         await offlineDB.init();
       }
 

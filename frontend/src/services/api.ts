@@ -67,7 +67,9 @@ class ApiService {
         }
 
         // If offline and POST/PUT/DELETE, handle optimistic update
-        if (!navigator.onLine && ['post', 'put', 'delete'].includes(error.config?.method || '')) {
+        // SKIP auth endpoints - they must fail so AuthContext can handle offline auth
+        const requestUrl = error.config?.url || '';
+        if (!navigator.onLine && ['post', 'put', 'delete'].includes(error.config?.method || '') && !requestUrl.includes('/auth/')) {
           const method = error.config?.method?.toUpperCase() || 'POST';
           const url = error.config?.url || '';
           const data = error.config?.data;

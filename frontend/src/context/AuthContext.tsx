@@ -27,13 +27,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedUser = localStorage.getItem('user');
 
     if (savedToken && savedUser) {
-      // Validate JWT token (check format and expiration)
       if (validateJWTToken(savedToken)) {
+        // Valid JWT token - online mode
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
         setAuthMode('online');
+      } else if (!navigator.onLine) {
+        // Offline with expired/placeholder token - allow offline mode
+        // User was previously authenticated, let them continue offline
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+        setAuthMode('offline');
       } else {
-        // Token is expired or invalid, clear it
+        // Online but token is expired/invalid - clear it
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
@@ -78,15 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(offlineUser as User);
           // Use the saved JWT token from previous online login
           const savedToken = getOfflineToken();
-          if (savedToken) {
-            setToken(savedToken);
-          } else {
-            // Fallback: create a placeholder token if no saved token exists
-            setToken('offline-temp-token');
-          }
+          const tokenToUse = savedToken || 'offline-temp-token';
+          setToken(tokenToUse);
+          // Save to localStorage so interceptors and ProtectedRoute can find them
+          localStorage.setItem('token', tokenToUse);
+          localStorage.setItem('user', JSON.stringify(offlineUser));
           setAuthMode('offline');
-          // Don't clear error, show that we're in offline mode
-          setError('Working offline - changes will sync when you go online');
           return;
         }
       } catch (offlineErr) {

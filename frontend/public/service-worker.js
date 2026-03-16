@@ -1,6 +1,5 @@
-const CACHE_NAME = 'visit-tracker-v1';
-const API_CACHE_NAME = 'visit-tracker-api-v1';
-const OFFLINE_URL = '/';
+const CACHE_NAME = 'visit-tracker-v2';
+const API_CACHE_NAME = 'visit-tracker-api-v2';
 
 // Files to cache on install
 const STATIC_ASSETS = [
@@ -21,7 +20,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -42,12 +41,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
+  // Skip non-GET requests (let browser handle POST/PUT/DELETE normally)
   if (request.method !== 'GET') {
     return;
   }
 
-  // Skip chrome extensions
+  // Skip cross-origin requests (API calls go directly to backend)
   if (url.origin !== location.origin) {
     return;
   }
@@ -57,7 +56,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful responses
           if (response.status === 200) {
             const clonedResponse = response.clone();
             caches.open(API_CACHE_NAME).then((cache) => {
@@ -67,7 +65,6 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Fallback to cache when offline
           return caches
             .match(request)
             .then((cachedResponse) => {
@@ -76,7 +73,7 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } else {
-    // Static assets: Cache first, fallback to network
+    // Static assets and SPA routes
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
@@ -84,7 +81,6 @@ self.addEventListener('fetch', (event) => {
         }
         return fetch(request)
           .then((response) => {
-            // Don't cache if not successful
             if (!response || response.status !== 200) {
               return response;
             }
@@ -95,6 +91,13 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
+            // SPA fallback: for navigation requests (HTML pages), serve index.html
+            // This is CRITICAL for offline SPA routing - /login, /dashboard, etc.
+            if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+              return caches.match('/index.html').then((indexResponse) => {
+                return indexResponse || createOfflineResponse();
+              });
+            }
             return createOfflineResponse();
           });
       })
