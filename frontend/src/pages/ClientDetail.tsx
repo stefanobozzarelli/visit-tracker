@@ -31,7 +31,7 @@ export const ClientDetail: React.FC = () => {
         setClient(response.data);
       }
     } catch (err) {
-      setError('Errore nel caricamento del cliente');
+      setError('Error loading client');
     } finally {
       setIsLoading(false);
     }
@@ -56,35 +56,35 @@ export const ClientDetail: React.FC = () => {
     }
   };
 
-  if (isLoading) return <p>Caricamento...</p>;
-  if (!client) return <p>Cliente non trovato</p>;
+  if (isLoading) return <p>Loading...</p>;
+  if (!client) return <p>Client not found</p>;
 
   return (
     <div className="crud-page">
       <div className="page-header">
         <h1>{client.name}</h1>
         <button onClick={() => navigate('/clients')} className="btn-secondary">
-          ← Torna ai Clienti
+          ← Back to Clients
         </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
       <div className="form-card">
-        <h3>Informazioni Generali</h3>
+        <h3>General Information</h3>
         <div className="info-group">
           <div>
-            <label>Nome</label>
+            <label>Name</label>
             <p>{client.name}</p>
           </div>
           <div>
-            <label>Nazione</label>
+            <label>Country</label>
             <p>{client.country}</p>
           </div>
         </div>
         {client.notes && (
           <div>
-            <label>Note</label>
+            <label>Notes</label>
             <p>{client.notes}</p>
           </div>
         )}
@@ -92,16 +92,16 @@ export const ClientDetail: React.FC = () => {
 
       <div className="form-card">
         <div className="page-header">
-          <h3>Contatti ({client.contacts?.length || 0})</h3>
+          <h3>Contacts ({client.contacts?.length || 0})</h3>
           <button onClick={() => setShowContactForm(true)} className="btn-primary">
-            + Aggiungi Contatto
+            + Add Contact
           </button>
         </div>
 
         {showContactForm && (
           <form onSubmit={handleAddContact}>
             <div className="form-group">
-              <label>Nome *</label>
+              <label>Name *</label>
               <input
                 type="text"
                 value={contactForm.name}
@@ -110,7 +110,7 @@ export const ClientDetail: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Ruolo</label>
+              <label>Role</label>
               <input
                 type="text"
                 value={contactForm.role}
@@ -126,7 +126,7 @@ export const ClientDetail: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Telefono</label>
+              <label>Phone</label>
               <input
                 type="tel"
                 value={contactForm.phone}
@@ -135,14 +135,14 @@ export const ClientDetail: React.FC = () => {
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-primary">
-                Aggiungi
+                Add
               </button>
               <button
                 type="button"
                 onClick={() => setShowContactForm(false)}
                 className="btn-secondary"
               >
-                Annulla
+                Cancel
               </button>
             </div>
           </form>
@@ -153,14 +153,14 @@ export const ClientDetail: React.FC = () => {
             {client.contacts.map((contact) => (
               <div key={contact.id} className="contact-card">
                 <h4>{contact.name}</h4>
-                {contact.role && <p><strong>Ruolo:</strong> {contact.role}</p>}
+                {contact.role && <p><strong>Role:</strong> {contact.role}</p>}
                 {contact.email && <p><strong>Email:</strong> {contact.email}</p>}
-                {contact.phone && <p><strong>Telefono:</strong> {contact.phone}</p>}
+                {contact.phone && <p><strong>Phone:</strong> {contact.phone}</p>}
               </div>
             ))}
           </div>
         ) : (
-          <p>Nessun contatto</p>
+          <p>No contacts</p>
         )}
       </div>
     </div>

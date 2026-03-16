@@ -15,21 +15,21 @@ export const Header: React.FC = () => {
         {user && (
           <nav className="nav">
             <Link to="/dashboard">Dashboard</Link>
-            <Link to="/clients">Clienti</Link>
-            <Link to="/companies">Aziende</Link>
-            <Link to="/visits">Visite</Link>
-            <Link to="/my-todos">📋 I Miei TODO</Link>
-            <Link to="/export-pdf">📊 Esporta PDF</Link>
+            <Link to="/clients">Clients</Link>
+            <Link to="/companies">Companies</Link>
+            <Link to="/visits">Visits</Link>
+            <Link to="/my-todos">📋 My TODOs</Link>
+            <Link to="/export-pdf">📊 Export PDF</Link>
             {user.role === 'admin' && (
               <>
                 <Link to="/admin/todos" className="admin-link">
-                  📋 Tutti i TODO
+                  📋 All TODOs
                 </Link>
                 <Link to="/admin/permissions/view" className="admin-link">
-                  ⚙️ Gestione Permessi
+                  ⚙️ Permissions Management
                 </Link>
                 <Link to="/admin/users" className="admin-link">
-                  👥 Gestione Utenti
+                  👥 Users Management
                 </Link>
               </>
             )}

@@ -28,18 +28,18 @@ router.get('/', async (req: Request, res: Response) => {
 
     let allCompanies = await companyService.getCompanies();
 
-    // Filtra aziende per sales_rep, admin/manager vede tutti
+    // Filter companies for sales_rep, admin/manager sees all
     if (userRole !== 'admin' && userRole !== 'manager') {
-      // Per sales_rep, dobbiamo filtrare le aziende per i clienti assegnati
+      // For sales_rep, we need to filter companies for assigned clients
       const visibleClientIds = await permissionService.getVisibleClients(userId);
 
       if (!visibleClientIds.includes('*')) {
-        // Ottieni le aziende per ogni cliente visibile
+        // Get companies for each visible client
         const visibleCompanyIds = new Set<string>();
         for (const clientId of visibleClientIds) {
           const companyIds = await permissionService.getVisibleCompanies(userId, clientId);
           if (companyIds.includes('*')) {
-            // Se il sales rep ha accesso a tutte le aziende per questo cliente, aggiungi tutte
+            // If sales rep has access to all companies for this client, add all
             allCompanies.forEach(c => visibleCompanyIds.add(c.id));
           } else {
             companyIds.forEach(cId => visibleCompanyIds.add(cId));

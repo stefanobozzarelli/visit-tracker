@@ -63,7 +63,7 @@ export const TodoForm = (props: TodoFormProps) => {
       if (companiesRes.data.success) setCompanies(companiesRes.data.data);
       if (usersRes.data.success) setUsers(usersRes.data.data);
     } catch (err) {
-      setError('Errore nel caricamento dei dati');
+      setError('Error loading data');
       console.error(err);
     }
   };
@@ -74,7 +74,7 @@ export const TodoForm = (props: TodoFormProps) => {
     setSuccess('');
 
     if (!title || !clientId || !companyId || !assignedToUserId) {
-      setError('Compilare tutti i campi obbligatori');
+      setError('Fill in all required fields');
       return;
     }
 
@@ -96,13 +96,13 @@ export const TodoForm = (props: TodoFormProps) => {
       );
 
       if (response.data.success) {
-        setSuccess('TODO creato con successo');
+        setSuccess('TODO created successfully');
         setTimeout(() => {
           navigate('/my-todos');
         }, 1500);
       }
     } catch (err) {
-      setError('Errore nella creazione del TODO');
+      setError('Error creating TODO');
       console.error(err);
     } finally {
       setLoading(false);
@@ -112,18 +112,18 @@ export const TodoForm = (props: TodoFormProps) => {
   return (
     <div className="todo-form-container">
       <div className="todo-form-card">
-        <h2>Crea Nuovo TODO</h2>
+        <h2>Create New TODO</h2>
 
         {error && <div className="alert alert-error">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="title">Azione *</label>
+            <label htmlFor="title">Action *</label>
             <input
               id="title"
               type="text"
-              placeholder="Descrivi l'azione..."
+              placeholder="Describe the action..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -132,9 +132,9 @@ export const TodoForm = (props: TodoFormProps) => {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="clientId">Cliente *</label>
+              <label htmlFor="clientId">Client *</label>
               <select id="clientId" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
-                <option value="">Seleziona cliente...</option>
+                <option value="">Select client...</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -144,9 +144,9 @@ export const TodoForm = (props: TodoFormProps) => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="companyId">Azienda *</label>
+              <label htmlFor="companyId">Company *</label>
               <select id="companyId" value={companyId} onChange={(e) => setCompanyId(e.target.value)} required>
-                <option value="">Seleziona azienda...</option>
+                <option value="">Select company...</option>
                 {companies.map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
@@ -158,9 +158,9 @@ export const TodoForm = (props: TodoFormProps) => {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="assignedToUserId">Assegnato a *</label>
+              <label htmlFor="assignedToUserId">Assigned To *</label>
               <select id="assignedToUserId" value={assignedToUserId} onChange={(e) => setAssignedToUserId(e.target.value)} required>
-                <option value="">Seleziona utente...</option>
+                <option value="">Select user...</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
@@ -170,23 +170,23 @@ export const TodoForm = (props: TodoFormProps) => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="dueDate">Scadenza</label>
+              <label htmlFor="dueDate">Due Date</label>
               <input id="dueDate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
 
           {visitReportId && (
             <div className="info-note">
-              ℹ️ Questo TODO è collegato a un report di visita
+              ℹ️ This TODO is linked to a visit report
             </div>
           )}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Creazione...' : 'Crea TODO'}
+              {loading ? 'Creating...' : 'Create TODO'}
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => navigate('/my-todos')} disabled={loading}>
-              Annulla
+              Cancel
             </button>
           </div>
         </form>

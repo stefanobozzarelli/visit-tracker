@@ -47,11 +47,11 @@ export async function checkVisitPermission(req: Request, res: Response, next: Ne
       return next();
     }
 
-    // Se il client_id non è nella lista dei visibili, nega accesso
+    // If client_id is not in the visible list, deny access
     if (!visibleClients.includes(clientId)) {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato a questo cliente',
+        error: 'Access denied to this client',
       });
     }
 
@@ -60,7 +60,7 @@ export async function checkVisitPermission(req: Request, res: Response, next: Ne
     console.error('Permission middleware error:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel controllo dei permessi',
+      error: 'Error checking permissions',
     });
   }
 }
@@ -106,7 +106,7 @@ export function checkSpecificPermission(requiredAction: 'view' | 'create' | 'edi
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
-          error: `Accesso negato: non hai il permesso di ${requiredAction} per questo cliente/azienda`,
+          error: `Access denied: you do not have permission to ${requiredAction} for this client/company`,
         });
       }
 
@@ -115,7 +115,7 @@ export function checkSpecificPermission(requiredAction: 'view' | 'create' | 'edi
       console.error('Permission check error:', error);
       res.status(500).json({
         success: false,
-        error: 'Errore nel controllo dei permessi',
+        error: 'Error checking permissions',
       });
     }
   };

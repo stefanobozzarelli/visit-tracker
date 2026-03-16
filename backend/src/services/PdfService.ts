@@ -4,7 +4,7 @@ import { Visit } from '../entities/Visit';
 
 export class PdfService {
   /**
-   * Genera un PDF con una o più visite
+   * Generate a PDF with one or more visits
    */
   generateVisitsPdf(visits: Visit[], options: { title?: string; generatedAt?: Date } = {}): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -19,14 +19,14 @@ export class PdfService {
       doc.on('error', reject);
 
       // Header
-      doc.fontSize(24).font('Helvetica-Bold').text(options.title || 'Report Visite', { align: 'center' });
+      doc.fontSize(24).font('Helvetica-Bold').text(options.title || 'Visit Report', { align: 'center' });
       doc.moveDown(0.5);
 
-      // Data di generazione
+      // Generation date
       if (options.generatedAt) {
         doc.fontSize(10)
           .font('Helvetica')
-          .text(`Generato il: ${options.generatedAt.toLocaleDateString('it-IT')}`, { align: 'right' });
+          .text(`Generated on: ${options.generatedAt.toLocaleDateString('en-US')}`, { align: 'right' });
       }
 
       doc.moveDown(1);
@@ -37,23 +37,23 @@ export class PdfService {
           doc.addPage();
         }
 
-        // Nome cliente in grande
+        // Client name in large
         doc.fontSize(13)
           .font('Helvetica-Bold')
           .fillColor('#000000')
           .text(`${visit.client?.name || 'N/A'}`);
         doc.moveDown(0.3);
 
-        // Info visita
+        // Visit info
         doc.fontSize(11).font('Helvetica');
         const visitDate = typeof visit.visit_date === 'string'
-          ? new Date(visit.visit_date).toLocaleDateString('it-IT')
-          : visit.visit_date.toLocaleDateString('it-IT');
-        doc.text(`Data visita: ${visitDate}`);
-        doc.text(`Visitato da: ${visit.visited_by_user?.name || 'N/A'}`);
+          ? new Date(visit.visit_date).toLocaleDateString('en-US')
+          : visit.visit_date.toLocaleDateString('en-US');
+        doc.text(`Visit date: ${visitDate}`);
+        doc.text(`Visited by: ${visit.visited_by_user?.name || 'N/A'}`);
         doc.moveDown(0.5);
 
-        // Report per azienda
+        // Report per company
         if (visit.reports && visit.reports.length > 0) {
           visit.reports.forEach(report => {
             doc.fontSize(10)

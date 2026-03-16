@@ -114,21 +114,21 @@ export const ReportDetail: React.FC = () => {
     handleFileUpload(e.dataTransfer.files);
   };
 
-  if (isLoading) return <p>Caricamento...</p>;
+  if (isLoading) return <p>Loading...</p>;
 
   return (
     <div className="crud-page">
       <div className="page-header">
-        <h1>Allegati Report</h1>
+        <h1>Report Attachments</h1>
         <button onClick={() => navigate(-1)} className="btn-secondary">
-          ← Indietro
+          ← Back
         </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
       <div className="form-card">
-        <h3>Carica File</h3>
+        <h3>Upload File</h3>
 
         <div
           onDragOver={handleDragOver}
@@ -145,7 +145,7 @@ export const ReportDetail: React.FC = () => {
           }}
         >
           <p style={{ margin: '1rem 0' }}>
-            📁 Trascina i file qui o clicca per sfogliare
+            📁 Drag files here or click to browse
           </p>
           <input
             type="file"
@@ -154,16 +154,16 @@ export const ReportDetail: React.FC = () => {
             onChange={(e) => handleFileUpload(e.target.files!)}
             style={{ cursor: 'pointer' }}
           />
-          {isUploading && <p style={{ color: '#667eea' }}>Caricamento in corso...</p>}
+          {isUploading && <p style={{ color: '#667eea' }}>Uploading...</p>}
         </div>
 
         <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.9rem' }}>
-          Dimensione massima per file: 50MB
+          Maximum file size: 50MB
         </p>
       </div>
 
       <div className="form-card">
-        <h3>File Caricati</h3>
+        <h3>Uploaded Files</h3>
         {report?.attachments && report.attachments.length > 0 ? (
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {report.attachments.map((att) => (
@@ -193,7 +193,7 @@ export const ReportDetail: React.FC = () => {
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
                   >
-                    Apri
+                    Open
                   </button>
                   <button
                     onClick={() => {
@@ -210,11 +210,11 @@ export const ReportDetail: React.FC = () => {
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
                   >
-                    ⬇️ Scarica
+                    ⬇️ Download
                   </button>
                   <button
                     onClick={async () => {
-                      if (!window.confirm(`Eliminare ${att.filename}?`)) return;
+                      if (!window.confirm(`Delete ${att.filename}?`)) return;
                       try {
                         const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
                         const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}`;
@@ -227,7 +227,7 @@ export const ReportDetail: React.FC = () => {
                         if (res.ok) {
                           loadReport();
                         } else {
-                          setError('Errore nell\'eliminazione del file');
+                          setError('Error deleting file');
                         }
                       } catch (err) {
                         setError((err as Error).message);
@@ -236,14 +236,14 @@ export const ReportDetail: React.FC = () => {
                     className="btn-danger"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
                   >
-                    Elimina
+                    Delete
                   </button>
                 </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p>Nessun file caricato</p>
+          <p>No files uploaded</p>
         )}
       </div>
     </div>

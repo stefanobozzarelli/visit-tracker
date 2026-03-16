@@ -68,31 +68,31 @@ export const AdminPermissions = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      // Carica utenti
+      // Load users
       const usersRes = await axios.get(`${API_BASE_URL}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(usersRes.data.data);
 
-      // Carica clienti
+      // Load clients
       const clientsRes = await axios.get(`${API_BASE_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setClients(clientsRes.data.data);
 
-      // Carica aziende
+      // Load companies
       const companiesRes = await axios.get(`${API_BASE_URL}/companies`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCompanies(companiesRes.data.data);
 
-      // Carica permessi
+      // Load permissions
       const permsRes = await axios.get(`${API_BASE_URL}/admin/permissions`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPermissions(permsRes.data.data);
     } catch (err) {
-      setError('Errore nel caricamento dei dati');
+      setError('Error loading data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -105,14 +105,14 @@ export const AdminPermissions = () => {
     setSuccess('');
 
     if (!selectedUser || !selectedClient || selectedCompanies.length === 0) {
-      setError('Seleziona utente, cliente e almeno una azienda');
+      setError('Select user, client and at least one company');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
 
-      // Crea un permesso per ogni azienda selezionata
+      // Create a permission for each selected company
       const promises = selectedCompanies.map((companyId) =>
         axios.post(
           `${API_BASE_URL}/admin/permissions`,
@@ -132,17 +132,17 @@ export const AdminPermissions = () => {
 
       await Promise.all(promises);
 
-      setSuccess(`Permessi assegnati con successo per ${selectedCompanies.length} azienda(e)`);
+      setSuccess(`Permissions assigned successfully for ${selectedCompanies.length} company(ies)`);
       resetForm();
       loadData();
     } catch (err) {
-      setError('Errore nell\'assegnazione dei permessi');
+      setError('Error assigning permissions');
       console.error(err);
     }
   };
 
   const handleRevokePermission = async (permissionId: string) => {
-    if (!window.confirm('Sei sicuro di voler revocare questo permesso?')) return;
+    if (!window.confirm('Are you sure you want to revoke this permission?')) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -150,10 +150,10 @@ export const AdminPermissions = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setSuccess('Permesso revocato');
+      setSuccess('Permission revoked');
       loadData();
     } catch (err) {
-      setError('Errore nella revoca del permesso');
+      setError('Error revoking permission');
       console.error(err);
     }
   };
@@ -182,17 +182,17 @@ export const AdminPermissions = () => {
         }
       );
 
-      setSuccess('Permesso aggiornato con successo');
+      setSuccess('Permission updated successfully');
       setEditingPermission(null);
       loadData();
     } catch (err) {
-      setError('Errore nell\'aggiornamento del permesso');
+      setError('Error updating permission');
       console.error(err);
     }
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!window.confirm(`Sei sicuro di voler cancellare l'utente "${userName}"? Verranno cancellate anche tutte le sue visite.`)) return;
+    if (!window.confirm(`Are you sure you want to delete user "${userName}"? All associated visits will also be deleted.`)) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -200,10 +200,10 @@ export const AdminPermissions = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setSuccess('Utente cancellato con successo');
+      setSuccess('User deleted successfully');
       loadData();
     } catch (err) {
-      setError('Errore nella cancellazione dell\'utente');
+      setError('Error deleting user');
       console.error(err);
     }
   };
@@ -218,15 +218,15 @@ export const AdminPermissions = () => {
   };
 
   if (loading) {
-    return <div className="admin-permissions"><p>Caricamento...</p></div>;
+    return <div className="admin-permissions"><p>Loading...</p></div>;
   }
 
   return (
     <div className="admin-permissions">
       <div className="header">
-        <h1>Gestione Permessi Utenti</h1>
+        <h1>User Permissions Management</h1>
         <button className="btn btn-secondary" onClick={() => navigate('/visits')}>
-          ← Indietro
+          ← Back
         </button>
       </div>
 
@@ -235,7 +235,7 @@ export const AdminPermissions = () => {
 
       <div className="permissions-container">
         <div className="form-section">
-          <h2>Assegna Permesso</h2>
+          <h2>Assign Permission</h2>
           <form onSubmit={handleAssignPermission}>
             <div className="form-group">
               <label>Utente (Sales Rep)</label>
@@ -244,7 +244,7 @@ export const AdminPermissions = () => {
                 onChange={(e) => setSelectedUser(e.target.value)}
                 required
               >
-                <option value="">Seleziona utente...</option>
+                <option value="">Select user...</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name} ({user.email})
@@ -260,7 +260,7 @@ export const AdminPermissions = () => {
                 onChange={(e) => setSelectedClient(e.target.value)}
                 required
               >
-                <option value="">Seleziona cliente...</option>
+                <option value="">Select client...</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -335,26 +335,26 @@ export const AdminPermissions = () => {
             </div>
 
             <button type="submit" className="btn btn-primary">
-              Assegna Permesso
+              Assign Permission
             </button>
           </form>
         </div>
 
         <div className="table-section">
-          <h2>Permessi Assegnati</h2>
+          <h2>Assigned Permissions</h2>
           {permissions.length === 0 ? (
-            <p>Nessun permesso assegnato</p>
+            <p>No permissions assigned</p>
           ) : (
             <table className="permissions-table">
               <thead>
                 <tr>
-                  <th>Utente</th>
-                  <th>Cliente</th>
-                  <th>Azienda</th>
-                  <th>Visualizza</th>
-                  <th>Crea</th>
-                  <th>Modifica</th>
-                  <th>Azioni</th>
+                  <th>User</th>
+                  <th>Client</th>
+                  <th>Company</th>
+                  <th>View</th>
+                  <th>Create</th>
+                  <th>Edit</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -371,13 +371,13 @@ export const AdminPermissions = () => {
                         className="btn btn-small btn-warning"
                         onClick={() => handleEditPermission(perm)}
                       >
-                        Modifica
+                        Edit
                       </button>
                       <button
                         className="btn btn-small btn-danger"
                         onClick={() => handleRevokePermission(perm.id)}
                       >
-                        Revoca
+                        Revoke
                       </button>
                     </td>
                   </tr>
@@ -389,17 +389,17 @@ export const AdminPermissions = () => {
       </div>
 
       <div className="users-section">
-        <h2>Gestione Utenti</h2>
+        <h2>User Management</h2>
         {users.length === 0 ? (
-          <p>Nessun utente registrato</p>
+          <p>No users registered</p>
         ) : (
           <table className="permissions-table">
             <thead>
               <tr>
-                <th>Nome</th>
+                <th>Name</th>
                 <th>Email</th>
-                <th>Ruolo</th>
-                <th>Azioni</th>
+                <th>Role</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -413,7 +413,7 @@ export const AdminPermissions = () => {
                       className="btn btn-small btn-danger"
                       onClick={() => handleDeleteUser(user.id, user.name)}
                     >
-                      Cancella
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -426,16 +426,16 @@ export const AdminPermissions = () => {
       {editingPermission && (
         <div className="modal-overlay" onClick={() => setEditingPermission(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Modifica Permesso</h2>
+            <h2>Edit Permission</h2>
             <div className="modal-body">
               <p>
-                <strong>Utente:</strong> {editingPermission.user?.name || editingPermission.user_id}
+                <strong>User:</strong> {editingPermission.user?.name || editingPermission.user_id}
               </p>
               <p>
-                <strong>Cliente:</strong> {editingPermission.client?.name || editingPermission.client_id}
+                <strong>Client:</strong> {editingPermission.client?.name || editingPermission.client_id}
               </p>
               <p>
-                <strong>Azienda:</strong> {editingPermission.company?.name || editingPermission.company_id}
+                <strong>Company:</strong> {editingPermission.company?.name || editingPermission.company_id}
               </p>
 
               <div className="permissions-checkboxes">
@@ -445,7 +445,7 @@ export const AdminPermissions = () => {
                     checked={editCanView}
                     onChange={(e) => setEditCanView(e.target.checked)}
                   />
-                  Visualizzare
+                  View
                 </label>
                 <label>
                   <input
@@ -453,7 +453,7 @@ export const AdminPermissions = () => {
                     checked={editCanCreate}
                     onChange={(e) => setEditCanCreate(e.target.checked)}
                   />
-                  Creare visite
+                  Create visits
                 </label>
                 <label>
                   <input
@@ -461,7 +461,7 @@ export const AdminPermissions = () => {
                     checked={editCanEdit}
                     onChange={(e) => setEditCanEdit(e.target.checked)}
                   />
-                  Modificare report
+                  Modify reports
                 </label>
               </div>
             </div>
@@ -470,13 +470,13 @@ export const AdminPermissions = () => {
                 onClick={() => setEditingPermission(null)}
                 className="btn btn-secondary"
               >
-                Annulla
+                Cancel
               </button>
               <button
                 onClick={handleSavePermission}
                 className="btn btn-primary"
               >
-                Salva Modifiche
+                Save Changes
               </button>
             </div>
           </div>

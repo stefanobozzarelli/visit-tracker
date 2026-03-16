@@ -59,25 +59,25 @@ export const ExportPdf = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      // Carica clienti
+      // Load clients
       const clientsRes = await axios.get(`${API_BASE_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setClients(clientsRes.data.data);
 
-      // Carica aziende
+      // Load companies
       const companiesRes = await axios.get(`${API_BASE_URL}/companies`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCompanies(companiesRes.data.data);
 
-      // Carica visite
+      // Load visits
       const visitsRes = await axios.get(`${API_BASE_URL}/visits`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setVisits(visitsRes.data.data);
     } catch (err) {
-      setError('Errore nel caricamento dei dati');
+      setError('Error loading data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -87,24 +87,24 @@ export const ExportPdf = () => {
   const filterVisits = () => {
     let filtered = [...visits];
 
-    // Filtra per data inizio
+    // Filter by start date
     if (startDate) {
       const start = new Date(startDate);
       filtered = filtered.filter((v) => new Date(v.visit_date) >= start);
     }
 
-    // Filtra per data fine
+    // Filter by end date
     if (endDate) {
       const end = new Date(endDate);
       filtered = filtered.filter((v) => new Date(v.visit_date) <= end);
     }
 
-    // Filtra per cliente
+    // Filter by client
     if (selectedClient) {
       filtered = filtered.filter((v) => v.client?.id === selectedClient);
     }
 
-    // Filtra per aziende
+    // Filter by companies
     if (selectedCompanies.length > 0) {
       filtered = filtered.filter(
         (v) =>
@@ -126,7 +126,7 @@ export const ExportPdf = () => {
 
   const handleExportPdf = async () => {
     if (filteredVisits.length === 0) {
-      setError('Nessuna visita da esportare');
+      setError('No visits to export');
       return;
     }
 
@@ -148,16 +148,16 @@ export const ExportPdf = () => {
         }
       );
 
-      // Scarica il PDF
+      // Download the PDF
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `report-visite-${new Date().getTime()}.pdf`);
+      link.setAttribute('download', `visits-report-${new Date().getTime()}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
     } catch (err) {
-      setError('Errore nell\'esportazione del PDF');
+      setError('Error exporting PDF');
       console.error(err);
     } finally {
       setExporting(false);
@@ -165,15 +165,15 @@ export const ExportPdf = () => {
   };
 
   if (loading) {
-    return <div className="export-pdf"><p>Caricamento...</p></div>;
+    return <div className="export-pdf"><p>Loading...</p></div>;
   }
 
   return (
     <div className="export-pdf">
       <div className="header">
-        <h1>Esporta Report in PDF</h1>
+        <h1>Export Report to PDF</h1>
         <button className="btn btn-secondary" onClick={() => navigate('/visits')}>
-          ← Indietro
+          ← Back
         </button>
       </div>
 
@@ -181,10 +181,10 @@ export const ExportPdf = () => {
 
       <div className="export-container">
         <div className="filters-section">
-          <h2>Filtri</h2>
+          <h2>Filters</h2>
 
           <div className="form-group">
-            <label>Data Inizio</label>
+            <label>Start Date</label>
             <input
               type="date"
               value={startDate}
@@ -193,7 +193,7 @@ export const ExportPdf = () => {
           </div>
 
           <div className="form-group">
-            <label>Data Fine</label>
+            <label>End Date</label>
             <input
               type="date"
               value={endDate}
@@ -202,9 +202,9 @@ export const ExportPdf = () => {
           </div>
 
           <div className="form-group">
-            <label>Cliente</label>
+            <label>Client</label>
             <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)}>
-              <option value="">Tutti i clienti</option>
+              <option value="">All clients</option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name}
@@ -214,7 +214,7 @@ export const ExportPdf = () => {
           </div>
 
           <div className="form-group">
-            <label>Aziende</label>
+            <label>Companies</label>
             <div className="companies-list">
               {companies.map((company) => (
                 <label key={company.id} className="checkbox-label">
@@ -231,15 +231,15 @@ export const ExportPdf = () => {
         </div>
 
         <div className="preview-section">
-          <h2>Anteprima Visite</h2>
+          <h2>Visits Preview</h2>
           <div className="stats">
             <p>
-              <strong>Visite trovate:</strong> {filteredVisits.length}
+              <strong>Visits found:</strong> {filteredVisits.length}
             </p>
           </div>
 
           {filteredVisits.length === 0 ? (
-            <p className="no-data">Nessuna visita corrisponde ai filtri</p>
+            <p className="no-data">No visits match the filters</p>
           ) : (
             <div className="visits-list">
               {filteredVisits.map((visit) => (
@@ -251,7 +251,7 @@ export const ExportPdf = () => {
                     </span>
                   </div>
                   <p className="visit-user">
-                    Visitato da: {visit.visited_by_user?.name || 'N/A'}
+                    Visited by: {visit.visited_by_user?.name || 'N/A'}
                   </p>
                   {visit.reports && visit.reports.length > 0 && (
                     <div className="visit-reports">
@@ -273,7 +273,7 @@ export const ExportPdf = () => {
             onClick={handleExportPdf}
             disabled={filteredVisits.length === 0 || exporting}
           >
-            {exporting ? 'Esportazione in corso...' : 'Scarica PDF'}
+            {exporting ? 'Exporting...' : 'Download PDF'}
           </button>
         </div>
       </div>

@@ -33,7 +33,7 @@ export const VisitDetail: React.FC = () => {
         }
       }
     } catch (err) {
-      setError('Errore nel caricamento della visita');
+      setError('Error loading visit');
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +56,7 @@ export const VisitDetail: React.FC = () => {
   };
 
   const handleDeleteReport = async (reportId: string) => {
-    if (!id || !confirm('Sei sicuro?')) return;
+    if (!id || !confirm('Are you sure?')) return;
     try {
       await apiService.deleteVisitReport(id, reportId);
       loadVisit();
@@ -74,7 +74,7 @@ export const VisitDetail: React.FC = () => {
       // Check if visit can be deleted
       const checkResponse = await apiService.canDeleteVisit(id);
       if (!checkResponse.success || !checkResponse.data) {
-        setError('Errore nel controllo della visita');
+        setError('Error checking visit');
         setIsDeleting(false);
         return;
       }
@@ -84,7 +84,7 @@ export const VisitDetail: React.FC = () => {
       // If there are reports, ask for confirmation
       if (!canDelete && reportCount > 0) {
         const confirmDelete = window.confirm(
-          `Ci sono ancora ${reportCount} report associati. Vuoi eliminarli e annullare la visita?`
+          `There are still ${reportCount} associated reports. Do you want to delete them and cancel the visit?`
         );
         if (!confirmDelete) {
           setIsDeleting(false);
@@ -96,10 +96,10 @@ export const VisitDetail: React.FC = () => {
       const deleteResponse = await apiService.deleteVisit(id);
       if (deleteResponse.success) {
         navigate('/visits', {
-          state: { message: 'Visita annullata con successo' }
+          state: { message: 'Visit cancelled successfully' }
         });
       } else {
-        setError(deleteResponse.error || 'Errore nell\'eliminazione della visita');
+        setError(deleteResponse.error || 'Error deleting visit');
         setIsDeleting(false);
       }
     } catch (err) {
@@ -108,31 +108,31 @@ export const VisitDetail: React.FC = () => {
     }
   };
 
-  if (isLoading) return <p>Caricamento...</p>;
-  if (!visit) return <p>Visita non trovata</p>;
+  if (isLoading) return <p>Loading...</p>;
+  if (!visit) return <p>Visit not found</p>;
 
   return (
     <div className="crud-page">
       <div className="page-header">
-        <h1>Visita - {visit.client?.name}</h1>
+        <h1>Visit - {visit.client?.name}</h1>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button
             onClick={() => navigate(`/orders/new/${id}`)}
             className="btn-primary"
-            title="Crea un nuovo ordine cliente"
+            title="Create a new customer order"
           >
-            📦 Crea Ordine
+            📦 Create Order
           </button>
           <button
             onClick={handleDeleteVisit}
             disabled={isDeleting}
             className="btn-danger"
-            title={visit.reports?.length ? `${visit.reports.length} report associati` : 'Annulla questa visita'}
+            title={visit.reports?.length ? `${visit.reports.length} associated reports` : 'Cancel this visit'}
           >
-            {isDeleting ? 'Annullamento...' : '🗑️ Annulla Visita'}
+            {isDeleting ? 'Cancelling...' : '🗑️ Cancel Visit'}
           </button>
           <button onClick={() => navigate('/visits')} className="btn-secondary">
-            ← Torna alle Visite
+            ← Back to Visits
           </button>
         </div>
       </div>
@@ -140,24 +140,24 @@ export const VisitDetail: React.FC = () => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="form-card">
-        <h3>Informazioni Visita</h3>
+        <h3>Visit Information</h3>
         <div className="info-group">
           <div>
-            <label>Cliente</label>
+            <label>Client</label>
             <p>{visit.client?.name}</p>
           </div>
           <div>
-            <label>Data</label>
+            <label>Date</label>
             <p>{new Date(visit.visit_date).toLocaleDateString('it-IT')}</p>
           </div>
           <div>
-            <label>Visitato da</label>
+            <label>Visited By</label>
             <p>{visit.visited_by_user?.name}</p>
           </div>
         </div>
       </div>
 
-      <h2>Report Aziende</h2>
+      <h2>Company Reports</h2>
 
       {visit.reports && visit.reports.length > 0 ? (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -202,13 +202,13 @@ export const VisitDetail: React.FC = () => {
                       onClick={() => handleSaveReport(report.id)}
                       className="btn-primary"
                     >
-                      Salva
+                      Save
                     </button>
                     <button
                       onClick={() => setEditingReportId(null)}
                       className="btn-secondary"
                     >
-                      Annulla
+                      Cancel
                     </button>
                   </div>
                 </div>
@@ -220,19 +220,19 @@ export const VisitDetail: React.FC = () => {
                       onClick={() => handleEditReport(report)}
                       className="btn-warning"
                     >
-                      Modifica
+                      Edit
                     </button>
                     <button
                       onClick={() => handleDeleteReport(report.id)}
                       className="btn-danger"
                     >
-                      Elimina
+                      Delete
                     </button>
                     <button
                       onClick={() => navigate(`/visits/${id}/reports/${report.id}`)}
                       className="btn-info"
                     >
-                      Allegati
+                      Attachments
                     </button>
                     <button
                       onClick={() =>
@@ -242,7 +242,7 @@ export const VisitDetail: React.FC = () => {
                       }
                       className="btn-primary"
                     >
-                      📋 Crea TODO
+                      📋 Create TODO
                     </button>
                   </div>
                 </div>
@@ -250,7 +250,7 @@ export const VisitDetail: React.FC = () => {
 
               {report.attachments && report.attachments.length > 0 && (
                 <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
-                  <h4>Allegati ({report.attachments.length})</h4>
+                  <h4>Attachments ({report.attachments.length})</h4>
                   <ul style={{ listStyle: 'none', padding: 0 }}>
                     {report.attachments.map((att) => (
                       <li key={att.id} style={{ marginBottom: '0.5rem' }}>
@@ -264,19 +264,19 @@ export const VisitDetail: React.FC = () => {
           ))}
         </div>
       ) : (
-        <p>Nessun report registrato</p>
+        <p>No reports registered</p>
       )}
 
-      <h2 style={{ marginTop: '2rem' }}>📦 Ordini Cliente</h2>
+      <h2 style={{ marginTop: '2rem' }}>📦 Customer Orders</h2>
       {orders && orders.length > 0 ? (
         <div style={{ display: 'grid', gap: '1rem' }}>
           {orders.map((order) => (
             <div key={order.id} className="form-card">
               <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h3 style={{ margin: '0 0 0.5rem 0' }}>Ordine #{order.id.substring(0, 8)}</h3>
+                  <h3 style={{ margin: '0 0 0.5rem 0' }}>Order #{order.id.substring(0, 8)}</h3>
                   <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>
-                    Data: {new Date(order.order_date).toLocaleDateString('it-IT')} | Pagamento: {order.payment_method}
+                    Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -298,18 +298,18 @@ export const VisitDetail: React.FC = () => {
                     className="btn-primary"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
                   >
-                    ✎ Modifica
+                    ✎ Edit
                   </button>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                 <div>
-                  <label>Righe</label>
+                  <label>Lines</label>
                   <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem' }}>{order.items?.length || 0}</p>
                 </div>
                 <div>
-                  <label>Importo Totale</label>
+                  <label>Total Amount</label>
                   <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p>
                 </div>
               </div>
@@ -317,7 +317,7 @@ export const VisitDetail: React.FC = () => {
           ))}
         </div>
       ) : (
-        <p>Nessun ordine registrato</p>
+        <p>No orders registered</p>
       )}
     </div>
   );

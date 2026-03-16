@@ -12,15 +12,15 @@ function adminOnly(req: Request, res: Response, next: Function) {
   if ((req.user as any)?.role !== 'admin') {
     return res.status(403).json({
       success: false,
-      error: 'Accesso riservato agli amministratori',
+      error: 'Access reserved for administrators',
     });
   }
   next();
 }
 
 /**
- * GET /api/admin/users (pubblico, accessibile a tutti gli utenti autenticati)
- * Lista tutti gli utenti per assegnare TODO
+ * GET /api/admin/users (public, accessible to all authenticated users)
+ * List all users to assign TODOs
  */
 router.get('/users', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -39,7 +39,7 @@ router.get('/users', authMiddleware, async (req: Request, res: Response) => {
 
 /**
  * POST /api/admin/users
- * Crea un nuovo utente
+ * Create a new user
  */
 router.post('/users', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -67,7 +67,7 @@ router.post('/users', authMiddleware, adminOnly, async (req: Request, res: Respo
 
 /**
  * GET /api/admin/users/:userId
- * Ottiene dettagli di un utente specifico
+ * Get details of a specific user
  */
 router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -92,7 +92,7 @@ router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
 
 /**
  * PUT /api/admin/users/:userId
- * Aggiorna i dati di un utente
+ * Update user data
  */
 router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -121,7 +121,7 @@ router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
 
 /**
  * PATCH /api/admin/users/:userId/password
- * Cambia la password di un utente
+ * Change a user's password
  */
 router.patch('/users/:userId/password', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -149,7 +149,7 @@ router.patch('/users/:userId/password', authMiddleware, adminOnly, async (req: R
 
 /**
  * DELETE /api/admin/users/:userId
- * Cancella un utente e tutti i suoi dati associati
+ * Delete a user and all associated data
  */
 router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -171,7 +171,7 @@ router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, 
 
 /**
  * POST /api/admin/permissions
- * Assegna un permesso a un utente per cliente+azienda
+ * Assign a permission to a user for client+company
  * Body: { userId, clientId, companyId, can_view, can_create, can_edit, assignedByUserId }
  */
 router.post('/permissions', authMiddleware, adminOnly, async (req: Request, res: Response) => {
@@ -182,7 +182,7 @@ router.post('/permissions', authMiddleware, adminOnly, async (req: Request, res:
     if (!userId || !clientId || !companyId) {
       return res.status(400).json({
         success: false,
-        error: 'userId, clientId, companyId sono richiesti',
+        error: 'userId, clientId, companyId are required',
       });
     }
 
@@ -210,7 +210,7 @@ router.post('/permissions', authMiddleware, adminOnly, async (req: Request, res:
 
 /**
  * GET /api/admin/permissions
- * Lista i permessi, opzionalmente filtrando per userId o clientId
+ * List permissions, optionally filtering by userId or clientId
  */
 router.get('/permissions', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -233,7 +233,7 @@ router.get('/permissions', authMiddleware, adminOnly, async (req: Request, res: 
 
 /**
  * PUT /api/admin/permissions/:permissionId
- * Aggiorna i permessi di un utente
+ * Update user permissions
  */
 router.put('/permissions/:permissionId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -261,7 +261,7 @@ router.put('/permissions/:permissionId', authMiddleware, adminOnly, async (req: 
 
 /**
  * DELETE /api/admin/permissions/:permissionId
- * Revoca un permesso
+ * Revoke a permission
  */
 router.delete('/permissions/:permissionId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
@@ -271,7 +271,7 @@ router.delete('/permissions/:permissionId', authMiddleware, adminOnly, async (re
 
     res.json({
       success: true,
-      message: 'Permesso revocato',
+      message: 'Permission revoked',
     });
   } catch (error) {
     res.status(500).json({
@@ -293,7 +293,7 @@ router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, 
 
     res.json({
       success: true,
-      message: 'Utente cancellato con successo',
+      message: 'User deleted successfully',
     });
   } catch (error) {
     res.status(500).json({

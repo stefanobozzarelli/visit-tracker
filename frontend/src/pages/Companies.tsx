@@ -23,7 +23,7 @@ export const Companies: React.FC = () => {
         setCompanies(response.data);
       }
     } catch (err) {
-      setError('Errore nel caricamento delle aziende');
+      setError('Error loading companies');
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +53,7 @@ export const Companies: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Sei sicuro?')) return;
+    if (!confirm('Are you sure?')) return;
     try {
       await apiService.deleteCompany(id);
       loadCompanies();
@@ -71,9 +71,9 @@ export const Companies: React.FC = () => {
   return (
     <div className="crud-page">
       <div className="page-header">
-        <h1>Gestione Aziende</h1>
+        <h1>Companies Management</h1>
         <button onClick={() => setShowForm(true)} className="btn-primary">
-          + Aggiungi Azienda
+          + Add Company
         </button>
       </div>
 
@@ -81,10 +81,10 @@ export const Companies: React.FC = () => {
 
       {showForm && (
         <div className="form-card">
-          <h3>{editingId ? 'Modifica Azienda' : 'Aggiungi Azienda'}</h3>
+          <h3>{editingId ? 'Edit Company' : 'Add Company'}</h3>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Nome Azienda *</label>
+              <label>Company Name *</label>
               <input
                 type="text"
                 value={formData.name}
@@ -93,7 +93,7 @@ export const Companies: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Nazione *</label>
+              <label>Country *</label>
               <input
                 type="text"
                 value={formData.country}
@@ -102,7 +102,7 @@ export const Companies: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Settore Industria</label>
+              <label>Industry Sector</label>
               <input
                 type="text"
                 value={formData.industry}
@@ -111,10 +111,10 @@ export const Companies: React.FC = () => {
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-primary">
-                {editingId ? 'Salva' : 'Crea'}
+                {editingId ? 'Save' : 'Create'}
               </button>
               <button type="button" onClick={handleCancel} className="btn-secondary">
-                Annulla
+                Cancel
               </button>
             </div>
           </form>
@@ -122,18 +122,18 @@ export const Companies: React.FC = () => {
       )}
 
       {isLoading ? (
-        <p>Caricamento...</p>
+        <p>Loading...</p>
       ) : companies.length === 0 ? (
-        <p>Nessuna azienda</p>
+        <p>No companies</p>
       ) : (
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Nome</th>
-                <th>Nazione</th>
-                <th>Settore</th>
-                <th>Azioni</th>
+                <th>Name</th>
+                <th>Country</th>
+                <th>Sector</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -144,13 +144,13 @@ export const Companies: React.FC = () => {
                   <td>{company.industry || '-'}</td>
                   <td className="actions">
                     <button onClick={() => handleEdit(company)} className="btn-warning">
-                      Modifica
+                      Edit
                     </button>
                     <button
                       onClick={() => handleDelete(company.id)}
                       className="btn-danger"
                     >
-                      Elimina
+                      Delete
                     </button>
                   </td>
                 </tr>

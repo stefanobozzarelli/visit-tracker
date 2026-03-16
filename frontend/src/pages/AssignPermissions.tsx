@@ -65,7 +65,7 @@ export const AssignPermissions = () => {
       setClients(clientsRes.data.data);
       setCompanies(companiesRes.data.data);
     } catch (err) {
-      setError('Errore nel caricamento dei dati');
+      setError('Error loading data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -78,7 +78,7 @@ export const AssignPermissions = () => {
     setSuccess('');
 
     if (!selectedUser || !selectedClient || selectedCompanies.length === 0) {
-      setError('Seleziona utente, cliente e almeno una azienda');
+      setError('Select user, client and at least one company');
       return;
     }
 
@@ -104,10 +104,10 @@ export const AssignPermissions = () => {
 
       await Promise.all(promises);
 
-      setSuccess(`Permessi assegnati con successo per ${selectedCompanies.length} azienda(e)`);
+      setSuccess(`Permissions assigned successfully for ${selectedCompanies.length} company(ies)`);
       resetForm();
     } catch (err) {
-      setError('Errore nell\'assegnazione dei permessi');
+      setError('Error assigning permissions');
       console.error(err);
     }
   };
@@ -122,19 +122,19 @@ export const AssignPermissions = () => {
   };
 
   if (loading) {
-    return <div className="admin-permissions"><p>Caricamento...</p></div>;
+    return <div className="admin-permissions"><p>Loading...</p></div>;
   }
 
   return (
     <div className="admin-permissions">
       <div className="header">
-        <h1>Assegna Permessi</h1>
+        <h1>Assign Permissions</h1>
         <div>
           <button className="btn btn-secondary" onClick={() => navigate('/admin/permissions/view')}>
-            Visualizza Permessi →
+            View Permissions →
           </button>
           <button className="btn btn-secondary" onClick={() => navigate('/visits')} style={{ marginLeft: '10px' }}>
-            ← Indietro
+            ← Back
           </button>
         </div>
       </div>
@@ -151,7 +151,7 @@ export const AssignPermissions = () => {
               onChange={(e) => setSelectedUser(e.target.value)}
               required
             >
-              <option value="">Seleziona utente...</option>
+              <option value="">Select user...</option>
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name} ({user.email})
@@ -167,7 +167,7 @@ export const AssignPermissions = () => {
               onChange={(e) => setSelectedClient(e.target.value)}
               required
             >
-              <option value="">Seleziona cliente...</option>
+              <option value="">Select client...</option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name}
@@ -177,7 +177,7 @@ export const AssignPermissions = () => {
           </div>
 
           <div className="form-group">
-            <label>Aziende</label>
+            <label>Companies</label>
             <div className="companies-checkboxes">
               <label>
                 <input
@@ -191,7 +191,7 @@ export const AssignPermissions = () => {
                     }
                   }}
                 />
-                <strong>Seleziona tutte</strong>
+                <strong>Select all</strong>
               </label>
               <div style={{ marginTop: '0.5rem' }}>
                 {companies.map((company) => (
@@ -221,7 +221,7 @@ export const AssignPermissions = () => {
                 checked={canView}
                 onChange={(e) => setCanView(e.target.checked)}
               />
-              Visualizzare
+              View
             </label>
             <label>
               <input
@@ -229,7 +229,7 @@ export const AssignPermissions = () => {
                 checked={canCreate}
                 onChange={(e) => setCanCreate(e.target.checked)}
               />
-              Creare visite
+              Create visits
             </label>
             <label>
               <input
@@ -237,12 +237,12 @@ export const AssignPermissions = () => {
                 checked={canEdit}
                 onChange={(e) => setCanEdit(e.target.checked)}
               />
-              Modificare report
+              Modify reports
             </label>
           </div>
 
           <button type="submit" className="btn btn-primary">
-            Assegna Permesso
+            Assign Permission
           </button>
         </form>
       </div>

@@ -28,7 +28,7 @@ export const Visits: React.FC = () => {
         setSearchError('');
       }
     } catch (err) {
-      setError('Errore nel caricamento delle visite');
+      setError('Error loading visits');
     } finally {
       setIsLoading(false);
     }
@@ -37,7 +37,7 @@ export const Visits: React.FC = () => {
   const handleSearchResults = (results: Visit[]) => {
     setDisplayedVisits(results);
     if (results.length === 0) {
-      setSearchError('Nessuna visita trovata');
+      setSearchError('No visits found');
     } else {
       setSearchError('');
     }
@@ -46,9 +46,9 @@ export const Visits: React.FC = () => {
   return (
     <div className="crud-page">
       <div className="page-header">
-        <h1>Visite</h1>
+        <h1>Visits</h1>
         <button onClick={() => navigate('/visits/new')} className="btn-primary">
-          + Registra Nuova Visita
+          + Register New Visit
         </button>
       </div>
 
@@ -65,19 +65,19 @@ export const Visits: React.FC = () => {
       )}
 
       {isLoading ? (
-        <p>Caricamento...</p>
+        <p>Loading...</p>
       ) : visits.length === 0 ? (
-        <p>Nessuna visita registrata</p>
+        <p>No visits registered</p>
       ) : (
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Cliente</th>
-                <th>Data Visita</th>
-                <th>Visitato da</th>
+                <th>Client</th>
+                <th>Visit Date</th>
+                <th>Visited By</th>
                 <th>Report</th>
-                <th>Azioni</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -92,7 +92,7 @@ export const Visits: React.FC = () => {
                       onClick={() => navigate(`/visits/${visit.id}`)}
                       className="btn-info"
                     >
-                      Visualizza
+                      View
                     </button>
                   </td>
                 </tr>

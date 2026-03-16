@@ -57,7 +57,7 @@ export const MyTodos = () => {
 
       loadTodos();
     } catch (err) {
-      setError('Errore nel caricamento dei dati');
+      setError('Error loading data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ export const MyTodos = () => {
         setSearchError('');
       }
     } catch (err) {
-      setError('Errore nel caricamento dei TODO');
+      setError('Error loading TODOs');
       console.error(err);
     }
   };
@@ -95,7 +95,7 @@ export const MyTodos = () => {
   const handleSearchResults = (results: TodoItem[]) => {
     setDisplayedTodos(results);
     if (results.length === 0) {
-      setSearchError('Nessun TODO trovato');
+      setSearchError('No TODOs found');
     } else {
       setSearchError('');
     }
@@ -112,26 +112,26 @@ export const MyTodos = () => {
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setSuccess('TODO aggiornato');
+      setSuccess('TODO updated');
     } catch (err) {
-      setError('Errore nell\'aggiornamento del TODO');
+      setError('Error updating TODO');
       console.error(err);
       loadTodos(); // Reload to rollback optimistic update
     }
   };
 
   const handleDelete = async (todoId: string) => {
-    if (!window.confirm('Sei sicuro di voler eliminare questo TODO?')) return;
+    if (!window.confirm('Are you sure you want to delete this TODO?')) return;
 
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_BASE_URL}/todos/${todoId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setSuccess('TODO eliminato');
+      setSuccess('TODO deleted');
       loadTodos();
     } catch (err) {
-      setError('Errore nell\'eliminazione del TODO');
+      setError('Error deleting TODO');
       console.error(err);
     }
   };
@@ -143,7 +143,7 @@ export const MyTodos = () => {
   if (loading) {
     return (
       <div className="my-todos">
-        <p>Caricamento...</p>
+        <p>Loading...</p>
       </div>
     );
   }
@@ -155,9 +155,9 @@ export const MyTodos = () => {
   return (
     <div className="my-todos">
       <div className="header">
-        <h1>I Miei TODO</h1>
+        <h1>My TODOs</h1>
         <button className="btn btn-primary" onClick={handleCreateFromReport}>
-          + Nuovo TODO
+          + New TODO
         </button>
       </div>
 
@@ -178,17 +178,17 @@ export const MyTodos = () => {
         <div className="filter-group">
           <label>Status</label>
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">Tutti</option>
+            <option value="">All</option>
             <option value="todo">Todo</option>
-            <option value="in_progress">In Progresso</option>
-            <option value="done">Completato</option>
+            <option value="in_progress">In Progress</option>
+            <option value="done">Completed</option>
           </select>
         </div>
 
         <div className="filter-group">
-          <label>Cliente</label>
+          <label>Client</label>
           <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-            <option value="">Tutti</option>
+            <option value="">All</option>
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
                 {client.name}
@@ -198,9 +198,9 @@ export const MyTodos = () => {
         </div>
 
         <div className="filter-group">
-          <label>Azienda</label>
+          <label>Company</label>
           <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
-            <option value="">Tutte</option>
+            <option value="">All</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
@@ -212,40 +212,40 @@ export const MyTodos = () => {
         <div className="filter-group checkbox">
           <label>
             <input type="checkbox" checked={overdue} onChange={(e) => setOverdue(e.target.checked)} />
-            Scaduti
+            Overdue
           </label>
         </div>
 
         <div className="filter-group checkbox">
           <label>
             <input type="checkbox" checked={thisWeek} onChange={(e) => setThisWeek(e.target.checked)} />
-            Questa Settimana
+            This Week
           </label>
         </div>
 
         <div className="filter-group checkbox">
           <label>
             <input type="checkbox" checked={next7Days} onChange={(e) => setNext7Days(e.target.checked)} />
-            Prossimi 7 Giorni
+            Next 7 Days
           </label>
         </div>
       </div>
 
       <div className="table-section">
         {displayedTodos.length === 0 ? (
-          <p className="no-data">Nessun TODO trovato</p>
+          <p className="no-data">No TODOs found</p>
         ) : (
           <table className="todos-table">
             <thead>
               <tr>
-                <th>Azione</th>
-                <th>Cliente</th>
-                <th>Azienda</th>
-                <th>Creato da</th>
-                <th>Assegnato a</th>
+                <th>Action</th>
+                <th>Client</th>
+                <th>Company</th>
+                <th>Created By</th>
+                <th>Assigned To</th>
                 <th>Status</th>
-                <th>Scadenza</th>
-                <th>Azioni</th>
+                <th>Due Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -263,14 +263,14 @@ export const MyTodos = () => {
                       className={`status-select status-${todo.status}`}
                     >
                       <option value="todo">Todo</option>
-                      <option value="in_progress">In Progresso</option>
-                      <option value="done">Completato</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="done">Completed</option>
                     </select>
                   </td>
                   <td className="due-date">{todo.due_date ? new Date(todo.due_date).toLocaleDateString('it-IT') : '-'}</td>
                   <td>
                     <button className="btn btn-small btn-danger" onClick={() => handleDelete(todo.id)}>
-                      Elimina
+                      Delete
                     </button>
                   </td>
                 </tr>

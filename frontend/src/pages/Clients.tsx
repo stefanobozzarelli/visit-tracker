@@ -29,7 +29,7 @@ export const Clients: React.FC = () => {
         setClients(response.data);
       }
     } catch (err) {
-      setError('Errore nel caricamento dei clienti');
+      setError('Error loading clients');
     } finally {
       setIsLoading(false);
     }
@@ -126,9 +126,9 @@ export const Clients: React.FC = () => {
   return (
     <div className="crud-page">
       <div className="page-header">
-        <h1>Gestione Clienti</h1>
+        <h1>Clients Management</h1>
         <button onClick={() => setShowForm(true)} className="btn-primary">
-          + Aggiungi Cliente
+          + Add Client
         </button>
       </div>
 
@@ -136,10 +136,10 @@ export const Clients: React.FC = () => {
 
       {showForm && (
         <div className="form-card">
-          <h3>{editingId ? 'Modifica Cliente' : 'Aggiungi Cliente'}</h3>
+          <h3>{editingId ? 'Edit Client' : 'Add Client'}</h3>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Nome Cliente *</label>
+              <label>Client Name *</label>
               <input
                 type="text"
                 value={formData.name}
@@ -148,7 +148,7 @@ export const Clients: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Nazione *</label>
+              <label>Country *</label>
               <input
                 type="text"
                 value={formData.country}
@@ -157,7 +157,7 @@ export const Clients: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Note</label>
+              <label>Notes</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -165,22 +165,22 @@ export const Clients: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Ruolo Cliente</label>
+              <label>Client Role</label>
               <select
                 value={(formData as any).role || 'cliente'}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               >
-                <option value="cliente">Cliente</option>
+                <option value="cliente">Client</option>
                 <option value="developer">Developer</option>
-                <option value="architetto-designer">Architetto/Designer</option>
+                <option value="architetto-designer">Architect/Designer</option>
               </select>
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-primary">
-                {editingId ? 'Salva' : 'Crea'}
+                {editingId ? 'Save' : 'Create'}
               </button>
               <button type="button" onClick={handleCancel} className="btn-secondary">
-                Annulla
+                Cancel
               </button>
             </div>
           </form>
@@ -188,15 +188,15 @@ export const Clients: React.FC = () => {
       )}
 
       {isLoading ? (
-        <p>Caricamento...</p>
+        <p>Loading...</p>
       ) : clients.length === 0 ? (
-        <p>Nessun cliente</p>
+        <p>No clients</p>
       ) : (
         <>
           <div className="search-container">
             <input
               type="text"
-              placeholder="Ricerca per nome o contatti..."
+              placeholder="Search by name or contacts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"
@@ -206,19 +206,19 @@ export const Clients: React.FC = () => {
             <table>
               <thead>
                 <tr>
-                  <th>Nome</th>
-                  <th>Nazione</th>
-                  <th>Ruolo</th>
-                  <th>Contatti</th>
-                  <th>Azioni</th>
+                  <th>Name</th>
+                  <th>Country</th>
+                  <th>Role</th>
+                  <th>Contacts</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {getSortedAndFilteredClients().map((client) => {
                   const roleLabels: { [key: string]: string } = {
-                    'cliente': 'Cliente',
+                    'cliente': 'Client',
                     'developer': 'Developer',
-                    'architetto-designer': 'Architetto/Designer',
+                    'architetto-designer': 'Architect/Designer',
                   };
                   const roleLabel = roleLabels[(client as any).role || 'cliente'] || 'Cliente';
 
@@ -233,16 +233,16 @@ export const Clients: React.FC = () => {
                           onClick={() => navigate(`/clients/${client.id}`)}
                           className="btn-info"
                         >
-                          Dettagli
+                          Details
                         </button>
                         <button onClick={() => handleEdit(client)} className="btn-warning">
-                          Modifica
+                          Edit
                         </button>
                         <button
                           onClick={() => handleDelete(client)}
                           className="btn-danger"
                         >
-                          Elimina
+                          Delete
                         </button>
                       </td>
                     </tr>
@@ -257,10 +257,10 @@ export const Clients: React.FC = () => {
       {showDeleteModal && clientToDelete && (
         <div className="modal-overlay" onClick={handleCancelDelete}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Conferma Cancellazione Cliente</h2>
+            <h2>Confirm Delete Client</h2>
             <div className="modal-body">
               <p className="warning-message">
-                ⚠️ <strong>Attenzione:</strong> Questa azione cancellerà il cliente <strong>{clientToDelete.name}</strong> e <strong>TUTTE le visite associate</strong>. Questa operazione non può essere annullata.
+                ⚠️ <strong>Warning:</strong> This action will delete the client <strong>{clientToDelete.name}</strong> and <strong>ALL associated visits</strong>. This operation cannot be undone.
               </p>
               <div className="checkbox-group">
                 <label>
@@ -269,7 +269,7 @@ export const Clients: React.FC = () => {
                     checked={deleteConfirmCheckbox}
                     onChange={(e) => setDeleteConfirmCheckbox(e.target.checked)}
                   />
-                  Confermo di voler cancellare il cliente "{clientToDelete.name}"
+                  I confirm I want to delete the client "{clientToDelete.name}"
                 </label>
               </div>
             </div>
@@ -278,14 +278,14 @@ export const Clients: React.FC = () => {
                 onClick={handleCancelDelete}
                 className="btn-secondary"
               >
-                Annulla
+                Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={!deleteConfirmCheckbox}
                 className="btn-danger"
               >
-                Elimina Cliente
+                Delete Client
               </button>
             </div>
           </div>

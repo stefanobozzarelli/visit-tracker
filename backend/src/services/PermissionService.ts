@@ -9,7 +9,7 @@ export class PermissionService {
   private visitRepository = AppDataSource.getRepository(Visit);
 
   /**
-   * Assegna permessi a un utente per una combinazione cliente + azienda
+   * Assign permissions to a user for a client + company combination
    */
   async assignPermission(
     userId: string,
@@ -20,7 +20,7 @@ export class PermissionService {
     canEdit: boolean = false,
     assignedByUserId: string
   ): Promise<UserPermission> {
-    // Verifica se esiste già
+    // Check if it already exists
     const existing = await this.permissionRepository.findOne({
       where: {
         user_id: userId,
@@ -30,14 +30,14 @@ export class PermissionService {
     });
 
     if (existing) {
-      // Aggiorna i permessi
+      // Update permissions
       existing.can_view = canView;
       existing.can_create = canCreate;
       existing.can_edit = canEdit;
       return await this.permissionRepository.save(existing);
     }
 
-    // Crea nuovo record
+    // Create new record
     const permission = this.permissionRepository.create({
       user_id: userId,
       client_id: clientId,
@@ -52,14 +52,14 @@ export class PermissionService {
   }
 
   /**
-   * Revoca un permesso
+   * Revoke a permission
    */
   async revokePermission(permissionId: string): Promise<void> {
     await this.permissionRepository.delete(permissionId);
   }
 
   /**
-   * Aggiorna i permessi di un utente per una combinazione cliente + azienda
+   * Update user permissions for a client + company combination
    */
   async updatePermission(
     permissionId: string,
@@ -72,7 +72,7 @@ export class PermissionService {
     });
 
     if (!permission) {
-      throw new Error('Permesso non trovato');
+      throw new Error('Permission not found');
     }
 
     permission.can_view = canView;
@@ -83,7 +83,7 @@ export class PermissionService {
   }
 
   /**
-   * Verifica se un utente ha accesso a una combinazione cliente + azienda
+   * Check if a user has access to a client + company combination
    */
   async checkPermission(
     userId: string,
@@ -91,18 +91,18 @@ export class PermissionService {
     companyId: string,
     requiredPermission: 'view' | 'create' | 'edit' = 'view'
   ): Promise<boolean> {
-    // Admin ha accesso totale
+    // Admin has full access
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (user?.role === 'admin') {
       return true;
     }
 
-    // Manager ha accesso totale
+    // Manager has full access
     if (user?.role === 'backoffice') {
       return true;
     }
 
-    // Sales rep deve avere permesso esplicito
+    // Sales rep must have explicit permission
     const permission = await this.permissionRepository.findOne({
       where: {
         user_id: userId,
@@ -127,7 +127,7 @@ export class PermissionService {
   }
 
   /**
-   * Ottiene tutti i permessi di un utente
+   * Get all permissions for a user
    */
   async getUserPermissions(userId: string): Promise<UserPermission[]> {
     return await this.permissionRepository.find({
@@ -137,17 +137,17 @@ export class PermissionService {
   }
 
   /**
-   * Ottiene i clienti visibili a un utente
+   * Get visible clients for a user
    */
   async getVisibleClients(userId: string): Promise<string[]> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
-    // Admin vede tutti i clienti
+    // Admin sees all clients
     if (user?.role === 'admin' || user?.role === 'backoffice') {
-      return ['*']; // Wildcard per indicare "tutti"
+      return ['*']; // Wildcard to indicate "all"
     }
 
-    // Sales rep vede solo quelli con permesso
+    // Sales rep sees only those with permission
     const permissions = await this.permissionRepository.find({
       where: { user_id: userId },
       select: ['client_id'],
@@ -157,17 +157,17 @@ export class PermissionService {
   }
 
   /**
-   * Ottiene le aziende visibili a un utente per un cliente
+   * Get visible companies for a user for a client
    */
   async getVisibleCompanies(userId: string, clientId: string): Promise<string[]> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
-    // Admin vede tutte
+    // Admin sees all
     if (user?.role === 'admin' || user?.role === 'backoffice') {
       return ['*'];
     }
 
-    // Sales rep vede solo quelle con permesso
+    // Sales rep sees only those with permission
     const permissions = await this.permissionRepository.find({
       where: {
         user_id: userId,
@@ -180,7 +180,7 @@ export class PermissionService {
   }
 
   /**
-   * Ottiene tutti i permessi (per admin)
+   * Get all permissions (for admin)
    */
   async getAllPermissions(userId?: string, clientId?: string): Promise<UserPermission[]> {
     let query = this.permissionRepository.createQueryBuilder('perm')
@@ -201,7 +201,7 @@ export class PermissionService {
   }
 
   /**
-   * Ottiene tutti gli utenti per assegnare permessi
+   * Get all users to assign permissions
    */
   async getAllUsers(): Promise<User[]> {
     return await this.userRepository.find({
@@ -210,28 +210,28 @@ export class PermissionService {
   }
 
   /**
-   * Cancella tutti i permessi di un cliente
+   * Delete all permissions for a client
    */
   async deletePermissionsByClientId(clientId: string): Promise<void> {
     await this.permissionRepository.delete({ client_id: clientId });
   }
 
   /**
-   * Cancella un utente e tutti i suoi dati associati
+   * Delete a user and all associated data
    */
   async deleteUser(userId: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new Error('Utente non trovato');
+      throw new Error('User not found');
     }
 
-    // Elimina le visite dell'utente
+    // Delete user's visits
     await this.visitRepository.delete({ visited_by_user_id: userId });
 
-    // Elimina i permessi dell'utente
+    // Delete user's permissions
     await this.permissionRepository.delete({ user_id: userId });
 
-    // Elimina l'utente
+    // Delete the user
     await this.userRepository.delete(userId);
   }
 }

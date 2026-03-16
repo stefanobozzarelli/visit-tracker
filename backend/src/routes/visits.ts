@@ -91,11 +91,11 @@ router.get('/', async (req: Request, res: Response) => {
 
     let visits = await visitService.getVisits(filters);
 
-    // Filtra visite per sales_rep, admin/manager vede tutte
+    // Filter visits for sales_rep, admin/manager sees all
     if (userRole !== 'admin' && userRole !== 'manager') {
       const visibleClientIds = await permissionService.getVisibleClients(userId);
 
-      // Se non ha accesso a '*' (tutti), filtra per soli clienti assegnati
+      // If no access to '*' (all), filter for only assigned clients
       if (!visibleClientIds.includes('*')) {
         visits = visits.filter(visit => visibleClientIds.includes(visit.client_id));
       }
@@ -115,7 +115,7 @@ router.get('/:id/can-delete', async (req: Request, res: Response) => {
     const userRole = (req.user as any)?.role;
     const visitId = req.params.id;
 
-    // Verifica permesso d'accesso alla visita
+    // Check access permission to visit
     const visit = await visitService.getVisitById(visitId);
     if (!visit) {
       return res.status(404).json({ success: false, error: 'Visit not found' });
@@ -124,7 +124,7 @@ router.get('/:id/can-delete', async (req: Request, res: Response) => {
     if (userRole !== 'admin' && userRole !== 'manager') {
       const visibleClientIds = await permissionService.getVisibleClients(userId);
       if (!visibleClientIds.includes('*') && !visibleClientIds.includes(visit.client_id)) {
-        return res.status(403).json({ success: false, error: 'Accesso negato a questa visita' });
+        return res.status(403).json({ success: false, error: 'Access denied to this visit' });
       }
     }
 
@@ -145,11 +145,11 @@ router.get('/:id', async (req: Request, res: Response) => {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) return res.status(404).json({ success: false, error: 'Visit not found' });
 
-    // Verifica permesso d'accesso
+    // Check access permission
     if (userRole !== 'admin' && userRole !== 'manager') {
       const visibleClientIds = await permissionService.getVisibleClients(userId);
       if (!visibleClientIds.includes('*') && !visibleClientIds.includes(visit.client_id)) {
-        return res.status(403).json({ success: false, error: 'Accesso negato a questa visita' });
+        return res.status(403).json({ success: false, error: 'Access denied to this visit' });
       }
     }
 
@@ -168,11 +168,11 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) return res.status(404).json({ success: false, error: 'Visit not found' });
 
-    // Verifica permesso d'accesso
+    // Check access permission
     if (userRole !== 'admin' && userRole !== 'manager') {
       const visibleClientIds = await permissionService.getVisibleClients(userId);
       if (!visibleClientIds.includes('*') && !visibleClientIds.includes(visit.client_id)) {
-        return res.status(403).json({ success: false, error: 'Accesso negato a questa visita' });
+        return res.status(403).json({ success: false, error: 'Access denied to this visit' });
       }
     }
 
@@ -322,7 +322,7 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
       user_id: userId,
     });
 
-    // Filtra visite per permessi (se non è admin/manager)
+    // Filter visits by permissions (if not admin/manager)
     if (userRole !== 'admin' && userRole !== 'manager') {
       const visibleClientIds = await permissionService.getVisibleClients(authUserId);
       if (!visibleClientIds.includes('*')) {
@@ -347,7 +347,7 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
         ...v,
         reports: v.reports?.filter(r => companyIdArray.includes(r.company_id)) || [],
       })) as any;
-      // Rimuovi visite senza report (dopo il filtraggio per company)
+      // Remove visits without reports (after company filtering)
       visits = visits.filter(v => v.reports && v.reports.length > 0);
     }
 

@@ -26,7 +26,7 @@ export const Dashboard: React.FC = () => {
         setVisits(response.data);
       }
     } catch (err) {
-      setError('Errore nel caricamento delle visite');
+      setError('Error loading visits');
     } finally {
       setIsLoading(false);
     }
@@ -37,34 +37,34 @@ export const Dashboard: React.FC = () => {
       <h1>Dashboard</h1>
       <div className="dashboard-header">
         <div className="welcome-card">
-          <h2>Benvenuto, {user?.name}!</h2>
-          <p>Gestisci le tue visite e i tuoi report da qui.</p>
+          <h2>Welcome, {user?.name}!</h2>
+          <p>Manage your visits and reports from here.</p>
         </div>
         <button onClick={() => navigate('/visits/new')} className="btn-primary">
-          + Registra Visita
+          + Register Visit
         </button>
       </div>
 
       <div className="dashboard-content">
-        <h3>Visite Recenti</h3>
+        <h3>Recent Visits</h3>
         {isLoading ? (
-          <p>Caricamento...</p>
+          <p>Loading...</p>
         ) : error ? (
           <p className="error">{error}</p>
         ) : visits.length === 0 ? (
-          <p>Nessuna visita registrata</p>
+          <p>No visits registered</p>
         ) : (
           <div className="visits-list">
             {visits.slice(0, 10).map((visit) => (
               <div key={visit.id} className="visit-card">
                 <h4>{visit.client?.name}</h4>
-                <p>Data: {new Date(visit.visit_date).toLocaleDateString('it-IT')}</p>
+                <p>Date: {new Date(visit.visit_date).toLocaleDateString('it-IT')}</p>
                 <p>Report: {visit.reports?.length || 0}</p>
                 <button
                   onClick={() => navigate(`/visits/${visit.id}`)}
                   className="btn-secondary"
                 >
-                  Visualizza
+                  View
                 </button>
               </div>
             ))}

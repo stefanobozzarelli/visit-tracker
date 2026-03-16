@@ -93,7 +93,7 @@ export class TodoService {
   }
 
   async getMyTodos(userId: string, filters?: TodoFilters): Promise<TodoItem[]> {
-    // Mostra TODO assegnati ALL'UTENTE oppure creati DALL'UTENTE
+    // Show TODOs assigned TO THE USER or created BY THE USER
     let query = this.todoRepository
       .createQueryBuilder('todo')
       .leftJoinAndSelect('todo.assigned_to_user', 'assigned_user')

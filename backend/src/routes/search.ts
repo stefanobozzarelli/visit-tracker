@@ -10,7 +10,7 @@ router.use(authMiddleware);
 
 /**
  * POST /api/search/visits
- * Ricerca semantica nelle visite
+ * Semantic search in visits
  */
 router.post('/visits', async (req: Request, res: Response) => {
   try {
@@ -18,7 +18,7 @@ router.post('/visits', async (req: Request, res: Response) => {
     if (!query || query.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Query di ricerca obbligatoria',
+        error: 'Search query is required',
       });
     }
 
@@ -26,21 +26,21 @@ router.post('/visits', async (req: Request, res: Response) => {
     const response: ApiResponse<any> = {
       success: true,
       data: visits,
-      message: `Trovate ${visits.length} visite`,
+      message: `Found ${visits.length} visits`,
     };
     res.json(response);
   } catch (error) {
     console.error('Search visits error:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nella ricerca: ' + (error as Error).message,
+      error: 'Search error: ' + (error as Error).message,
     });
   }
 });
 
 /**
  * POST /api/search/todos
- * Ricerca semantica nei TODO
+ * Semantic search in TODOs
  */
 router.post('/todos', async (req: Request, res: Response) => {
   try {
@@ -48,25 +48,25 @@ router.post('/todos', async (req: Request, res: Response) => {
     if (!query || query.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Query di ricerca obbligatoria',
+        error: 'Search query is required',
       });
     }
 
-    // Admin può cercare in tutti i TODO, altri utenti solo nei propri
+    // Admin can search all TODOs, other users only their own
     const userId = req.user!.role === 'admin' ? undefined : req.user!.id;
     const todos = await searchService.searchTodos(query, userId);
 
     const response: ApiResponse<any> = {
       success: true,
       data: todos,
-      message: `Trovati ${todos.length} TODO`,
+      message: `Found ${todos.length} TODOs`,
     };
     res.json(response);
   } catch (error) {
     console.error('Search todos error:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nella ricerca: ' + (error as Error).message,
+      error: 'Search error: ' + (error as Error).message,
     });
   }
 });

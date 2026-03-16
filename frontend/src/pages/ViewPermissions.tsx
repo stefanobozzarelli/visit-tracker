@@ -83,7 +83,7 @@ export const ViewPermissions = () => {
       setClients(clientsRes.data.data);
       setCompanies(companiesRes.data.data);
     } catch (err) {
-      setError('Errore nel caricamento dei dati');
+      setError('Error loading data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ export const ViewPermissions = () => {
   };
 
   const handleRevokePermission = async (permissionId: string) => {
-    if (!window.confirm('Sei sicuro di voler revocare questo permesso?')) return;
+    if (!window.confirm('Are you sure you want to revoke this permission?')) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -99,10 +99,10 @@ export const ViewPermissions = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setSuccess('Permesso revocato');
+      setSuccess('Permission revoked');
       loadData();
     } catch (err) {
-      setError('Errore nella revoca del permesso');
+      setError('Error revoking permission');
       console.error(err);
     }
   };
@@ -131,11 +131,11 @@ export const ViewPermissions = () => {
         }
       );
 
-      setSuccess('Permesso aggiornato con successo');
+      setSuccess('Permission updated successfully');
       setEditingPermission(null);
       loadData();
     } catch (err) {
-      setError('Errore nell\'aggiornamento del permesso');
+      setError('Error updating permission');
       console.error(err);
     }
   };
@@ -169,19 +169,19 @@ export const ViewPermissions = () => {
   };
 
   if (loading) {
-    return <div className="admin-permissions"><p>Caricamento...</p></div>;
+    return <div className="admin-permissions"><p>Loading...</p></div>;
   }
 
   return (
     <div className="admin-permissions">
       <div className="header">
-        <h1>Permessi Assegnati</h1>
+        <h1>Assigned Permissions</h1>
         <div>
           <button className="btn btn-secondary" onClick={() => navigate('/admin/permissions/assign')}>
-            ← Assegna Permessi
+            ← Assign Permissions
           </button>
           <button className="btn btn-secondary" onClick={() => navigate('/visits')} style={{ marginLeft: '10px' }}>
-            ← Indietro
+            ← Back
           </button>
         </div>
       </div>
@@ -191,10 +191,10 @@ export const ViewPermissions = () => {
 
       {permissions.length > 0 && (
         <div className="form-group" style={{ marginBottom: '20px' }}>
-          <label>Cerca Cliente</label>
+          <label>Search Client</label>
           <input
             type="text"
-            placeholder="Digita il nome del cliente..."
+            placeholder="Type client name..."
             value={searchClient}
             onChange={(e) => setSearchClient(e.target.value)}
             style={{
@@ -210,18 +210,18 @@ export const ViewPermissions = () => {
 
       <div className="table-section">
         {permissions.length === 0 ? (
-          <p>Nessun permesso assegnato</p>
+          <p>No permissions assigned</p>
         ) : (
           <table className="permissions-table">
             <thead>
               <tr>
-                <th>Utente</th>
-                <th>Cliente</th>
-                <th>Azienda</th>
-                <th>Visualizza</th>
-                <th>Crea</th>
-                <th>Modifica</th>
-                <th>Azioni</th>
+                <th>User</th>
+                <th>Client</th>
+                <th>Company</th>
+                <th>View</th>
+                <th>Create</th>
+                <th>Edit</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -238,13 +238,13 @@ export const ViewPermissions = () => {
                       className="btn btn-small btn-warning"
                       onClick={() => handleEditPermission(perm)}
                     >
-                      Modifica
+                      Edit
                     </button>
                     <button
                       className="btn btn-small btn-danger"
                       onClick={() => handleRevokePermission(perm.id)}
                     >
-                      Revoca
+                      Revoke
                     </button>
                   </td>
                 </tr>
@@ -257,16 +257,16 @@ export const ViewPermissions = () => {
       {editingPermission && (
         <div className="modal-overlay" onClick={() => setEditingPermission(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Modifica Permesso</h2>
+            <h2>Edit Permission</h2>
             <div className="modal-body">
               <p>
-                <strong>Utente:</strong> {getUserName(editingPermission.user_id)}
+                <strong>User:</strong> {getUserName(editingPermission.user_id)}
               </p>
               <p>
-                <strong>Cliente:</strong> {getClientName(editingPermission.client_id)}
+                <strong>Client:</strong> {getClientName(editingPermission.client_id)}
               </p>
               <p>
-                <strong>Azienda:</strong> {getCompanyName(editingPermission.company_id)}
+                <strong>Company:</strong> {getCompanyName(editingPermission.company_id)}
               </p>
 
               <div className="permissions-checkboxes">
@@ -276,7 +276,7 @@ export const ViewPermissions = () => {
                     checked={editCanView}
                     onChange={(e) => setEditCanView(e.target.checked)}
                   />
-                  Visualizzare
+                  View
                 </label>
                 <label>
                   <input
@@ -284,7 +284,7 @@ export const ViewPermissions = () => {
                     checked={editCanCreate}
                     onChange={(e) => setEditCanCreate(e.target.checked)}
                   />
-                  Creare visite
+                  Create visits
                 </label>
                 <label>
                   <input
@@ -292,7 +292,7 @@ export const ViewPermissions = () => {
                     checked={editCanEdit}
                     onChange={(e) => setEditCanEdit(e.target.checked)}
                   />
-                  Modificare report
+                  Modify reports
                 </label>
               </div>
             </div>
@@ -301,13 +301,13 @@ export const ViewPermissions = () => {
                 onClick={() => setEditingPermission(null)}
                 className="btn btn-secondary"
               >
-                Annulla
+                Cancel
               </button>
               <button
                 onClick={handleSavePermission}
                 className="btn btn-primary"
               >
-                Salva Modifiche
+                Save Changes
               </button>
             </div>
           </div>

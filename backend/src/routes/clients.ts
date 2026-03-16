@@ -18,10 +18,10 @@ router.post('/', async (req: Request, res: Response) => {
     const data: CreateClientRequest = req.body;
     const userId = (req.user as any)?.id;
 
-    // Crea il cliente
+    // Create the client
     const client = await clientService.createClient(data);
 
-    // Assegna i permessi all'utente che crea il cliente su tutte le aziende
+    // Assign permissions to the user who creates the client for all companies
     if (userId) {
       try {
         const companies = await companyService.getCompanies();
@@ -38,7 +38,7 @@ router.post('/', async (req: Request, res: Response) => {
         }
       } catch (permissionError) {
         // Log the error but don't fail the client creation
-        console.error('Errore nell\'assegnazione dei permessi:', permissionError);
+        console.error('Error assigning permissions:', permissionError);
       }
     }
 
@@ -60,7 +60,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (userRole !== 'admin' && userRole !== 'manager') {
       const visibleClientIds = await permissionService.getVisibleClients(userId);
 
-      // Se non ha accesso a '*' (tutti), filtra per soli clienti assegnati
+      // If no access to '*' (all), filter for only assigned clients
       if (!visibleClientIds.includes('*')) {
         allClients = allClients.filter(client => visibleClientIds.includes(client.id));
       }
@@ -99,15 +99,15 @@ router.delete('/:id', checkVisitPermission, async (req: Request, res: Response) 
   try {
     const userRole = (req.user as any)?.role;
 
-    // Solo admin può cancellare clienti
+    // Only admin can delete clients
     if (userRole !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Solo gli amministratori possono cancellare clienti' });
+      return res.status(403).json({ success: false, error: 'Only administrators can delete clients' });
     }
 
-    // Cancella prima i permessi associati al cliente
+    // First delete permissions associated with the client
     await permissionService.deletePermissionsByClientId(req.params.id);
 
-    // Poi cancella il cliente
+    // Then delete the client
     await clientService.deleteClient(req.params.id);
     const response: ApiResponse<any> = { success: true, message: 'Client deleted' };
     res.json(response);
