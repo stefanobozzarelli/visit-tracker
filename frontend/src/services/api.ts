@@ -204,13 +204,23 @@ class ApiService {
 
   private async getCachedResponse(url: string): Promise<any | null> {
     try {
-      const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
-      if (!match) {
-        console.warn(`[Cache] Could not extract store name for reading: ${url}`);
-        return null;
+      // Handle admin endpoints specially
+      let storeName = null;
+      if (url.includes('/admin/users')) {
+        storeName = 'users';
+      } else if (url.includes('/admin/permissions')) {
+        storeName = 'permissions';
+      } else if (url.includes('/admin/reports')) {
+        storeName = 'reports';
+      } else {
+        const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
+        if (!match) {
+          console.warn(`[Cache] Could not extract store name for reading: ${url}`);
+          return null;
+        }
+        storeName = match[1];
       }
 
-      const storeName = match[1];
       const validStores = [
         'users',
         'clients',
@@ -219,6 +229,7 @@ class ApiService {
         'reports',
         'attachments',
         'permissions',
+        'todos',
       ];
 
       if (!validStores.includes(storeName)) {
