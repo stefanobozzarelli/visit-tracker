@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { ClientService } from '../services/ClientService';
 import { PermissionService } from '../services/PermissionService';
+import { CompanyService } from '../services/CompanyService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateClientRequest, CreateContactRequest } from '../types';
@@ -8,13 +9,39 @@ import { ApiResponse, CreateClientRequest, CreateContactRequest } from '../types
 const router = Router();
 const clientService = new ClientService();
 const permissionService = new PermissionService();
+const companyService = new CompanyService();
 
 router.use(authMiddleware);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data: CreateClientRequest = req.body;
+    const userId = (req.user as any)?.id;
+
+    // Crea il cliente
     const client = await clientService.createClient(data);
+
+    // Assegna i permessi all'utente che crea il cliente su tutte le aziende
+    if (userId) {
+      try {
+        const companies = await companyService.getCompanies();
+        for (const company of companies) {
+          await permissionService.assignPermission(
+            userId,
+            client.id,
+            company.id,
+            true,  // can_view
+            true,  // can_create
+            true,  // can_edit
+            userId // assignedByUserId
+          );
+        }
+      } catch (permissionError) {
+        // Log the error but don't fail the client creation
+        console.error('Errore nell\'assegnazione dei permessi:', permissionError);
+      }
+    }
+
     const response: ApiResponse<any> = { success: true, data: client };
     res.status(201).json(response);
   } catch (error) {
