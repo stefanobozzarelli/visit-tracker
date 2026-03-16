@@ -48,10 +48,8 @@ class ApiService {
           if (cachedData) {
             console.log(`[Offline] ✅ Serving from cache: ${error.config.url}`);
 
-            // Wrap cached data in API response format
-            const responseData = Array.isArray(cachedData)
-              ? { success: true, data: cachedData }
-              : cachedData;
+            // Wrap cached data in API response format (always wrap)
+            const responseData = { success: true, data: cachedData };
 
             // Return properly formatted AxiosResponse
             return Promise.resolve({
