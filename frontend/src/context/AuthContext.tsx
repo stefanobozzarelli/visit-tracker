@@ -128,7 +128,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthMode('online');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    clearOfflineCredentials();
+    // NOTE: DO NOT clear offline credentials - they need to persist for offline login after logout
+    // clearOfflineCredentials();
   };
 
   return (
