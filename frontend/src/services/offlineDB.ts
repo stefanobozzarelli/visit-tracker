@@ -17,6 +17,7 @@ class OfflineDB {
     'reports',
     'attachments',
     'permissions',
+    'todos', // For user todos/tasks
     'syncQueue', // For pending operations
     'metadata', // For last sync time, etc
   ];

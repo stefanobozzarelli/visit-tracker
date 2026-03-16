@@ -48,6 +48,26 @@ export function useDataPreload() {
         console.warn('Failed to preload visits:', error);
       }
 
+      // Preload todos
+      try {
+        const todosResponse = await apiService.getTodos();
+        if (todosResponse.success && todosResponse.data) {
+          await offlineDB.saveData('todos', todosResponse.data);
+        }
+      } catch (error) {
+        console.warn('Failed to preload todos:', error);
+      }
+
+      // Preload users
+      try {
+        const usersResponse = await apiService.getUsers();
+        if (usersResponse.success && usersResponse.data) {
+          await offlineDB.saveData('users', usersResponse.data);
+        }
+      } catch (error) {
+        console.warn('Failed to preload users:', error);
+      }
+
       // Update last sync time
       await offlineDB.setLastSyncTime();
 
