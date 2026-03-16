@@ -63,14 +63,19 @@ class OfflineDB {
 
       // Add new data with timestamp, sync_status, and version
       data.forEach((item) => {
-        // Use put instead of add to handle items with or without existing keys
-        store.put({
+        // Ensure item has an id field (required for keyPath)
+        const dataWithId = {
           ...item,
+          // If no id, use _id, user_id, or generate one
+          id: item.id || item._id || item.user_id || `temp_${Date.now()}_${Math.random()}`,
           timestamp: Date.now(),
           sync_status: 'synced',
           last_modified: Date.now(),
           version: 1,
-        });
+        };
+
+        // Use put instead of add to handle items with or without existing keys
+        store.put(dataWithId);
       });
 
       transaction.onerror = () => reject(transaction.error);
