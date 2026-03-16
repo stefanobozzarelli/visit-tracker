@@ -38,11 +38,14 @@ class ApiService {
         return response;
       },
       async (error: AxiosError) => {
+        console.log(`[Error Handler] Offline: ${!navigator.onLine}, Method: ${error.config?.method}, URL: ${error.config?.url}`);
+
         // If offline and GET request, try to get from cache
         if (!navigator.onLine && error.config?.method === 'get') {
+          console.log(`[Offline] Attempting to fetch from cache for: ${error.config.url}`);
           const cachedData = await this.getCachedResponse(error.config.url || '');
           if (cachedData) {
-            console.log(`[Offline] Serving from cache: ${error.config.url}`);
+            console.log(`[Offline] ✅ Serving from cache: ${error.config.url}`);
 
             // Wrap cached data in API response format
             const responseData = Array.isArray(cachedData)
@@ -55,6 +58,8 @@ class ApiService {
               status: 200,
               statusText: 'OK (from cache)',
             } as any);
+          } else {
+            console.log(`[Offline] ❌ No cache found for: ${error.config.url}`);
           }
         }
 
