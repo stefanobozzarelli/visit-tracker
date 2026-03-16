@@ -1,6 +1,8 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 import { ApiResponse } from '../types';
 import { config } from '../config';
+import { offlineDB } from './offlineDB';
+import { syncEngine } from './syncEngine';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -12,6 +14,7 @@ class ApiService {
       baseURL: API_BASE_URL,
     });
 
+    // Request interceptor - add auth token
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
@@ -22,6 +25,117 @@ class ApiService {
       },
       (error) => Promise.reject(error)
     );
+
+    // Response interceptor - cache GET requests and handle offline
+    this.api.interceptors.response.use(
+      (response) => {
+        // Cache successful GET requests
+        if (response.config.method === 'get' && response.status === 200) {
+          this.cacheResponse(response.config.url || '', response.data);
+        }
+        return response;
+      },
+      async (error: AxiosError) => {
+        // If offline and GET request, try to get from cache
+        if (!navigator.onLine && error.config?.method === 'get') {
+          const cachedData = await this.getCachedResponse(error.config.url || '');
+          if (cachedData) {
+            console.log(`[Offline] Serving from cache: ${error.config.url}`);
+            return Promise.resolve({
+              ...error.response,
+              data: cachedData,
+              status: 200,
+              statusText: 'OK (from cache)',
+            });
+          }
+        }
+
+        // If offline and POST/PUT/DELETE, queue the request
+        if (!navigator.onLine && ['post', 'put', 'delete'].includes(error.config?.method || '')) {
+          console.log(`[Offline] Queuing request: ${error.config?.method} ${error.config?.url}`);
+          await offlineDB.addToSyncQueue(
+            error.config?.method?.toUpperCase() || 'POST',
+            error.config?.url || '',
+            error.config?.data,
+            error.config?.headers
+          );
+
+          // Return a placeholder response to avoid breaking the flow
+          return Promise.resolve({
+            data: { success: true, message: 'Request queued for sync' },
+            status: 202,
+            statusText: 'Accepted (queued)',
+            headers: {},
+            config: error.config || {},
+          });
+        }
+
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  private async cacheResponse(url: string, data: any): Promise<void> {
+    try {
+      // Extract store name from URL (e.g., /visits -> visits, /clients -> clients)
+      const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
+      if (!match) return;
+
+      const storeName = match[1];
+      const validStores = [
+        'users',
+        'clients',
+        'companies',
+        'visits',
+        'reports',
+        'attachments',
+        'permissions',
+      ];
+
+      if (validStores.includes(storeName)) {
+        // If data is an array, save it; if it's an object with data array, extract it
+        const dataToCache = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [data];
+        await offlineDB.saveData(storeName, dataToCache);
+      }
+    } catch (error) {
+      console.warn('Failed to cache response:', error);
+    }
+  }
+
+  private async getCachedResponse(url: string): Promise<any | null> {
+    try {
+      const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
+      if (!match) return null;
+
+      const storeName = match[1];
+      const validStores = [
+        'users',
+        'clients',
+        'companies',
+        'visits',
+        'reports',
+        'attachments',
+        'permissions',
+      ];
+
+      if (!validStores.includes(storeName)) return null;
+
+      const cachedData = await offlineDB.getData(storeName);
+      if (cachedData.length === 0) return null;
+
+      // If URL ends with an ID, find that specific item
+      const idMatch = url.match(/\/([a-f0-9-]+)$/);
+      if (idMatch) {
+        const id = idMatch[1];
+        return cachedData.find((item) => item.id === id) || null;
+      }
+
+      // Return all cached data
+      return cachedData;
+    } catch (error) {
+      console.warn('Failed to retrieve cached response:', error);
+      return null;
+    }
   }
 
   // Auth
