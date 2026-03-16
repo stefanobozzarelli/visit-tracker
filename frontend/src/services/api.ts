@@ -17,6 +17,7 @@ class ApiService {
     // Request interceptor - add auth token
     this.api.interceptors.request.use(
       (config) => {
+        console.log(`[Request] ${config.method?.toUpperCase()} ${config.url} - Online: ${navigator.onLine}`);
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
