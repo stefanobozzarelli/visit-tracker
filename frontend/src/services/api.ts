@@ -31,6 +31,7 @@ class ApiService {
       (response) => {
         // Cache successful GET requests
         if (response.config.method === 'get' && response.status === 200) {
+          console.log(`[Cache] Caching response: ${response.config.url}`, response.data);
           this.cacheResponse(response.config.url || '', response.data);
         }
         return response;
@@ -85,7 +86,10 @@ class ApiService {
     try {
       // Extract store name from URL (e.g., /visits -> visits, /clients -> clients)
       const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
-      if (!match) return;
+      if (!match) {
+        console.warn(`[Cache] Could not extract store name from URL: ${url}`);
+        return;
+      }
 
       const storeName = match[1];
       const validStores = [
@@ -101,7 +105,11 @@ class ApiService {
       if (validStores.includes(storeName)) {
         // If data is an array, save it; if it's an object with data array, extract it
         const dataToCache = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [data];
+        console.log(`[Cache] Saving ${dataToCache.length} items to store: ${storeName}`);
         await offlineDB.saveData(storeName, dataToCache);
+        console.log(`[Cache] Successfully saved to ${storeName}`);
+      } else {
+        console.warn(`[Cache] Store name not valid: ${storeName}`);
       }
     } catch (error) {
       console.warn('Failed to cache response:', error);
@@ -111,7 +119,10 @@ class ApiService {
   private async getCachedResponse(url: string): Promise<any | null> {
     try {
       const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
-      if (!match) return null;
+      if (!match) {
+        console.warn(`[Cache] Could not extract store name for reading: ${url}`);
+        return null;
+      }
 
       const storeName = match[1];
       const validStores = [
@@ -124,16 +135,26 @@ class ApiService {
         'permissions',
       ];
 
-      if (!validStores.includes(storeName)) return null;
+      if (!validStores.includes(storeName)) {
+        console.warn(`[Cache] Store name not valid for reading: ${storeName}`);
+        return null;
+      }
 
       const cachedData = await offlineDB.getData(storeName);
-      if (cachedData.length === 0) return null;
+      console.log(`[Cache] Retrieved ${cachedData.length} items from ${storeName}`);
+
+      if (cachedData.length === 0) {
+        console.warn(`[Cache] No data cached for ${storeName}`);
+        return null;
+      }
 
       // If URL ends with an ID, find that specific item
       const idMatch = url.match(/\/([a-f0-9-]+)$/);
       if (idMatch) {
         const id = idMatch[1];
-        return cachedData.find((item) => item.id === id) || null;
+        const item = cachedData.find((item) => item.id === id);
+        console.log(`[Cache] Found item with ID ${id}: ${item ? 'yes' : 'no'}`);
+        return item || null;
       }
 
       // Return all cached data
