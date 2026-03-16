@@ -9,13 +9,11 @@ export function useOfflineSync() {
   useEffect(() => {
     if (isOnline) {
       console.log('[Sync] Online detected - triggering sync...');
-      // Delay slightly to ensure network is stable and DB is initialized
+      // Delay slightly to ensure network is stable
       const timer = setTimeout(async () => {
         try {
-          // Ensure DB is initialized before syncing
-          if (!offlineDB['db']) {
-            await offlineDB.init();
-          }
+          // Ensure DB is initialized before syncing (init is idempotent)
+          await offlineDB.init();
           await syncEngine.syncPendingRequests();
         } catch (error) {
           console.error('[Sync] Error during sync:', error);
@@ -31,9 +29,8 @@ export function useOfflineSync() {
     const handleSyncRequest = async () => {
       if (isOnline) {
         try {
-          if (!offlineDB['db']) {
-            await offlineDB.init();
-          }
+          // Ensure DB is initialized before syncing (init is idempotent)
+          await offlineDB.init();
           await syncEngine.syncPendingRequests();
         } catch (error) {
           console.error('[Sync] Error during manual sync:', error);

@@ -14,6 +14,7 @@ export interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   isInitializing: boolean;
+  authMode: 'online' | 'offline';
 }
 
 export interface Client {

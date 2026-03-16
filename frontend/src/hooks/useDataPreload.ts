@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useOnlineStatus } from './useOnlineStatus';
 import { useAuth } from '../context/AuthContext';
 import { offlineDB } from '../services/offlineDB';
@@ -11,8 +11,8 @@ export function useDataPreload() {
   const { user } = useAuth();
   const [isPreloading, setIsPreloading] = useState(false);
 
-  // Preload critical data
-  const prefetchData = async () => {
+  // Preload critical data - memoized to prevent infinite loops
+  const prefetchData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -77,7 +77,7 @@ export function useDataPreload() {
     } finally {
       setIsPreloading(false);
     }
-  };
+  }, []);
 
   // Initial preload when user is authenticated
   useEffect(() => {
@@ -95,7 +95,7 @@ export function useDataPreload() {
     }, PRELOAD_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [isOnline, user, prefetchData]);
+  }, [isOnline, user, prefetchData])  // prefetchData is now stable from useCallback
 
   return { isPreloading };
 }

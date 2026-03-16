@@ -53,11 +53,13 @@ class ApiService {
               ? { success: true, data: cachedData }
               : cachedData;
 
+            // Return properly formatted AxiosResponse
             return Promise.resolve({
-              ...error.response,
               data: responseData,
               status: 200,
               statusText: 'OK (from cache)',
+              headers: {},
+              config: error.config || {},
             } as any);
           } else {
             console.log(`[Offline] ❌ No cache found for: ${error.config.url}`);
