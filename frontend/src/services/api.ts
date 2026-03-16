@@ -41,12 +41,18 @@ class ApiService {
           const cachedData = await this.getCachedResponse(error.config.url || '');
           if (cachedData) {
             console.log(`[Offline] Serving from cache: ${error.config.url}`);
+
+            // Wrap cached data in API response format
+            const responseData = Array.isArray(cachedData)
+              ? { success: true, data: cachedData }
+              : cachedData;
+
             return Promise.resolve({
               ...error.response,
-              data: cachedData,
+              data: responseData,
               status: 200,
               statusText: 'OK (from cache)',
-            });
+            } as any);
           }
         }
 
