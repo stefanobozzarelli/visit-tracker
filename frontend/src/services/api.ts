@@ -171,13 +171,43 @@ class ApiService {
   private async cacheResponse(url: string, data: any): Promise<void> {
     try {
       // Extract store name from URL (e.g., /visits -> visits, /clients -> clients)
-      const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
-      if (!match) {
+      // Handle admin endpoints specially
+      let storeName = null;
+      if (url.includes('/admin/users')) {
+        storeName = 'users';
+      } else if (url.includes('/admin/permissions')) {
+        storeName = 'permissions';
+      } else if (url.includes('/admin/reports')) {
+        storeName = 'reports';
+      } else {
+        // Get the last path segment that's a valid store name
+        const parts = url.split('/').filter(p => p.length > 0);
+        // Look for a valid store name in the URL parts
+        const validStoresSet = new Set([
+          'users',
+          'clients',
+          'companies',
+          'visits',
+          'reports',
+          'attachments',
+          'permissions',
+          'todos',
+          'orders',
+        ]);
+
+        for (let i = parts.length - 1; i >= 0; i--) {
+          if (validStoresSet.has(parts[i])) {
+            storeName = parts[i];
+            break;
+          }
+        }
+      }
+
+      if (!storeName) {
         console.warn(`[Cache] Could not extract store name from URL: ${url}`);
         return;
       }
 
-      const storeName = match[1];
       const validStores = [
         'users',
         'clients',
@@ -186,6 +216,8 @@ class ApiService {
         'reports',
         'attachments',
         'permissions',
+        'todos',
+        'orders',
       ];
 
       if (validStores.includes(storeName)) {

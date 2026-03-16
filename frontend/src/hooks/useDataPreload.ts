@@ -13,7 +13,7 @@ export function useDataPreload() {
 
   // Preload critical data
   const prefetchData = async () => {
-    if (!isOnline || !user) return;
+    if (!user) return;
 
     try {
       setIsPreloading(true);
@@ -79,12 +79,12 @@ export function useDataPreload() {
     }
   };
 
-  // Initial preload when going online and user is authenticated
+  // Initial preload when user is authenticated
   useEffect(() => {
-    if (isOnline && user) {
+    if (user) {
       prefetchData();
     }
-  }, [isOnline, user]);
+  }, [user]);
 
   // Schedule periodic refresh while online
   useEffect(() => {
@@ -95,7 +95,7 @@ export function useDataPreload() {
     }, PRELOAD_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [isOnline, user]);
+  }, [isOnline, user, prefetchData]);
 
   return { isPreloading };
 }
