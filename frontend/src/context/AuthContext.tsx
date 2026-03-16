@@ -1,6 +1,14 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { User, AuthContextType } from '../types';
 import { apiService } from '../services/api';
+import {
+  validateJWTToken,
+  validateOfflineCredentials,
+  hashPassword,
+  saveOfflineCredentials,
+  clearOfflineCredentials,
+  getOfflineUser,
+} from '../services/offlineAuth';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -10,15 +18,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [authMode, setAuthMode] = useState<'online' | 'offline'>('online');
 
   useEffect(() => {
-    // Load token and user from localStorage
+    // Load token and user from localStorage with offline validation
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
+
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      // Validate JWT token (check format and expiration)
+      if (validateJWTToken(savedToken)) {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+        setAuthMode('online');
+      } else {
+        // Token is expired or invalid, clear it
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
+
     setIsInitializing(false);
   }, []);
 
@@ -33,8 +52,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(newToken);
         localStorage.setItem('token', newToken);
         localStorage.setItem('user', JSON.stringify(userData));
+        setAuthMode('online');
+
+        // Save credentials for offline access
+        try {
+          const passwordHash = await hashPassword(password);
+          await saveOfflineCredentials(email, passwordHash, {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+            role: userData.role,
+          });
+        } catch (error) {
+          console.warn('Failed to save offline credentials:', error);
+        }
       }
     } catch (err) {
+      // If online login fails, try offline authentication with cached credentials
+      console.log('Online login failed, attempting offline authentication...');
+      try {
+        const offlineUser = await validateOfflineCredentials(email, password);
+        if (offlineUser) {
+          console.log('Offline authentication successful');
+          setUser(offlineUser as User);
+          setToken('offline-token'); // Placeholder for offline mode
+          setAuthMode('offline');
+          // Don't clear error, show that we're in offline mode
+          setError('Working offline - changes will sync when you go online');
+          return;
+        }
+      } catch (offlineErr) {
+        console.error('Offline authentication also failed:', offlineErr);
+      }
+
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);
       throw err;
@@ -67,8 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setToken(null);
+    setAuthMode('online');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    clearOfflineCredentials();
   };
 
   return (

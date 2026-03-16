@@ -5,6 +5,8 @@ import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { useOfflineSync } from './hooks/useOfflineSync';
+import { useDataPreload } from './hooks/useDataPreload';
+import { useOfflineDatabaseInit } from './hooks/useOfflineDatabaseInit';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
@@ -26,8 +28,12 @@ import { OrderForm } from './pages/OrderForm';
 import './styles/App.css';
 
 export const App: React.FC = () => {
+  // Initialize offline database
+  useOfflineDatabaseInit();
   // Enable offline sync
   useOfflineSync();
+  // Enable data preloading
+  useDataPreload();
 
   return (
     <Router>

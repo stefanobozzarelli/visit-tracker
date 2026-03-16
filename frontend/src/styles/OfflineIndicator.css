@@ -34,6 +34,18 @@
   border-top: 2px solid #388e3c;
 }
 
+.offline-indicator.online.error {
+  background-color: #f44336;
+  color: white;
+  border-top: 2px solid #d32f2f;
+}
+
+.offline-indicator.online.pending {
+  background-color: #ff9800;
+  color: white;
+  border-top: 2px solid #f57c00;
+}
+
 .offline-indicator .indicator-content {
   display: flex;
   align-items: center;
@@ -68,6 +80,21 @@
 
 .offline-indicator .wifi-icon {
   font-size: 16px;
+}
+
+.offline-indicator .error-icon {
+  font-size: 18px;
+}
+
+.offline-indicator .pending-icon {
+  font-size: 18px;
+}
+
+.offline-indicator .pending-info,
+.offline-indicator .conflict-info {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.9;
 }
 
 /* Responsive */

@@ -64,24 +64,103 @@ class ApiService {
           }
         }
 
-        // If offline and POST/PUT/DELETE, queue the request
+        // If offline and POST/PUT/DELETE, handle optimistic update
         if (!navigator.onLine && ['post', 'put', 'delete'].includes(error.config?.method || '')) {
-          console.log(`[Offline] Queuing request: ${error.config?.method} ${error.config?.url}`);
-          await offlineDB.addToSyncQueue(
-            error.config?.method?.toUpperCase() || 'POST',
-            error.config?.url || '',
-            error.config?.data,
-            error.config?.headers
-          );
+          const method = error.config?.method?.toUpperCase() || 'POST';
+          const url = error.config?.url || '';
+          const data = error.config?.data;
 
-          // Return a placeholder response to avoid breaking the flow
+          console.log(`[Offline] Handling ${method} request optimistically: ${url}`);
+
+          // Queue the request for later sync
+          await offlineDB.addToSyncQueue(method, url, data, error.config?.headers);
+
+          // For POST requests, generate temporary ID and store data
+          if (method === 'POST') {
+            const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const storeName = this.extractStoreNameFromUrl(url);
+
+            if (storeName && data) {
+              // Parse data if it's a string
+              const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+              const optimisticItem = {
+                ...parsedData,
+                id: tempId,
+                sync_status: 'pending',
+                last_modified: Date.now(),
+                version: 1,
+                timestamp: Date.now(),
+              };
+
+              // Save to offlineDB for offline access
+              await this.saveOptimisticData(storeName, optimisticItem);
+              console.log(`[Offline] Saved optimistic data with temp ID: ${tempId}`);
+
+              // Return optimistic response with temporary ID
+              return Promise.resolve({
+                data: { success: true, data: optimisticItem },
+                status: 201,
+                statusText: 'Created (offline)',
+                headers: {},
+                config: error.config || {},
+              } as any);
+            }
+          }
+
+          // For PUT/DELETE requests, return optimistic response
+          if (method === 'PUT') {
+            const storeName = this.extractStoreNameFromUrl(url);
+            const idMatch = url.match(/\/([a-f0-9-]+)(?:\/|$)/);
+            if (storeName && idMatch && data) {
+              const id = idMatch[1];
+              const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+              const optimisticItem = {
+                ...parsedData,
+                id,
+                sync_status: 'pending',
+                last_modified: Date.now(),
+                timestamp: Date.now(),
+              };
+
+              await this.saveOptimisticData(storeName, optimisticItem);
+              console.log(`[Offline] Marked ${id} as pending update`);
+
+              return Promise.resolve({
+                data: { success: true, data: optimisticItem },
+                status: 200,
+                statusText: 'Updated (offline)',
+                headers: {},
+                config: error.config || {},
+              } as any);
+            }
+          }
+
+          if (method === 'DELETE') {
+            const storeName = this.extractStoreNameFromUrl(url);
+            const idMatch = url.match(/\/([a-f0-9-]+)(?:\/|$)/);
+            if (storeName && idMatch) {
+              const id = idMatch[1];
+              await offlineDB.updateSyncStatus(storeName, id, 'pending');
+              console.log(`[Offline] Marked ${id} as pending deletion`);
+
+              return Promise.resolve({
+                data: { success: true, message: 'Deletion queued' },
+                status: 200,
+                statusText: 'Deleted (offline)',
+                headers: {},
+                config: error.config || {},
+              } as any);
+            }
+          }
+
+          // Fallback response
           return Promise.resolve({
             data: { success: true, message: 'Request queued for sync' },
             status: 202,
             statusText: 'Accepted (queued)',
             headers: {},
             config: error.config || {},
-          });
+          } as any);
         }
 
         return Promise.reject(error);
@@ -169,6 +248,63 @@ class ApiService {
     } catch (error) {
       console.warn('Failed to retrieve cached response:', error);
       return null;
+    }
+  }
+
+  private extractStoreNameFromUrl(url: string): string | null {
+    const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
+    if (!match) return null;
+
+    const storeName = match[1];
+    const validStores = [
+      'users',
+      'clients',
+      'companies',
+      'visits',
+      'reports',
+      'attachments',
+      'permissions',
+      'todos',
+      'orders',
+      'admin',
+    ];
+
+    return validStores.includes(storeName) ? storeName : null;
+  }
+
+  private async saveOptimisticData(storeName: string, item: any): Promise<void> {
+    try {
+      const validStores = [
+        'users',
+        'clients',
+        'companies',
+        'visits',
+        'reports',
+        'attachments',
+        'permissions',
+        'todos',
+        'orders',
+      ];
+
+      // For admin/users endpoint, save to users store
+      if (storeName === 'admin') {
+        storeName = 'users';
+      }
+
+      if (validStores.includes(storeName)) {
+        const existing = await offlineDB.getData(storeName);
+        const index = existing.findIndex((x) => x.id === item.id);
+
+        if (index >= 0) {
+          existing[index] = item;
+        } else {
+          existing.push(item);
+        }
+
+        await offlineDB.saveData(storeName, existing);
+      }
+    } catch (error) {
+      console.warn('Failed to save optimistic data:', error);
     }
   }
 
