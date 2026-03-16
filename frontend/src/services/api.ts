@@ -252,6 +252,11 @@ class ApiService {
   }
 
   private extractStoreNameFromUrl(url: string): string | null {
+    // Handle admin endpoints specially
+    if (url.includes('/admin/users')) return 'users';
+    if (url.includes('/admin/permissions')) return 'permissions';
+    if (url.includes('/admin/reports')) return 'reports';
+
     const match = url.match(/\/([a-zA-Z]+)(?:\/|$)/);
     if (!match) return null;
 
@@ -266,7 +271,6 @@ class ApiService {
       'permissions',
       'todos',
       'orders',
-      'admin',
     ];
 
     return validStores.includes(storeName) ? storeName : null;
