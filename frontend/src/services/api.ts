@@ -29,6 +29,7 @@ class ApiService {
     // Response interceptor - cache GET requests and handle offline
     this.api.interceptors.response.use(
       (response) => {
+        console.log(`[Interceptor] Response received: ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
         // Cache successful GET requests
         if (response.config.method === 'get' && response.status === 200) {
           console.log(`[Cache] Caching response: ${response.config.url}`, response.data);
