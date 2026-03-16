@@ -97,12 +97,15 @@ router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
 router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const { name, email, role, company_id } = req.body;
-    const user = await userService.updateUser(req.params.userId, {
+    const updateData: any = {
       name,
       email,
       role,
-      company_id,
-    });
+    };
+    if (company_id) {
+      updateData.company_id = company_id;
+    }
+    const user = await userService.updateUser(req.params.userId, updateData);
     res.json({
       success: true,
       data: user,
