@@ -96,26 +96,17 @@ router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
  */
 router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
-    const { name, email, role, company_id } = req.body;
-    console.log('PUT /users/:userId received:', { userId: req.params.userId, name, email, role, company_id });
+    const { name } = req.body;
 
     // Validazione base
-    if (!name || !email || !role) {
+    if (!name) {
       return res.status(400).json({
         success: false,
-        error: 'Name, email, and role are required',
+        error: 'Name is required',
       });
     }
 
-    const updateData: any = {
-      name,
-      email,
-      role,
-    };
-    if (company_id) {
-      updateData.company_id = company_id;
-    }
-    const user = await userService.updateUser(req.params.userId, updateData);
+    const user = await userService.updateUser(req.params.userId, { name });
     res.json({
       success: true,
       data: user,

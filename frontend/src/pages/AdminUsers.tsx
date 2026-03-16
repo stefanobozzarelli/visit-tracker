@@ -126,35 +126,20 @@ export const AdminUsers: React.FC = () => {
     setError('');
     setSuccess('');
 
-    if (!formData.name || !formData.email) {
-      setError('Name and email are required');
+    if (!formData.name) {
+      setError('Name is required');
       return;
     }
 
     try {
-      // Update user data
-      const updateData: any = {
+      // Update only name
+      const response = await apiService.updateUser(editingUserId, {
         name: formData.name,
-        email: formData.email,
-        role: formData.role,
-      };
-      if (formData.company_id) {
-        updateData.company_id = formData.company_id;
-      }
-      const response = await apiService.updateUser(editingUserId, updateData);
+      });
 
       if (!response.success) {
         setError(response.error || 'Failed to update user');
         return;
-      }
-
-      // If password is provided, update it separately
-      if (formData.password) {
-        const passwordResponse = await apiService.changeUserPassword(editingUserId, formData.password);
-        if (!passwordResponse.success) {
-          setError(passwordResponse.error || 'Failed to update password');
-          return;
-        }
       }
 
       setSuccess('User updated successfully');
@@ -233,71 +218,76 @@ export const AdminUsers: React.FC = () => {
         <div className="form-section">
           <h2>{editingUserId ? 'Edit User' : 'Create New User'}</h2>
           <form onSubmit={editingUserId ? handleUpdate : handleCreate}>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleFormChange}
-                placeholder="user@example.com"
-              />
-            </div>
+            {editingUserId ? (
+              <>
+                {/* Edit mode - read-only fields */}
+                <div className="form-group">
+                  <label>Email</label>
+                  <input type="email" value={formData.email} disabled />
+                </div>
 
-            <div className="form-group">
-              <label>Name</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleFormChange}
-                placeholder="Full name"
-              />
-            </div>
+                <div className="form-group">
+                  <label>Role</label>
+                  <input type="text" value={formData.role} disabled />
+                </div>
 
-            {!editingUserId ? (
-              <div className="form-group">
-                <label>Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleFormChange}
-                  placeholder="Min 8 characters"
-                />
-              </div>
+                <div className="form-group">
+                  <label>Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    placeholder="Full name"
+                  />
+                </div>
+              </>
             ) : (
-              <div className="form-group">
-                <label>New Password (optional)</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleFormChange}
-                  placeholder="Leave empty to keep current password"
-                />
-              </div>
+              <>
+                {/* Create mode - all fields editable */}
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleFormChange}
+                    placeholder="user@example.com"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    placeholder="Full name"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleFormChange}
+                    placeholder="Min 8 characters"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Role</label>
+                  <select name="role" value={formData.role} onChange={handleFormChange}>
+                    <option value="sales_rep">Sales Rep</option>
+                    <option value="backoffice">Backoffice</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </>
             )}
-
-            <div className="form-group">
-              <label>Role</label>
-              <select name="role" value={formData.role} onChange={handleFormChange}>
-                <option value="sales_rep">Sales Rep</option>
-                <option value="backoffice">Backoffice</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Company ID (optional)</label>
-              <input
-                type="text"
-                name="company_id"
-                value={formData.company_id}
-                onChange={handleFormChange}
-                placeholder="Company ID"
-              />
-            </div>
 
             <button type="submit" className="btn btn-primary">
               {editingUserId ? 'Save Changes' : 'Create User'}
@@ -361,7 +351,6 @@ export const AdminUsers: React.FC = () => {
                   <th>Email</th>
                   <th>Name</th>
                   <th>Role</th>
-                  <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -371,7 +360,6 @@ export const AdminUsers: React.FC = () => {
                     <td>{user.email}</td>
                     <td>{user.name}</td>
                     <td>{user.role}</td>
-                    <td>{new Date(user.created_at).toLocaleDateString()}</td>
                     <td className="actions">
                       <button
                         className="btn btn-warning btn-small"
