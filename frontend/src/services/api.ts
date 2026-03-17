@@ -18,15 +18,17 @@ class ApiService {
     // Request interceptor - add auth token and short-circuit when offline
     this.api.interceptors.request.use(
       (config) => {
-        console.log(`[Request] ${config.method?.toUpperCase()} ${config.url} - Online: ${navigator.onLine}`);
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        // If browser reports offline, use a very short timeout so the error
-        // interceptor fires quickly and can serve from cache
+        // If browser reports offline, reject IMMEDIATELY — no HTTP request at all.
+        // The error interceptor will serve from IndexedDB cache (for GETs)
+        // or queue for sync (for writes). This is instant vs waiting for timeout.
         if (!navigator.onLine) {
-          config.timeout = 1; // Fail almost immediately
+          return Promise.reject(new axios.AxiosError(
+            'Offline', 'ERR_OFFLINE', config, null, undefined
+          ));
         }
         return config;
       },
@@ -100,18 +102,24 @@ class ApiService {
             try { parsedData = JSON.parse(data); } catch { parsedData = data; }
           }
 
+          // POST: generate temp ID for optimistic response AND sync queue mapping
+          const tempId = method === 'POST'
+            ? `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            : undefined;
+
           // Queue for sync (non-blocking)
+          // Include _tempId so the sync engine can map temp→real ID after server responds
           try {
-            await offlineDB.addToSyncQueue(method, url, parsedData, {
+            const queueData = tempId ? { ...parsedData, _tempId: tempId } : parsedData;
+            await offlineDB.addToSyncQueue(method, url, queueData, {
               'Content-Type': 'application/json',
             });
           } catch (syncError) {
             console.warn('[Offline] Failed to queue for sync:', syncError);
           }
 
-          // POST: generate temp ID and store optimistically
-          if (method === 'POST') {
-            const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          // POST: store optimistically in IndexedDB
+          if (method === 'POST' && tempId) {
             const storeName = this.getStoreNameFromUrl(url);
 
             if (storeName && parsedData) {

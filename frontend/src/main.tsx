@@ -12,7 +12,7 @@ offlineDB.init().catch((error) => {
 // --- Service Worker Management ---
 // Bump this number whenever the Service Worker changes to force browsers
 // to clear old caches and activate the new SW immediately.
-const SW_VERSION = 9;
+const SW_VERSION = 10;
 
 async function clearAllCachesAndSWs(): Promise<boolean> {
   let cleared = false;

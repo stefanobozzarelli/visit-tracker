@@ -93,6 +93,12 @@ export class SyncEngine {
         data = this.replaceTempIdsInData(data);
       }
 
+      // Strip internal _tempId field before sending to server
+      if (data?._tempId) {
+        const { _tempId, ...cleanData } = data;
+        data = cleanData;
+      }
+
       const config: any = {
         method: request.method,
         url,
@@ -149,13 +155,13 @@ export class SyncEngine {
       return;
     }
 
-    // Find temp ID in original request data
+    // Find temp ID: check _tempId field first, then fall back to id starting with 'temp_'
     const originalData = request.data;
-    if (!originalData?.id?.startsWith('temp_')) {
+    const tempId = originalData?._tempId ||
+                   (originalData?.id?.startsWith('temp_') ? originalData.id : null);
+    if (!tempId) {
       return;
     }
-
-    const tempId = originalData.id;
     const realId = responseData.id;
 
     console.log(`[Sync] Mapping temp ID ${tempId} → ${realId}`);
@@ -213,30 +219,32 @@ export class SyncEngine {
   }
 
   private async handleSyncError(error: AxiosError, request: SyncRequest, retryCount: number): Promise<void> {
-    // Handle conflict (409)
-    if (error.response?.status === 409) {
-      console.warn(`[Sync] ⚠️ Conflict detected for ${request.url}`);
-      const storeName = this.extractStoreNameFromUrl(request.url);
-      const idMatch = request.url.match(/\/([a-f0-9-]+)(?:\/|$)/);
+    const status = error.response?.status;
 
-      if (storeName && idMatch) {
-        const id = idMatch[1];
-        await offlineDB.updateSyncStatus(storeName, id, 'conflict');
-        await offlineDB.removeSyncQueueItem(request.id);
-        console.log(`[Sync] Marked ${id} as conflicted for manual resolution`);
+    // Handle permanent errors (4xx except 408/429) — don't retry, remove from queue
+    if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+      console.error(`[Sync] ❌ Permanent error ${status} for ${request.method} ${request.url} — removing from queue`);
+      await offlineDB.removeSyncQueueItem(request.id);
+
+      // Special handling for conflict (409): mark as conflicted in local store
+      if (status === 409) {
+        const storeName = this.extractStoreNameFromUrl(request.url);
+        const idMatch = request.url.match(/\/([a-f0-9-]+)(?:\/|$)/);
+        if (storeName && idMatch) {
+          await offlineDB.updateSyncStatus(storeName, idMatch[1], 'conflict');
+          console.log(`[Sync] Marked ${idMatch[1]} as conflicted`);
+        }
       }
       return;
     }
 
-    // Retry logic with exponential backoff
+    // Retry logic with exponential backoff (for 5xx, timeout, network errors)
     if (retryCount < this.MAX_RETRIES) {
       const delayMs = this.BASE_RETRY_DELAY * Math.pow(2, retryCount);
       console.log(`[Sync] ⏳ Retrying in ${delayMs}ms (attempt ${retryCount + 1}/${this.MAX_RETRIES})...`);
 
-      // Wait before retrying
       await new Promise((resolve) => setTimeout(resolve, delayMs));
 
-      // Update retry count and re-process
       const updatedRequest: SyncRequest = {
         ...request,
         retry_count: retryCount + 1,
@@ -245,7 +253,6 @@ export class SyncEngine {
     } else {
       // Max retries exceeded - keep in queue but log error
       console.error(`[Sync] ❌ Failed to sync ${request.method} ${request.url} after ${this.MAX_RETRIES + 1} attempts`);
-      // The request stays in the queue for next sync attempt
     }
   }
 

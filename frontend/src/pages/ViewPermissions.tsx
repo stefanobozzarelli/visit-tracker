@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import '../styles/AdminPermissions.css';
 
 import { config } from '../config';
@@ -38,6 +39,7 @@ interface Permission {
 
 export const ViewPermissions = () => {
   const navigate = useNavigate();
+  const { isOnline } = useOnlineStatus();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -55,8 +57,8 @@ export const ViewPermissions = () => {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isOnline) loadData();
+  }, [isOnline]);
 
   const loadData = async () => {
     try {
@@ -170,6 +172,17 @@ export const ViewPermissions = () => {
 
   if (loading) {
     return <div className="admin-permissions"><p>Loading...</p></div>;
+  }
+
+  if (!isOnline) {
+    return (
+      <div className="admin-permissions">
+        <h2>Gestione Permessi</h2>
+        <p style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+          ⚠️ La gestione permessi non è disponibile offline. Connettiti a internet per gestire i permessi.
+        </p>
+      </div>
+    );
   }
 
   return (

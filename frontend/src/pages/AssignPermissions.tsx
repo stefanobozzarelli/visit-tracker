@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import '../styles/AdminPermissions.css';
 
 import { config } from '../config';
@@ -25,6 +26,7 @@ interface Company {
 
 export const AssignPermissions = () => {
   const navigate = useNavigate();
+  const { isOnline } = useOnlineStatus();
   const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -41,8 +43,8 @@ export const AssignPermissions = () => {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isOnline) loadData();
+  }, [isOnline]);
 
   const loadData = async () => {
     try {
@@ -120,6 +122,17 @@ export const AssignPermissions = () => {
     setCanCreate(false);
     setCanEdit(false);
   };
+
+  if (!isOnline) {
+    return (
+      <div className="admin-permissions">
+        <h2>Assegna Permessi</h2>
+        <p style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+          ⚠️ La gestione permessi non è disponibile offline. Connettiti a internet per gestire i permessi.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="admin-permissions"><p>Loading...</p></div>;
