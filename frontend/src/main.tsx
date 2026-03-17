@@ -12,7 +12,7 @@ offlineDB.init().catch((error) => {
 // --- Service Worker Management ---
 // Bump this number whenever the Service Worker changes to force browsers
 // to clear old caches and activate the new SW immediately.
-const SW_VERSION = 4;
+const SW_VERSION = 5;
 
 async function clearAllCachesAndSWs(): Promise<boolean> {
   let cleared = false;
@@ -85,12 +85,65 @@ if ('serviceWorker' in navigator) {
       setInterval(() => {
         registration.update();
       }, 60000);
+
+      // Pre-cache the current page and all JS/CSS assets for true offline support
+      // This ensures WiFi-off works (not just DevTools offline)
+      if (registration.active) {
+        precacheCurrentAssets();
+      } else {
+        navigator.serviceWorker.ready.then(() => {
+          precacheCurrentAssets();
+        });
+      }
     } catch (error: any) {
       console.error('❌ Service Worker registration failed:', error.message, error);
     }
   });
 } else {
   console.warn('Service Workers not supported in this browser');
+}
+
+// Pre-cache the current page HTML and all script/style tags so offline works with WiFi off
+async function precacheCurrentAssets() {
+  try {
+    const cache = await caches.open('visit-tracker-v5');
+
+    // Cache the current page as /index.html
+    const htmlResponse = await fetch(window.location.href);
+    if (htmlResponse.ok) {
+      await cache.put(new Request('/index.html'), htmlResponse.clone());
+      await cache.put(new Request('/'), htmlResponse.clone());
+    }
+
+    // Cache all linked JS and CSS files from the current page
+    const scripts = document.querySelectorAll('script[src]');
+    const links = document.querySelectorAll('link[rel="stylesheet"][href]');
+    const urls: string[] = [];
+
+    scripts.forEach(s => {
+      const src = s.getAttribute('src');
+      if (src && src.startsWith('/')) urls.push(src);
+    });
+    links.forEach(l => {
+      const href = l.getAttribute('href');
+      if (href && href.startsWith('/')) urls.push(href);
+    });
+
+    for (const url of urls) {
+      try {
+        const existing = await cache.match(url);
+        if (!existing) {
+          await cache.add(url);
+        }
+      } catch (e) {
+        // Non-critical
+      }
+    }
+
+    console.log('[SW] Pre-cached current page assets');
+  } catch (err) {
+    console.warn('[SW] Failed to pre-cache assets:', err);
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

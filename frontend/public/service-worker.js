@@ -1,5 +1,5 @@
-const CACHE_NAME = 'visit-tracker-v4';
-const API_CACHE_NAME = 'visit-tracker-api-v4';
+const CACHE_NAME = 'visit-tracker-v5';
+const API_CACHE_NAME = 'visit-tracker-api-v5';
 
 // Files to cache on install
 const STATIC_ASSETS = [
@@ -8,36 +8,36 @@ const STATIC_ASSETS = [
   '/manifest.json',
 ];
 
-// Install event
+// Install event - cache static assets individually (don't let one failure break all)
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {
-        // Some files might fail, that's ok
-      });
-    })
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const asset of STATIC_ASSETS) {
+        try {
+          await cache.add(asset);
+          console.log('[SW] Cached:', asset);
+        } catch (err) {
+          console.warn('[SW] Failed to cache:', asset, err.message);
+        }
+      }
+    }).then(() => self.skipWaiting())
   );
-  // Force new SW to activate immediately
-  self.skipWaiting();
 });
 
-// Activate event - clean up ALL old caches aggressively
+// Activate event - clean up old caches and take control immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Delete ANY cache that isn't the current version
           if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
-            console.log('[SW v4] Deleting old cache:', cacheName);
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  // Take control of all open tabs immediately
-  self.clients.claim();
 });
 
 // Fetch event
@@ -55,31 +55,42 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests (HTML pages) and index.html: ALWAYS network-first
-  // This ensures new deployments are picked up immediately
+  // Navigation requests: ALWAYS network-first
+  // Critical: also cache response under '/index.html' key so SPA offline fallback works
   if (request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache the fresh response
-          const clonedResponse = response.clone();
+          const clone1 = response.clone();
+          const clone2 = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clonedResponse);
+            // Cache under the actual request URL
+            cache.put(request, clone1);
+            // ALSO always cache under /index.html for SPA offline fallback
+            cache.put(new Request('/index.html'), clone2);
           });
           return response;
         })
         .catch(() => {
-          // Offline: serve cached index.html for SPA routing
-          return caches.match('/index.html').then((cachedResponse) => {
-            return cachedResponse || createOfflineResponse();
-          });
+          // Offline: try exact URL first, then /index.html, then /
+          return caches.match(request)
+            .then((exact) => {
+              if (exact) return exact;
+              return caches.match('/index.html');
+            })
+            .then((html) => {
+              if (html) return html;
+              return caches.match('/');
+            })
+            .then((root) => {
+              return root || createOfflineResponse();
+            });
         })
     );
     return;
   }
 
-  // Hashed assets (JS/CSS with content hash like index-a3c26048.js): cache-first
-  // These are safe to cache because the hash changes on every build
+  // Hashed assets (JS/CSS with content hash): cache-first (safe because hash changes per build)
   if (url.pathname.match(/\.[a-f0-9]{8,}\.(js|css)$/)) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
