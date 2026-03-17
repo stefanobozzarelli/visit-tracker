@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { offlineDB } from './offlineDB';
+import { config as appConfig } from '../config';
 
 interface SyncRequest {
   id: number;
@@ -76,6 +77,11 @@ export class SyncEngine {
       // Replace temp IDs in URL and data
       let url = request.url;
       let data = request.data;
+
+      // Ensure URL is absolute (fix for old queue items stored with relative URLs)
+      if (url && !url.startsWith('http')) {
+        url = appConfig.API_BASE_URL + url;
+      }
 
       // Replace temp IDs in URL
       for (const [tempId, mapping] of this.tempIdMappings) {

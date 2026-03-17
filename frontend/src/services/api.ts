@@ -40,12 +40,9 @@ class ApiService {
         return response;
       },
       async (error: AxiosError) => {
-        // Detect network error: no response = server unreachable (offline or server down)
-        const isNetworkError = !error.response && (
-          error.code === 'ERR_NETWORK' ||
-          error.message === 'Network Error' ||
-          error.code === 'ERR_INTERNET_DISCONNECTED'
-        );
+        // Detect network error: no response at all = server unreachable (offline or server down)
+        // Be broad: ANY request that has no response means we couldn't reach the server
+        const isNetworkError = !error.response;
         const isOffline = isNetworkError || !navigator.onLine;
 
         // --- OFFLINE GET: serve from IndexedDB cache ---
@@ -85,12 +82,23 @@ class ApiService {
         const requestUrl = error.config?.url || '';
         if (isOffline && ['post', 'put', 'delete'].includes(error.config?.method || '') && !requestUrl.includes('/auth/')) {
           const method = error.config?.method?.toUpperCase() || 'POST';
-          const url = error.config?.url || '';
+          // Build the FULL URL (baseURL + url) so the sync engine sends to the right server
+          const relativeUrl = error.config?.url || '';
+          const baseUrl = error.config?.baseURL || '';
+          const url = relativeUrl.startsWith('http') ? relativeUrl : baseUrl + relativeUrl;
           const data = error.config?.data;
+
+          // Parse data if it's a serialized JSON string (axios transforms it)
+          let parsedData = data;
+          if (typeof data === 'string') {
+            try { parsedData = JSON.parse(data); } catch { parsedData = data; }
+          }
 
           // Queue for sync (non-blocking)
           try {
-            await offlineDB.addToSyncQueue(method, url, data, error.config?.headers);
+            await offlineDB.addToSyncQueue(method, url, parsedData, {
+              'Content-Type': 'application/json',
+            });
           } catch (syncError) {
             console.warn('[Offline] Failed to queue for sync:', syncError);
           }
@@ -100,8 +108,7 @@ class ApiService {
             const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             const storeName = this.getStoreNameFromUrl(url);
 
-            if (storeName && data) {
-              const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+            if (storeName && parsedData) {
               const optimisticItem = {
                 ...parsedData,
                 id: tempId,
@@ -131,9 +138,8 @@ class ApiService {
             const storeName = this.getStoreNameFromUrl(url);
             const cleanUrl = url.split('?')[0];
             const idMatch = cleanUrl.match(/\/([a-f0-9-]{8,})(?:\/|$)/);
-            if (storeName && idMatch && data) {
+            if (storeName && idMatch && parsedData) {
               const id = idMatch[1];
-              const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
               const optimisticItem = {
                 ...parsedData,
                 id,
