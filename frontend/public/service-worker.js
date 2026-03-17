@@ -1,5 +1,5 @@
-const CACHE_NAME = 'visit-tracker-v6';
-const API_CACHE_NAME = 'visit-tracker-api-v6';
+const CACHE_NAME = 'visit-tracker-v7';
+const API_CACHE_NAME = 'visit-tracker-api-v7';
 
 // Files to cache on install
 const STATIC_ASSETS = [

@@ -12,7 +12,7 @@ offlineDB.init().catch((error) => {
 // --- Service Worker Management ---
 // Bump this number whenever the Service Worker changes to force browsers
 // to clear old caches and activate the new SW immediately.
-const SW_VERSION = 6;
+const SW_VERSION = 7;
 
 async function clearAllCachesAndSWs(): Promise<boolean> {
   let cleared = false;
@@ -106,7 +106,7 @@ if ('serviceWorker' in navigator) {
 // Pre-cache the current page HTML and all script/style tags so offline works with WiFi off
 async function precacheCurrentAssets() {
   try {
-    const cache = await caches.open('visit-tracker-v6');
+    const cache = await caches.open('visit-tracker-v7');
 
     // Cache the current page as /index.html
     const htmlResponse = await fetch(window.location.href);

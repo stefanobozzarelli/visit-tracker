@@ -28,15 +28,11 @@ class OfflineDB {
   async init(): Promise<void> {
     // Verify existing connection is still valid before returning early
     if (this.db) {
-      try {
-        this.db.transaction(['metadata'], 'readonly');
-        return; // Connection is valid
-      } catch (e) {
-        console.warn('[OfflineDB] Existing connection stale in init(), reinitializing...');
-        try { this.db.close(); } catch (_) { /* ignore */ }
-        this.db = null;
-        this.initPromise = null;
+      if (this.isConnectionValid()) {
+        return;
       }
+      console.warn('[OfflineDB] Existing connection stale in init(), reinitializing...');
+      this.resetConnection();
     }
     if (this.initPromise) return this.initPromise;
 
@@ -57,9 +53,7 @@ class OfflineDB {
         };
         this.db.onversionchange = () => {
           console.warn('[OfflineDB] Database version changed, closing connection');
-          this.db?.close();
-          this.db = null;
-          this.initPromise = null;
+          this.resetConnection();
         };
         resolve();
       };
@@ -71,7 +65,6 @@ class OfflineDB {
         this.objectStores.forEach((storeName) => {
           if (!db.objectStoreNames.contains(storeName)) {
             if (storeName === 'syncQueue') {
-              // syncQueue needs autoIncrement
               const store = db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
               store.createIndex('timestamp', 'timestamp', { unique: false });
             } else {
@@ -90,48 +83,80 @@ class OfflineDB {
     return this.db !== null;
   }
 
-  // Auto-initialize DB if not ready OR if connection became stale/closing
-  private async ensureReady(): Promise<void> {
+  /** Test if the current connection can create transactions */
+  private isConnectionValid(): boolean {
+    if (!this.db) return false;
+    try {
+      this.db.transaction(['metadata'], 'readonly');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Close and reset the connection so init() creates a fresh one */
+  private resetConnection(): void {
     if (this.db) {
-      // Verify the connection is still valid by trying a trivial transaction
-      try {
-        this.db.transaction(['metadata'], 'readonly');
-      } catch (e) {
-        // Connection is stale/closing - reset and reinitialize
-        console.warn('[OfflineDB] Connection stale, reinitializing...');
-        this.db = null;
-        this.initPromise = null;
-      }
+      try { this.db.close(); } catch { /* ignore */ }
+    }
+    this.db = null;
+    this.initPromise = null;
+  }
+
+  /** Ensure DB is open and connection is valid */
+  private async ensureReady(): Promise<void> {
+    if (this.db && !this.isConnectionValid()) {
+      console.warn('[OfflineDB] Connection stale, reinitializing...');
+      this.resetConnection();
     }
     if (!this.db) {
       await this.init();
     }
   }
 
-  async saveData(storeName: string, data: any[]): Promise<void> {
+  /**
+   * Create a transaction with automatic retry on stale connection.
+   * This is the ONLY place transactions should be created.
+   * If the first attempt throws InvalidStateError, it resets and retries once.
+   */
+  private async getTransaction(
+    storeNames: string | string[],
+    mode: IDBTransactionMode
+  ): Promise<IDBTransaction> {
+    const names = Array.isArray(storeNames) ? storeNames : [storeNames];
     await this.ensureReady();
+    try {
+      return this.db!.transaction(names, mode);
+    } catch (e: any) {
+      // If InvalidStateError (connection closing), retry once with fresh connection
+      if (e.name === 'InvalidStateError' || e.message?.includes('closing')) {
+        console.warn('[OfflineDB] Transaction failed, forcing fresh connection...');
+        this.resetConnection();
+        await this.init();
+        return this.db!.transaction(names, mode);
+      }
+      throw e;
+    }
+  }
+
+  async saveData(storeName: string, data: any[]): Promise<void> {
+    const transaction = await this.getTransaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-
       // Clear existing data
       store.clear();
 
       // Add new data with timestamp, sync_status, and version
       data.forEach((item) => {
-        // Ensure item has an id field (required for keyPath)
         const dataWithId = {
           ...item,
-          // If no id, use _id, user_id, or generate one
           id: item.id || item._id || item.user_id || `temp_${Date.now()}_${Math.random()}`,
           timestamp: Date.now(),
           sync_status: 'synced',
           last_modified: Date.now(),
           version: 1,
         };
-
-        // Use put instead of add to handle items with or without existing keys
         store.put(dataWithId);
       });
 
@@ -141,13 +166,11 @@ class OfflineDB {
   }
 
   async getData(storeName: string): Promise<any[]> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-      const request = store.getAll();
-
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
     });
@@ -159,14 +182,10 @@ class OfflineDB {
     data: any,
     headers: any = {}
   ): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction('syncQueue', 'readwrite');
+    const store = transaction.objectStore('syncQueue');
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['syncQueue'], 'readwrite');
-      const store = transaction.objectStore('syncQueue');
-
-      // Always provide an explicit id - autoIncrement may not work if the
-      // store was created in an earlier DB version without it
       const request = store.put({
         id: Date.now() + Math.floor(Math.random() * 10000),
         method,
@@ -183,15 +202,12 @@ class OfflineDB {
   }
 
   async getSyncQueue(): Promise<any[]> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction('syncQueue', 'readonly');
+    const store = transaction.objectStore('syncQueue');
+    const index = store.index('timestamp');
+    const request = index.openCursor(null, 'next');
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['syncQueue'], 'readonly');
-      const store = transaction.objectStore('syncQueue');
-      const index = store.index('timestamp');
-      // Get all items ordered by timestamp (FIFO) - 'next' means ascending order (oldest first)
-      const request = index.openCursor(null, 'next');
-
       const items: any[] = [];
 
       request.onerror = () => reject(request.error);
@@ -201,7 +217,6 @@ class OfflineDB {
           items.push(cursor.value);
           cursor.continue();
         } else {
-          // Filter only pending items, maintaining FIFO order
           const pending = items.filter((item) => item.status === 'pending');
           resolve(pending);
         }
@@ -210,33 +225,28 @@ class OfflineDB {
   }
 
   async removeSyncQueueItem(id: number): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction('syncQueue', 'readwrite');
+    const store = transaction.objectStore('syncQueue');
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['syncQueue'], 'readwrite');
-      const store = transaction.objectStore('syncQueue');
       const request = store.delete(id);
-
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve();
     });
   }
 
   async clearOldData(days: number = 30): Promise<void> {
-    await this.ensureReady();
-
     const cutoffTime = Date.now() - days * 24 * 60 * 60 * 1000;
-
     const storesToClean = ['visits', 'reports', 'attachments'];
 
     for (const storeName of storesToClean) {
-      await new Promise<void>((resolve, reject) => {
-        const transaction = this.db!.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
-        const index = store.index('timestamp');
-        const range = IDBKeyRange.upperBound(cutoffTime);
-        const request = index.openCursor(range);
+      const transaction = await this.getTransaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const index = store.index('timestamp');
+      const range = IDBKeyRange.upperBound(cutoffTime);
+      const request = index.openCursor(range);
 
+      await new Promise<void>((resolve, reject) => {
         request.onerror = () => reject(request.error);
         request.onsuccess = (event) => {
           const cursor = (event.target as IDBRequest).result;
@@ -245,20 +255,17 @@ class OfflineDB {
             cursor.continue();
           }
         };
-
         transaction.oncomplete = () => resolve();
       });
     }
   }
 
   async getLastSyncTime(): Promise<number> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction('metadata', 'readonly');
+    const store = transaction.objectStore('metadata');
+    const request = store.get('lastSync');
 
     return new Promise((resolve) => {
-      const transaction = this.db!.transaction(['metadata'], 'readonly');
-      const store = transaction.objectStore('metadata');
-      const request = store.get('lastSync');
-
       request.onsuccess = () => {
         resolve(request.result?.timestamp || 0);
       };
@@ -266,28 +273,24 @@ class OfflineDB {
   }
 
   async setLastSyncTime(): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction('metadata', 'readwrite');
+    const store = transaction.objectStore('metadata');
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['metadata'], 'readwrite');
-      const store = transaction.objectStore('metadata');
-
       const request = store.put({
         id: 'lastSync',
         timestamp: Date.now(),
       });
-
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve();
     });
   }
 
   async markAsPending(storeName: string, id: string): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
       const getRequest = store.get(id);
 
       getRequest.onsuccess = () => {
@@ -312,12 +315,10 @@ class OfflineDB {
 
   // Upsert a single item into a store WITHOUT clearing existing data
   async upsertData(storeName: string, item: any): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-
       const dataWithMeta = {
         ...item,
         id: item.id || item._id || item.user_id || `temp_${Date.now()}_${Math.random()}`,
@@ -336,12 +337,10 @@ class OfflineDB {
 
   // Upsert multiple items into a store WITHOUT clearing existing data
   async upsertBatch(storeName: string, items: any[]): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-
       for (const item of items) {
         const dataWithMeta = {
           ...item,
@@ -360,13 +359,11 @@ class OfflineDB {
   }
 
   async getPendingItems(storeName: string): Promise<any[]> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-      const request = store.getAll();
-
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const pending = request.result.filter((item) => item.sync_status === 'pending');
@@ -376,17 +373,15 @@ class OfflineDB {
   }
 
   async getConflictedItems(): Promise<any[]> {
-    await this.ensureReady();
-
     const conflicted: any[] = [];
     const storesToCheck = ['clients', 'companies', 'visits', 'reports', 'attachments', 'permissions'];
 
     for (const storeName of storesToCheck) {
-      await new Promise<void>((resolve, reject) => {
-        const transaction = this.db!.transaction([storeName], 'readonly');
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll();
+      const transaction = await this.getTransaction(storeName, 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.getAll();
 
+      await new Promise<void>((resolve, reject) => {
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const items = request.result.filter((item) => item.sync_status === 'conflict');
@@ -402,14 +397,11 @@ class OfflineDB {
   }
 
   async resolveConflict(storeName: string, id: string, resolution: 'server' | 'client', serverData?: any): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-
       if (resolution === 'server' && serverData) {
-        // Use server version
         const updatedItem = {
           ...serverData,
           sync_status: 'synced',
@@ -420,7 +412,6 @@ class OfflineDB {
         putRequest.onerror = () => reject(putRequest.error);
         putRequest.onsuccess = () => resolve();
       } else if (resolution === 'client') {
-        // Keep client version and mark for retry
         const getRequest = store.get(id);
 
         getRequest.onsuccess = () => {
@@ -447,11 +438,10 @@ class OfflineDB {
   }
 
   async updateSyncStatus(storeName: string, id: string, status: 'pending' | 'synced' | 'conflict'): Promise<void> {
-    await this.ensureReady();
+    const transaction = await this.getTransaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
       const getRequest = store.get(id);
 
       getRequest.onsuccess = () => {
