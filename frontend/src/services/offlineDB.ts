@@ -132,16 +132,16 @@ class OfflineDB {
       const transaction = this.db!.transaction(['syncQueue'], 'readwrite');
       const store = transaction.objectStore('syncQueue');
 
-      // Use put() instead of add() and let autoIncrement generate the id
-      // This is more reliable than add() when dealing with autoIncrement
+      // Always provide an explicit id - autoIncrement may not work if the
+      // store was created in an earlier DB version without it
       const request = store.put({
+        id: Date.now() + Math.floor(Math.random() * 10000),
         method,
         url,
         data,
         headers,
         timestamp: Date.now(),
         status: 'pending',
-        // Don't include id - let autoIncrement generate it
       });
 
       request.onerror = () => reject(request.error);
