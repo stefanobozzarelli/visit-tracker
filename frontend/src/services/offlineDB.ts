@@ -26,8 +26,18 @@ class OfflineDB {
   private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
-    // Prevent multiple concurrent init calls
-    if (this.db) return;
+    // Verify existing connection is still valid before returning early
+    if (this.db) {
+      try {
+        this.db.transaction(['metadata'], 'readonly');
+        return; // Connection is valid
+      } catch (e) {
+        console.warn('[OfflineDB] Existing connection stale in init(), reinitializing...');
+        try { this.db.close(); } catch (_) { /* ignore */ }
+        this.db = null;
+        this.initPromise = null;
+      }
+    }
     if (this.initPromise) return this.initPromise;
 
     this.initPromise = new Promise((resolve, reject) => {
@@ -39,6 +49,18 @@ class OfflineDB {
       };
       request.onsuccess = () => {
         this.db = request.result;
+        // Listen for the database being closed externally (e.g., clear site data, version change)
+        this.db.onclose = () => {
+          console.warn('[OfflineDB] Database connection closed externally');
+          this.db = null;
+          this.initPromise = null;
+        };
+        this.db.onversionchange = () => {
+          console.warn('[OfflineDB] Database version changed, closing connection');
+          this.db?.close();
+          this.db = null;
+          this.initPromise = null;
+        };
         resolve();
       };
 
@@ -68,8 +90,19 @@ class OfflineDB {
     return this.db !== null;
   }
 
-  // Auto-initialize DB if not ready - prevents timing issues
+  // Auto-initialize DB if not ready OR if connection became stale/closing
   private async ensureReady(): Promise<void> {
+    if (this.db) {
+      // Verify the connection is still valid by trying a trivial transaction
+      try {
+        this.db.transaction(['metadata'], 'readonly');
+      } catch (e) {
+        // Connection is stale/closing - reset and reinitialize
+        console.warn('[OfflineDB] Connection stale, reinitializing...');
+        this.db = null;
+        this.initPromise = null;
+      }
+    }
     if (!this.db) {
       await this.init();
     }
