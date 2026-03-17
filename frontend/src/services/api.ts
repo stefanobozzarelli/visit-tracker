@@ -12,15 +12,21 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
+      timeout: 8000, // 8 second timeout - makes requests fail fast when WiFi is off
     });
 
-    // Request interceptor - add auth token
+    // Request interceptor - add auth token and short-circuit when offline
     this.api.interceptors.request.use(
       (config) => {
         console.log(`[Request] ${config.method?.toUpperCase()} ${config.url} - Online: ${navigator.onLine}`);
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        }
+        // If browser reports offline, use a very short timeout so the error
+        // interceptor fires quickly and can serve from cache
+        if (!navigator.onLine) {
+          config.timeout = 1; // Fail almost immediately
         }
         return config;
       },
