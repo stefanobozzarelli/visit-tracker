@@ -11,80 +11,44 @@ export function useDataPreload() {
   const { user } = useAuth();
   const [isPreloading, setIsPreloading] = useState(false);
 
-  // Preload critical data - memoized to prevent infinite loops
+  // Preload critical data for offline use.
+  // The api.ts response interceptor automatically caches GET responses into IndexedDB,
+  // so we just need to trigger the API calls - no manual saveData needed.
   const prefetchData = useCallback(async () => {
     if (!user) return;
 
     try {
       setIsPreloading(true);
 
-      // Preload clients
-      try {
-        const clientsResponse = await apiService.getClients();
-        if (clientsResponse.success && clientsResponse.data) {
-          await offlineDB.saveData('clients', clientsResponse.data);
-        }
-      } catch (error) {
-        console.warn('Failed to preload clients:', error);
-      }
+      // Fire all preloads independently - each has its own try-catch
+      // so one failure doesn't block the others
+      const preloads = [
+        apiService.getClients().catch(() => null),
+        apiService.getCompanies().catch(() => null),
+        apiService.getVisits().catch(() => null),
+        apiService.getTodos().catch(() => null),
+        apiService.getUsers().catch(() => null),
+      ];
 
-      // Preload companies
-      try {
-        const companiesResponse = await apiService.getCompanies();
-        if (companiesResponse.success && companiesResponse.data) {
-          await offlineDB.saveData('companies', companiesResponse.data);
-        }
-      } catch (error) {
-        console.warn('Failed to preload companies:', error);
-      }
-
-      // Preload visits
-      try {
-        const visitsResponse = await apiService.getVisits();
-        if (visitsResponse.success && visitsResponse.data) {
-          await offlineDB.saveData('visits', visitsResponse.data);
-        }
-      } catch (error) {
-        console.warn('Failed to preload visits:', error);
-      }
-
-      // Preload todos
-      try {
-        const todosResponse = await apiService.getTodos();
-        if (todosResponse.success && todosResponse.data) {
-          await offlineDB.saveData('todos', todosResponse.data);
-        }
-      } catch (error) {
-        console.warn('Failed to preload todos:', error);
-      }
-
-      // Preload users
-      try {
-        const usersResponse = await apiService.getUsers();
-        if (usersResponse.success && usersResponse.data) {
-          await offlineDB.saveData('users', usersResponse.data);
-        }
-      } catch (error) {
-        console.warn('Failed to preload users:', error);
-      }
+      await Promise.all(preloads);
 
       // Update last sync time
       await offlineDB.setLastSyncTime();
 
-      console.log('Data preload completed');
+      console.log('[Preload] Data preload completed');
     } catch (error) {
-      console.error('Error preloading data:', error);
+      console.warn('[Preload] Error during preload:', error);
     } finally {
       setIsPreloading(false);
     }
-  }, []);
+  }, [user]);
 
   // Initial preload when user is authenticated
   useEffect(() => {
-    if (user) {
+    if (user && isOnline) {
       prefetchData();
     }
-  }, [user]);
+  }, [user, isOnline]);
 
   // Schedule periodic refresh while online
   useEffect(() => {
@@ -95,7 +59,7 @@ export function useDataPreload() {
     }, PRELOAD_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [isOnline, user, prefetchData])  // prefetchData is now stable from useCallback
+  }, [isOnline, user, prefetchData]);
 
   return { isPreloading };
 }

@@ -30,64 +30,75 @@ class ApiService {
     // Response interceptor - cache GET requests and handle offline
     this.api.interceptors.response.use(
       (response) => {
-        console.log(`[Interceptor] Response received: ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
-        // Cache successful GET requests (200 and 304 which browser resolves to cached data)
+        // Cache successful GET requests (200 and 304)
         if (response.config.method === 'get' && (response.status === 200 || response.status === 304)) {
-          console.log(`[Cache] Caching response: ${response.config.url}`, response.data);
-          this.cacheResponse(response.config.url || '', response.data);
+          const url = response.config.url || '';
+          if (this.shouldCacheUrl(url)) {
+            this.cacheResponse(url, response.data, response.config.params);
+          }
         }
         return response;
       },
       async (error: AxiosError) => {
-        // Detect network error: no response means server is unreachable (offline or server down)
-        const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || error.code === 'ERR_INTERNET_DISCONNECTED');
-        console.log(`[Error Handler] Offline: ${!navigator.onLine}, NetworkError: ${isNetworkError}, Method: ${error.config?.method}, URL: ${error.config?.url}`);
+        // Detect network error: no response = server unreachable (offline or server down)
+        const isNetworkError = !error.response && (
+          error.code === 'ERR_NETWORK' ||
+          error.message === 'Network Error' ||
+          error.code === 'ERR_INTERNET_DISCONNECTED'
+        );
+        const isOffline = isNetworkError || !navigator.onLine;
 
-        // If offline/network error and GET request, try to get from cache
-        if ((isNetworkError || !navigator.onLine) && error.config?.method === 'get') {
-          console.log(`[Offline] Attempting to fetch from cache for: ${error.config.url}`);
-          const cachedData = await this.getCachedResponse(error.config.url || '');
-          if (cachedData) {
-            console.log(`[Offline] ✅ Serving from cache: ${error.config.url}`);
-
-            // Wrap cached data in API response format (always wrap)
-            const responseData = { success: true, data: cachedData };
-
-            // Return properly formatted AxiosResponse
+        // --- OFFLINE GET: serve from IndexedDB cache ---
+        if (isOffline && error.config?.method === 'get') {
+          const url = error.config.url || '';
+          const params = error.config.params;
+          try {
+            const cachedData = await this.getCachedResponse(url, params);
+            if (cachedData !== null) {
+              return Promise.resolve({
+                data: { success: true, data: cachedData },
+                status: 200,
+                statusText: 'OK (from cache)',
+                headers: {},
+                config: error.config || {},
+              } as any);
+            }
+          } catch (cacheErr) {
+            console.warn('[Offline] Cache lookup failed:', cacheErr);
+          }
+          // No cache found - return empty success for lists, reject for single items
+          const cleanUrl = url.split('?')[0];
+          const isSingleItem = /\/[a-f0-9-]{8,}$/.test(cleanUrl);
+          if (!isSingleItem) {
             return Promise.resolve({
-              data: responseData,
+              data: { success: true, data: [] },
               status: 200,
-              statusText: 'OK (from cache)',
+              statusText: 'OK (empty cache)',
               headers: {},
               config: error.config || {},
             } as any);
-          } else {
-            console.log(`[Offline] ❌ No cache found for: ${error.config.url}`);
           }
         }
 
-        // If offline/network error and POST/PUT/DELETE, handle optimistic update
-        // SKIP auth endpoints - they must fail so AuthContext can handle offline auth
+        // --- OFFLINE POST/PUT/DELETE: optimistic updates ---
+        // SKIP auth endpoints - they must fail so AuthContext can try offline auth
         const requestUrl = error.config?.url || '';
-        if ((isNetworkError || !navigator.onLine) && ['post', 'put', 'delete'].includes(error.config?.method || '') && !requestUrl.includes('/auth/')) {
+        if (isOffline && ['post', 'put', 'delete'].includes(error.config?.method || '') && !requestUrl.includes('/auth/')) {
           const method = error.config?.method?.toUpperCase() || 'POST';
           const url = error.config?.url || '';
           const data = error.config?.data;
 
-          console.log(`[Offline] Handling ${method} request optimistically: ${url}`);
-
-          // Try to queue for sync - but don't let failure break the flow
+          // Queue for sync (non-blocking)
           try {
             await offlineDB.addToSyncQueue(method, url, data, error.config?.headers);
-            console.log(`[Offline] Queued ${method} ${url} for sync`);
           } catch (syncError) {
-            console.warn('[Offline] Failed to queue for sync (will need manual retry):', syncError);
+            console.warn('[Offline] Failed to queue for sync:', syncError);
           }
 
-          // For POST requests, generate temporary ID and store data
+          // POST: generate temp ID and store optimistically
           if (method === 'POST') {
             const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const storeName = this.extractStoreNameFromUrl(url);
+            const storeName = this.getStoreNameFromUrl(url);
 
             if (storeName && data) {
               const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
@@ -102,11 +113,8 @@ class ApiService {
               };
 
               try {
-                await this.saveOptimisticData(storeName, optimisticItem);
-                console.log(`[Offline] Saved optimistic data with temp ID: ${tempId}`);
-              } catch (saveError) {
-                console.warn('[Offline] Failed to save optimistic data:', saveError);
-              }
+                await offlineDB.upsertData(storeName, optimisticItem);
+              } catch (e) { /* non-critical */ }
 
               return Promise.resolve({
                 data: { success: true, data: optimisticItem },
@@ -118,10 +126,11 @@ class ApiService {
             }
           }
 
-          // For PUT requests
+          // PUT: update existing record optimistically
           if (method === 'PUT') {
-            const storeName = this.extractStoreNameFromUrl(url);
-            const idMatch = url.match(/\/([a-f0-9-]+)(?:\/|$)/);
+            const storeName = this.getStoreNameFromUrl(url);
+            const cleanUrl = url.split('?')[0];
+            const idMatch = cleanUrl.match(/\/([a-f0-9-]{8,})(?:\/|$)/);
             if (storeName && idMatch && data) {
               const id = idMatch[1];
               const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
@@ -134,11 +143,8 @@ class ApiService {
               };
 
               try {
-                await this.saveOptimisticData(storeName, optimisticItem);
-                console.log(`[Offline] Marked ${id} as pending update`);
-              } catch (saveError) {
-                console.warn('[Offline] Failed to save optimistic update:', saveError);
-              }
+                await offlineDB.upsertData(storeName, optimisticItem);
+              } catch (e) { /* non-critical */ }
 
               return Promise.resolve({
                 data: { success: true, data: optimisticItem },
@@ -150,18 +156,15 @@ class ApiService {
             }
           }
 
-          // For DELETE requests
+          // DELETE: mark as pending deletion
           if (method === 'DELETE') {
-            const storeName = this.extractStoreNameFromUrl(url);
-            const idMatch = url.match(/\/([a-f0-9-]+)(?:\/|$)/);
+            const storeName = this.getStoreNameFromUrl(url);
+            const cleanUrl = url.split('?')[0];
+            const idMatch = cleanUrl.match(/\/([a-f0-9-]{8,})(?:\/|$)/);
             if (storeName && idMatch) {
-              const id = idMatch[1];
               try {
-                await offlineDB.updateSyncStatus(storeName, id, 'pending');
-                console.log(`[Offline] Marked ${id} as pending deletion`);
-              } catch (saveError) {
-                console.warn('[Offline] Failed to mark deletion:', saveError);
-              }
+                await offlineDB.updateSyncStatus(storeName, idMatch[1], 'pending');
+              } catch (e) { /* non-critical */ }
 
               return Promise.resolve({
                 data: { success: true, message: 'Deletion queued' },
@@ -173,7 +176,7 @@ class ApiService {
             }
           }
 
-          // Fallback - always return success for offline operations
+          // Fallback for any offline write
           return Promise.resolve({
             data: { success: true, message: 'Request queued for sync' },
             status: 202,
@@ -188,120 +191,114 @@ class ApiService {
     );
   }
 
-  // Single helper to extract store name from any URL
-  // Handles query params, admin endpoints, and ID segments
+  // ---- Store name extraction ----
   private static readonly VALID_STORES = new Set([
     'users', 'clients', 'companies', 'visits', 'reports',
     'attachments', 'permissions', 'todos', 'orders',
   ]);
 
   private getStoreNameFromUrl(url: string): string | null {
-    // Strip query parameters first
     const cleanUrl = url.split('?')[0];
-
-    // Handle admin endpoints
     if (cleanUrl.includes('/admin/users')) return 'users';
     if (cleanUrl.includes('/admin/permissions')) return 'permissions';
     if (cleanUrl.includes('/admin/reports')) return 'reports';
 
-    // Split path and search right-to-left for a valid store name
     const parts = cleanUrl.split('/').filter(p => p.length > 0);
     for (let i = parts.length - 1; i >= 0; i--) {
-      if (ApiService.VALID_STORES.has(parts[i])) {
-        return parts[i];
-      }
+      if (ApiService.VALID_STORES.has(parts[i])) return parts[i];
     }
     return null;
   }
 
-  private async cacheResponse(url: string, data: any): Promise<void> {
+  // ---- Determine if a URL should be cached ----
+  // Only cache entity list and detail endpoints, NOT sub-resource actions
+  // e.g. YES: /clients, /visits/uuid   NO: /visits/uuid/can-delete, /orders/uuid/export-pdf
+  private shouldCacheUrl(url: string): boolean {
+    const cleanUrl = url.split('?')[0];
+    const storeName = this.getStoreNameFromUrl(url);
+    if (!storeName) return false;
+
+    // Find the store name position in the URL
+    const storePos = cleanUrl.lastIndexOf('/' + storeName);
+    if (storePos === -1) return false;
+
+    // Get everything after the store name
+    const afterStore = cleanUrl.substring(storePos + storeName.length + 1);
+
+    // Allow: empty (list), /uuid (detail), /my (todos/my)
+    if (afterStore === '' || afterStore === '/') return true;
+    if (/^\/[a-f0-9-]{8,}$/.test(afterStore)) return true;
+    if (afterStore === '/my') return true;
+
+    return false;
+  }
+
+  // ---- Cache a GET response into IndexedDB ----
+  private async cacheResponse(url: string, data: any, params?: Record<string, any>): Promise<void> {
     try {
       const storeName = this.getStoreNameFromUrl(url);
-      if (!storeName) {
-        console.warn(`[Cache] Could not extract store name from URL: ${url}`);
-        return;
-      }
+      if (!storeName) return;
 
-      // Extract the actual data array to cache
-      const dataToCache = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [data];
-      console.log(`[Cache] Saving ${dataToCache.length} items to store: ${storeName}`);
-      await offlineDB.saveData(storeName, dataToCache);
-      console.log(`[Cache] Successfully saved to ${storeName}`);
+      // Extract actual data from API response envelope { success, data }
+      const actualData = data?.data !== undefined ? data.data : data;
+      if (actualData === null || actualData === undefined) return;
+
+      const cleanUrl = url.split('?')[0];
+      const isSingleItem = /\/[a-f0-9-]{8,}$/.test(cleanUrl);
+
+      if (isSingleItem && !Array.isArray(actualData)) {
+        // Single item → upsert (do NOT clear store)
+        if (typeof actualData === 'object' && actualData.id) {
+          await offlineDB.upsertData(storeName, actualData);
+        }
+      } else if (params && Object.keys(params).length > 0) {
+        // Filtered query (e.g. /orders?visit_id=xxx) → upsert each item (do NOT clear store)
+        const items = Array.isArray(actualData) ? actualData : [actualData];
+        const validItems = items.filter((item: any) => item && typeof item === 'object' && item.id);
+        if (validItems.length > 0) {
+          await offlineDB.upsertBatch(storeName, validItems);
+        }
+      } else {
+        // Unfiltered list → replace entire store
+        const items = Array.isArray(actualData) ? actualData : [actualData];
+        await offlineDB.saveData(storeName, items);
+      }
     } catch (error) {
-      console.warn('Failed to cache response:', error);
+      console.warn('[Cache] Failed to cache response:', error);
     }
   }
 
-  private async getCachedResponse(url: string): Promise<any | null> {
+  // ---- Retrieve cached data from IndexedDB ----
+  private async getCachedResponse(url: string, params?: Record<string, any>): Promise<any | null> {
     try {
       const storeName = this.getStoreNameFromUrl(url);
-      if (!storeName) {
-        console.warn(`[Cache] Could not extract store name from URL: ${url}`);
-        return null;
-      }
+      if (!storeName) return null;
 
       const cachedData = await offlineDB.getData(storeName);
-      console.log(`[Cache] Retrieved ${cachedData.length} items from ${storeName}`);
+      if (!cachedData || cachedData.length === 0) return null;
 
-      if (cachedData.length === 0) {
-        console.warn(`[Cache] No data cached for ${storeName}`);
-        return null;
-      }
-
-      // If URL path ends with a UUID, find that specific item
+      // Single item by UUID at end of URL
       const cleanUrl = url.split('?')[0];
       const idMatch = cleanUrl.match(/\/([a-f0-9-]{8,})$/);
       if (idMatch) {
-        const id = idMatch[1];
-        const item = cachedData.find((item: any) => item.id === id);
-        console.log(`[Cache] Found item with ID ${id}: ${item ? 'yes' : 'no'}`);
-        return item || null;
+        return cachedData.find((item: any) => item.id === idMatch[1]) || null;
+      }
+
+      // Filtered query via params
+      if (params && Object.keys(params).length > 0) {
+        let filtered = cachedData;
+        for (const [key, value] of Object.entries(params)) {
+          if (value !== undefined && value !== null) {
+            filtered = filtered.filter((item: any) => String(item[key]) === String(value));
+          }
+        }
+        return filtered;
       }
 
       return cachedData;
     } catch (error) {
-      console.warn('Failed to retrieve cached response:', error);
+      console.warn('[Cache] Failed to retrieve cached response:', error);
       return null;
-    }
-  }
-
-  private extractStoreNameFromUrl(url: string): string | null {
-    return this.getStoreNameFromUrl(url);
-  }
-
-  private async saveOptimisticData(storeName: string, item: any): Promise<void> {
-    try {
-      const validStores = [
-        'users',
-        'clients',
-        'companies',
-        'visits',
-        'reports',
-        'attachments',
-        'permissions',
-        'todos',
-        'orders',
-      ];
-
-      // For admin/users endpoint, save to users store
-      if (storeName === 'admin') {
-        storeName = 'users';
-      }
-
-      if (validStores.includes(storeName)) {
-        const existing = await offlineDB.getData(storeName);
-        const index = existing.findIndex((x) => x.id === item.id);
-
-        if (index >= 0) {
-          existing[index] = item;
-        } else {
-          existing.push(item);
-        }
-
-        await offlineDB.saveData(storeName, existing);
-      }
-    } catch (error) {
-      console.warn('Failed to save optimistic data:', error);
     }
   }
 

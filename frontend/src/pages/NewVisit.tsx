@@ -32,20 +32,31 @@ export const NewVisit: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [clientsRes, companiesRes] = await Promise.all([
-        apiService.getClients(),
-        apiService.getCompanies(),
-      ]);
-      if (clientsRes.success && clientsRes.data) {
-        const sortedClients = clientsRes.data.sort((a, b) => a.name.localeCompare(b.name));
-        setClients(sortedClients);
+
+      // Load clients and companies independently - one failure should NOT affect the other
+      try {
+        const clientsRes = await apiService.getClients();
+        if (clientsRes.success && clientsRes.data) {
+          const sortedClients = clientsRes.data.sort((a: any, b: any) =>
+            (a.name || '').localeCompare(b.name || '')
+          );
+          setClients(sortedClients);
+        }
+      } catch (err) {
+        console.warn('[NewVisit] Failed to load clients:', err);
       }
-      if (companiesRes.success && companiesRes.data) {
-        const sortedCompanies = companiesRes.data.sort((a, b) => a.name.localeCompare(b.name));
-        setCompanies(sortedCompanies);
+
+      try {
+        const companiesRes = await apiService.getCompanies();
+        if (companiesRes.success && companiesRes.data) {
+          const sortedCompanies = companiesRes.data.sort((a: any, b: any) =>
+            (a.name || '').localeCompare(b.name || '')
+          );
+          setCompanies(sortedCompanies);
+        }
+      } catch (err) {
+        console.warn('[NewVisit] Failed to load companies:', err);
       }
-    } catch (err) {
-      setError('Error loading data');
     } finally {
       setIsLoading(false);
     }

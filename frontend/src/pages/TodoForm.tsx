@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../services/api';
 import { Client, Company, User } from '../types';
 import '../styles/TodoForm.css';
-
-import { config } from '../config';
-const API_BASE_URL = config.API_BASE_URL;
 
 interface TodoFormProps {
   initialData?: {
@@ -37,7 +34,6 @@ export const TodoForm = (props: TodoFormProps) => {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    // Load from URL params if present
     const urlClientId = searchParams.get('clientId');
     const urlCompanyId = searchParams.get('companyId');
     const urlVisitReportId = searchParams.get('visitReportId');
@@ -50,22 +46,21 @@ export const TodoForm = (props: TodoFormProps) => {
   }, []);
 
   const loadData = async () => {
+    // Load each independently so one failure doesn't block the others
     try {
-      const token = localStorage.getItem('token');
+      const clientsRes = await apiService.getClients();
+      if (clientsRes.success && clientsRes.data) setClients(clientsRes.data);
+    } catch (err) { console.warn('[TodoForm] Failed to load clients:', err); }
 
-      const [clientsRes, companiesRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/clients`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/companies`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
+    try {
+      const companiesRes = await apiService.getCompanies();
+      if (companiesRes.success && companiesRes.data) setCompanies(companiesRes.data);
+    } catch (err) { console.warn('[TodoForm] Failed to load companies:', err); }
 
-      if (clientsRes.data.success) setClients(clientsRes.data.data);
-      if (companiesRes.data.success) setCompanies(companiesRes.data.data);
-      if (usersRes.data.success) setUsers(usersRes.data.data);
-    } catch (err) {
-      setError('Error loading data');
-      console.error(err);
-    }
+    try {
+      const usersRes = await apiService.getUsers();
+      if (usersRes.success && usersRes.data) setUsers(usersRes.data);
+    } catch (err) { console.warn('[TodoForm] Failed to load users:', err); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,22 +75,16 @@ export const TodoForm = (props: TodoFormProps) => {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-
-      const response = await axios.post(
-        `${API_BASE_URL}/todos`,
-        {
-          title,
-          clientId,
-          companyId,
-          assignedToUserId,
-          dueDate: dueDate ? new Date(dueDate).toISOString().split('T')[0] : undefined,
-          visitReportId: visitReportId || undefined,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const response = await apiService.createTodo(
+        title,
+        clientId,
+        companyId,
+        assignedToUserId,
+        dueDate ? new Date(dueDate).toISOString().split('T')[0] : undefined,
+        visitReportId || undefined
       );
 
-      if (response.data.success) {
+      if (response.success) {
         setSuccess('TODO created successfully');
         setTimeout(() => {
           navigate('/my-todos');

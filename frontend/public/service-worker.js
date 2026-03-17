@@ -1,5 +1,5 @@
-const CACHE_NAME = 'visit-tracker-v3';
-const API_CACHE_NAME = 'visit-tracker-api-v3';
+const CACHE_NAME = 'visit-tracker-v4';
+const API_CACHE_NAME = 'visit-tracker-api-v4';
 
 // Files to cache on install
 const STATIC_ASSETS = [
@@ -21,20 +21,22 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event - clean up ALL old caches to force fresh content
+// Activate event - clean up ALL old caches aggressively
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
+          // Delete ANY cache that isn't the current version
           if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
+            console.log('[SW v4] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
+  // Take control of all open tabs immediately
   self.clients.claim();
 });
 

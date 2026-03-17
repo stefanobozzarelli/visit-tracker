@@ -26,10 +26,15 @@ export const VisitDetail: React.FC = () => {
       const response = await apiService.getVisit(id);
       if (response.success && response.data) {
         setVisit(response.data);
-        // Load associated orders
-        const ordersResponse = await apiService.getOrdersByVisit(id);
-        if (ordersResponse.success && ordersResponse.data) {
-          setOrders(ordersResponse.data);
+
+        // Load associated orders independently - failure here shouldn't break the page
+        try {
+          const ordersResponse = await apiService.getOrdersByVisit(id);
+          if (ordersResponse.success && ordersResponse.data) {
+            setOrders(Array.isArray(ordersResponse.data) ? ordersResponse.data : []);
+          }
+        } catch (ordersErr) {
+          console.warn('[VisitDetail] Failed to load orders (non-critical):', ordersErr);
         }
       }
     } catch (err) {

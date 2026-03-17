@@ -277,6 +277,55 @@ class OfflineDB {
     });
   }
 
+  // Upsert a single item into a store WITHOUT clearing existing data
+  async upsertData(storeName: string, item: any): Promise<void> {
+    await this.ensureReady();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+
+      const dataWithMeta = {
+        ...item,
+        id: item.id || item._id || item.user_id || `temp_${Date.now()}_${Math.random()}`,
+        timestamp: Date.now(),
+        sync_status: item.sync_status || 'synced',
+        last_modified: Date.now(),
+        version: item.version || 1,
+      };
+
+      store.put(dataWithMeta);
+
+      transaction.onerror = () => reject(transaction.error);
+      transaction.oncomplete = () => resolve();
+    });
+  }
+
+  // Upsert multiple items into a store WITHOUT clearing existing data
+  async upsertBatch(storeName: string, items: any[]): Promise<void> {
+    await this.ensureReady();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+
+      for (const item of items) {
+        const dataWithMeta = {
+          ...item,
+          id: item.id || item._id || item.user_id || `temp_${Date.now()}_${Math.random()}`,
+          timestamp: Date.now(),
+          sync_status: item.sync_status || 'synced',
+          last_modified: Date.now(),
+          version: item.version || 1,
+        };
+        store.put(dataWithMeta);
+      }
+
+      transaction.onerror = () => reject(transaction.error);
+      transaction.oncomplete = () => resolve();
+    });
+  }
+
   async getPendingItems(storeName: string): Promise<any[]> {
     await this.ensureReady();
 

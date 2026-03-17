@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../services/api';
 import { TodoItem, Client, Company, User } from '../types';
 import { SearchBar } from '../components/SearchBar';
 import '../styles/MyTodos.css';
-
-import { config } from '../config';
-const API_BASE_URL = config.API_BASE_URL;
 
 export const MyTodos = () => {
   const navigate = useNavigate();
@@ -43,17 +40,22 @@ export const MyTodos = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
 
-      const [clientsRes, companiesRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/clients`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/companies`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
+      // Load each independently so one failure doesn't block the others
+      try {
+        const clientsRes = await apiService.getClients();
+        if (clientsRes.success && clientsRes.data) setClients(clientsRes.data);
+      } catch (err) { console.warn('[MyTodos] Failed to load clients:', err); }
 
-      if (clientsRes.data.success) setClients(clientsRes.data.data);
-      if (companiesRes.data.success) setCompanies(companiesRes.data.data);
-      if (usersRes.data.success) setUsers(usersRes.data.data);
+      try {
+        const companiesRes = await apiService.getCompanies();
+        if (companiesRes.success && companiesRes.data) setCompanies(companiesRes.data);
+      } catch (err) { console.warn('[MyTodos] Failed to load companies:', err); }
+
+      try {
+        const usersRes = await apiService.getUsers();
+        if (usersRes.success && usersRes.data) setUsers(usersRes.data);
+      } catch (err) { console.warn('[MyTodos] Failed to load users:', err); }
 
       loadTodos();
     } catch (err) {
@@ -66,24 +68,19 @@ export const MyTodos = () => {
 
   const loadTodos = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const params: any = {};
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (clientId) filters.clientId = clientId;
+      if (companyId) filters.companyId = companyId;
+      if (overdue) filters.overdue = true;
+      if (thisWeek) filters.thisWeek = true;
+      if (next7Days) filters.next7Days = true;
 
-      if (status) params.status = status;
-      if (clientId) params.clientId = clientId;
-      if (companyId) params.companyId = companyId;
-      if (overdue) params.overdue = true;
-      if (thisWeek) params.thisWeek = true;
-      if (next7Days) params.next7Days = true;
-
-      const response = await axios.get(`${API_BASE_URL}/todos/my`, {
-        params,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.data.success) {
-        setTodos(response.data.data);
-        setDisplayedTodos(response.data.data);
+      const response = await apiService.getMyTodos(filters);
+      if (response.success) {
+        const data = Array.isArray(response.data) ? response.data : [];
+        setTodos(data);
+        setDisplayedTodos(data);
         setSearchError('');
       }
     } catch (err) {
@@ -103,20 +100,15 @@ export const MyTodos = () => {
 
   const handleStatusChange = async (todoId: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem('token');
       // Optimistic update
       setTodos(todos.map((t) => (t.id === todoId ? { ...t, status: newStatus as any } : t)));
-      // API call
-      await axios.put(
-        `${API_BASE_URL}/todos/${todoId}`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      setDisplayedTodos(displayedTodos.map((t) => (t.id === todoId ? { ...t, status: newStatus as any } : t)));
+      await apiService.updateTodo(todoId, { status: newStatus });
       setSuccess('TODO updated');
     } catch (err) {
       setError('Error updating TODO');
       console.error(err);
-      loadTodos(); // Reload to rollback optimistic update
+      loadTodos();
     }
   };
 
@@ -124,10 +116,7 @@ export const MyTodos = () => {
     if (!window.confirm('Are you sure you want to delete this TODO?')) return;
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/todos/${todoId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiService.deleteTodo(todoId);
       setSuccess('TODO deleted');
       loadTodos();
     } catch (err) {
