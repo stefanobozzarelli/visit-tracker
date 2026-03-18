@@ -184,7 +184,7 @@ CRITICAL — how to distinguish quantity vs unit_price:
             unit: item.unit || 'pz',
             unit_price: Number(item.unit_price) || 0,
             discount_percent: item.discount_percent ? Number(item.discount_percent) : null,
-            line_total: Number(item.line_total) || 0,
+            line_total: total,
             raw_text: item.raw_text || null,
           });
         });
