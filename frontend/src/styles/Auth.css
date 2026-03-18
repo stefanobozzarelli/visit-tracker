@@ -69,11 +69,11 @@
 }
 
 .auth-card button:hover:not(:disabled) {
-  background-color: #0062cc;
+  background-color: #4338CA;
 }
 
 .auth-card button:active:not(:disabled) {
-  background-color: #004e9a;
+  background-color: #3730A3;
 }
 
 .auth-card button:disabled {
