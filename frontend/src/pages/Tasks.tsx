@@ -1,76 +1,143 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { TodoItem, Client, Company, User } from '../types';
-import { SearchBar } from '../components/SearchBar';
-import '../styles/MyTodos.css';
+import axios from 'axios';
+import { config } from '../config';
+import '../styles/Tasks.css';
 
+const API_BASE_URL = config.API_BASE_URL;
+
+// ---- Status helpers ----
+type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'completed';
+
+const STATUS_CONFIG: Record<TaskStatus, { label: string; dot: string }> = {
+  todo:        { label: 'Todo',        dot: '#ff9500' },
+  in_progress: { label: 'In Progress', dot: '#007aff' },
+  waiting:     { label: 'Waiting',     dot: '#8e8e93' },
+  completed:   { label: 'Completed',   dot: '#34c759' },
+};
+
+const normalizeStatus = (s: string): TaskStatus => {
+  if (s === 'done' || s === 'completed') return 'completed';
+  if (s === 'in_progress') return 'in_progress';
+  if (s === 'waiting') return 'waiting';
+  return 'todo';
+};
+
+// Map display status back to API value
+const statusToApi = (s: TaskStatus): string => {
+  if (s === 'completed') return 'done';
+  return s;
+};
+
+// ---- Date helpers ----
+const isOverdue = (dueDate?: string, status?: string): boolean => {
+  if (!dueDate || status === 'completed' || status === 'done') return false;
+  return new Date(dueDate) < new Date(new Date().toDateString());
+};
+
+const isDueSoon = (dueDate?: string, status?: string): boolean => {
+  if (!dueDate || status === 'completed' || status === 'done') return false;
+  const d = new Date(dueDate);
+  const today = new Date(new Date().toDateString());
+  const in3Days = new Date(today);
+  in3Days.setDate(in3Days.getDate() + 3);
+  return d >= today && d <= in3Days;
+};
+
+const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+};
+
+// ---- Component ----
 export const Tasks: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
+  // Data
   const [todos, setTodos] = useState<TodoItem[]>([]);
-  const [displayedTodos, setDisplayedTodos] = useState<TodoItem[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
+  // Filters
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [overdue, setOverdue] = useState(false);
   const [thisWeek, setThisWeek] = useState(false);
   const [next7Days, setNext7Days] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [localSearch, setLocalSearch] = useState('');
 
+  // NLP search
+  const [nlpQuery, setNlpQuery] = useState('');
+  const [nlpResults, setNlpResults] = useState<TodoItem[] | null>(null);
+  const [nlpSearching, setNlpSearching] = useState(false);
+
+  // UI
   const [loading, setLoading] = useState(true);
-  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
-  const [searchError, setSearchError] = useState('');
   const [success, setSuccess] = useState('');
+  const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+  const [openMoreId, setOpenMoreId] = useState<string | null>(null);
 
+  // Refs for click-outside
+  const statusRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on click outside
   useEffect(() => {
-    loadData();
-  }, []);
+    const handler = (e: MouseEvent) => {
+      if (openStatusId && statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setOpenStatusId(null);
+      }
+      if (openMoreId && moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setOpenMoreId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openStatusId, openMoreId]);
 
-  useEffect(() => {
-    loadTodos();
-  }, [clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days]);
-
-  // Clear alerts after 5s
+  // Clear alerts
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(''), 5000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setSuccess(''), 4000);
+      return () => clearTimeout(t);
     }
   }, [success]);
+
+  // ---- Data loading ----
+  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadTodos(); }, [clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-
       try {
-        const clientsRes = await apiService.getClients();
-        if (clientsRes.success && clientsRes.data) setClients(clientsRes.data);
-      } catch (err) { console.warn('[Tasks] Failed to load clients:', err); }
-
+        const r = await apiService.getClients();
+        if (r.success && r.data) setClients(r.data);
+      } catch {}
       try {
-        const companiesRes = await apiService.getCompanies();
-        if (companiesRes.success && companiesRes.data) setCompanies(companiesRes.data);
-      } catch (err) { console.warn('[Tasks] Failed to load companies:', err); }
-
+        const r = await apiService.getCompanies();
+        if (r.success && r.data) setCompanies(r.data);
+      } catch {}
       try {
-        const usersRes = await apiService.getUsers();
-        if (usersRes.success && usersRes.data) setUsers(usersRes.data);
-      } catch (err) { console.warn('[Tasks] Failed to load users:', err); }
-
-      loadTodos();
-    } catch (err) {
+        const r = await apiService.getUsers();
+        if (r.success && r.data) setUsers(r.data);
+      } catch {}
+      await loadTodos();
+    } catch {
       setError('Error loading data');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -78,12 +145,12 @@ export const Tasks: React.FC = () => {
 
   const sortTodos = (items: TodoItem[]): TodoItem[] => {
     return [...items].sort((a, b) => {
-      const statusOrder = (s: string) => s === 'completed' || s === 'done' ? 1 : 0;
-      const diff = statusOrder(a.status) - statusOrder(b.status);
-      if (diff !== 0) return diff;
-      const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-      const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-      return dateA - dateB;
+      const so = (s: string) => (s === 'completed' || s === 'done') ? 1 : 0;
+      const d = so(a.status) - so(b.status);
+      if (d !== 0) return d;
+      const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return da - db;
     });
   };
 
@@ -97,216 +164,441 @@ export const Tasks: React.FC = () => {
       if (thisWeek) filters.thisWeek = true;
       if (next7Days) filters.next7Days = true;
 
-      // Admin sees all todos, regular users see only their own
       const response = isAdmin
         ? await apiService.getTodos(filters)
         : await apiService.getMyTodos(filters);
 
       if (response.success) {
         const data = Array.isArray(response.data) ? response.data : [];
-        const normalized = data.map(t => ({
+        const normalized = data.map((t: any) => ({
           ...t,
-          status: t.status === 'done' || t.status === 'completed' ? 'completed' : 'todo'
+          status: normalizeStatus(t.status),
         }));
-        const sorted = sortTodos(normalized as TodoItem[]);
-        setTodos(sorted);
-        setDisplayedTodos(sorted);
-        setSearchError('');
+        setTodos(sortTodos(normalized));
+        setNlpResults(null);
       }
-    } catch (err) {
+    } catch {
       setError('Error loading tasks');
-      console.error(err);
     }
   };
 
-  const handleSearchResults = (results: TodoItem[]) => {
-    setDisplayedTodos(results);
-    if (results.length === 0) {
-      setSearchError('No tasks found');
-    } else {
-      setSearchError('');
-    }
-  };
-
-  const handleStatusChange = async (todoId: string, newStatus: string) => {
+  // ---- Actions ----
+  const handleStatusChange = async (todoId: string, newStatus: TaskStatus) => {
+    setOpenStatusId(null);
     try {
-      setTodos(todos.map((t) => (t.id === todoId ? { ...t, status: newStatus as any } : t)));
-      setDisplayedTodos(displayedTodos.map((t) => (t.id === todoId ? { ...t, status: newStatus as any } : t)));
-      await apiService.updateTodo(todoId, { status: newStatus });
-      setSuccess('Task updated');
-    } catch (err) {
-      setError('Error updating task');
-      console.error(err);
+      setTodos(prev => prev.map(t => t.id === todoId ? { ...t, status: newStatus as any } : t));
+      await apiService.updateTodo(todoId, { status: statusToApi(newStatus) });
+      setSuccess('Status updated');
+    } catch {
+      setError('Error updating status');
       loadTodos();
     }
   };
 
   const handleDelete = async (todoId: string) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) return;
-
+    setOpenMoreId(null);
+    if (!window.confirm('Delete this task?')) return;
     try {
       await apiService.deleteTodo(todoId);
       setSuccess('Task deleted');
       loadTodos();
-    } catch (err) {
+    } catch {
       setError('Error deleting task');
-      console.error(err);
     }
   };
 
+  // NLP search
+  const handleNlpSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nlpQuery.trim()) return;
+    try {
+      setNlpSearching(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${API_BASE_URL}/search/todos`,
+        { query: nlpQuery },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        const normalized = (res.data.data || []).map((t: any) => ({
+          ...t,
+          status: normalizeStatus(t.status),
+        }));
+        setNlpResults(normalized);
+      }
+    } catch {
+      setError('Search failed');
+    } finally {
+      setNlpSearching(false);
+    }
+  };
+
+  const clearNlpSearch = () => {
+    setNlpQuery('');
+    setNlpResults(null);
+  };
+
+  // ---- Computed data ----
+  const getClientName = useCallback((id: string) => clients.find(c => c.id === id)?.name || '-', [clients]);
+  const getCompanyName = useCallback((id: string) => companies.find(c => c.id === id)?.name || '-', [companies]);
+  const getUserName = useCallback((id: string) => users.find(u => u.id === id)?.name || '-', [users]);
+
+  // KPIs computed from full todo list (before filtering)
+  const kpis = useMemo(() => {
+    const now = new Date(new Date().toDateString());
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
+
+    let open = 0, overdueCount = 0, dueThisWeek = 0, completed = 0;
+    for (const t of todos) {
+      const s = normalizeStatus(t.status);
+      if (s === 'completed') { completed++; continue; }
+      open++;
+      if (t.due_date) {
+        const d = new Date(t.due_date);
+        if (d < now) overdueCount++;
+        else if (d <= endOfWeek) dueThisWeek++;
+      }
+    }
+    return { open, overdue: overdueCount, dueThisWeek, completed };
+  }, [todos]);
+
+  // Visible rows: apply status filter, search, show completed, NLP results
+  const visibleTodos = useMemo(() => {
+    let list = nlpResults !== null ? nlpResults : todos;
+
+    // Status filter
+    if (statusFilter) {
+      list = list.filter(t => normalizeStatus(t.status) === statusFilter);
+    }
+
+    // Show completed toggle
+    if (!showCompleted) {
+      list = list.filter(t => normalizeStatus(t.status) !== 'completed');
+    }
+
+    // Local text search
+    if (localSearch.trim()) {
+      const q = localSearch.toLowerCase();
+      list = list.filter(t => {
+        const title = t.title?.toLowerCase() || '';
+        const client = getClientName(t.client_id).toLowerCase();
+        const company = getCompanyName(t.company_id).toLowerCase();
+        const assignee = getUserName(t.assigned_to_user_id).toLowerCase();
+        return title.includes(q) || client.includes(q) || company.includes(q) || assignee.includes(q);
+      });
+    }
+
+    return list;
+  }, [todos, nlpResults, statusFilter, showCompleted, localSearch, getClientName, getCompanyName, getUserName]);
+
+  // ---- Render ----
   if (loading) {
-    return (
-      <div className="my-todos">
-        <p>Loading...</p>
-      </div>
-    );
+    return <div className="tasks-page"><div className="tasks-loading">Loading tasks...</div></div>;
   }
 
-  const getClientName = (id: string) => clients.find((c) => c.id === id)?.name || id;
-  const getCompanyName = (id: string) => companies.find((c) => c.id === id)?.name || id;
-  const getUserName = (id: string) => users.find((u) => u.id === id)?.name || id;
-
   return (
-    <div className="my-todos">
-      <div className="header">
-        <h1>{isAdmin ? 'All Tasks' : 'My Tasks'}</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/todos/new')}>
+    <div className="tasks-page">
+      {/* Header */}
+      <div className="tasks-header">
+        <div className="tasks-header-left">
+          <h1>{isAdmin ? 'Tasks' : 'My Tasks'}</h1>
+          <p className="tasks-header-subtitle">Track follow-ups, reminders and team actions</p>
+        </div>
+        <button className="tasks-btn-new" onClick={() => navigate('/todos/new')}>
           + New Task
         </button>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
-      {searchError && <div className="alert alert-error">{searchError}</div>}
+      {/* Alerts */}
+      {error && <div className="tasks-alert tasks-alert-error">{error}</div>}
+      {success && <div className="tasks-alert tasks-alert-success">{success}</div>}
 
-      {!loading && todos.length > 0 && (
-        <SearchBar
-          type="todos"
-          onResults={handleSearchResults}
-          onLoading={setIsSearching}
-          onError={setSearchError}
-        />
-      )}
-
-      <div className="filters-section">
-        <div className="filter-group">
-          <label>Client</label>
-          <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-            <option value="">All</option>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label>Company</label>
-          <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
-            <option value="">All</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {isAdmin && (
-          <div className="filter-group">
-            <label>Assigned To</label>
-            <select value={assignedToUserId} onChange={(e) => setAssignedToUserId(e.target.value)}>
-              <option value="">All</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+      {/* KPI row */}
+      <div className="tasks-kpi-row">
+        <div className="tasks-kpi">
+          <div className="tasks-kpi-icon blue">&#x1F4CB;</div>
+          <div className="tasks-kpi-body">
+            <div className="tasks-kpi-value">{kpis.open}</div>
+            <div className="tasks-kpi-label">Open Tasks</div>
           </div>
-        )}
-
-        <div className="filter-group checkbox">
-          <label>
-            <input type="checkbox" checked={overdue} onChange={(e) => setOverdue(e.target.checked)} />
-            Overdue
-          </label>
         </div>
-
-        <div className="filter-group checkbox">
-          <label>
-            <input type="checkbox" checked={thisWeek} onChange={(e) => setThisWeek(e.target.checked)} />
-            This Week
-          </label>
+        <div className="tasks-kpi">
+          <div className="tasks-kpi-icon red">&#x26A0;</div>
+          <div className="tasks-kpi-body">
+            <div className={`tasks-kpi-value${kpis.overdue > 0 ? ' alert' : ''}`}>{kpis.overdue}</div>
+            <div className="tasks-kpi-label">Overdue</div>
+          </div>
         </div>
-
-        <div className="filter-group checkbox">
-          <label>
-            <input type="checkbox" checked={next7Days} onChange={(e) => setNext7Days(e.target.checked)} />
-            Next 7 Days
-          </label>
+        <div className="tasks-kpi">
+          <div className="tasks-kpi-icon orange">&#x1F4C5;</div>
+          <div className="tasks-kpi-body">
+            <div className="tasks-kpi-value">{kpis.dueThisWeek}</div>
+            <div className="tasks-kpi-label">Due This Week</div>
+          </div>
         </div>
-
-        <div className="filter-group checkbox">
-          <label>
-            <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
-            Show completed
-          </label>
+        <div className="tasks-kpi">
+          <div className="tasks-kpi-icon green">&#x2705;</div>
+          <div className="tasks-kpi-body">
+            <div className="tasks-kpi-value">{kpis.completed}</div>
+            <div className="tasks-kpi-label">Completed</div>
+          </div>
         </div>
       </div>
 
-      <div className="table-section">
-        {(() => {
-          const visibleTodos = showCompleted
-            ? displayedTodos
-            : displayedTodos.filter(t => t.status !== 'completed' && t.status !== 'done');
-          return visibleTodos.length === 0 ? (
-            <p className="no-data">No tasks found</p>
-          ) : (
-            <table className="todos-table">
+      {/* Filter toolbar */}
+      <div className="tasks-toolbar">
+        <div className="tasks-filters-row">
+          <input
+            type="text"
+            className="tasks-search-input"
+            placeholder="Search tasks..."
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
+          />
+
+          <select
+            className={`tasks-filter-select${clientId ? ' active' : ''}`}
+            value={clientId}
+            onChange={e => setClientId(e.target.value)}
+          >
+            <option value="">All Clients</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          <select
+            className={`tasks-filter-select${companyId ? ' active' : ''}`}
+            value={companyId}
+            onChange={e => setCompanyId(e.target.value)}
+          >
+            <option value="">All Companies</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          {isAdmin && (
+            <select
+              className={`tasks-filter-select${assignedToUserId ? ' active' : ''}`}
+              value={assignedToUserId}
+              onChange={e => setAssignedToUserId(e.target.value)}
+            >
+              <option value="">All Assignees</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          )}
+
+          <select
+            className={`tasks-filter-select${statusFilter ? ' active' : ''}`}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            <option value="todo">Todo</option>
+            <option value="in_progress">In Progress</option>
+            <option value="waiting">Waiting</option>
+            <option value="completed">Completed</option>
+          </select>
+
+          <div className="tasks-filter-divider" />
+
+          {/* Quick filter chips */}
+          <div className="tasks-chips">
+            <button
+              className={`tasks-chip${overdue ? ' active chip-red' : ''}`}
+              onClick={() => setOverdue(!overdue)}
+            >
+              <span className="tasks-chip-dot" />
+              Overdue
+            </button>
+            <button
+              className={`tasks-chip${thisWeek ? ' active chip-orange' : ''}`}
+              onClick={() => setThisWeek(!thisWeek)}
+            >
+              <span className="tasks-chip-dot" />
+              This Week
+            </button>
+            <button
+              className={`tasks-chip${next7Days ? ' active' : ''}`}
+              onClick={() => setNext7Days(!next7Days)}
+            >
+              <span className="tasks-chip-dot" />
+              Next 7 Days
+            </button>
+            <button
+              className={`tasks-chip${showCompleted ? ' active' : ''}`}
+              onClick={() => setShowCompleted(!showCompleted)}
+            >
+              <span className="tasks-chip-dot" />
+              Completed
+            </button>
+          </div>
+        </div>
+
+        {/* NLP search — subtle, secondary row */}
+        <form className="tasks-nlp-row" onSubmit={handleNlpSearch}>
+          <input
+            type="text"
+            className="tasks-nlp-input"
+            placeholder="Natural language search... e.g. &quot;overdue tasks for client X&quot;"
+            value={nlpQuery}
+            onChange={e => setNlpQuery(e.target.value)}
+            disabled={nlpSearching}
+          />
+          <button type="submit" className="tasks-nlp-btn" disabled={nlpSearching || !nlpQuery.trim()}>
+            {nlpSearching ? 'Searching...' : 'AI Search'}
+          </button>
+          {nlpResults !== null && (
+            <button type="button" className="tasks-nlp-clear" onClick={clearNlpSearch}>
+              Clear
+            </button>
+          )}
+        </form>
+      </div>
+
+      {/* Table */}
+      <div className="tasks-table-wrap">
+        {visibleTodos.length > 0 && (
+          <div className="tasks-result-count">
+            {visibleTodos.length} task{visibleTodos.length !== 1 ? 's' : ''}
+            {nlpResults !== null && ' (AI search results)'}
+          </div>
+        )}
+
+        {visibleTodos.length === 0 ? (
+          <div className="tasks-empty">
+            <div className="tasks-empty-icon">&#x1F4CB;</div>
+            <div className="tasks-empty-text">No tasks found</div>
+            <div className="tasks-empty-hint">Try adjusting your filters or create a new task</div>
+          </div>
+        ) : (
+          <div className="tasks-table-scroll">
+            <table className="tasks-table">
               <thead>
                 <tr>
-                  <th>Action</th>
-                  <th>Client</th>
-                  <th>Company</th>
-                  <th>Created By</th>
+                  <th>Task</th>
+                  <th>Client / Company</th>
                   {isAdmin && <th>Assigned To</th>}
                   <th>Status</th>
                   <th>Due Date</th>
-                  <th>Actions</th>
+                  <th style={{ width: '1%' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleTodos.map((todo) => (
-                  <tr key={todo.id}>
-                    <td className="todo-title">{todo.title}</td>
-                    <td>{getClientName(todo.client_id)}</td>
-                    <td>{getCompanyName(todo.company_id)}</td>
-                    <td>{(todo as any).created_by_user?.name || '-'}</td>
-                    {isAdmin && <td>{getUserName(todo.assigned_to_user_id)}</td>}
-                    <td>
-                      <select
-                        value={todo.status === 'done' || todo.status === 'completed' ? 'completed' : 'todo'}
-                        onChange={(e) => handleStatusChange(todo.id, e.target.value === 'completed' ? 'done' : 'todo')}
-                        className={`status-select status-${todo.status === 'done' || todo.status === 'completed' ? 'done' : 'todo'}`}
-                      >
-                        <option value="todo">Todo</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    </td>
-                    <td className="due-date">{todo.due_date ? new Date(todo.due_date).toLocaleDateString('it-IT') : '-'}</td>
-                    <td>
-                      <button className="btn btn-small btn-danger" onClick={() => handleDelete(todo.id)}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {visibleTodos.map(todo => {
+                  const status = normalizeStatus(todo.status);
+                  const overdueRow = isOverdue(todo.due_date, todo.status);
+                  const soonRow = isDueSoon(todo.due_date, todo.status);
+                  const assigneeName = getUserName(todo.assigned_to_user_id);
+                  const createdByName = (todo as any).created_by_user?.name;
+
+                  return (
+                    <tr
+                      key={todo.id}
+                      className={`${overdueRow ? 'row-overdue' : ''}${status === 'completed' ? ' row-completed' : ''}`}
+                    >
+                      {/* Task title */}
+                      <td className="task-title-cell">
+                        <div className="task-title">{todo.title}</div>
+                        {createdByName && (
+                          <div className="task-created-by">by {createdByName}</div>
+                        )}
+                      </td>
+
+                      {/* Client / Company */}
+                      <td className="task-context">
+                        <div className="task-client-name">{getClientName(todo.client_id)}</div>
+                        <div className="task-company-name">{getCompanyName(todo.company_id)}</div>
+                      </td>
+
+                      {/* Assigned To */}
+                      {isAdmin && (
+                        <td>
+                          <div className="task-assignee">
+                            <span className="task-avatar">{getInitials(assigneeName)}</span>
+                            <span className="task-assignee-name">{assigneeName}</span>
+                          </div>
+                        </td>
+                      )}
+
+                      {/* Status */}
+                      <td>
+                        <div
+                          className="task-status-wrap"
+                          ref={openStatusId === todo.id ? statusRef : undefined}
+                        >
+                          <button
+                            className={`task-status-pill status-${status}`}
+                            onClick={() => setOpenStatusId(openStatusId === todo.id ? null : todo.id)}
+                          >
+                            <span className="status-dot" />
+                            {STATUS_CONFIG[status].label}
+                          </button>
+                          {openStatusId === todo.id && (
+                            <div className="task-status-dropdown">
+                              {(Object.keys(STATUS_CONFIG) as TaskStatus[]).map(s => (
+                                <button
+                                  key={s}
+                                  className={`task-status-option${s === status ? ' selected' : ''}`}
+                                  onClick={() => handleStatusChange(todo.id, s)}
+                                >
+                                  <span className="status-dot" style={{ color: STATUS_CONFIG[s].dot }} />
+                                  {STATUS_CONFIG[s].label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Due date */}
+                      <td>
+                        {todo.due_date ? (
+                          <span className={`task-due${overdueRow ? ' overdue' : soonRow ? ' soon' : ''}`}>
+                            {formatDate(todo.due_date)}
+                          </span>
+                        ) : (
+                          <span className="task-due">-</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td>
+                        <div className="task-actions">
+                          <button
+                            className="task-action-btn primary"
+                            onClick={() => navigate(`/todos/edit/${todo.id}`)}
+                          >
+                            Edit
+                          </button>
+                          <div
+                            className="task-more-wrap"
+                            ref={openMoreId === todo.id ? moreRef : undefined}
+                          >
+                            <button
+                              className="task-more-btn"
+                              onClick={() => setOpenMoreId(openMoreId === todo.id ? null : todo.id)}
+                            >
+                              &#x22EE;
+                            </button>
+                            {openMoreId === todo.id && (
+                              <div className="task-more-menu">
+                                <button
+                                  className="task-more-item danger"
+                                  onClick={() => handleDelete(todo.id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-          );
-        })()}
+          </div>
+        )}
       </div>
     </div>
   );

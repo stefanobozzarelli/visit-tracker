@@ -43,6 +43,13 @@ export function useDataPreload() {
     }
   }, [user]);
 
+  // Warm in-memory cache from IndexedDB immediately (before network)
+  useEffect(() => {
+    if (user) {
+      apiService.warmMemoryCache();
+    }
+  }, [user]);
+
   // Initial preload when user is authenticated
   useEffect(() => {
     if (user && isOnline) {

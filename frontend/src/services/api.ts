@@ -9,6 +9,78 @@ const API_BASE_URL = config.API_BASE_URL;
 class ApiService {
   private api: AxiosInstance;
 
+  // ---- In-memory SWR cache for instant navigation ----
+  private memoryCache = new Map<string, { data: any; timestamp: number }>();
+  private pendingRefreshes = new Set<string>();
+  private readonly MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+  private getCacheKey(url: string, params?: Record<string, any>): string {
+    return params && Object.keys(params).length > 0
+      ? `${url}?${JSON.stringify(params)}`
+      : url;
+  }
+
+  /**
+   * Stale-while-revalidate GET: serves from in-memory cache instantly,
+   * refreshes in background. Falls through to network on cache miss.
+   */
+  private async cachedGet<T = any>(url: string, options?: { params?: Record<string, any> }): Promise<{ data: T }> {
+    const cacheKey = this.getCacheKey(url, options?.params);
+    const cached = this.memoryCache.get(cacheKey);
+
+    if (cached && (Date.now() - cached.timestamp) < this.MEMORY_CACHE_TTL) {
+      // Background refresh (fire-and-forget, deduplicated)
+      if (!this.pendingRefreshes.has(cacheKey)) {
+        this.pendingRefreshes.add(cacheKey);
+        this.api.get<T>(url, options)
+          .then(res => {
+            this.memoryCache.set(cacheKey, { data: res.data, timestamp: Date.now() });
+          })
+          .catch(() => {})
+          .finally(() => this.pendingRefreshes.delete(cacheKey));
+      }
+      return { data: cached.data };
+    }
+
+    // Cache miss → normal network request
+    const response = await this.api.get<T>(url, options);
+    this.memoryCache.set(cacheKey, { data: response.data, timestamp: Date.now() });
+    return response;
+  }
+
+  /**
+   * Warm memory cache from IndexedDB on app startup.
+   * Gives instant renders even on cold page loads.
+   */
+  async warmMemoryCache(): Promise<void> {
+    const storeToUrl: Record<string, string> = {
+      clients: '/clients',
+      companies: '/companies',
+      visits: '/visits',
+      todos: '/todos',
+      users: '/admin/users',
+    };
+
+    const promises = Object.entries(storeToUrl).map(async ([store, url]) => {
+      try {
+        const data = await offlineDB.getData(store);
+        if (data && data.length > 0) {
+          const cacheKey = this.getCacheKey(url);
+          // Only set if not already in memory (don't overwrite fresher data)
+          if (!this.memoryCache.has(cacheKey)) {
+            this.memoryCache.set(cacheKey, {
+              data: { success: true, data },
+              // Mark slightly stale so next real request triggers background refresh
+              timestamp: Date.now() - (this.MEMORY_CACHE_TTL - 60000),
+            });
+          }
+        }
+      } catch { /* non-critical */ }
+    });
+
+    await Promise.all(promises);
+  }
+
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
@@ -39,9 +111,14 @@ class ApiService {
     // Response interceptor - cache GET requests and handle offline
     this.api.interceptors.response.use(
       (response) => {
-        // Cache successful GET requests (200 and 304)
         if (response.config.method === 'get' && (response.status === 200 || response.status === 304)) {
           const url = response.config.url || '';
+
+          // Populate in-memory cache (instant for SWR)
+          const cacheKey = this.getCacheKey(url, response.config.params);
+          this.memoryCache.set(cacheKey, { data: response.data, timestamp: Date.now() });
+
+          // Persist to IndexedDB (for offline + cold start)
           if (this.shouldCacheUrl(url)) {
             this.cacheResponse(url, response.data, response.config.params);
           }
@@ -354,7 +431,7 @@ class ApiService {
   }
 
   async getClients() {
-    const response = await this.api.get<ApiResponse<any>>('/clients');
+    const response = await this.cachedGet<ApiResponse<any>>('/clients');
     return response.data;
   }
 
@@ -399,7 +476,7 @@ class ApiService {
   }
 
   async getCompanies() {
-    const response = await this.api.get<ApiResponse<any>>('/companies');
+    const response = await this.cachedGet<ApiResponse<any>>('/companies');
     return response.data;
   }
 
@@ -429,7 +506,7 @@ class ApiService {
   }
 
   async getVisits(filters?: { client_id?: string; user_id?: string }) {
-    const response = await this.api.get<ApiResponse<any>>('/visits', { params: filters });
+    const response = await this.cachedGet<ApiResponse<any>>('/visits', { params: filters });
     return response.data;
   }
 
@@ -513,12 +590,12 @@ class ApiService {
   }
 
   async getTodos(filters?: { status?: string; clientId?: string; companyId?: string; assignedToUserId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean }) {
-    const response = await this.api.get<ApiResponse<any>>('/todos', { params: filters });
+    const response = await this.cachedGet<ApiResponse<any>>('/todos', { params: filters });
     return response.data;
   }
 
   async getMyTodos(filters?: { status?: string; clientId?: string; companyId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean }) {
-    const response = await this.api.get<ApiResponse<any>>('/todos/my', { params: filters });
+    const response = await this.cachedGet<ApiResponse<any>>('/todos/my', { params: filters });
     return response.data;
   }
 
@@ -554,7 +631,7 @@ class ApiService {
   }
 
   async getOrders(filters?: { visit_id?: string; client_id?: string; status?: string }) {
-    const response = await this.api.get<ApiResponse<any>>('/orders', { params: filters });
+    const response = await this.cachedGet<ApiResponse<any>>('/orders', { params: filters });
     return response.data;
   }
 
@@ -648,7 +725,7 @@ class ApiService {
   }
 
   async getUsers(filters?: { role?: string; company_id?: string }) {
-    const response = await this.api.get<ApiResponse<any>>('/admin/users', { params: filters });
+    const response = await this.cachedGet<ApiResponse<any>>('/admin/users', { params: filters });
     return response.data;
   }
 

@@ -87,7 +87,7 @@ export const TodoForm = (props: TodoFormProps) => {
       if (response.success) {
         setSuccess('TODO created successfully');
         setTimeout(() => {
-          navigate('/my-todos');
+          navigate('/tasks');
         }, 1500);
       }
     } catch (err) {
