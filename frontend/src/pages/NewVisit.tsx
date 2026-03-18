@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Client, Company } from '../types';
+import { encodeMetadata, VisitMetadata } from '../utils/visitMetadata';
 import '../styles/CrudPages.css';
 
 export const NewVisit: React.FC = () => {
@@ -23,6 +24,14 @@ export const NewVisit: React.FC = () => {
     clientId: '',
     visitDate: '',
     reports: [{ companyId: '', section: '', content: '' }],
+  });
+
+  const [metadata, setMetadata] = useState<VisitMetadata>({
+    location: '',
+    purpose: '',
+    outcome: '',
+    followUpRequired: false,
+    nextAction: '',
   });
 
   useEffect(() => {
@@ -141,6 +150,16 @@ export const NewVisit: React.FC = () => {
         content: r.content,
       }));
 
+      // Add metadata as hidden report if any fields are filled
+      const metaReport = encodeMetadata(metadata);
+      if (metaReport && formData.reports[0]?.companyId) {
+        reports.push({
+          company_id: formData.reports[0].companyId,
+          section: metaReport.section,
+          content: metaReport.content,
+        });
+      }
+
       const response = await apiService.createVisit(formData.clientId, formData.visitDate, reports);
       if (response.success) {
         navigate(`/visits/${response.data.id}`);
@@ -242,6 +261,60 @@ export const NewVisit: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, visitDate: e.target.value })}
               required
             />
+          </div>
+
+          {/* Visit Metadata */}
+          <div style={{ padding: '1rem', marginBottom: '1rem', border: '1px solid #e5e5e5', borderRadius: '8px', backgroundColor: '#fafbfc' }}>
+            <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem' }}>Visit Details</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Location</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Milan office, phone call..."
+                  value={metadata.location}
+                  onChange={e => setMetadata({ ...metadata, location: e.target.value })}
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Purpose</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Product presentation, follow-up..."
+                  value={metadata.purpose}
+                  onChange={e => setMetadata({ ...metadata, purpose: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '0.75rem' }}>
+              <label>Outcome</label>
+              <input
+                type="text"
+                placeholder="e.g. Positive, order placed, need follow-up..."
+                value={metadata.outcome}
+                onChange={e => setMetadata({ ...metadata, outcome: e.target.value })}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', marginTop: '0.75rem', alignItems: 'end' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Next Action</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Send quotation, schedule demo..."
+                  value={metadata.nextAction}
+                  onChange={e => setMetadata({ ...metadata, nextAction: e.target.value })}
+                />
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <input
+                  type="checkbox"
+                  checked={metadata.followUpRequired}
+                  onChange={e => setMetadata({ ...metadata, followUpRequired: e.target.checked })}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                Follow-up required
+              </label>
+            </div>
           </div>
 
           <h3>Report per Company</h3>

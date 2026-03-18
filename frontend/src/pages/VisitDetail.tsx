@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Visit, VisitReport, CustomerOrder } from '../types';
+import { decodeMetadata, filterDisplayReports, VisitMetadata } from '../utils/visitMetadata';
 import '../styles/CrudPages.css';
 
 export const VisitDetail: React.FC = () => {
@@ -113,6 +114,10 @@ export const VisitDetail: React.FC = () => {
     }
   };
 
+  // Extract metadata and filter display reports
+  const visitMetadata = useMemo(() => visit ? decodeMetadata(visit.reports || []) : null, [visit]);
+  const displayReports = useMemo(() => visit ? filterDisplayReports(visit.reports || []) : [], [visit]);
+
   if (isLoading) return <p>Loading...</p>;
   if (!visit) return <p>Visit not found</p>;
 
@@ -160,13 +165,51 @@ export const VisitDetail: React.FC = () => {
             <p>{visit.visited_by_user?.name}</p>
           </div>
         </div>
+
+        {/* Visit metadata fields */}
+        {visitMetadata && (
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e5e5' }}>
+            <div className="info-group">
+              {visitMetadata.location && (
+                <div>
+                  <label>Location</label>
+                  <p>{visitMetadata.location}</p>
+                </div>
+              )}
+              {visitMetadata.purpose && (
+                <div>
+                  <label>Purpose</label>
+                  <p>{visitMetadata.purpose}</p>
+                </div>
+              )}
+              {visitMetadata.outcome && (
+                <div>
+                  <label>Outcome</label>
+                  <p>{visitMetadata.outcome}</p>
+                </div>
+              )}
+              {visitMetadata.nextAction && (
+                <div>
+                  <label>Next Action</label>
+                  <p>{visitMetadata.nextAction}</p>
+                </div>
+              )}
+              {visitMetadata.followUpRequired && (
+                <div>
+                  <label>Follow-up</label>
+                  <p style={{ color: 'var(--color-warning)', fontWeight: 500 }}>Required</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <h2>Company Reports</h2>
 
-      {visit.reports && visit.reports.length > 0 ? (
+      {displayReports.length > 0 ? (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
-          {visit.reports.map((report) => (
+          {displayReports.map((report) => (
             <div key={report.id} className="form-card">
               <div style={{ marginBottom: '1rem' }}>
                 <h3>
