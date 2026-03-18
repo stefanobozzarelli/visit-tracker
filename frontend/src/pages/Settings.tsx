@@ -163,7 +163,7 @@ const UsersTab: React.FC = () => {
     setError(''); setSuccess('');
     if (!formData.name) { setError('Name is required'); return; }
     try {
-      const response = await apiService.updateUser(editingUserId, { name: formData.name });
+      const response = await apiService.updateUser(editingUserId, { name: formData.name, role: formData.role });
       if (!response.success) { setError(response.error || 'Failed to update user'); return; }
       setSuccess('User updated successfully');
       resetForm();
@@ -224,8 +224,15 @@ const UsersTab: React.FC = () => {
             {editingUserId ? (
               <>
                 <div className="form-group"><label>Email</label><input type="email" value={formData.email} disabled /></div>
-                <div className="form-group"><label>Role</label><input type="text" value={formData.role} disabled /></div>
                 <div className="form-group"><label>Name</label><input type="text" name="name" value={formData.name} onChange={handleFormChange} placeholder="Full name" /></div>
+                <div className="form-group">
+                  <label>Role</label>
+                  <select name="role" value={formData.role} onChange={handleFormChange}>
+                    <option value="sales_rep">Sales Rep</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
               </>
             ) : (
               <>

@@ -96,9 +96,8 @@ router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
  */
 router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
+    const { name, role } = req.body;
 
-    // Validazione base
     if (!name) {
       return res.status(400).json({
         success: false,
@@ -106,7 +105,10 @@ router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
       });
     }
 
-    const user = await userService.updateUser(req.params.userId, { name });
+    const updateData: any = { name };
+    if (role) updateData.role = role;
+
+    const user = await userService.updateUser(req.params.userId, updateData);
     res.json({
       success: true,
       data: user,
