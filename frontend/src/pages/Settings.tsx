@@ -190,13 +190,12 @@ const UsersTab: React.FC = () => {
   };
 
   const handleResetPassword = async () => {
-    if (!resetPasswordId || !newPassword) return;
+    if (!editingUserId || !newPassword) return;
     setError(''); setSuccess('');
     try {
-      const response = await apiService.changeUserPassword(resetPasswordId, newPassword);
+      const response = await apiService.changeUserPassword(editingUserId, newPassword);
       if (response.success) {
         setSuccess('Password reset successfully');
-        setResetPasswordId(null);
         setNewPassword('');
       } else setError(response.error || 'Failed to reset password');
     } catch (err) { setError((err as Error).message || 'Error resetting password'); }
@@ -265,7 +264,7 @@ const UsersTab: React.FC = () => {
               </div>
               <button
                 className="btn btn-warning btn-small"
-                onClick={() => { setResetPasswordId(editingUserId); handleResetPassword(); }}
+                onClick={handleResetPassword}
                 disabled={!newPassword}
               >
                 Reset Password
