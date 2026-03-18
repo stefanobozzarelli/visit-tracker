@@ -238,20 +238,11 @@ export const Companies: React.FC = () => {
                       <td>
                         <div className="co-actions">
                           {isAdmin && (
-                            <button className="co-action-btn" onClick={() => handleEdit(company)}>Edit</button>
+                            <>
+                              <button className="co-action-btn" onClick={() => handleEdit(company)}>Edit</button>
+                              <button className="co-action-btn danger" onClick={() => handleDelete(company.id)}>Delete</button>
+                            </>
                           )}
-                          <div className="co-more-wrap" ref={openMoreId === company.id ? moreRef : undefined}>
-                            <button className="co-more-btn" onClick={() => setOpenMoreId(openMoreId === company.id ? null : company.id)}>&#x22EE;</button>
-                            {openMoreId === company.id && (
-                              <div className="co-more-menu">
-                                {isAdmin && (
-                                  <>
-                                    <button className="co-more-item danger" onClick={() => handleDelete(company.id)}>Delete</button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
                         </div>
                       </td>
                     </tr>
