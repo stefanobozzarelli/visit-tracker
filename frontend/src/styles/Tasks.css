@@ -46,7 +46,7 @@
 }
 
 .tasks-btn-new:hover {
-  background: #0062e6;
+  background: #2563eb;
 }
 
 /* ---- Alerts ---- */
@@ -64,13 +64,13 @@
 .tasks-alert-error {
   background: #fff0f0;
   color: var(--color-error);
-  border: 1px solid rgba(255, 59, 48, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .tasks-alert-success {
   background: #f0faf0;
   color: var(--color-success);
-  border: 1px solid rgba(52, 199, 89, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 /* ---- KPI Summary ---- */
@@ -110,10 +110,10 @@
   flex-shrink: 0;
 }
 
-.tasks-kpi-icon.blue   { background: rgba(0, 122, 255, 0.08); }
-.tasks-kpi-icon.red    { background: rgba(255, 59, 48, 0.08); }
-.tasks-kpi-icon.orange { background: rgba(255, 149, 0, 0.08); }
-.tasks-kpi-icon.green  { background: rgba(52, 199, 89, 0.08); }
+.tasks-kpi-icon.blue   { background: rgba(59, 130, 246, 0.08); }
+.tasks-kpi-icon.red    { background: rgba(239, 68, 68, 0.08); }
+.tasks-kpi-icon.orange { background: rgba(245, 158, 11, 0.08); }
+.tasks-kpi-icon.green  { background: rgba(34, 197, 94, 0.08); }
 
 .tasks-kpi-body {
   min-width: 0;
@@ -176,7 +176,7 @@
 .tasks-search-input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
 }
 
 .tasks-filter-select {
@@ -197,13 +197,13 @@
 .tasks-filter-select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
 }
 
 .tasks-filter-select.active {
   border-color: var(--color-info);
   color: var(--color-info);
-  background: rgba(0, 122, 255, 0.04);
+  background: rgba(59, 130, 246, 0.04);
 }
 
 .tasks-filter-divider {
@@ -245,21 +245,21 @@
 }
 
 .tasks-chip.active {
-  background: rgba(0, 122, 255, 0.08);
-  border-color: rgba(0, 122, 255, 0.3);
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.3);
   color: var(--color-info);
 }
 
 .tasks-chip.active.chip-red {
-  background: rgba(255, 59, 48, 0.06);
-  border-color: rgba(255, 59, 48, 0.25);
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.25);
   color: var(--color-error);
 }
 
 .tasks-chip.active.chip-orange {
-  background: rgba(255, 149, 0, 0.06);
-  border-color: rgba(255, 149, 0, 0.25);
-  color: #c77600;
+  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #b45309;
 }
 
 .tasks-chip-dot {
@@ -400,11 +400,11 @@
 
 /* Row states */
 .tasks-table tr.row-overdue {
-  background: rgba(255, 59, 48, 0.02);
+  background: rgba(239, 68, 68, 0.02);
 }
 
 .tasks-table tr.row-overdue:hover {
-  background: rgba(255, 59, 48, 0.05);
+  background: rgba(239, 68, 68, 0.05);
 }
 
 .tasks-table tr.row-completed {
@@ -499,15 +499,15 @@
 }
 
 .task-status-pill.status-todo {
-  background: rgba(255, 149, 0, 0.08);
-  color: #b37400;
-  border-color: rgba(255, 149, 0, 0.2);
+  background: rgba(245, 158, 11, 0.08);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.2);
 }
 
 .task-status-pill.status-in_progress {
-  background: rgba(0, 122, 255, 0.08);
+  background: rgba(59, 130, 246, 0.08);
   color: var(--color-info);
-  border-color: rgba(0, 122, 255, 0.2);
+  border-color: rgba(59, 130, 246, 0.2);
 }
 
 .task-status-pill.status-waiting {
@@ -517,9 +517,9 @@
 }
 
 .task-status-pill.status-completed {
-  background: rgba(52, 199, 89, 0.08);
-  color: #248a3d;
-  border-color: rgba(52, 199, 89, 0.2);
+  background: rgba(34, 197, 94, 0.08);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.2);
 }
 
 .task-status-pill:hover {
@@ -625,12 +625,12 @@
 
 .task-action-btn.primary {
   color: var(--color-info);
-  border-color: rgba(0, 122, 255, 0.2);
+  border-color: rgba(59, 130, 246, 0.2);
 }
 
 .task-action-btn.primary:hover {
-  background: rgba(0, 122, 255, 0.04);
-  border-color: rgba(0, 122, 255, 0.3);
+  background: rgba(59, 130, 246, 0.04);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 /* More menu */
@@ -698,7 +698,7 @@
 }
 
 .task-more-item.danger:hover {
-  background: rgba(255, 59, 48, 0.05);
+  background: rgba(239, 68, 68, 0.05);
 }
 
 /* ---- Empty state ---- */

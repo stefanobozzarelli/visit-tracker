@@ -47,12 +47,12 @@
 }
 
 .search-btn:hover:not(:disabled) {
-  background-color: #0051cc;
+  background-color: #2563eb;
   box-shadow: var(--shadow-md);
 }
 
 .search-btn:active:not(:disabled) {
-  background-color: #004599;
+  background-color: #1d4ed8;
 }
 
 .search-btn:disabled {
