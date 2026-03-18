@@ -1,8 +1,11 @@
 :root {
+  /* Layout */
+  --sidebar-width: 260px;
+
   /* Color Palette - Neutrals */
   --color-white: #ffffff;
   --color-black: #000000;
-  --color-bg-primary: #ffffff;
+  --color-bg-primary: #fafbfc;
   --color-bg-secondary: #f6f6f6;
   --color-bg-tertiary: #f9f9f9;
   --color-text-primary: #1d1d1d;
