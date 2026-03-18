@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, Company, User } from '../types';
 import '../styles/TodoForm.css';
 
-interface TodoFormProps {
-  initialData?: {
-    visitReportId?: string;
-    clientId?: string;
-    companyId?: string;
-  };
-}
-
-export const TodoForm = (props: TodoFormProps) => {
+export const TodoForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id: editId } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const isEdit = !!editId;
 
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
@@ -24,12 +18,14 @@ export const TodoForm = (props: TodoFormProps) => {
   const [assignedToUserId, setAssignedToUserId] = useState(user?.id || '');
   const [dueDate, setDueDate] = useState('');
   const [visitReportId, setVisitReportId] = useState('');
+  const [status, setStatus] = useState('todo');
 
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -46,21 +42,47 @@ export const TodoForm = (props: TodoFormProps) => {
   }, []);
 
   const loadData = async () => {
-    // Load each independently so one failure doesn't block the others
+    setLoadingData(true);
     try {
       const clientsRes = await apiService.getClients();
       if (clientsRes.success && clientsRes.data) setClients(clientsRes.data);
-    } catch (err) { console.warn('[TodoForm] Failed to load clients:', err); }
+    } catch {}
 
     try {
       const companiesRes = await apiService.getCompanies();
       if (companiesRes.success && companiesRes.data) setCompanies(companiesRes.data);
-    } catch (err) { console.warn('[TodoForm] Failed to load companies:', err); }
+    } catch {}
 
     try {
       const usersRes = await apiService.getUsers();
       if (usersRes.success && usersRes.data) setUsers(usersRes.data);
-    } catch (err) { console.warn('[TodoForm] Failed to load users:', err); }
+    } catch {}
+
+    // Load existing todo for edit mode
+    if (editId) {
+      try {
+        const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+        const res = isAdmin
+          ? await apiService.getTodos()
+          : await apiService.getMyTodos();
+        if (res.success) {
+          const all = Array.isArray(res.data) ? res.data : [];
+          const todo = all.find((t: any) => t.id === editId);
+          if (todo) {
+            setTitle(todo.title || '');
+            setClientId(todo.client_id || '');
+            setCompanyId(todo.company_id || '');
+            setAssignedToUserId(todo.assigned_to_user_id || '');
+            setStatus(todo.status || 'todo');
+            setVisitReportId(todo.visit_report_id || '');
+            if (todo.due_date) {
+              setDueDate(new Date(todo.due_date).toISOString().split('T')[0]);
+            }
+          }
+        }
+      } catch {}
+    }
+    setLoadingData(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,33 +97,55 @@ export const TodoForm = (props: TodoFormProps) => {
 
     try {
       setLoading(true);
-      const response = await apiService.createTodo(
-        title,
-        clientId,
-        companyId,
-        assignedToUserId,
-        dueDate ? new Date(dueDate).toISOString().split('T')[0] : undefined,
-        visitReportId || undefined
-      );
 
-      if (response.success) {
-        setSuccess('TODO created successfully');
-        setTimeout(() => {
-          navigate('/tasks');
-        }, 1500);
+      if (isEdit) {
+        const response = await apiService.updateTodo(editId!, {
+          title,
+          clientId: clientId,
+          companyId: companyId,
+          assignedToUserId,
+          status,
+          dueDate: dueDate || undefined,
+        });
+        if (response.success) {
+          setSuccess('Task updated successfully');
+          setTimeout(() => navigate('/tasks'), 1000);
+        }
+      } else {
+        const response = await apiService.createTodo(
+          title,
+          clientId,
+          companyId,
+          assignedToUserId,
+          dueDate ? new Date(dueDate).toISOString().split('T')[0] : undefined,
+          visitReportId || undefined
+        );
+        if (response.success) {
+          setSuccess('Task created successfully');
+          setTimeout(() => navigate('/tasks'), 1000);
+        }
       }
-    } catch (err) {
-      setError('Error creating TODO');
-      console.error(err);
+    } catch {
+      setError(isEdit ? 'Error updating task' : 'Error creating task');
     } finally {
       setLoading(false);
     }
   };
 
+  if (loadingData) {
+    return (
+      <div className="todo-form-container">
+        <div className="todo-form-card">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="todo-form-container">
       <div className="todo-form-card">
-        <h2>Create New TODO</h2>
+        <h2>{isEdit ? 'Edit Task' : 'Create New Task'}</h2>
 
         {error && <div className="alert alert-error">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
@@ -164,17 +208,29 @@ export const TodoForm = (props: TodoFormProps) => {
             </div>
           </div>
 
+          {isEdit && (
+            <div className="form-group">
+              <label htmlFor="status">Status</label>
+              <select id="status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="todo">Todo</option>
+                <option value="in_progress">In Progress</option>
+                <option value="waiting">Waiting</option>
+                <option value="done">Completed</option>
+              </select>
+            </div>
+          )}
+
           {visitReportId && (
             <div className="info-note">
-              ℹ️ This TODO is linked to a visit report
+              This task is linked to a visit report
             </div>
           )}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Creating...' : 'Create TODO'}
+              {loading ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Changes' : 'Create Task')}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => navigate('/my-todos')} disabled={loading}>
+            <button type="button" className="btn btn-secondary" onClick={() => navigate('/tasks')} disabled={loading}>
               Cancel
             </button>
           </div>

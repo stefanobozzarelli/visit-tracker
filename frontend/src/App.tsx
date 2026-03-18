@@ -52,6 +52,7 @@ const AppContent: React.FC = () => {
           <Route path="/reports" element={<ExportPdf />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/todos/new" element={<TodoForm />} />
+          <Route path="/todos/edit/:id" element={<TodoForm />} />
           <Route path="/orders/new/:visitId" element={<OrderForm />} />
           <Route path="/orders/:id/edit" element={<OrderForm />} />
         </Route>

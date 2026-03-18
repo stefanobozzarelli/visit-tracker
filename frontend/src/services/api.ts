@@ -604,7 +604,7 @@ class ApiService {
     return response.data;
   }
 
-  async updateTodo(id: string, data: { status?: string; dueDate?: string; assignedToUserId?: string }) {
+  async updateTodo(id: string, data: { title?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string }) {
     const response = await this.api.put<ApiResponse<any>>(`/todos/${id}`, data);
     return response.data;
   }
