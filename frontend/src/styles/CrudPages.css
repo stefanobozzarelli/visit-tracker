@@ -1,19 +1,21 @@
 .crud-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
 }
 
 .page-header h1 {
   color: var(--color-text-primary);
   margin: 0;
+  font-size: 1.5rem;
   font-weight: var(--font-weight-semibold);
 }
 
@@ -48,11 +50,11 @@
 
 .form-card {
   background: var(--color-white);
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-border);
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-card h3 {
@@ -62,7 +64,7 @@
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .form-group label {
@@ -160,12 +162,14 @@ tbody tr:hover {
   background-color: var(--color-info);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-sm);
-  font-size: 1rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
   font-weight: var(--font-weight-medium);
+  font-family: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease-out;
+  white-space: nowrap;
 }
 
 .btn-primary:hover {
@@ -181,10 +185,12 @@ tbody tr:hover {
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
   padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-family: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease-out;
+  white-space: nowrap;
 }
 
 .btn-secondary:hover {
@@ -195,9 +201,10 @@ tbody tr:hover {
   background-color: var(--color-info);
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.813rem;
+  font-family: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease-out;
 }
@@ -210,9 +217,10 @@ tbody tr:hover {
   background-color: var(--color-warning);
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.813rem;
+  font-family: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease-out;
 }
@@ -225,9 +233,10 @@ tbody tr:hover {
   background-color: var(--color-error);
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.813rem;
+  font-family: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease-out;
 }
@@ -421,4 +430,34 @@ tbody tr:hover {
 
 .btn-danger:disabled:hover {
   background-color: #cccccc;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .form-actions {
+    flex-wrap: wrap;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  th, td {
+    padding: 0.625rem 0.5rem;
+    font-size: 0.813rem;
+  }
+
+  .info-group {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
