@@ -1,0 +1,99 @@
+/* Companies page enhancements */
+.companies-filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.companies-search {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.companies-search:focus {
+  outline: none;
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+}
+
+.companies-filter-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--color-white);
+  min-width: 140px;
+}
+
+.companies-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.badge-green {
+  background: rgba(52, 199, 89, 0.12);
+  color: #1a8a3c;
+}
+
+.badge-orange {
+  background: rgba(255, 149, 0, 0.12);
+  color: #b36800;
+}
+
+.badge-yellow {
+  background: rgba(255, 204, 0, 0.15);
+  color: #8a6d00;
+}
+
+.badge-gray {
+  background: rgba(142, 142, 147, 0.12);
+  color: #636366;
+}
+
+/* Table cell tweaks */
+.company-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.company-date {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.company-action {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 768px) {
+  .companies-filters {
+    flex-direction: column;
+  }
+
+  .companies-filter-select {
+    min-width: 0;
+  }
+}
