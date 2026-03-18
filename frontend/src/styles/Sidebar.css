@@ -88,15 +88,18 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.sidebar-link.active .sidebar-link-icon {
-  color: #4A6078;
-}
-
 .sidebar-link-icon {
   width: 22px;
-  text-align: center;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.sidebar-link.active .sidebar-link-icon {
+  opacity: 1;
 }
 
 .sidebar-divider {
