@@ -15,20 +15,21 @@ class ApiService {
       timeout: 8000, // 8 second timeout - makes requests fail fast when WiFi is off
     });
 
-    // Request interceptor - add auth token and short-circuit when offline
+    // Request interceptor - add auth token and handle offline
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        // If browser reports offline, reject IMMEDIATELY — no HTTP request at all.
-        // The error interceptor will serve from IndexedDB cache (for GETs)
-        // or queue for sync (for writes). This is instant vs waiting for timeout.
+        // When browser reports offline, use an extremely short timeout so the
+        // error interceptor fires near-instantly and can serve from cache.
+        // We do NOT reject here because navigator.onLine is unreliable in Safari.
+        // Instead we let the request fail fast via timeout.
         if (!navigator.onLine) {
-          return Promise.reject(new axios.AxiosError(
-            'Offline', 'ERR_OFFLINE', config, null, undefined
-          ));
+          config.timeout = 1;
+          // Mark the config so the error interceptor knows it was offline
+          (config as any)._offlineShortCircuit = true;
         }
         return config;
       },
