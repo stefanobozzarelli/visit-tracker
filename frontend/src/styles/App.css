@@ -1,5 +1,5 @@
 /* ========================================
-   Design System — Unified Tokens
+   Design System — Apple-inspired, refined
    ======================================== */
 
 :root {
@@ -7,35 +7,35 @@
   --sidebar-width: 260px;
   --page-max-width: 1200px;
 
-  /* Color Palette — Neutrals */
+  /* Color Palette — Neutrals (Apple warm graphite) */
   --color-white: #ffffff;
   --color-black: #000000;
-  --color-bg-primary: #f8f9fb;
-  --color-bg-secondary: #f2f3f5;
-  --color-bg-tertiary: #f6f7f9;
-  --color-text-primary: #1a1d23;
-  --color-text-secondary: #4a5568;
-  --color-text-tertiary: #8492a6;
-  --color-border: #e2e8f0;
-  --color-border-strong: #cbd5e1;
+  --color-bg-primary: #f5f5f7;
+  --color-bg-secondary: #ededf0;
+  --color-bg-tertiary: #f8f8fa;
+  --color-text-primary: #1d1d1f;
+  --color-text-secondary: #48484a;
+  --color-text-tertiary: #86868b;
+  --color-border: #d2d2d7;
+  --color-border-strong: #aeaeb2;
 
-  /* Color Palette — Semantic */
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #3b82f6;
+  /* Semantic — muted, restrained */
+  --color-success: #30a46c;
+  --color-warning: #e5a000;
+  --color-error: #cd2b31;
+  --color-info: #0071e3;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+  /* Shadows — very subtle */
+  --shadow-xs: 0 0.5px 1px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0.5px 1px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.04);
 
   /* Border Radius */
   --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
   --radius-full: 9999px;
 
   /* Spacing */
@@ -45,50 +45,26 @@
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
 
-  /* Typography — Scale (use these consistently) */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  /* Typography — larger, more readable */
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
 
-  /* -- Text sizes -- */
-  --text-2xs: 0.6875rem;  /* 11px — micro labels, counters */
-  --text-xs: 0.75rem;     /* 12px — badges, hints, tertiary */
-  --text-sm: 0.8125rem;   /* 13px — body small, table cells */
-  --text-base: 0.875rem;  /* 14px — body text, buttons */
-  --text-md: 0.9375rem;   /* 15px — slightly larger body */
-  --text-lg: 1rem;        /* 16px — section headers */
-  --text-xl: 1.125rem;    /* 18px — card titles */
-  --text-2xl: 1.5rem;     /* 24px — page titles */
-  --text-3xl: 1.75rem;    /* 28px — hero/greeting */
+  --text-2xs: 0.6875rem;  /* 11px */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.8125rem;   /* 13px */
+  --text-base: 0.875rem;  /* 14px */
+  --text-md: 0.9375rem;   /* 15px */
+  --text-lg: 1rem;        /* 16px */
+  --text-xl: 1.125rem;    /* 18px */
+  --text-2xl: 1.625rem;   /* 26px — page titles */
+  --text-3xl: 2rem;       /* 32px */
 
-  /* Font Weight */
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-
-  /* -- Consistent component tokens -- */
-  --page-title-size: var(--text-2xl);
-  --page-subtitle-size: var(--text-sm);
-  --card-padding: 1rem 1.125rem;
-  --card-radius: var(--radius-lg);
-  --card-shadow: var(--shadow-xs);
-  --card-border: 1px solid var(--color-border);
-  --section-title-size: var(--text-base);
-  --table-header-size: var(--text-2xs);
-  --table-cell-size: var(--text-sm);
-  --kpi-value-size: 1.375rem;
-  --kpi-label-size: var(--text-2xs);
-  --badge-size: var(--text-2xs);
-  --btn-size: var(--text-base);
-  --btn-small-size: var(--text-xs);
-  --filter-size: var(--text-sm);
-  --input-size: var(--text-sm);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: var(--font-family);
@@ -96,34 +72,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   line-height: 1.5;
+  letter-spacing: -0.01em;
 }
 
-html, body, #root {
-  height: 100%;
-}
+html, body, #root { height: 100%; }
+#root { display: flex; flex-direction: column; }
+main { flex: 1; overflow-y: auto; }
+button { font-family: inherit; letter-spacing: inherit; }
+input, textarea, select { font-family: inherit; letter-spacing: inherit; }
 
-#root {
-  display: flex;
-  flex-direction: column;
-}
-
-main {
-  flex: 1;
-  overflow-y: auto;
-}
-
-button {
-  font-family: inherit;
-}
-
-input, textarea, select {
-  font-family: inherit;
-}
-
-/* ---- Scrollbar (subtle) ---- */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary); }

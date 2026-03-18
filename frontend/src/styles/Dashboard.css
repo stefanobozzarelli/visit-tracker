@@ -25,7 +25,7 @@
 
 .dash-header-left h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.625rem;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   line-height: 1.2;
@@ -53,7 +53,7 @@
 }
 
 .dash-btn-primary:hover {
-  background: #2563eb;
+  background: #0062cc;
 }
 
 /* ---- KPI Summary Row ---- */
@@ -92,10 +92,10 @@
   flex-shrink: 0;
 }
 
-.dash-kpi-icon.blue   { background: rgba(59, 130, 246, 0.08); color: #3b82f6; }
-.dash-kpi-icon.red    { background: rgba(239, 68, 68, 0.08); color: #ef4444; }
-.dash-kpi-icon.orange { background: rgba(245, 158, 11, 0.08); color: #f59e0b; }
-.dash-kpi-icon.green  { background: rgba(34, 197, 94, 0.08); color: #22c55e; }
+.dash-kpi-icon.blue   { background: rgba(0, 113, 227, 0.08); color: #0071e3; }
+.dash-kpi-icon.red    { background: rgba(205, 43, 49, 0.08); color: #cd2b31; }
+.dash-kpi-icon.orange { background: rgba(229, 160, 0, 0.08); color: #e5a000; }
+.dash-kpi-icon.green  { background: rgba(48, 164, 108, 0.08); color: #30a46c; }
 .dash-kpi-icon.gray   { background: rgba(142, 142, 147, 0.08); color: #8e8e93; }
 
 .dash-kpi-body {
@@ -103,7 +103,7 @@
 }
 
 .dash-kpi-value {
-  font-size: 1.375rem;
+  font-size: 1.5rem;
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   line-height: 1.1;
@@ -158,7 +158,7 @@
   min-width: 20px;
   height: 20px;
   border-radius: 10px;
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(205, 43, 49, 0.1);
   color: var(--color-error);
   font-size: 0.688rem;
   font-weight: var(--font-weight-bold);
@@ -235,18 +235,18 @@
 }
 
 .dash-priority-icon.missing_report {
-  background: rgba(245, 158, 11, 0.08);
-  color: #f59e0b;
+  background: rgba(229, 160, 0, 0.08);
+  color: #e5a000;
 }
 
 .dash-priority-icon.overdue_task {
-  background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  background: rgba(205, 43, 49, 0.08);
+  color: #cd2b31;
 }
 
 .dash-priority-icon.open_followup {
-  background: rgba(59, 130, 246, 0.08);
-  color: #3b82f6;
+  background: rgba(0, 113, 227, 0.08);
+  color: #0071e3;
 }
 
 .dash-priority-content {
@@ -287,15 +287,15 @@
 }
 
 .dash-priority-tag.missing_report {
-  background: rgba(245, 158, 11, 0.08);
-  color: #b45309;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(229, 160, 0, 0.08);
+  color: #ab7500;
+  border: 1px solid rgba(229, 160, 0, 0.2);
 }
 
 .dash-priority-tag.overdue_task {
-  background: rgba(239, 68, 68, 0.06);
+  background: rgba(205, 43, 49, 0.06);
   color: var(--color-error);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(205, 43, 49, 0.2);
 }
 
 .dash-priority-date {
@@ -424,15 +424,15 @@
 }
 
 .dash-report-badge.ready {
-  background: rgba(34, 197, 94, 0.08);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: rgba(48, 164, 108, 0.08);
+  color: #18794e;
+  border: 1px solid rgba(48, 164, 108, 0.2);
 }
 
 .dash-report-badge.missing {
-  background: rgba(245, 158, 11, 0.08);
-  color: #b45309;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(229, 160, 0, 0.08);
+  color: #ab7500;
+  border: 1px solid rgba(229, 160, 0, 0.2);
 }
 
 .dash-visit-date {
@@ -486,11 +486,11 @@
   justify-content: center;
   padding: 0.15rem 0.375rem;
   border-radius: var(--radius-full);
-  background: rgba(245, 158, 11, 0.08);
-  color: #b45309;
+  background: rgba(229, 160, 0, 0.08);
+  color: #ab7500;
   font-size: 0.625rem;
   font-weight: var(--font-weight-bold);
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(229, 160, 0, 0.2);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -528,18 +528,18 @@
 }
 
 .dash-activity-icon.visit {
-  background: rgba(59, 130, 246, 0.08);
-  color: #3b82f6;
+  background: rgba(0, 113, 227, 0.08);
+  color: #0071e3;
 }
 
 .dash-activity-icon.task {
-  background: rgba(245, 158, 11, 0.08);
-  color: #f59e0b;
+  background: rgba(229, 160, 0, 0.08);
+  color: #e5a000;
 }
 
 .dash-activity-icon.done {
-  background: rgba(34, 197, 94, 0.08);
-  color: #22c55e;
+  background: rgba(48, 164, 108, 0.08);
+  color: #30a46c;
 }
 
 .dash-activity-content {

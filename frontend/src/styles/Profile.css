@@ -87,7 +87,7 @@
 .profile-form-group input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.08);
 }
 
 .profile-form-group input:disabled {
@@ -120,7 +120,7 @@
 }
 
 .profile-btn.primary:hover {
-  background: #2563eb;
+  background: #0062cc;
 }
 
 .profile-btn:disabled {

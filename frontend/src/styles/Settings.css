@@ -10,7 +10,7 @@
 
 .settings-page h1 {
   margin: 0 0 1.25rem;
-  font-size: 1.5rem;
+  font-size: 1.625rem;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
@@ -107,7 +107,7 @@
 .settings-form-panel .form-group select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.08);
 }
 
 .settings-form-panel .form-group input:disabled {
@@ -158,7 +158,7 @@
 .settings-search:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.08);
 }
 
 .settings-table {
@@ -208,18 +208,18 @@
 }
 
 .role-badge.role-admin {
-  background: rgba(239, 68, 68, 0.08);
+  background: rgba(205, 43, 49, 0.08);
   color: var(--color-error);
 }
 
 .role-badge.role-manager {
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(0, 113, 227, 0.08);
   color: var(--color-info);
 }
 
 .role-badge.role-sales_rep {
-  background: rgba(34, 197, 94, 0.08);
-  color: #16a34a;
+  background: rgba(48, 164, 108, 0.08);
+  color: #18794e;
 }
 
 /* ──── Company Access Tab ──── */
@@ -252,7 +252,7 @@
 .ca-user-select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.08);
 }
 
 .ca-hint {
@@ -279,8 +279,8 @@
 }
 
 .ca-card.active {
-  border-color: rgba(34, 197, 94, 0.3);
-  background: rgba(34, 197, 94, 0.03);
+  border-color: rgba(48, 164, 108, 0.3);
+  background: rgba(48, 164, 108, 0.03);
 }
 
 .ca-card-info {
@@ -324,7 +324,7 @@
 }
 
 .ca-toggle.on .ca-toggle-track {
-  background: #22c55e;
+  background: #30a46c;
 }
 
 .ca-toggle-thumb {
@@ -434,13 +434,13 @@
 .settings-content .alert-error {
   background: #fff0f0;
   color: var(--color-error);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(205, 43, 49, 0.2);
 }
 
 .settings-content .alert-success {
   background: #f0faf0;
   color: var(--color-success);
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(48, 164, 108, 0.2);
 }
 
 /* ---- Buttons ---- */
@@ -461,7 +461,7 @@
 }
 
 .settings-content .btn-primary:hover {
-  background-color: #2563eb;
+  background-color: #0062cc;
 }
 
 .settings-content .btn-secondary {
@@ -483,23 +483,23 @@
 .settings-content .btn-info-outline {
   background: none;
   color: var(--color-info);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  border: 1px solid rgba(0, 113, 227, 0.25);
 }
 
 .settings-content .btn-info-outline:hover {
-  background: rgba(59, 130, 246, 0.04);
-  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(0, 113, 227, 0.04);
+  border-color: rgba(0, 113, 227, 0.4);
 }
 
 .settings-content .btn-danger-outline {
   background: none;
   color: var(--color-error);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(205, 43, 49, 0.25);
 }
 
 .settings-content .btn-danger-outline:hover {
-  background: rgba(239, 68, 68, 0.04);
-  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(205, 43, 49, 0.04);
+  border-color: rgba(205, 43, 49, 0.4);
 }
 
 .settings-content .btn-small {
