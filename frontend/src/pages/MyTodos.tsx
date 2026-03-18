@@ -16,12 +16,12 @@ export const MyTodos = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
-  const [status, setStatus] = useState('');
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [overdue, setOverdue] = useState(false);
   const [thisWeek, setThisWeek] = useState(false);
   const [next7Days, setNext7Days] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
@@ -35,7 +35,7 @@ export const MyTodos = () => {
 
   useEffect(() => {
     loadTodos();
-  }, [status, clientId, companyId, overdue, thisWeek, next7Days]);
+  }, [clientId, companyId, overdue, thisWeek, next7Days]);
 
   const loadData = async () => {
     try {
@@ -66,10 +66,22 @@ export const MyTodos = () => {
     }
   };
 
+  const sortTodos = (items: TodoItem[]): TodoItem[] => {
+    return [...items].sort((a, b) => {
+      // Todo first, completed last
+      const statusOrder = (s: string) => s === 'completed' || s === 'done' ? 1 : 0;
+      const diff = statusOrder(a.status) - statusOrder(b.status);
+      if (diff !== 0) return diff;
+      // Then by due date ascending (earliest first, no date last)
+      const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return dateA - dateB;
+    });
+  };
+
   const loadTodos = async () => {
     try {
       const filters: any = {};
-      if (status) filters.status = status;
       if (clientId) filters.clientId = clientId;
       if (companyId) filters.companyId = companyId;
       if (overdue) filters.overdue = true;
@@ -79,8 +91,14 @@ export const MyTodos = () => {
       const response = await apiService.getMyTodos(filters);
       if (response.success) {
         const data = Array.isArray(response.data) ? response.data : [];
-        setTodos(data);
-        setDisplayedTodos(data);
+        // Normalize status: map 'in_progress' → 'todo', 'done' → 'completed'
+        const normalized = data.map(t => ({
+          ...t,
+          status: t.status === 'done' || t.status === 'completed' ? 'completed' : 'todo'
+        }));
+        const sorted = sortTodos(normalized as TodoItem[]);
+        setTodos(sorted);
+        setDisplayedTodos(sorted);
         setSearchError('');
       }
     } catch (err) {
@@ -165,16 +183,6 @@ export const MyTodos = () => {
 
       <div className="filters-section">
         <div className="filter-group">
-          <label>Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All</option>
-            <option value="todo">Todo</option>
-            <option value="in_progress">In Progress</option>
-            <option value="done">Completed</option>
-          </select>
-        </div>
-
-        <div className="filter-group">
           <label>Client</label>
           <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
             <option value="">All</option>
@@ -218,10 +226,21 @@ export const MyTodos = () => {
             Next 7 Days
           </label>
         </div>
+
+        <div className="filter-group checkbox">
+          <label>
+            <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
+            Show completed
+          </label>
+        </div>
       </div>
 
       <div className="table-section">
-        {displayedTodos.length === 0 ? (
+        {(() => {
+          const visibleTodos = showCompleted
+            ? displayedTodos
+            : displayedTodos.filter(t => t.status !== 'completed' && t.status !== 'done');
+          return visibleTodos.length === 0 ? (
           <p className="no-data">No TODOs found</p>
         ) : (
           <table className="todos-table">
@@ -238,7 +257,7 @@ export const MyTodos = () => {
               </tr>
             </thead>
             <tbody>
-              {displayedTodos.map((todo) => (
+              {visibleTodos.map((todo) => (
                 <tr key={todo.id}>
                   <td className="todo-title">{todo.title}</td>
                   <td>{getClientName(todo.client_id)}</td>
@@ -247,13 +266,12 @@ export const MyTodos = () => {
                   <td>{getUserName(todo.assigned_to_user_id)}</td>
                   <td>
                     <select
-                      value={todo.status}
-                      onChange={(e) => handleStatusChange(todo.id, e.target.value)}
-                      className={`status-select status-${todo.status}`}
+                      value={todo.status === 'done' || todo.status === 'completed' ? 'completed' : 'todo'}
+                      onChange={(e) => handleStatusChange(todo.id, e.target.value === 'completed' ? 'done' : 'todo')}
+                      className={`status-select status-${todo.status === 'done' || todo.status === 'completed' ? 'done' : 'todo'}`}
                     >
                       <option value="todo">Todo</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="done">Completed</option>
+                      <option value="completed">Completed</option>
                     </select>
                   </td>
                   <td className="due-date">{todo.due_date ? new Date(todo.due_date).toLocaleDateString('it-IT') : '-'}</td>
@@ -266,7 +284,8 @@ export const MyTodos = () => {
               ))}
             </tbody>
           </table>
-        )}
+        );
+        })()}
       </div>
     </div>
   );

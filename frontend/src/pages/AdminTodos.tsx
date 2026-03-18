@@ -14,13 +14,13 @@ export const AdminTodos = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
-  const [status, setStatus] = useState('');
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState('');
   const [overdue, setOverdue] = useState(false);
   const [thisWeek, setThisWeek] = useState(false);
   const [next7Days, setNext7Days] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,7 +39,7 @@ export const AdminTodos = () => {
 
   useEffect(() => {
     loadTodos();
-  }, [status, clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days]);
+  }, [clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days]);
 
   const loadData = async () => {
     try {
@@ -70,10 +70,20 @@ export const AdminTodos = () => {
     }
   };
 
+  const sortTodos = (items: TodoItem[]): TodoItem[] => {
+    return [...items].sort((a, b) => {
+      const statusOrder = (s: string) => s === 'completed' || s === 'done' ? 1 : 0;
+      const diff = statusOrder(a.status) - statusOrder(b.status);
+      if (diff !== 0) return diff;
+      const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return dateA - dateB;
+    });
+  };
+
   const loadTodos = async () => {
     try {
       const filters: any = {};
-      if (status) filters.status = status;
       if (clientId) filters.clientId = clientId;
       if (companyId) filters.companyId = companyId;
       if (assignedToUserId) filters.assignedToUserId = assignedToUserId;
@@ -83,7 +93,12 @@ export const AdminTodos = () => {
 
       const response = await apiService.getTodos(filters);
       if (response.success) {
-        setTodos(Array.isArray(response.data) ? response.data : []);
+        const data = Array.isArray(response.data) ? response.data : [];
+        const normalized = data.map(t => ({
+          ...t,
+          status: t.status === 'done' || t.status === 'completed' ? 'completed' : 'todo'
+        }));
+        setTodos(sortTodos(normalized as TodoItem[]));
       }
     } catch (err) {
       setError('Error loading TODOs');
@@ -140,16 +155,6 @@ export const AdminTodos = () => {
 
       <div className="filters-section">
         <div className="filter-group">
-          <label>Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All</option>
-            <option value="todo">Todo</option>
-            <option value="in_progress">In Progress</option>
-            <option value="done">Completed</option>
-          </select>
-        </div>
-
-        <div className="filter-group">
           <label>Client</label>
           <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
             <option value="">All</option>
@@ -205,10 +210,21 @@ export const AdminTodos = () => {
             Next 7 Days
           </label>
         </div>
+
+        <div className="filter-group checkbox">
+          <label>
+            <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
+            Show completed
+          </label>
+        </div>
       </div>
 
       <div className="table-section">
-        {todos.length === 0 ? (
+        {(() => {
+          const visibleTodos = showCompleted
+            ? todos
+            : todos.filter(t => t.status !== 'completed' && t.status !== 'done');
+          return visibleTodos.length === 0 ? (
           <p className="no-data">No TODOs found</p>
         ) : (
           <table className="todos-table">
@@ -225,7 +241,7 @@ export const AdminTodos = () => {
               </tr>
             </thead>
             <tbody>
-              {todos.map((todo) => (
+              {visibleTodos.map((todo) => (
                 <tr key={todo.id}>
                   <td className="todo-title">{todo.title}</td>
                   <td>{getClientName(todo.client_id)}</td>
@@ -234,13 +250,12 @@ export const AdminTodos = () => {
                   <td>{getUserName(todo.assigned_to_user_id)}</td>
                   <td>
                     <select
-                      value={todo.status}
-                      onChange={(e) => handleStatusChange(todo.id, e.target.value)}
-                      className={`status-select status-${todo.status}`}
+                      value={todo.status === 'done' || todo.status === 'completed' ? 'completed' : 'todo'}
+                      onChange={(e) => handleStatusChange(todo.id, e.target.value === 'completed' ? 'done' : 'todo')}
+                      className={`status-select status-${todo.status === 'done' || todo.status === 'completed' ? 'done' : 'todo'}`}
                     >
                       <option value="todo">Todo</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="done">Completed</option>
+                      <option value="completed">Completed</option>
                     </select>
                   </td>
                   <td className="due-date">{todo.due_date ? new Date(todo.due_date).toLocaleDateString('it-IT') : '-'}</td>
@@ -253,7 +268,8 @@ export const AdminTodos = () => {
               ))}
             </tbody>
           </table>
-        )}
+        );
+        })()}
       </div>
     </div>
   );

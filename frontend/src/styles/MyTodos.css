@@ -169,7 +169,8 @@
   border-color: #0066cc;
 }
 
-.status-select.status-done {
+.status-select.status-done,
+.status-select.status-completed {
   color: #155724;
   background-color: #d4edda;
   border-color: #34c759;
