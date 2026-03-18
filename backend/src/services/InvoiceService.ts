@@ -143,12 +143,13 @@ RULES:
 - If you cannot determine a field, use null
 - All monetary amounts must be numbers (not strings)
 
-CRITICAL — how to distinguish quantity vs unit_price:
-- quantity is the AMOUNT of product (how many m2, pieces, kg, etc.) — typically a smaller number for tiles
-- unit_price is the PRICE PER UNIT (price per m2, per piece, etc.) — typically a larger number in EUR
-- line_total = quantity × unit_price (use this to VERIFY: if quantity × unit_price ≈ line_total, your assignment is correct)
-- If the math does not check out, swap quantity and unit_price
-- For tiles/ceramics: quantity is usually m2 (e.g. 3.36, 24.50) and unit_price is EUR per m2 (e.g. 14.10, 87.84)
+CRITICAL — how to identify quantity and unit_price:
+- READ THE COLUMN HEADERS in the PDF carefully. The column labeled "Quantity" or "Quantità" or "Qta" contains the quantity. The column labeled "Price" or "Prezzo" contains the unit price.
+- DO NOT assume which number is larger or smaller. The quantity in m2 can be LARGER than the price per m2.
+- Example from a real invoice: Code 0013288, Quantity = 87.84 M2, Price = 24.50 EUR/m2, Amount = 2152.08 EUR. Here 87.84 is the quantity (m2) and 24.50 is the price.
+- ALWAYS verify: quantity × unit_price should approximately equal line_total (the Amount column)
+- If your extracted quantity × unit_price does NOT match the line_total, you probably swapped them — fix it
+- The quantity often has the unit written next to it (e.g. "87,84 M2" or "3,36 M2")
 
 - Return ONLY the JSON, no explanation or markdown`
         }]
