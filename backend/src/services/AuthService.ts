@@ -55,6 +55,12 @@ export class AuthService {
     return jwt.sign(payload, secret, { expiresIn } as any);
   }
 
+  async verifyPassword(userId: string, password: string): Promise<boolean> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) return false;
+    return bcrypt.compare(password, user.password_hash);
+  }
+
   verifyToken(token: string): AuthPayload {
     const secret = process.env.JWT_SECRET || 'your_secret';
     return jwt.verify(token, secret) as AuthPayload;

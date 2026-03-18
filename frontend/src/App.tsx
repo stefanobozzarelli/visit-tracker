@@ -7,7 +7,7 @@ import { useOfflineSync } from './hooks/useOfflineSync';
 import { useDataPreload } from './hooks/useDataPreload';
 import { useOfflineDatabaseInit } from './hooks/useOfflineDatabaseInit';
 import { Login } from './pages/Login';
-import { Register } from './pages/Register';
+import { Profile } from './pages/Profile';
 import { Dashboard } from './pages/Dashboard';
 import { Clients } from './pages/Clients';
 import { ClientDetail } from './pages/ClientDetail';
@@ -36,7 +36,7 @@ const AppContent: React.FC = () => {
       <Routes>
         {/* Public routes — no sidebar */}
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
 
         {/* Protected routes — inside sidebar layout */}
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -50,6 +50,7 @@ const AppContent: React.FC = () => {
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/reports" element={<ExportPdf />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/todos/new" element={<TodoForm />} />
           <Route path="/todos/edit/:id" element={<TodoForm />} />

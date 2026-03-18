@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../styles/Auth.css';
 
@@ -51,8 +51,8 @@ export const Login: React.FC = () => {
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p>
-          Non hai un account? <Link to="/register">Registrati</Link>
+        <p className="auth-footer">
+          Contact your administrator for access
         </p>
       </div>
     </div>

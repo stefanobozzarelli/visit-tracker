@@ -749,6 +749,17 @@ class ApiService {
     return response.data;
   }
 
+  // ---- Profile (self-service) ----
+  async updateProfile(data: { name: string }) {
+    const response = await this.api.put<ApiResponse<any>>('/auth/profile', data);
+    return response.data;
+  }
+
+  async changeMyPassword(currentPassword: string, newPassword: string) {
+    const response = await this.api.patch<ApiResponse<any>>('/auth/password', { currentPassword, newPassword });
+    return response.data;
+  }
+
   // ---- Permissions ----
   async getPermissions(userId?: string) {
     const params = userId ? { userId } : undefined;

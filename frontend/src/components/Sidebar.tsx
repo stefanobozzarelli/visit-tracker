@@ -112,13 +112,13 @@ export const Sidebar: React.FC = () => {
 
         {/* Footer with user info */}
         <div className="sidebar-footer">
-          <div className="sidebar-user">
+          <NavLink to="/profile" className="sidebar-user" onClick={closeSidebar}>
             <div className="sidebar-avatar">{initials}</div>
             <div>
               <div className="sidebar-user-name">{user.name}</div>
               <div className="sidebar-user-role">{user.role}</div>
             </div>
-          </div>
+          </NavLink>
           <button className="sidebar-logout" onClick={logout} title="Logout">
             ↪
           </button>
