@@ -1,13 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { apiService } from '../services/api';
-import axios from 'axios';
-import { config } from '../config';
 import '../styles/Settings.css';
-
-const API_BASE_URL = config.API_BASE_URL;
 
 // ─── Types ────────────────────────────────────────────
 interface UserItem {
@@ -44,10 +40,9 @@ interface FormData {
   email: string;
   password: string;
   role: string;
-  company_id?: string;
 }
 
-type Tab = 'users' | 'permissions' | 'assign';
+type Tab = 'users' | 'companies' | 'clients';
 
 // ─── Component ────────────────────────────────────────
 export const Settings: React.FC = () => {
@@ -57,7 +52,6 @@ export const Settings: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<Tab>('users');
 
-  // Redirect non-admin
   useEffect(() => {
     if (user && user.role !== 'admin' && user.role !== 'manager') {
       navigate('/dashboard');
@@ -87,23 +81,23 @@ export const Settings: React.FC = () => {
           Users
         </button>
         <button
-          className={`settings-tab ${activeTab === 'permissions' ? 'active' : ''}`}
-          onClick={() => setActiveTab('permissions')}
+          className={`settings-tab ${activeTab === 'companies' ? 'active' : ''}`}
+          onClick={() => setActiveTab('companies')}
         >
-          Permissions
+          Company Access
         </button>
         <button
-          className={`settings-tab ${activeTab === 'assign' ? 'active' : ''}`}
-          onClick={() => setActiveTab('assign')}
+          className={`settings-tab ${activeTab === 'clients' ? 'active' : ''}`}
+          onClick={() => setActiveTab('clients')}
         >
-          Assign Permissions
+          Client Permissions
         </button>
       </div>
 
       <div className="settings-content">
         {activeTab === 'users' && <UsersTab />}
-        {activeTab === 'permissions' && <PermissionsTab />}
-        {activeTab === 'assign' && <AssignTab />}
+        {activeTab === 'companies' && <CompanyAccessTab />}
+        {activeTab === 'clients' && <ClientPermissionsTab />}
       </div>
     </div>
   );
@@ -118,8 +112,10 @@ const UsersTab: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ userId: string; email: string } | null>(null);
+  const [resetPasswordId, setResetPasswordId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
   const [formData, setFormData] = useState<FormData>({
-    name: '', email: '', password: '', role: 'sales_rep', company_id: '',
+    name: '', email: '', password: '', role: 'sales_rep',
   });
 
   useEffect(() => { loadUsers(); }, []);
@@ -137,11 +133,7 @@ const UsersTab: React.FC = () => {
       const response = await apiService.getUsers();
       if (response.success) setUsers(response.data || []);
       else setError(response.error || 'Failed to load users');
-    } catch (err) {
-      setError('Error loading users');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Error loading users'); } finally { setLoading(false); }
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -155,10 +147,10 @@ const UsersTab: React.FC = () => {
       setError('Name, email, and password are required'); return;
     }
     try {
-      const response = await apiService.createUser(formData.email, formData.name, formData.password, formData.role, formData.company_id || undefined);
+      const response = await apiService.createUser(formData.email, formData.name, formData.password, formData.role);
       if (response.success) {
         setSuccess('User created successfully');
-        setFormData({ name: '', email: '', password: '', role: 'sales_rep', company_id: '' });
+        setFormData({ name: '', email: '', password: '', role: 'sales_rep' });
         await loadUsers();
       } else setError(response.error || 'Failed to create user');
     } catch (err) { setError((err as Error).message || 'Error creating user'); }
@@ -180,7 +172,7 @@ const UsersTab: React.FC = () => {
 
   const handleEdit = (u: UserItem) => {
     setEditingUserId(u.id);
-    setFormData({ name: u.name, email: u.email, password: '', role: u.role, company_id: u.company_id || '' });
+    setFormData({ name: u.name, email: u.email, password: '', role: u.role });
     setError(''); setSuccess('');
   };
 
@@ -197,9 +189,22 @@ const UsersTab: React.FC = () => {
     } catch (err) { setError((err as Error).message || 'Error deleting user'); }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordId || !newPassword) return;
+    setError(''); setSuccess('');
+    try {
+      const response = await apiService.changeUserPassword(resetPasswordId, newPassword);
+      if (response.success) {
+        setSuccess('Password reset successfully');
+        setResetPasswordId(null);
+        setNewPassword('');
+      } else setError(response.error || 'Failed to reset password');
+    } catch (err) { setError((err as Error).message || 'Error resetting password'); }
+  };
+
   const resetForm = () => {
     setEditingUserId(null);
-    setFormData({ name: '', email: '', password: '', role: 'sales_rep', company_id: '' });
+    setFormData({ name: '', email: '', password: '', role: 'sales_rep' });
     setError(''); setSuccess('');
   };
 
@@ -226,12 +231,16 @@ const UsersTab: React.FC = () => {
               <>
                 <div className="form-group"><label>Email</label><input type="email" name="email" value={formData.email} onChange={handleFormChange} placeholder="user@example.com" /></div>
                 <div className="form-group"><label>Name</label><input type="text" name="name" value={formData.name} onChange={handleFormChange} placeholder="Full name" /></div>
-                <div className="form-group"><label>Password</label><input type="password" name="password" value={formData.password} onChange={handleFormChange} placeholder="Min 8 characters" /></div>
+                <div className="form-group">
+                  <label>Temporary Password</label>
+                  <input type="password" name="password" value={formData.password} onChange={handleFormChange} placeholder="Min 8 characters" />
+                  <span className="form-hint">The user can change this after first login</span>
+                </div>
                 <div className="form-group">
                   <label>Role</label>
                   <select name="role" value={formData.role} onChange={handleFormChange}>
                     <option value="sales_rep">Sales Rep</option>
-                    <option value="backoffice">Backoffice</option>
+                    <option value="manager">Manager</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -242,6 +251,27 @@ const UsersTab: React.FC = () => {
               {editingUserId && <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>}
             </div>
           </form>
+
+          {editingUserId && (
+            <div className="reset-password-section">
+              <h4>Reset Password</h4>
+              <div className="form-group">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="New temporary password"
+                />
+              </div>
+              <button
+                className="btn btn-warning btn-small"
+                onClick={() => { setResetPasswordId(editingUserId); handleResetPassword(); }}
+                disabled={!newPassword}
+              >
+                Reset Password
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="settings-table-panel">
@@ -258,10 +288,10 @@ const UsersTab: React.FC = () => {
                   <tr key={u.id}>
                     <td>{u.email}</td>
                     <td>{u.name}</td>
-                    <td>{u.role}</td>
+                    <td><span className={`role-badge role-${u.role}`}>{u.role}</span></td>
                     <td className="settings-actions">
-                      <button className="btn btn-small btn-warning" onClick={() => handleEdit(u)}>Edit</button>
-                      <button className="btn btn-small btn-danger" onClick={() => setDeleteConfirm({ userId: u.id, email: u.email })}>Delete</button>
+                      <button className="btn btn-small btn-info-outline" onClick={() => handleEdit(u)}>Edit</button>
+                      <button className="btn btn-small btn-danger-outline" onClick={() => setDeleteConfirm({ userId: u.id, email: u.email })}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -287,201 +317,91 @@ const UsersTab: React.FC = () => {
   );
 };
 
-// ─── Permissions Tab ──────────────────────────────────
-const PermissionsTab: React.FC = () => {
+// ─── Company Access Tab ──────────────────────────────
+const CompanyAccessTab: React.FC = () => {
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [companies, setCompanies] = useState<CompanyItem[]>([]);
+  const [clients, setClients] = useState<ClientItem[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [users, setUsers] = useState<UserItem[]>([]);
-  const [clients, setClients] = useState<ClientItem[]>([]);
-  const [companies, setCompanies] = useState<CompanyItem[]>([]);
-  const [searchClient, setSearchClient] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const [editingPermission, setEditingPermission] = useState<Permission | null>(null);
-  const [editCanView, setEditCanView] = useState(true);
-  const [editCanCreate, setEditCanCreate] = useState(false);
-  const [editCanEdit, setEditCanEdit] = useState(false);
-
   useEffect(() => { loadData(); }, []);
-
   useEffect(() => {
-    if (success) { const t = setTimeout(() => setSuccess(''), 5000); return () => clearTimeout(t); }
+    if (success) { const t = setTimeout(() => setSuccess(''), 4000); return () => clearTimeout(t); }
   }, [success]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const [permsRes, usersRes, clientsRes, companiesRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/admin/permissions`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/clients`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/companies`, { headers: { Authorization: `Bearer ${token}` } }),
+      const [usersRes, companiesRes, clientsRes, permsRes] = await Promise.all([
+        apiService.getUsers(),
+        apiService.getCompanies(),
+        apiService.getClients(),
+        apiService.getPermissions(),
       ]);
-      setPermissions(permsRes.data.data);
-      setUsers(usersRes.data.data);
-      setClients(clientsRes.data.data);
-      setCompanies(companiesRes.data.data);
-    } catch (err) {
-      setError('Error loading permissions');
+      if (usersRes.success) setUsers((usersRes.data || []).filter((u: UserItem) => u.role === 'sales_rep'));
+      if (companiesRes.success) setCompanies(companiesRes.data || []);
+      if (clientsRes.success) setClients(clientsRes.data || []);
+      if (permsRes.success) setPermissions(permsRes.data || []);
+    } catch { setError('Error loading data'); } finally { setLoading(false); }
+  };
+
+  // Derive which companies the selected user has access to
+  const userCompanyAccess = useMemo(() => {
+    if (!selectedUserId) return new Set<string>();
+    const userPerms = permissions.filter(p => p.user_id === selectedUserId);
+    return new Set(userPerms.map(p => p.company_id));
+  }, [selectedUserId, permissions]);
+
+  // Count clients per company for selected user
+  const companyClientCount = useMemo(() => {
+    if (!selectedUserId) return new Map<string, number>();
+    const counts = new Map<string, number>();
+    const userPerms = permissions.filter(p => p.user_id === selectedUserId);
+    for (const p of userPerms) {
+      counts.set(p.company_id, (counts.get(p.company_id) || 0) + 1);
+    }
+    return counts;
+  }, [selectedUserId, permissions]);
+
+  const handleToggleCompany = async (companyId: string, currentlyOn: boolean) => {
+    if (!selectedUserId) return;
+    setSaving(true);
+    setError('');
+
+    try {
+      if (currentlyOn) {
+        // Remove: delete all permissions for user × company
+        if (!window.confirm(`Remove access to this company? This will revoke all client permissions for this company.`)) {
+          setSaving(false);
+          return;
+        }
+        const toDelete = permissions.filter(p => p.user_id === selectedUserId && p.company_id === companyId);
+        await Promise.all(toDelete.map(p => apiService.revokePermission(p.id)));
+        setSuccess('Company access removed');
+      } else {
+        // Add: create permissions for all clients × this company
+        await Promise.all(
+          clients.map(client =>
+            apiService.assignPermission(selectedUserId, client.id, companyId, {
+              can_view: true, can_create: true, can_edit: true,
+            })
+          )
+        );
+        setSuccess(`Company access granted for ${clients.length} clients`);
+      }
+      // Reload permissions
+      const permsRes = await apiService.getPermissions();
+      if (permsRes.success) setPermissions(permsRes.data || []);
+    } catch {
+      setError('Error updating company access');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  };
-
-  const handleRevoke = async (id: string) => {
-    if (!window.confirm('Are you sure you want to revoke this permission?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/admin/permissions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setSuccess('Permission revoked');
-      loadData();
-    } catch (err) { setError('Error revoking permission'); }
-  };
-
-  const handleEditPermission = (perm: Permission) => {
-    setEditingPermission(perm);
-    setEditCanView(perm.can_view);
-    setEditCanCreate(perm.can_create);
-    setEditCanEdit(perm.can_edit);
-  };
-
-  const handleSavePermission = async () => {
-    if (!editingPermission) return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(`${API_BASE_URL}/admin/permissions/${editingPermission.id}`, {
-        can_view: editCanView, can_create: editCanCreate, can_edit: editCanEdit,
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      setSuccess('Permission updated');
-      setEditingPermission(null);
-      loadData();
-    } catch (err) { setError('Error updating permission'); }
-  };
-
-  const getUserName = (id: string) => users.find(u => u.id === id)?.name || id;
-  const getClientName = (id: string) => clients.find(c => c.id === id)?.name || id;
-  const getCompanyName = (id: string) => companies.find(c => c.id === id)?.name || id;
-
-  const sorted = [...permissions]
-    .filter(p => !searchClient || getClientName(p.client_id).toLowerCase().includes(searchClient.toLowerCase()))
-    .sort((a, b) => getUserName(a.user_id).localeCompare(getUserName(b.user_id)));
-
-  if (loading) return <p className="settings-loading">Loading permissions...</p>;
-
-  return (
-    <>
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
-
-      {permissions.length > 0 && (
-        <input type="text" placeholder="Search by client name..." value={searchClient} onChange={e => setSearchClient(e.target.value)} className="settings-search" style={{ marginBottom: '1rem' }} />
-      )}
-
-      {permissions.length === 0 ? <p className="settings-empty">No permissions assigned</p> : (
-        <table className="settings-table">
-          <thead><tr><th>User</th><th>Client</th><th>Company</th><th>View</th><th>Create</th><th>Edit</th><th>Actions</th></tr></thead>
-          <tbody>
-            {sorted.map(p => (
-              <tr key={p.id}>
-                <td>{getUserName(p.user_id)}</td>
-                <td>{getClientName(p.client_id)}</td>
-                <td>{getCompanyName(p.company_id)}</td>
-                <td>{p.can_view ? '✓' : '-'}</td>
-                <td>{p.can_create ? '✓' : '-'}</td>
-                <td>{p.can_edit ? '✓' : '-'}</td>
-                <td className="settings-actions">
-                  <button className="btn btn-small btn-warning" onClick={() => handleEditPermission(p)}>Edit</button>
-                  <button className="btn btn-small btn-danger" onClick={() => handleRevoke(p.id)}>Revoke</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {editingPermission && (
-        <div className="modal-overlay" onClick={() => setEditingPermission(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2>Edit Permission</h2>
-            <p><strong>User:</strong> {getUserName(editingPermission.user_id)}</p>
-            <p><strong>Client:</strong> {getClientName(editingPermission.client_id)}</p>
-            <p><strong>Company:</strong> {getCompanyName(editingPermission.company_id)}</p>
-            <div className="settings-checkboxes">
-              <label><input type="checkbox" checked={editCanView} onChange={e => setEditCanView(e.target.checked)} /> View</label>
-              <label><input type="checkbox" checked={editCanCreate} onChange={e => setEditCanCreate(e.target.checked)} /> Create visits</label>
-              <label><input type="checkbox" checked={editCanEdit} onChange={e => setEditCanEdit(e.target.checked)} /> Modify reports</label>
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-primary" onClick={handleSavePermission}>Save Changes</button>
-              <button className="btn btn-secondary" onClick={() => setEditingPermission(null)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-// ─── Assign Tab ───────────────────────────────────────
-const AssignTab: React.FC = () => {
-  const [users, setUsers] = useState<UserItem[]>([]);
-  const [clients, setClients] = useState<ClientItem[]>([]);
-  const [companies, setCompanies] = useState<CompanyItem[]>([]);
-  const [selectedUser, setSelectedUser] = useState('');
-  const [selectedClient, setSelectedClient] = useState('');
-  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
-  const [canView, setCanView] = useState(true);
-  const [canCreate, setCanCreate] = useState(false);
-  const [canEdit, setCanEdit] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  useEffect(() => { loadData(); }, []);
-
-  useEffect(() => {
-    if (success) { const t = setTimeout(() => setSuccess(''), 5000); return () => clearTimeout(t); }
-  }, [success]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const [usersRes, clientsRes, companiesRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/clients`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/companies`, { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-      setUsers(usersRes.data.data);
-      setClients(clientsRes.data.data);
-      setCompanies(companiesRes.data.data);
-    } catch (err) { setError('Error loading data'); } finally { setLoading(false); }
-  };
-
-  const handleAssign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(''); setSuccess('');
-    if (!selectedUser || !selectedClient || selectedCompanies.length === 0) {
-      setError('Select user, client and at least one company'); return;
-    }
-    try {
-      const token = localStorage.getItem('token');
-      const promises = selectedCompanies.map(companyId =>
-        axios.post(`${API_BASE_URL}/admin/permissions`, {
-          userId: selectedUser, clientId: selectedClient, companyId, can_view: canView, can_create: canCreate, can_edit: canEdit,
-        }, { headers: { Authorization: `Bearer ${token}` } })
-      );
-      await Promise.all(promises);
-      setSuccess(`Permissions assigned for ${selectedCompanies.length} company(ies)`);
-      resetForm();
-    } catch (err) { setError('Error assigning permissions'); }
-  };
-
-  const resetForm = () => {
-    setSelectedUser(''); setSelectedClient(''); setSelectedCompanies([]);
-    setCanView(true); setCanCreate(false); setCanEdit(false);
   };
 
   if (loading) return <p className="settings-loading">Loading...</p>;
@@ -491,49 +411,281 @@ const AssignTab: React.FC = () => {
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      <form onSubmit={handleAssign} className="settings-assign-form">
+      <div className="ca-header">
         <div className="form-group">
-          <label>User (Sales Rep)</label>
-          <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)} required>
-            <option value="">Select user...</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Client</label>
-          <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} required>
-            <option value="">Select client...</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Companies</label>
-          <div className="settings-companies-list">
-            <label className="settings-select-all">
-              <input type="checkbox" checked={selectedCompanies.length === companies.length && companies.length > 0}
-                onChange={e => setSelectedCompanies(e.target.checked ? companies.map(c => c.id) : [])} />
-              <strong>Select all</strong>
-            </label>
-            {companies.map(c => (
-              <label key={c.id}>
-                <input type="checkbox" checked={selectedCompanies.includes(c.id)}
-                  onChange={e => setSelectedCompanies(e.target.checked ? [...selectedCompanies, c.id] : selectedCompanies.filter(id => id !== c.id))} />
-                {c.name}
-              </label>
+          <label>Select User</label>
+          <select
+            value={selectedUserId}
+            onChange={e => setSelectedUserId(e.target.value)}
+            className="ca-user-select"
+          >
+            <option value="">Choose a user...</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
             ))}
+          </select>
+        </div>
+      </div>
+
+      {!selectedUserId ? (
+        <p className="settings-empty">Select a user to manage their company access</p>
+      ) : (
+        <>
+          <p className="ca-hint">
+            Toggle which companies this user can represent. Enabling a company grants access across all existing clients.
+          </p>
+          <div className="ca-grid">
+            {companies.map(company => {
+              const hasAccess = userCompanyAccess.has(company.id);
+              const clientCount = companyClientCount.get(company.id) || 0;
+              return (
+                <div key={company.id} className={`ca-card${hasAccess ? ' active' : ''}`}>
+                  <div className="ca-card-info">
+                    <div className="ca-card-name">{company.name}</div>
+                    {hasAccess && (
+                      <div className="ca-card-count">{clientCount} client{clientCount !== 1 ? 's' : ''}</div>
+                    )}
+                  </div>
+                  <button
+                    className={`ca-toggle${hasAccess ? ' on' : ''}`}
+                    onClick={() => handleToggleCompany(company.id, hasAccess)}
+                    disabled={saving}
+                  >
+                    <span className="ca-toggle-track">
+                      <span className="ca-toggle-thumb" />
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </>
+      )}
+    </>
+  );
+};
 
-        <div className="settings-checkboxes">
-          <label><input type="checkbox" checked={canView} onChange={e => setCanView(e.target.checked)} /> View</label>
-          <label><input type="checkbox" checked={canCreate} onChange={e => setCanCreate(e.target.checked)} /> Create visits</label>
-          <label><input type="checkbox" checked={canEdit} onChange={e => setCanEdit(e.target.checked)} /> Modify reports</label>
-        </div>
+// ─── Client Permissions Tab ──────────────────────────
+const ClientPermissionsTab: React.FC = () => {
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [companies, setCompanies] = useState<CompanyItem[]>([]);
+  const [clients, setClients] = useState<ClientItem[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [searchClient, setSearchClient] = useState('');
 
-        <button type="submit" className="btn btn-primary">Assign Permission</button>
-      </form>
+  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (success) { const t = setTimeout(() => setSuccess(''), 4000); return () => clearTimeout(t); }
+  }, [success]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [usersRes, companiesRes, clientsRes, permsRes] = await Promise.all([
+        apiService.getUsers(),
+        apiService.getCompanies(),
+        apiService.getClients(),
+        apiService.getPermissions(),
+      ]);
+      if (usersRes.success) setUsers((usersRes.data || []).filter((u: UserItem) => u.role === 'sales_rep'));
+      if (companiesRes.success) setCompanies(companiesRes.data || []);
+      if (clientsRes.success) setClients(clientsRes.data || []);
+      if (permsRes.success) setPermissions(permsRes.data || []);
+    } catch { setError('Error loading data'); } finally { setLoading(false); }
+  };
+
+  // User's companies (derived from permissions)
+  const userCompanies = useMemo(() => {
+    if (!selectedUserId) return [];
+    const companyIds = new Set(
+      permissions.filter(p => p.user_id === selectedUserId).map(p => p.company_id)
+    );
+    return companies.filter(c => companyIds.has(c.id));
+  }, [selectedUserId, permissions, companies]);
+
+  // Permission lookup: `${clientId}-${companyId}` → Permission
+  const permLookup = useMemo(() => {
+    const map = new Map<string, Permission>();
+    if (!selectedUserId) return map;
+    for (const p of permissions) {
+      if (p.user_id === selectedUserId) {
+        map.set(`${p.client_id}-${p.company_id}`, p);
+      }
+    }
+    return map;
+  }, [selectedUserId, permissions]);
+
+  // Filtered clients
+  const filteredClients = useMemo(() => {
+    let list = clients;
+    if (searchClient.trim()) {
+      const q = searchClient.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(q));
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, searchClient]);
+
+  const handleTogglePermission = async (clientId: string, companyId: string) => {
+    if (!selectedUserId) return;
+    setSaving(true);
+    setError('');
+
+    const key = `${clientId}-${companyId}`;
+    const existing = permLookup.get(key);
+
+    try {
+      if (existing) {
+        await apiService.revokePermission(existing.id);
+      } else {
+        await apiService.assignPermission(selectedUserId, clientId, companyId, {
+          can_view: true, can_create: true, can_edit: true,
+        });
+      }
+      const permsRes = await apiService.getPermissions();
+      if (permsRes.success) setPermissions(permsRes.data || []);
+    } catch {
+      setError('Error updating permission');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGrantAllForClient = async (clientId: string) => {
+    if (!selectedUserId) return;
+    setSaving(true);
+    try {
+      const toCreate = userCompanies.filter(c => !permLookup.has(`${clientId}-${c.id}`));
+      await Promise.all(
+        toCreate.map(c =>
+          apiService.assignPermission(selectedUserId, clientId, c.id, {
+            can_view: true, can_create: true, can_edit: true,
+          })
+        )
+      );
+      const permsRes = await apiService.getPermissions();
+      if (permsRes.success) setPermissions(permsRes.data || []);
+      setSuccess(`Granted all companies for this client`);
+    } catch { setError('Error'); } finally { setSaving(false); }
+  };
+
+  const handleRevokeAllForClient = async (clientId: string) => {
+    if (!selectedUserId) return;
+    if (!window.confirm('Revoke all company access for this client?')) return;
+    setSaving(true);
+    try {
+      const toDelete = userCompanies
+        .map(c => permLookup.get(`${clientId}-${c.id}`))
+        .filter(Boolean) as Permission[];
+      await Promise.all(toDelete.map(p => apiService.revokePermission(p.id)));
+      const permsRes = await apiService.getPermissions();
+      if (permsRes.success) setPermissions(permsRes.data || []);
+      setSuccess('Revoked all companies for this client');
+    } catch { setError('Error'); } finally { setSaving(false); }
+  };
+
+  if (loading) return <p className="settings-loading">Loading...</p>;
+
+  return (
+    <>
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      <div className="cp-header">
+        <div className="form-group">
+          <label>Select User</label>
+          <select
+            value={selectedUserId}
+            onChange={e => setSelectedUserId(e.target.value)}
+            className="cp-user-select"
+          >
+            <option value="">Choose a user...</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+            ))}
+          </select>
+        </div>
+        {selectedUserId && (
+          <input
+            type="text"
+            placeholder="Search clients..."
+            value={searchClient}
+            onChange={e => setSearchClient(e.target.value)}
+            className="settings-search cp-search"
+          />
+        )}
+      </div>
+
+      {!selectedUserId ? (
+        <p className="settings-empty">Select a user to manage their client permissions</p>
+      ) : userCompanies.length === 0 ? (
+        <p className="settings-empty">This user has no company access. Assign companies first in the "Company Access" tab.</p>
+      ) : (
+        <div className="cp-matrix-wrap">
+          <table className="cp-matrix">
+            <thead>
+              <tr>
+                <th className="cp-client-col">Client</th>
+                {userCompanies.map(c => (
+                  <th key={c.id} className="cp-company-col">{c.name}</th>
+                ))}
+                <th className="cp-actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredClients.map(client => {
+                const hasAll = userCompanies.every(c => permLookup.has(`${client.id}-${c.id}`));
+                const hasNone = userCompanies.every(c => !permLookup.has(`${client.id}-${c.id}`));
+                const hasSome = !hasAll && !hasNone;
+
+                return (
+                  <tr key={client.id} className={hasNone ? 'cp-row-none' : ''}>
+                    <td className="cp-client-name">{client.name}</td>
+                    {userCompanies.map(company => {
+                      const hasPerm = permLookup.has(`${client.id}-${company.id}`);
+                      return (
+                        <td key={company.id} className="cp-check-cell">
+                          <button
+                            className={`cp-check${hasPerm ? ' on' : ''}`}
+                            onClick={() => handleTogglePermission(client.id, company.id)}
+                            disabled={saving}
+                          >
+                            {hasPerm ? '\u2713' : ''}
+                          </button>
+                        </td>
+                      );
+                    })}
+                    <td className="cp-row-actions">
+                      {!hasAll && (
+                        <button
+                          className="btn btn-small btn-info-outline"
+                          onClick={() => handleGrantAllForClient(client.id)}
+                          disabled={saving}
+                        >
+                          All
+                        </button>
+                      )}
+                      {!hasNone && (
+                        <button
+                          className="btn btn-small btn-danger-outline"
+                          onClick={() => handleRevokeAllForClient(client.id)}
+                          disabled={saving}
+                        >
+                          None
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 };

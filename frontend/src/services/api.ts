@@ -748,6 +748,33 @@ class ApiService {
     const response = await this.api.delete<ApiResponse<any>>(`/admin/users/${id}`);
     return response.data;
   }
+
+  // ---- Permissions ----
+  async getPermissions(userId?: string) {
+    const params = userId ? { userId } : undefined;
+    const response = await this.api.get<ApiResponse<any>>('/admin/permissions', { params });
+    return response.data;
+  }
+
+  async assignPermission(userId: string, clientId: string, companyId: string, flags?: { can_view?: boolean; can_create?: boolean; can_edit?: boolean }) {
+    const response = await this.api.post<ApiResponse<any>>('/admin/permissions', {
+      userId, clientId, companyId,
+      can_view: flags?.can_view !== false,
+      can_create: flags?.can_create === true,
+      can_edit: flags?.can_edit === true,
+    });
+    return response.data;
+  }
+
+  async updatePermission(permissionId: string, flags: { can_view?: boolean; can_create?: boolean; can_edit?: boolean }) {
+    const response = await this.api.put<ApiResponse<any>>(`/admin/permissions/${permissionId}`, flags);
+    return response.data;
+  }
+
+  async revokePermission(permissionId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/admin/permissions/${permissionId}`);
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

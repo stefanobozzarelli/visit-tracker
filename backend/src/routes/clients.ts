@@ -21,15 +21,28 @@ router.post('/', async (req: Request, res: Response) => {
     // Create the client
     const client = await clientService.createClient(data);
 
-    // Assign permissions to the user who creates the client for all companies
+    // Assign permissions to the user who creates the client
+    // Admin/manager: all companies. Sales rep: only their companies.
     if (userId) {
       try {
-        const companies = await companyService.getCompanies();
-        for (const company of companies) {
+        const userRole = (req.user as any)?.role;
+        let companyIds: string[];
+
+        if (userRole === 'admin' || userRole === 'manager') {
+          // Admin/manager get all companies
+          const companies = await companyService.getCompanies();
+          companyIds = companies.map(c => c.id);
+        } else {
+          // Sales rep: only companies they already have access to
+          const userPerms = await permissionService.getUserPermissions(userId);
+          companyIds = [...new Set(userPerms.map(p => p.company_id))];
+        }
+
+        for (const companyId of companyIds) {
           await permissionService.assignPermission(
             userId,
             client.id,
-            company.id,
+            companyId,
             true,  // can_view
             true,  // can_create
             true,  // can_edit
@@ -37,7 +50,6 @@ router.post('/', async (req: Request, res: Response) => {
           );
         }
       } catch (permissionError) {
-        // Log the error but don't fail the client creation
         console.error('Error assigning permissions:', permissionError);
       }
     }
