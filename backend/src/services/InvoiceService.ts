@@ -142,6 +142,14 @@ RULES:
 - For compound discounts like "50+10", calculate the effective single percentage
 - If you cannot determine a field, use null
 - All monetary amounts must be numbers (not strings)
+
+CRITICAL — how to distinguish quantity vs unit_price:
+- quantity is the AMOUNT of product (how many m2, pieces, kg, etc.) — typically a smaller number for tiles
+- unit_price is the PRICE PER UNIT (price per m2, per piece, etc.) — typically a larger number in EUR
+- line_total = quantity × unit_price (use this to VERIFY: if quantity × unit_price ≈ line_total, your assignment is correct)
+- If the math does not check out, swap quantity and unit_price
+- For tiles/ceramics: quantity is usually m2 (e.g. 3.36, 24.50) and unit_price is EUR per m2 (e.g. 14.10, 87.84)
+
 - Return ONLY the JSON, no explanation or markdown`
         }]
       });
