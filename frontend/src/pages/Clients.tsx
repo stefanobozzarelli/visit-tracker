@@ -470,7 +470,7 @@ export const Clients: React.FC = () => {
                       {/* Follow-ups */}
                       <td>
                         {enrichment && enrichment.openFollowups > 0 ? (
-                          <span className="client-followup-badge">{enrichment.openFollowups} open</span>
+                          <span className="client-followup-badge clickable" onClick={() => navigate('/tasks')}>{enrichment.openFollowups} open</span>
                         ) : (
                           <span className="client-muted">-</span>
                         )}

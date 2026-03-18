@@ -92,6 +92,8 @@
 
 /* Follow-up badge */
 .client-followup-badge { display: inline-flex; padding: 0.15rem 0.4rem; border-radius: var(--radius-full); font-size: 0.8125rem; font-weight: var(--font-weight-medium); background: rgba(176, 152, 64, 0.08); color: #947E35; border: 1px solid rgba(176, 152, 64, 0.2); }
+.client-followup-badge.clickable { cursor: pointer; transition: all 0.15s ease; }
+.client-followup-badge.clickable:hover { background: rgba(176, 152, 64, 0.15); border-color: rgba(176, 152, 64, 0.35); }
 
 /* Contacts badge */
 .client-contacts-badge { font-size: 0.8125rem; color: var(--color-text-tertiary); }
