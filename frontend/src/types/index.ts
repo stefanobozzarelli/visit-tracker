@@ -33,6 +33,8 @@ export interface ClientContact {
   role?: string;
   email?: string;
   phone?: string;
+  wechat?: string;
+  notes?: string;
   client_id: string;
 }
 

@@ -450,18 +450,23 @@ class ApiService {
     return response.data;
   }
 
-  async addClientContact(clientId: string, name: string, role?: string, email?: string, phone?: string) {
-    const response = await this.api.post<ApiResponse<any>>(`/clients/${clientId}/contacts`, {
-      name,
-      role,
-      email,
-      phone,
-    });
+  async addClientContact(clientId: string, data: { name: string; role?: string; email?: string; phone?: string; wechat?: string; notes?: string }) {
+    const response = await this.api.post<ApiResponse<any>>(`/clients/${clientId}/contacts`, data);
     return response.data;
   }
 
   async getClientContacts(clientId: string) {
     const response = await this.api.get<ApiResponse<any>>(`/clients/${clientId}/contacts`);
+    return response.data;
+  }
+
+  async updateClientContact(contactId: string, data: { name?: string; role?: string; email?: string; phone?: string; wechat?: string; notes?: string }) {
+    const response = await this.api.put<ApiResponse<any>>(`/clients/contacts/${contactId}`, data);
+    return response.data;
+  }
+
+  async deleteClientContact(contactId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/clients/contacts/${contactId}`);
     return response.data;
   }
 

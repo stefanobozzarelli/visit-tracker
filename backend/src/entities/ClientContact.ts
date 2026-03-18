@@ -18,6 +18,12 @@ export class ClientContact {
   @Column({ nullable: true })
   phone: string;
 
+  @Column({ nullable: true })
+  wechat: string;
+
+  @Column({ nullable: true, type: 'text' })
+  notes: string;
+
   @Column()
   client_id: string;
 

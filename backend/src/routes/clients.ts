@@ -149,6 +149,16 @@ router.get('/:id/contacts', async (req: Request, res: Response) => {
   }
 });
 
+router.put('/contacts/:contactId', async (req: Request, res: Response) => {
+  try {
+    const contact = await clientService.updateContact(req.params.contactId, req.body);
+    const response: ApiResponse<any> = { success: true, data: contact };
+    res.json(response);
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
 router.delete('/contacts/:contactId', async (req: Request, res: Response) => {
   try {
     await clientService.deleteContact(req.params.contactId);

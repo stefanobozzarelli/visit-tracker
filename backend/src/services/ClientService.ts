@@ -62,6 +62,13 @@ export class ClientService {
     });
   }
 
+  async updateContact(contactId: string, data: Partial<{ name: string; role: string; email: string; phone: string; wechat: string; notes: string }>): Promise<ClientContact> {
+    const contact = await this.contactRepository.findOne({ where: { id: contactId } });
+    if (!contact) throw new Error('Contact not found');
+    Object.assign(contact, data);
+    return await this.contactRepository.save(contact);
+  }
+
   async deleteContact(contactId: string): Promise<void> {
     await this.contactRepository.delete(contactId);
   }
