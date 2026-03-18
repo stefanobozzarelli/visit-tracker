@@ -5,9 +5,8 @@ import { S3Service } from './S3Service';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import Anthropic from '@anthropic-ai/sdk';
-// pdf-parse v2 has incorrect type declarations (private methods that are actually public)
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { PDFParse } = require('pdf-parse');
+// pdf-parse v1 — simple function: pdfParse(buffer) => { text, numpages, info }
+const pdfParse = require('pdf-parse');
 
 const getAnthropicClient = () => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -83,18 +82,9 @@ export class InvoiceService {
       if (!bodyBytes) throw new Error('Empty PDF file');
       const pdfBuffer = Buffer.from(bodyBytes);
 
-      // Extract text from PDF using pdf-parse v2
-      const parser = new PDFParse();
-      await parser.load(pdfBuffer);
-      const info = await parser.getInfo();
-      let extractedText = '';
-      for (let i = 1; i <= (info.pages || 1); i++) {
-        try {
-          const pageText = await parser.getPageText(i);
-          extractedText += pageText + '\n';
-        } catch (e) { /* skip unreadable pages */ }
-      }
-      parser.destroy();
+      // Extract text from PDF
+      const pdfData = await pdfParse(pdfBuffer);
+      const extractedText = pdfData.text;
 
       if (!extractedText || extractedText.trim().length < 10) {
         throw new Error('Could not extract text from PDF - file may be scanned/image-based');
