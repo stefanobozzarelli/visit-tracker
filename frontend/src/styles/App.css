@@ -1,63 +1,56 @@
 /* ========================================
-   Design System — Refined, Premium
+   Design System — Neutral, Sober, Readable
    ======================================== */
 
 :root {
   --sidebar-width: 260px;
   --page-max-width: 1200px;
 
-  /* Neutrals — warm slate */
+  /* Neutrals — warm, clean */
   --color-white: #ffffff;
   --color-black: #000000;
-  --color-bg-primary: #F5F5F7;
-  --color-bg-secondary: #EEEEF0;
-  --color-bg-tertiary: #F9F9FB;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6B7280;
-  --color-text-tertiary: #9CA3AF;
-  --color-border: #E5E7EB;
-  --color-border-strong: #D1D5DB;
+  --color-bg-primary: #F4F4F5;
+  --color-bg-secondary: #EAEAEC;
+  --color-bg-tertiary: #F8F8F9;
+  --color-text-primary: #18181B;
+  --color-text-secondary: #52525B;
+  --color-text-tertiary: #A1A1AA;
+  --color-border: #E4E4E7;
+  --color-border-strong: #D4D4D8;
 
-  /* Accent — refined indigo */
-  --color-info: #4F46E5;
+  /* Accent — sober steel blue (NOT indigo, NOT violet) */
+  --color-info: #2563EB;
 
-  /* Semantic — muted, restrained */
-  --color-success: #059669;
-  --color-warning: #D97706;
+  /* Semantic — muted, soft */
+  --color-success: #16A34A;
+  --color-warning: #CA8A04;
   --color-error: #DC2626;
 
-  /* Shadows — very subtle */
+  /* Shadows — minimal */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.07), 0 2px 6px rgba(0, 0, 0, 0.03);
-  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.08);
 
   /* Radius */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --radius-full: 9999px;
 
-  /* Spacing */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
+  /* Typography — LARGER across the board */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
 
-  /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
-
-  --text-2xs: 0.6875rem;
-  --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.875rem;
-  --text-md: 0.9375rem;
-  --text-lg: 1rem;
-  --text-xl: 1.125rem;
-  --text-2xl: 1.625rem;
-  --text-3xl: 2rem;
+  --text-2xs: 0.75rem;    /* 12px */
+  --text-xs: 0.8125rem;   /* 13px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 0.9375rem; /* 15px */
+  --text-md: 1rem;        /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.75rem;    /* 28px — page titles */
+  --text-3xl: 2.25rem;    /* 36px */
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;
@@ -73,16 +66,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-size: var(--text-md);
-  line-height: 1.5;
-  letter-spacing: -0.01em;
+  font-size: var(--text-base);
+  line-height: 1.55;
 }
 
 html, body, #root { height: 100%; }
 #root { display: flex; flex-direction: column; }
 main { flex: 1; overflow-y: auto; }
-button { font-family: inherit; letter-spacing: inherit; }
-input, textarea, select { font-family: inherit; letter-spacing: inherit; }
+button { font-family: inherit; }
+input, textarea, select { font-family: inherit; }
 
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track { background: transparent; }

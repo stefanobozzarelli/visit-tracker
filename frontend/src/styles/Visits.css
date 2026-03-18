@@ -18,7 +18,7 @@
 
 .visits-header-left h1 {
   margin: 0;
-  font-size: 1.625rem;
+  font-size: 1.75rem;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   line-height: 1.2;
@@ -46,7 +46,7 @@
 }
 
 .visits-btn-new:hover {
-  background: #4338CA;
+  background: #1D4ED8;
 }
 
 /* ---- Alerts ---- */
@@ -70,7 +70,7 @@
 .visits-alert-success {
   background: #f0faf0;
   color: var(--color-success);
-  border: 1px solid rgba(5, 150, 105, 0.2);
+  border: 1px solid rgba(22, 163, 74, 0.2);
 }
 
 /* ---- KPI Summary ---- */
@@ -109,11 +109,11 @@
   flex-shrink: 0;
 }
 
-.visits-kpi-icon.blue   { background: rgba(79, 70, 229, 0.08); color: #4F46E5; }
+.visits-kpi-icon.blue   { background: rgba(37, 99, 235, 0.08); color: #2563EB; }
 .visits-kpi-icon.red    { background: rgba(220, 38, 38, 0.08); color: #DC2626; }
-.visits-kpi-icon.orange { background: rgba(217, 119, 6, 0.08); color: #D97706; }
-.visits-kpi-icon.green  { background: rgba(5, 150, 105, 0.08); color: #059669; }
-.visits-kpi-icon.gray   { background: rgba(156, 163, 175, 0.08); color: #9CA3AF; }
+.visits-kpi-icon.orange { background: rgba(202, 138, 4, 0.08); color: #CA8A04; }
+.visits-kpi-icon.green  { background: rgba(22, 163, 74, 0.08); color: #16A34A; }
+.visits-kpi-icon.gray   { background: rgba(161, 161, 170, 0.08); color: #A1A1AA; }
 
 .visits-kpi-body {
   min-width: 0;
@@ -176,7 +176,7 @@
 .visits-search-input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.08);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
 }
 
 .visits-filter-select {
@@ -197,13 +197,13 @@
 .visits-filter-select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.08);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
 }
 
 .visits-filter-select.active {
   border-color: var(--color-info);
   color: var(--color-info);
-  background: rgba(79, 70, 229, 0.04);
+  background: rgba(37, 99, 235, 0.04);
 }
 
 .visits-filter-divider {
@@ -245,21 +245,21 @@
 }
 
 .visits-chip.active {
-  background: rgba(79, 70, 229, 0.08);
-  border-color: rgba(79, 70, 229, 0.3);
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.3);
   color: var(--color-info);
 }
 
 .visits-chip.active.chip-green {
-  background: rgba(5, 150, 105, 0.06);
-  border-color: rgba(5, 150, 105, 0.25);
-  color: #047857;
+  background: rgba(22, 163, 74, 0.06);
+  border-color: rgba(22, 163, 74, 0.25);
+  color: #15803D;
 }
 
 .visits-chip.active.chip-orange {
-  background: rgba(217, 119, 6, 0.06);
-  border-color: rgba(217, 119, 6, 0.25);
-  color: #B45309;
+  background: rgba(202, 138, 4, 0.06);
+  border-color: rgba(202, 138, 4, 0.25);
+  color: #A16207;
 }
 
 .visits-chip.active.chip-red {
@@ -406,11 +406,11 @@
 
 /* Row states */
 .visits-table tr.row-needs-attention {
-  background: rgba(217, 119, 6, 0.02);
+  background: rgba(202, 138, 4, 0.02);
 }
 
 .visits-table tr.row-needs-attention:hover {
-  background: rgba(217, 119, 6, 0.04);
+  background: rgba(202, 138, 4, 0.04);
 }
 
 /* Visit context cell — Client + Company + metadata */
@@ -506,15 +506,15 @@
 }
 
 .visit-report-pill.report-ready {
-  background: rgba(5, 150, 105, 0.08);
-  color: #047857;
-  border-color: rgba(5, 150, 105, 0.2);
+  background: rgba(22, 163, 74, 0.08);
+  color: #15803D;
+  border-color: rgba(22, 163, 74, 0.2);
 }
 
 .visit-report-pill.report-missing {
-  background: rgba(217, 119, 6, 0.08);
-  color: #B45309;
-  border-color: rgba(217, 119, 6, 0.2);
+  background: rgba(202, 138, 4, 0.08);
+  color: #A16207;
+  border-color: rgba(202, 138, 4, 0.2);
 }
 
 .visit-report-count {
@@ -533,7 +533,7 @@
 }
 
 .visit-report-pill.report-ready .visit-report-count {
-  background: #047857;
+  background: #15803D;
 }
 
 /* Follow-up status pill */
@@ -555,21 +555,21 @@
 }
 
 .visit-followup-pill.followup-needed {
-  background: rgba(217, 119, 6, 0.08);
-  color: #B45309;
-  border-color: rgba(217, 119, 6, 0.2);
+  background: rgba(202, 138, 4, 0.08);
+  color: #A16207;
+  border-color: rgba(202, 138, 4, 0.2);
 }
 
 .visit-followup-pill.followup-open {
-  background: rgba(79, 70, 229, 0.08);
+  background: rgba(37, 99, 235, 0.08);
   color: var(--color-info);
-  border-color: rgba(79, 70, 229, 0.2);
+  border-color: rgba(37, 99, 235, 0.2);
 }
 
 .visit-followup-pill.followup-completed {
-  background: rgba(5, 150, 105, 0.08);
-  color: #047857;
-  border-color: rgba(5, 150, 105, 0.2);
+  background: rgba(22, 163, 74, 0.08);
+  color: #15803D;
+  border-color: rgba(22, 163, 74, 0.2);
 }
 
 /* Actions cell */
@@ -601,12 +601,12 @@
 
 .visit-action-btn.primary {
   color: var(--color-info);
-  border-color: rgba(79, 70, 229, 0.2);
+  border-color: rgba(37, 99, 235, 0.2);
 }
 
 .visit-action-btn.primary:hover {
-  background: rgba(79, 70, 229, 0.04);
-  border-color: rgba(79, 70, 229, 0.3);
+  background: rgba(37, 99, 235, 0.04);
+  border-color: rgba(37, 99, 235, 0.3);
 }
 
 /* More menu */

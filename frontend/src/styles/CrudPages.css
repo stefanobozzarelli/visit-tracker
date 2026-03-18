@@ -45,7 +45,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .form-card {
@@ -107,7 +107,7 @@
 .form-group select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .form-actions {
@@ -173,11 +173,11 @@ tbody tr:hover {
 }
 
 .btn-primary:hover {
-  background-color: #4338CA;
+  background-color: #1D4ED8;
 }
 
 .btn-primary:active {
-  background-color: #3730A3;
+  background-color: #1E40AF;
 }
 
 .btn-secondary {
@@ -210,7 +210,7 @@ tbody tr:hover {
 }
 
 .btn-info:hover {
-  background-color: #4338CA;
+  background-color: #1D4ED8;
 }
 
 .btn-warning {
@@ -226,7 +226,7 @@ tbody tr:hover {
 }
 
 .btn-warning:hover {
-  background-color: #C2750A;
+  background-color: #A16207;
 }
 
 .btn-danger {
