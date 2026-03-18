@@ -26,7 +26,7 @@
 .sidebar-logo-icon {
   width: 32px;
   height: 32px;
-  background: #5C7A68;
+  background: #4A6078;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -83,13 +83,13 @@
 }
 
 .sidebar-link.active {
-  background: #E5ECE6;
-  color: #355C48;
+  background: #E0E6EB;
+  color: #3D5068;
   font-weight: var(--font-weight-semibold);
 }
 
 .sidebar-link.active .sidebar-link-icon {
-  color: #5C7A68;
+  color: #4A6078;
 }
 
 .sidebar-link-icon {
@@ -127,7 +127,7 @@
   width: 32px;
   height: 32px;
   border-radius: var(--radius-full);
-  background: #5C7A68;
+  background: #4A6078;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -166,7 +166,7 @@
 
 .sidebar-logout:hover {
   background: #EAE6DD;
-  color: #A9574D;
+  color: #9E5A52;
 }
 
 /* Mobile */

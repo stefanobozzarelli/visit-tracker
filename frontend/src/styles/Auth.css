@@ -52,7 +52,7 @@
 .form-group input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 3px rgba(92, 122, 104, 0.1);
+  box-shadow: 0 0 0 3px rgba(74, 96, 120, 0.1);
 }
 
 .auth-card button {
@@ -69,11 +69,11 @@
 }
 
 .auth-card button:hover:not(:disabled) {
-  background-color: #4E6858;
+  background-color: #3D5068;
 }
 
 .auth-card button:active:not(:disabled) {
-  background-color: #3D5847;
+  background-color: #334358;
 }
 
 .auth-card button:disabled {

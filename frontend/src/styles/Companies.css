@@ -18,7 +18,7 @@
 .companies-search:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.1);
+  box-shadow: 0 0 0 2px rgba(74, 96, 120, 0.1);
 }
 
 .companies-filter-select {

@@ -51,13 +51,13 @@
 }
 
 .profile-alert.error {
-  background: #F8ECEA;
+  background: #F5EDEB;
   color: var(--color-error);
   border: 1px solid rgba(255, 59, 48, 0.2);
 }
 
 .profile-alert.success {
-  background: #EDF5EE;
+  background: #ECF2ED;
   color: var(--color-success);
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
@@ -87,7 +87,7 @@
 .profile-form-group input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.08);
+  box-shadow: 0 0 0 2px rgba(74, 96, 120, 0.08);
 }
 
 .profile-form-group input:disabled {
@@ -120,7 +120,7 @@
 }
 
 .profile-btn.primary:hover {
-  background: #4E6858;
+  background: #3D5068;
 }
 
 .profile-btn:disabled {

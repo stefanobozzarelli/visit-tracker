@@ -1,30 +1,30 @@
 /* ========================================
-   Design System — Warm, Neutral, Premium
+   Design System — Pantone 2026 Palette
    ======================================== */
 
 :root {
   --sidebar-width: 260px;
   --page-max-width: 1200px;
 
-  /* Warm neutrals */
+  /* Pantone 2026 mapped neutrals */
   --color-white: #FFFFFF;
   --color-black: #000000;
-  --color-bg-primary: #F7F5F0;
-  --color-bg-secondary: #FBF9F4;
-  --color-bg-tertiary: #F3F0E8;
-  --color-text-primary: #22211D;
-  --color-text-secondary: #666258;
-  --color-text-tertiary: #8C877C;
-  --color-border: #E7E2D8;
-  --color-border-strong: #D4CFC4;
+  --color-bg-primary: #F0EDE8;       /* Cloud Dancer */
+  --color-bg-secondary: #E8E4DE;
+  --color-bg-tertiary: #F5F3EF;
+  --color-text-primary: #2C2926;      /* near Hematite dark */
+  --color-text-secondary: #6B6560;    /* Hematite */
+  --color-text-tertiary: #A8A29E;     /* Cloud Cover lighter */
+  --color-border: #DDD8D0;
+  --color-border-strong: #C8C2BA;
 
-  /* Accent — sage green */
-  --color-info: #5C7A68;
+  /* Accent — Blue Fusion */
+  --color-info: #4A6078;
 
-  /* Semantic — soft, warm */
-  --color-success: #5F8A63;
-  --color-warning: #A9793D;
-  --color-error: #A9574D;
+  /* Semantic — from Pantone palette */
+  --color-success: #5B8A65;           /* Veiled Vista dark */
+  --color-warning: #B09840;           /* Golden Mist dark */
+  --color-error: #9E5A52;             /* warm muted red */
 
   /* Shadows */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -39,18 +39,18 @@
   --radius-lg: 12px;
   --radius-full: 9999px;
 
-  /* Typography — LARGE, comfortable */
+  /* Typography — large, comfortable */
   --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
 
-  --text-2xs: 0.8125rem;  /* 13px */
-  --text-xs: 0.875rem;    /* 14px */
-  --text-sm: 0.9375rem;   /* 15px */
-  --text-base: 1rem;      /* 16px */
-  --text-md: 1.0625rem;   /* 17px */
-  --text-lg: 1.125rem;    /* 18px */
-  --text-xl: 1.5rem;      /* 24px */
-  --text-2xl: 2rem;       /* 32px */
-  --text-3xl: 2.25rem;    /* 36px — page titles */
+  --text-2xs: 0.8125rem;
+  --text-xs: 0.875rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.25rem;
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;

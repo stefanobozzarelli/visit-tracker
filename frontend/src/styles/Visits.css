@@ -46,7 +46,7 @@
 }
 
 .visits-btn-new:hover {
-  background: #4E6858;
+  background: #3D5068;
 }
 
 /* ---- Alerts ---- */
@@ -62,15 +62,15 @@
 }
 
 .visits-alert-error {
-  background: #F8ECEA;
+  background: #F5EDEB;
   color: var(--color-error);
-  border: 1px solid rgba(169, 87, 77, 0.2);
+  border: 1px solid rgba(158, 90, 82, 0.2);
 }
 
 .visits-alert-success {
-  background: #EDF5EE;
+  background: #ECF2ED;
   color: var(--color-success);
-  border: 1px solid rgba(95, 138, 99, 0.2);
+  border: 1px solid rgba(91, 138, 101, 0.2);
 }
 
 /* ---- KPI Summary ---- */
@@ -109,11 +109,11 @@
   flex-shrink: 0;
 }
 
-.visits-kpi-icon.blue   { background: rgba(92, 122, 104, 0.08); color: #5C7A68; }
-.visits-kpi-icon.red    { background: rgba(169, 87, 77, 0.08); color: #A9574D; }
-.visits-kpi-icon.orange { background: rgba(169, 121, 61, 0.08); color: #A9793D; }
-.visits-kpi-icon.green  { background: rgba(95, 138, 99, 0.08); color: #5F8A63; }
-.visits-kpi-icon.gray   { background: rgba(140, 135, 124, 0.08); color: #8C877C; }
+.visits-kpi-icon.blue   { background: rgba(74, 96, 120, 0.08); color: #4A6078; }
+.visits-kpi-icon.red    { background: rgba(158, 90, 82, 0.08); color: #9E5A52; }
+.visits-kpi-icon.orange { background: rgba(176, 152, 64, 0.08); color: #B09840; }
+.visits-kpi-icon.green  { background: rgba(91, 138, 101, 0.08); color: #5B8A65; }
+.visits-kpi-icon.gray   { background: rgba(168, 162, 158, 0.08); color: #A8A29E; }
 
 .visits-kpi-body {
   min-width: 0;
@@ -176,7 +176,7 @@
 .visits-search-input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.08);
+  box-shadow: 0 0 0 2px rgba(74, 96, 120, 0.08);
 }
 
 .visits-filter-select {
@@ -197,13 +197,13 @@
 .visits-filter-select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.08);
+  box-shadow: 0 0 0 2px rgba(74, 96, 120, 0.08);
 }
 
 .visits-filter-select.active {
   border-color: var(--color-info);
   color: var(--color-info);
-  background: rgba(92, 122, 104, 0.04);
+  background: rgba(74, 96, 120, 0.04);
 }
 
 .visits-filter-divider {
@@ -245,26 +245,26 @@
 }
 
 .visits-chip.active {
-  background: rgba(92, 122, 104, 0.08);
-  border-color: rgba(92, 122, 104, 0.3);
+  background: rgba(74, 96, 120, 0.08);
+  border-color: rgba(74, 96, 120, 0.3);
   color: var(--color-info);
 }
 
 .visits-chip.active.chip-green {
-  background: rgba(95, 138, 99, 0.06);
-  border-color: rgba(95, 138, 99, 0.25);
-  color: #4D7451;
+  background: rgba(91, 138, 101, 0.06);
+  border-color: rgba(91, 138, 101, 0.25);
+  color: #4A7653;
 }
 
 .visits-chip.active.chip-orange {
-  background: rgba(169, 121, 61, 0.06);
-  border-color: rgba(169, 121, 61, 0.25);
-  color: #8B6432;
+  background: rgba(176, 152, 64, 0.06);
+  border-color: rgba(176, 152, 64, 0.25);
+  color: #947E35;
 }
 
 .visits-chip.active.chip-red {
-  background: rgba(169, 87, 77, 0.06);
-  border-color: rgba(169, 87, 77, 0.25);
+  background: rgba(158, 90, 82, 0.06);
+  border-color: rgba(158, 90, 82, 0.25);
   color: var(--color-error);
 }
 
@@ -406,11 +406,11 @@
 
 /* Row states */
 .visits-table tr.row-needs-attention {
-  background: rgba(169, 121, 61, 0.02);
+  background: rgba(176, 152, 64, 0.02);
 }
 
 .visits-table tr.row-needs-attention:hover {
-  background: rgba(169, 121, 61, 0.04);
+  background: rgba(176, 152, 64, 0.04);
 }
 
 /* Visit context cell — Client + Company + metadata */
@@ -506,15 +506,15 @@
 }
 
 .visit-report-pill.report-ready {
-  background: rgba(95, 138, 99, 0.08);
-  color: #4D7451;
-  border-color: rgba(95, 138, 99, 0.2);
+  background: rgba(91, 138, 101, 0.08);
+  color: #4A7653;
+  border-color: rgba(91, 138, 101, 0.2);
 }
 
 .visit-report-pill.report-missing {
-  background: rgba(169, 121, 61, 0.08);
-  color: #8B6432;
-  border-color: rgba(169, 121, 61, 0.2);
+  background: rgba(176, 152, 64, 0.08);
+  color: #947E35;
+  border-color: rgba(176, 152, 64, 0.2);
 }
 
 .visit-report-count {
@@ -533,7 +533,7 @@
 }
 
 .visit-report-pill.report-ready .visit-report-count {
-  background: #4D7451;
+  background: #4A7653;
 }
 
 /* Follow-up status pill */
@@ -555,21 +555,21 @@
 }
 
 .visit-followup-pill.followup-needed {
-  background: rgba(169, 121, 61, 0.08);
-  color: #8B6432;
-  border-color: rgba(169, 121, 61, 0.2);
+  background: rgba(176, 152, 64, 0.08);
+  color: #947E35;
+  border-color: rgba(176, 152, 64, 0.2);
 }
 
 .visit-followup-pill.followup-open {
-  background: rgba(92, 122, 104, 0.08);
+  background: rgba(74, 96, 120, 0.08);
   color: var(--color-info);
-  border-color: rgba(92, 122, 104, 0.2);
+  border-color: rgba(74, 96, 120, 0.2);
 }
 
 .visit-followup-pill.followup-completed {
-  background: rgba(95, 138, 99, 0.08);
-  color: #4D7451;
-  border-color: rgba(95, 138, 99, 0.2);
+  background: rgba(91, 138, 101, 0.08);
+  color: #4A7653;
+  border-color: rgba(91, 138, 101, 0.2);
 }
 
 /* Actions cell */
@@ -601,12 +601,12 @@
 
 .visit-action-btn.primary {
   color: var(--color-info);
-  border-color: rgba(92, 122, 104, 0.2);
+  border-color: rgba(74, 96, 120, 0.2);
 }
 
 .visit-action-btn.primary:hover {
-  background: rgba(92, 122, 104, 0.04);
-  border-color: rgba(92, 122, 104, 0.3);
+  background: rgba(74, 96, 120, 0.04);
+  border-color: rgba(74, 96, 120, 0.3);
 }
 
 /* More menu */
@@ -674,7 +674,7 @@
 }
 
 .visit-more-item.danger:hover {
-  background: rgba(169, 87, 77, 0.05);
+  background: rgba(158, 90, 82, 0.05);
 }
 
 .visit-more-divider {
