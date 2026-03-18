@@ -170,12 +170,12 @@ export const NewVisit: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Client *</label>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
               <select
                 value={formData.clientId}
                 onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
                 required
-                style={{ flex: 1 }}
+                style={{ flex: '1 1 auto', minWidth: 0, width: 'auto' }}
               >
                 <option value="">Select a client</option>
                 {clients.map((client) => (
@@ -259,12 +259,12 @@ export const NewVisit: React.FC = () => {
             >
               <div className="form-group">
                 <label>Represented Company *</label>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
                   <select
                     value={report.companyId}
                     onChange={(e) => handleReportChange(index, 'companyId', e.target.value)}
                     required
-                    style={{ flex: 1 }}
+                    style={{ flex: '1 1 auto', minWidth: 0, width: 'auto' }}
                   >
                     <option value="">Select company</option>
                     {companies.map((company) => (
