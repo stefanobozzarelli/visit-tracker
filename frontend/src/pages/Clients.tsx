@@ -1,249 +1,493 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { Client } from '../types';
-import '../styles/CrudPages.css';
+import { Client, Visit, TodoItem, Company } from '../types';
+import { METADATA_SECTION } from '../utils/visitMetadata';
+import '../styles/Clients.css';
 
+// ---- Helpers ----
+const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
+
+const ROLE_CONFIG: Record<string, { label: string; className: string }> = {
+  cliente:              { label: 'Client',            className: 'role-client' },
+  developer:            { label: 'Developer',         className: 'role-developer' },
+  'architetto-designer': { label: 'Architect/Designer', className: 'role-architect' },
+};
+
+const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+
+// ---- Component ----
 export const Clients: React.FC = () => {
+  const navigate = useNavigate();
+
+  // Data
   const [clients, setClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+
+  // Form
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', country: '', notes: '', role: 'cliente' });
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
-  const [deleteConfirmCheckbox, setDeleteConfirmCheckbox] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
+
+  // Filters
+  const [localSearch, setLocalSearch] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+
+  // UI
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [openMoreId, setOpenMoreId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
+  const [deleteChecked, setDeleteChecked] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (openMoreId && moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setOpenMoreId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMoreId]);
 
   useEffect(() => {
-    loadClients();
-  }, []);
+    if (success) { const t = setTimeout(() => setSuccess(''), 4000); return () => clearTimeout(t); }
+  }, [success]);
 
-  const loadClients = async () => {
+  // ---- Load data ----
+  useEffect(() => { loadData(); }, []);
+
+  const loadData = async () => {
     try {
-      setIsLoading(true);
-      const response = await apiService.getClients();
-      if (response.success && response.data) {
-        setClients(response.data);
-      }
-    } catch (err) {
-      setError('Error loading clients');
+      setLoading(true);
+      try {
+        const r = await apiService.getClients();
+        if (r.success && r.data) setClients(r.data);
+      } catch {}
+      try {
+        const r = await apiService.getVisits();
+        if (r.success && r.data) setVisits(r.data);
+      } catch {}
+      try {
+        const r = await apiService.getTodos();
+        if (r.success) setTodos(Array.isArray(r.data) ? r.data : []);
+      } catch {}
+      try {
+        const r = await apiService.getCompanies();
+        if (r.success && r.data) setCompanies(r.data);
+      } catch {}
+    } catch {
+      setError('Error loading data');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // ---- Lookups ----
+  const getCompanyName = useCallback((id: string) => companies.find(c => c.id === id)?.name || '-', [companies]);
+
+  // Per-client enrichment
+  const clientEnrichment = useMemo(() => {
+    const map = new Map<string, { lastVisit: string | null; openFollowups: number; relatedCompanies: string[] }>();
+
+    for (const client of clients) {
+      const clientVisits = visits.filter(v => v.client_id === client.id);
+      const sortedVisits = clientVisits.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
+      const lastVisit = sortedVisits[0]?.visit_date || null;
+
+      const openFollowups = todos.filter(t =>
+        t.client_id === client.id && t.status !== 'done' && t.status !== 'completed'
+      ).length;
+
+      // Companies from visit reports
+      const companyIds = new Set<string>();
+      for (const v of clientVisits) {
+        if (v.reports) {
+          for (const r of v.reports) {
+            if (r.section !== METADATA_SECTION && r.company_id) {
+              companyIds.add(r.company_id);
+            }
+          }
+        }
+      }
+      const relatedCompanies = [...companyIds].map(id => getCompanyName(id)).filter(n => n !== '-');
+
+      map.set(client.id, { lastVisit, openFollowups, relatedCompanies });
+    }
+    return map;
+  }, [clients, visits, todos, getCompanyName]);
+
+  // ---- KPIs ----
+  const kpis = useMemo(() => {
+    const total = clients.length;
+    const withContacts = clients.filter(c => (c.contacts?.length || 0) > 0).length;
+    const cutoff60 = new Date();
+    cutoff60.setDate(cutoff60.getDate() - 60);
+
+    let notVisited = 0;
+    let withOpenFollowups = 0;
+    for (const c of clients) {
+      const e = clientEnrichment.get(c.id);
+      if (!e?.lastVisit || new Date(e.lastVisit) < cutoff60) notVisited++;
+      if (e && e.openFollowups > 0) withOpenFollowups++;
+    }
+
+    return { total, withContacts, notVisited, withOpenFollowups };
+  }, [clients, clientEnrichment]);
+
+  // ---- Countries for filter ----
+  const countries = useMemo(() => {
+    return [...new Set(clients.map(c => c.country).filter(Boolean))].sort();
+  }, [clients]);
+
+  // ---- Visible clients ----
+  const visibleClients = useMemo(() => {
+    let list = [...clients];
+
+    if (countryFilter) list = list.filter(c => c.country === countryFilter);
+    if (roleFilter) list = list.filter(c => (c as any).role === roleFilter);
+
+    if (localSearch.trim()) {
+      const q = localSearch.toLowerCase();
+      list = list.filter(c => {
+        const name = c.name.toLowerCase();
+        const country = (c.country || '').toLowerCase();
+        const contactNames = (c.contacts || []).map(ct => ct.name.toLowerCase()).join(' ');
+        return name.includes(q) || country.includes(q) || contactNames.includes(q);
+      });
+    }
+
+    // Sort by role then name
+    const roleOrder: Record<string, number> = { cliente: 0, developer: 1, 'architetto-designer': 2 };
+    list.sort((a, b) => {
+      const ra = roleOrder[(a as any).role || 'cliente'] ?? 99;
+      const rb = roleOrder[(b as any).role || 'cliente'] ?? 99;
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name);
+    });
+
+    return list;
+  }, [clients, countryFilter, roleFilter, localSearch]);
+
+  // ---- Form handlers ----
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (editingId) {
         await apiService.updateClient(editingId, formData);
+        setSuccess('Client updated');
       } else {
-        await apiService.createClient(formData.name, formData.country, formData.notes, (formData as any).role);
+        await apiService.createClient(formData.name, formData.country, formData.notes, formData.role);
+        setSuccess('Client created');
       }
-      setFormData({ name: '', country: '', notes: '', role: 'cliente' });
-      setEditingId(null);
-      setShowForm(false);
-      loadClients();
+      resetForm();
+      loadData();
     } catch (err) {
       setError((err as Error).message);
     }
   };
 
   const handleEdit = (client: Client) => {
+    setOpenMoreId(null);
     setFormData({ name: client.name, country: client.country, notes: client.notes || '', role: (client as any).role || 'cliente' });
     setEditingId(client.id);
     setShowForm(true);
   };
 
   const handleDelete = (client: Client) => {
-    setClientToDelete(client);
-    setDeleteConfirmCheckbox(false);
-    setShowDeleteModal(true);
+    setOpenMoreId(null);
+    setDeleteConfirm(client);
+    setDeleteChecked(false);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!clientToDelete || !deleteConfirmCheckbox) return;
+  const confirmDelete = async () => {
+    if (!deleteConfirm || !deleteChecked) return;
     try {
-      await apiService.deleteClient(clientToDelete.id);
-      setShowDeleteModal(false);
-      setClientToDelete(null);
-      setDeleteConfirmCheckbox(false);
-      loadClients();
+      await apiService.deleteClient(deleteConfirm.id);
+      setSuccess('Client deleted');
+      setDeleteConfirm(null);
+      loadData();
     } catch (err) {
       setError((err as Error).message);
     }
   };
 
-  const handleCancelDelete = () => {
-    setShowDeleteModal(false);
-    setClientToDelete(null);
-    setDeleteConfirmCheckbox(false);
-  };
-
-  const handleCancel = () => {
+  const resetForm = () => {
     setFormData({ name: '', country: '', notes: '', role: 'cliente' });
     setEditingId(null);
     setShowForm(false);
   };
 
-  const getSortedAndFilteredClients = () => {
-    let filtered = [...clients];
-
-    // Filtra per ricerca (nome o contatti)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (client) =>
-          client.name.toLowerCase().includes(query) ||
-          (client.contacts?.some((contact) => contact.name.toLowerCase().includes(query)))
-      );
-    }
-
-    // Ordina per ruolo, poi alfabeticamente per nome
-    const roleOrder: { [key: string]: number } = {
-      'cliente': 0,
-      'developer': 1,
-      'architetto-designer': 2,
-    };
-
-    filtered.sort((a, b) => {
-      const roleA = roleOrder[(a as any).role || 'cliente'] ?? 999;
-      const roleB = roleOrder[(b as any).role || 'cliente'] ?? 999;
-
-      if (roleA !== roleB) {
-        return roleA - roleB;
-      }
-
-      return a.name.localeCompare(b.name);
-    });
-
-    return filtered;
-  };
+  // ---- Render ----
+  if (loading) {
+    return <div className="clients-page"><div className="clients-loading">Loading clients...</div></div>;
+  }
 
   return (
-    <div className="crud-page">
-      <div className="page-header">
-        <h1>Clients Management</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+    <div className="clients-page">
+      {/* Header */}
+      <div className="clients-header">
+        <div className="clients-header-left">
+          <h1>Clients</h1>
+          <p className="clients-header-subtitle">Manage your client portfolio and contacts</p>
+        </div>
+        <button className="clients-btn-new" onClick={() => { resetForm(); setShowForm(true); }}>
           + Add Client
         </button>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {/* Alerts */}
+      {error && <div className="clients-alert clients-alert-error">{error}</div>}
+      {success && <div className="clients-alert clients-alert-success">{success}</div>}
 
+      {/* Form */}
       {showForm && (
-        <div className="form-card">
-          <h3>{editingId ? 'Edit Client' : 'Add Client'}</h3>
+        <div className="clients-form-card">
+          <h3>{editingId ? 'Edit Client' : 'Add New Client'}</h3>
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Client Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
+            <div className="clients-form-row">
+              <div className="clients-form-group">
+                <label>Client Name *</label>
+                <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+              </div>
+              <div className="clients-form-group">
+                <label>Country *</label>
+                <input type="text" value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} required />
+              </div>
+              <div className="clients-form-group">
+                <label>Type</label>
+                <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
+                  <option value="cliente">Client</option>
+                  <option value="developer">Developer</option>
+                  <option value="architetto-designer">Architect/Designer</option>
+                </select>
+              </div>
             </div>
-            <div className="form-group">
-              <label>Country *</label>
-              <input
-                type="text"
-                value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                required
-              />
-            </div>
-            <div className="form-group">
+            <div className="clients-form-group">
               <label>Notes</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-              />
+              <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} />
             </div>
-            <div className="form-group">
-              <label>Client Role</label>
-              <select
-                value={(formData as any).role || 'cliente'}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              >
-                <option value="cliente">Client</option>
-                <option value="developer">Developer</option>
-                <option value="architetto-designer">Architect/Designer</option>
-              </select>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn-primary">
-                {editingId ? 'Save' : 'Create'}
-              </button>
-              <button type="button" onClick={handleCancel} className="btn-secondary">
-                Cancel
-              </button>
+            <div className="clients-form-actions">
+              <button type="submit" className="clients-btn-save">{editingId ? 'Save Changes' : 'Create Client'}</button>
+              <button type="button" className="clients-btn-cancel" onClick={resetForm}>Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      {isLoading ? (
-        <p>Loading...</p>
-      ) : clients.length === 0 ? (
-        <p>No clients</p>
-      ) : (
-        <>
-          <div className="search-container">
-            <input
-              type="text"
-              placeholder="Search by name or contacts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
+      {/* KPI row */}
+      <div className="clients-kpi-row">
+        <div className="clients-kpi">
+          <div className="clients-kpi-icon blue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
           </div>
-          <div className="table-container">
-            <table>
+          <div className="clients-kpi-body">
+            <div className="clients-kpi-value">{kpis.total}</div>
+            <div className="clients-kpi-label">Total Clients</div>
+          </div>
+        </div>
+        <div className="clients-kpi">
+          <div className="clients-kpi-icon green">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><polyline points="17 11 19 13 23 9" /></svg>
+          </div>
+          <div className="clients-kpi-body">
+            <div className="clients-kpi-value">{kpis.withContacts}</div>
+            <div className="clients-kpi-label">With Contacts</div>
+          </div>
+        </div>
+        <div className="clients-kpi">
+          <div className="clients-kpi-icon orange">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
+          </div>
+          <div className="clients-kpi-body">
+            <div className={`clients-kpi-value${kpis.notVisited > 0 ? ' alert' : ''}`}>{kpis.notVisited}</div>
+            <div className="clients-kpi-label">Not Visited (60d)</div>
+          </div>
+        </div>
+        <div className="clients-kpi">
+          <div className="clients-kpi-icon red">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+          </div>
+          <div className="clients-kpi-body">
+            <div className={`clients-kpi-value${kpis.withOpenFollowups > 0 ? ' alert' : ''}`}>{kpis.withOpenFollowups}</div>
+            <div className="clients-kpi-label">Open Follow-ups</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter toolbar */}
+      <div className="clients-toolbar">
+        <div className="clients-filters-row">
+          <input
+            type="text"
+            className="clients-search-input"
+            placeholder="Search clients..."
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
+          />
+          <select
+            className={`clients-filter-select${countryFilter ? ' active' : ''}`}
+            value={countryFilter}
+            onChange={e => setCountryFilter(e.target.value)}
+          >
+            <option value="">All Countries</option>
+            {countries.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select
+            className={`clients-filter-select${roleFilter ? ' active' : ''}`}
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+          >
+            <option value="">All Types</option>
+            <option value="cliente">Client</option>
+            <option value="developer">Developer</option>
+            <option value="architetto-designer">Architect/Designer</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="clients-table-wrap">
+        {visibleClients.length > 0 && (
+          <div className="clients-result-count">
+            {visibleClients.length} client{visibleClients.length !== 1 ? 's' : ''}
+          </div>
+        )}
+
+        {visibleClients.length === 0 ? (
+          <div className="clients-empty">
+            <div className="clients-empty-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </div>
+            <div className="clients-empty-text">No clients found</div>
+            <div className="clients-empty-hint">Try changing filters or add a new client</div>
+          </div>
+        ) : (
+          <div className="clients-table-scroll">
+            <table className="clients-table">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>Client</th>
                   <th>Country</th>
-                  <th>Role</th>
+                  <th>Type</th>
+                  <th>Companies</th>
+                  <th>Last Visit</th>
+                  <th>Follow-ups</th>
                   <th>Contacts</th>
-                  <th>Actions</th>
+                  <th style={{ width: '1%' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {getSortedAndFilteredClients().map((client) => {
-                  const roleLabels: { [key: string]: string } = {
-                    'cliente': 'Client',
-                    'developer': 'Developer',
-                    'architetto-designer': 'Architect/Designer',
-                  };
-                  const roleLabel = roleLabels[(client as any).role || 'cliente'] || 'Cliente';
+                {visibleClients.map(client => {
+                  const role = (client as any).role || 'cliente';
+                  const roleConf = ROLE_CONFIG[role] || ROLE_CONFIG.cliente;
+                  const enrichment = clientEnrichment.get(client.id);
+                  const contactCount = client.contacts?.length || 0;
 
                   return (
                     <tr key={client.id}>
-                      <td>{client.name}</td>
-                      <td>{client.country}</td>
-                      <td>{roleLabel}</td>
-                      <td>{client.contacts?.length || 0}</td>
-                      <td className="actions">
-                        <button
-                          onClick={() => navigate(`/clients/${client.id}`)}
-                          className="btn-info"
-                        >
-                          Details
-                        </button>
-                        <button onClick={() => handleEdit(client)} className="btn-warning">
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(client)}
-                          className="btn-danger"
-                        >
-                          Delete
-                        </button>
+                      {/* Client name */}
+                      <td className="client-name-cell">
+                        <div className="client-name">{client.name}</div>
+                        {client.notes && <div className="client-notes">{client.notes}</div>}
+                      </td>
+
+                      {/* Country */}
+                      <td><span className="client-country">{client.country}</span></td>
+
+                      {/* Role badge */}
+                      <td>
+                        <span className={`client-role-badge ${roleConf.className}`}>
+                          {roleConf.label}
+                        </span>
+                      </td>
+
+                      {/* Related Companies */}
+                      <td>
+                        {enrichment && enrichment.relatedCompanies.length > 0 ? (
+                          <div className="client-companies">{enrichment.relatedCompanies.join(', ')}</div>
+                        ) : (
+                          <span className="client-muted">-</span>
+                        )}
+                      </td>
+
+                      {/* Last Visit */}
+                      <td>
+                        {enrichment?.lastVisit ? (
+                          <span className={`client-last-visit${daysSince(enrichment.lastVisit) > 60 ? ' overdue' : ''}`}>
+                            {formatDate(enrichment.lastVisit)}
+                          </span>
+                        ) : (
+                          <span className="client-muted">Never</span>
+                        )}
+                      </td>
+
+                      {/* Follow-ups */}
+                      <td>
+                        {enrichment && enrichment.openFollowups > 0 ? (
+                          <span className="client-followup-badge">{enrichment.openFollowups} open</span>
+                        ) : (
+                          <span className="client-muted">-</span>
+                        )}
+                      </td>
+
+                      {/* Contacts */}
+                      <td>
+                        <span className={`client-contacts-badge${contactCount > 0 ? ' has' : ''}`}>
+                          {contactCount} contact{contactCount !== 1 ? 's' : ''}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td>
+                        <div className="client-actions">
+                          <button
+                            className="client-action-btn primary"
+                            onClick={() => navigate(`/clients/${client.id}`)}
+                          >
+                            View
+                          </button>
+                          <button
+                            className="client-action-btn"
+                            onClick={() => handleEdit(client)}
+                          >
+                            Edit
+                          </button>
+                          <div
+                            className="client-more-wrap"
+                            ref={openMoreId === client.id ? moreRef : undefined}
+                          >
+                            <button
+                              className="client-more-btn"
+                              onClick={() => setOpenMoreId(openMoreId === client.id ? null : client.id)}
+                            >
+                              &#x22EE;
+                            </button>
+                            {openMoreId === client.id && (
+                              <div className="client-more-menu">
+                                <button
+                                  className="client-more-item"
+                                  onClick={() => { setOpenMoreId(null); navigate(`/visits/new`); }}
+                                >
+                                  Register Visit
+                                </button>
+                                <div className="client-more-divider" />
+                                <button
+                                  className="client-more-item danger"
+                                  onClick={() => handleDelete(client)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -251,42 +495,22 @@ export const Clients: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </>
-      )}
+        )}
+      </div>
 
-      {showDeleteModal && clientToDelete && (
-        <div className="modal-overlay" onClick={handleCancelDelete}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Confirm Delete Client</h2>
-            <div className="modal-body">
-              <p className="warning-message">
-                ⚠️ <strong>Warning:</strong> This action will delete the client <strong>{clientToDelete.name}</strong> and <strong>ALL associated visits</strong>. This operation cannot be undone.
-              </p>
-              <div className="checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={deleteConfirmCheckbox}
-                    onChange={(e) => setDeleteConfirmCheckbox(e.target.checked)}
-                  />
-                  I confirm I want to delete the client "{clientToDelete.name}"
-                </label>
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button
-                onClick={handleCancelDelete}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={!deleteConfirmCheckbox}
-                className="btn-danger"
-              >
-                Delete Client
-              </button>
+      {/* Delete modal */}
+      {deleteConfirm && (
+        <div className="clients-modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="clients-modal" onClick={e => e.stopPropagation()}>
+            <h2>Delete Client</h2>
+            <p>This will delete <strong>{deleteConfirm.name}</strong> and all associated visits. This cannot be undone.</p>
+            <label className="clients-modal-check">
+              <input type="checkbox" checked={deleteChecked} onChange={e => setDeleteChecked(e.target.checked)} />
+              I confirm I want to delete this client
+            </label>
+            <div className="clients-modal-actions">
+              <button className="clients-btn-cancel" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+              <button className="clients-btn-danger" onClick={confirmDelete} disabled={!deleteChecked}>Delete Client</button>
             </div>
           </div>
         </div>

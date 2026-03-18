@@ -72,7 +72,7 @@ export const Sidebar: React.FC = () => {
               onClick={closeSidebar}
             >
               <span className="sidebar-link-icon">👥</span>
-              Contacts
+              Clients
             </NavLink>
             <NavLink
               to="/tasks"
