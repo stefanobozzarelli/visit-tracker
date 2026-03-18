@@ -593,7 +593,10 @@ export const Visits: React.FC = () => {
 
                       {/* Follow-up */}
                       <td>
-                        <span className={`visit-followup-pill ${followUpConf.className}`}>
+                        <span
+                          className={`visit-followup-pill ${followUpConf.className}${followUp === 'open' || followUp === 'needed' ? ' clickable' : ''}`}
+                          onClick={followUp === 'open' || followUp === 'needed' ? () => navigate('/tasks') : undefined}
+                        >
                           {followUpConf.label}
                         </span>
                       </td>
