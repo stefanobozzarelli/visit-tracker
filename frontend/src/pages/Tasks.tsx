@@ -13,7 +13,7 @@ const API_BASE_URL = config.API_BASE_URL;
 type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'completed';
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; dot: string }> = {
-  todo:        { label: 'Todo',        dot: '#ff9500' },
+  todo:        { label: 'To Do',       dot: '#ff9500' },
   in_progress: { label: 'In Progress', dot: '#007aff' },
   waiting:     { label: 'Waiting',     dot: '#8e8e93' },
   completed:   { label: 'Completed',   dot: '#34c759' },
@@ -400,7 +400,7 @@ export const Tasks: React.FC = () => {
             onChange={e => setStatusFilter(e.target.value)}
           >
             <option value="">All Statuses</option>
-            <option value="todo">Todo</option>
+            <option value="todo">To Do</option>
             <option value="in_progress">In Progress</option>
             <option value="waiting">Waiting</option>
             <option value="completed">Completed</option>

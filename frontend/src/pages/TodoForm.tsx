@@ -212,7 +212,7 @@ export const TodoForm = () => {
             <div className="form-group">
               <label htmlFor="status">Status</label>
               <select id="status" value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="todo">Todo</option>
+                <option value="todo">To Do</option>
                 <option value="in_progress">In Progress</option>
                 <option value="waiting">Waiting</option>
                 <option value="done">Completed</option>

@@ -297,7 +297,7 @@ export const VisitDetail: React.FC = () => {
                       }
                       className="btn-primary"
                     >
-                      📋 Create TODO
+                      + Create Task
                     </button>
                   </div>
                 </div>
