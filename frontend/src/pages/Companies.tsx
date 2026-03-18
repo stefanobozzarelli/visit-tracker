@@ -1,266 +1,267 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Company } from '../types';
-import '../styles/CrudPages.css';
 import '../styles/Companies.css';
 
-interface EnrichedCompany extends Company {
-  lastVisitDate: string | null;
-  nextAction: string | null;
-  owner: string | null;
-  status: 'active' | 'priority' | 'waiting' | 'archived';
-}
+const SECTOR_OPTIONS = ['Tiles', 'Slabs', 'Bathroom Furniture'];
+const RAPPORTO_OPTIONS = ['AGENZIA', 'PROCACCERIA', 'OCCASIONALE', 'CHIUSO'];
 
 export const Companies: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [visits, setVisits] = useState<any[]>([]);
   const [todos, setTodos] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', country: '', industry: '' });
+  const [formData, setFormData] = useState({ name: '', country: '', industry: '', rapporto: '' });
+  const [isAddingSector, setIsAddingSector] = useState(false);
+  const [newSectorInput, setNewSectorInput] = useState('');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [openMoreId, setOpenMoreId] = useState<string | null>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const handler = (e: MouseEvent) => {
+      if (openMoreId && moreRef.current && !moreRef.current.contains(e.target as Node)) setOpenMoreId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMoreId]);
+
+  useEffect(() => {
+    if (success) { const t = setTimeout(() => setSuccess(''), 4000); return () => clearTimeout(t); }
+  }, [success]);
+
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
-
-      try {
-        const res = await apiService.getCompanies();
-        if (res.success && res.data) setCompanies(res.data);
-      } catch (e) { console.warn('[Companies] Failed to load companies:', e); }
-
-      try {
-        const res = await apiService.getVisits();
-        if (res.success && res.data) setVisits(res.data);
-      } catch (e) { /* graceful offline */ }
-
-      try {
-        const res = await apiService.getMyTodos();
-        if (res.success && res.data) setTodos(Array.isArray(res.data) ? res.data : []);
-      } catch (e) { /* graceful offline */ }
-
-      try {
-        const res = await apiService.getUsers();
-        if (res.success && res.data) setUsers(res.data);
-      } catch (e) { /* graceful offline */ }
-
-    } catch (err) {
-      setError('Error loading data');
-    } finally {
-      setIsLoading(false);
-    }
+      try { const r = await apiService.getCompanies(); if (r.success && r.data) setCompanies(r.data); } catch {}
+      try { const r = await apiService.getMyTodos(); if (r.success && r.data) setTodos(Array.isArray(r.data) ? r.data : []); } catch {}
+    } catch { setError('Error loading data'); } finally { setIsLoading(false); }
   };
 
-  // ─── Enrich companies with computed columns ──────
-  const enrichedCompanies = useMemo((): EnrichedCompany[] => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const days90ago = new Date(today.getTime() - 90 * 86400000);
+  // Existing sectors for dropdown
+  const sectors = useMemo(() => {
+    const fromData = companies.map(c => c.industry).filter(Boolean) as string[];
+    return [...new Set([...SECTOR_OPTIONS, ...fromData])].sort();
+  }, [companies]);
 
-    return companies.map(c => {
-      // Last visit date + owner
-      const companyVisits = visits.filter(v => v.company_id === c.id);
-      const lastVisit = companyVisits.length > 0
-        ? companyVisits.reduce((latest, v) => {
-            const d = new Date(v.visit_date);
-            return d > latest.date ? { date: d, visit: v } : latest;
-          }, { date: new Date(0), visit: companyVisits[0] })
-        : null;
+  // Next action per company
+  const nextActions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of companies) {
+      const openTodos = todos.filter(t => t.company_id === c.id && t.status !== 'done' && t.status !== 'completed');
+      const next = openTodos.reduce((earliest: any, t: any) => {
+        if (!t.due_date) return earliest;
+        if (!earliest) return t;
+        return new Date(t.due_date) < new Date(earliest.due_date) ? t : earliest;
+      }, null);
+      if (next) map.set(c.id, next.title);
+    }
+    return map;
+  }, [companies, todos]);
 
-      const lastVisitDate = lastVisit ? lastVisit.date.toISOString() : null;
-      const ownerUserId = lastVisit?.visit?.visited_by_user_id || lastVisit?.visit?.user_id;
-      const owner = ownerUserId ? (users.find(u => u.id === ownerUserId)?.name || null) : null;
-
-      // Next action: earliest open todo for this company
-      const companyTodos = todos.filter(t =>
-        t.company_id === c.id && t.status !== 'done' && t.status !== 'completed'
-      );
-      const nextTodo = companyTodos.length > 0
-        ? companyTodos.reduce((earliest, t) => {
-            if (!t.due_date) return earliest;
-            if (!earliest) return t;
-            return new Date(t.due_date) < new Date(earliest.due_date) ? t : earliest;
-          }, null as any)
-        : null;
-      const nextAction = nextTodo?.title || null;
-
-      // Status computation
-      let status: EnrichedCompany['status'] = 'archived';
-      const hasOverdueTodos = companyTodos.some(t => t.due_date && new Date(t.due_date) < today);
-
-      if (hasOverdueTodos) {
-        status = 'priority';
-      } else if (lastVisitDate && new Date(lastVisitDate) >= days90ago) {
-        status = 'active';
-      } else if (lastVisitDate && new Date(lastVisitDate) < days90ago) {
-        status = 'waiting';
-      }
-
-      return { ...c, lastVisitDate, nextAction, owner, status };
-    });
-  }, [companies, visits, todos, users]);
-
-  // ─── Filtering ───────────────────────────────────
   const filtered = useMemo(() => {
-    return enrichedCompanies.filter(c => {
-      if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (statusFilter && c.status !== statusFilter) return false;
-      return true;
-    });
-  }, [enrichedCompanies, search, statusFilter]);
+    let list = [...companies];
+    if (search) list = list.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [companies, search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (editingId) {
         await apiService.updateCompany(editingId, formData);
+        setSuccess('Company updated');
       } else {
         await apiService.createCompany(formData.name, formData.country, formData.industry);
+        // Update rapporto separately if set
+        if (formData.rapporto) {
+          const res = await apiService.getCompanies();
+          const newCompany = res.data?.find((c: Company) => c.name === formData.name);
+          if (newCompany) await apiService.updateCompany(newCompany.id, { rapporto: formData.rapporto });
+        }
+        setSuccess('Company created');
       }
-      setFormData({ name: '', country: '', industry: '' });
-      setEditingId(null);
-      setShowForm(false);
+      resetForm();
       loadData();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    } catch (err) { setError((err as Error).message); }
   };
 
   const handleEdit = (company: Company) => {
-    setFormData({ name: company.name, country: company.country, industry: company.industry || '' });
+    setOpenMoreId(null);
+    setFormData({ name: company.name, country: company.country, industry: company.industry || '', rapporto: company.rapporto || '' });
     setEditingId(company.id);
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
+    setOpenMoreId(null);
+    if (!confirm('Delete this company and all associated data?')) return;
     try {
       await apiService.deleteCompany(id);
+      setSuccess('Company deleted');
       loadData();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    } catch (err) { setError((err as Error).message); }
   };
 
-  const handleCancel = () => {
-    setFormData({ name: '', country: '', industry: '' });
+  const resetForm = () => {
+    setFormData({ name: '', country: '', industry: '', rapporto: '' });
     setEditingId(null);
     setShowForm(false);
+    setIsAddingSector(false);
+    setNewSectorInput('');
   };
 
-  const statusBadge = (status: EnrichedCompany['status']) => {
-    const map = {
-      active: { label: 'Active', cls: 'badge-green' },
-      priority: { label: 'Priority', cls: 'badge-orange' },
-      waiting: { label: 'Waiting', cls: 'badge-yellow' },
-      archived: { label: 'New', cls: 'badge-gray' },
-    };
-    const { label, cls } = map[status];
-    return <span className={`status-badge ${cls}`}>{label}</span>;
-  };
+  if (isLoading) return <div className="co-page"><div className="co-loading">Loading companies...</div></div>;
 
   return (
-    <div className="crud-page">
-      <div className="page-header">
-        <h1>Companies</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
-          + Add Company
-        </button>
+    <div className="co-page">
+      {/* Header */}
+      <div className="co-header">
+        <div className="co-header-left">
+          <h1>Companies</h1>
+          <p className="co-header-subtitle">Represented brands and company registry</p>
+        </div>
+        {isAdmin && (
+          <button className="co-btn-new" onClick={() => { resetForm(); setShowForm(true); }}>+ Add Company</button>
+        )}
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="co-alert co-alert-error">{error}</div>}
+      {success && <div className="co-alert co-alert-success">{success}</div>}
 
-      {showForm && (
-        <div className="form-card">
-          <h3>{editingId ? 'Edit Company' : 'Add Company'}</h3>
+      {/* Form */}
+      {showForm && isAdmin && (
+        <div className="co-form-card">
+          <h3>{editingId ? 'Edit Company' : 'Add New Company'}</h3>
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Company Name *</label>
-              <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+            <div className="co-form-row">
+              <div className="co-form-group">
+                <label>Company Name *</label>
+                <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+              </div>
+              <div className="co-form-group">
+                <label>Country *</label>
+                <input type="text" value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} required />
+              </div>
+              <div className="co-form-group">
+                <label>Sector</label>
+                {isAddingSector ? (
+                  <div className="co-sector-add">
+                    <input type="text" value={newSectorInput} onChange={e => setNewSectorInput(e.target.value)} placeholder="New sector..." autoFocus />
+                    <button type="button" className="co-sector-btn" onClick={() => {
+                      if (newSectorInput.trim()) { setFormData({ ...formData, industry: newSectorInput.trim() }); setIsAddingSector(false); setNewSectorInput(''); }
+                    }}>OK</button>
+                    <button type="button" className="co-sector-btn cancel" onClick={() => { setIsAddingSector(false); setNewSectorInput(''); }}>X</button>
+                  </div>
+                ) : (
+                  <select value={formData.industry} onChange={e => {
+                    if (e.target.value === '__add_new__') setIsAddingSector(true);
+                    else setFormData({ ...formData, industry: e.target.value });
+                  }}>
+                    <option value="">Select sector...</option>
+                    {sectors.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="__add_new__">+ Add new sector...</option>
+                  </select>
+                )}
+              </div>
+              {isAdmin && (
+                <div className="co-form-group">
+                  <label>Rapporto</label>
+                  <select value={formData.rapporto} onChange={e => setFormData({ ...formData, rapporto: e.target.value })}>
+                    <option value="">Select...</option>
+                    {RAPPORTO_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
-            <div className="form-group">
-              <label>Country *</label>
-              <input type="text" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label>Industry Sector</label>
-              <input type="text" value={formData.industry} onChange={(e) => setFormData({ ...formData, industry: e.target.value })} />
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn-primary">{editingId ? 'Save' : 'Create'}</button>
-              <button type="button" onClick={handleCancel} className="btn-secondary">Cancel</button>
+            <div className="co-form-actions">
+              <button type="submit" className="co-btn-save">{editingId ? 'Save Changes' : 'Create Company'}</button>
+              <button type="button" className="co-btn-cancel" onClick={resetForm}>Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="companies-filters">
-        <input
-          type="text"
-          placeholder="Search companies..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="companies-search"
-        />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="companies-filter-select">
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="priority">Priority</option>
-          <option value="waiting">Waiting</option>
-          <option value="archived">New</option>
-        </select>
+      {/* Search */}
+      <div className="co-toolbar">
+        <input type="text" className="co-search" placeholder="Search companies..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {isLoading ? (
-        <p>Loading...</p>
-      ) : filtered.length === 0 ? (
-        <p className="companies-empty">No companies found</p>
-      ) : (
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Country</th>
-                <th>Sector</th>
-                <th>Status</th>
-                <th>Last Visit</th>
-                <th>Owner</th>
-                <th>Next Action</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((company) => (
-                <tr key={company.id}>
-                  <td className="company-name">{company.name}</td>
-                  <td>{company.country}</td>
-                  <td>{company.industry || '-'}</td>
-                  <td>{statusBadge(company.status)}</td>
-                  <td className="company-date">
-                    {company.lastVisitDate ? new Date(company.lastVisitDate).toLocaleDateString('it-IT') : '-'}
-                  </td>
-                  <td>{company.owner || '-'}</td>
-                  <td className="company-action">{company.nextAction || '-'}</td>
-                  <td className="actions">
-                    <button onClick={() => handleEdit(company)} className="btn-warning">Edit</button>
-                    <button onClick={() => handleDelete(company.id)} className="btn-danger">Delete</button>
-                  </td>
+      {/* Table */}
+      <div className="co-table-wrap">
+        {filtered.length > 0 && (
+          <div className="co-result-count">{filtered.length} compan{filtered.length !== 1 ? 'ies' : 'y'}</div>
+        )}
+        {filtered.length === 0 ? (
+          <div className="co-empty">
+            <div className="co-empty-text">No companies found</div>
+            <div className="co-empty-hint">Try changing your search</div>
+          </div>
+        ) : (
+          <div className="co-table-scroll">
+            <table className="co-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Country</th>
+                  <th>Sector</th>
+                  {isAdmin && <th>Rapporto</th>}
+                  <th>Next Action</th>
+                  <th style={{ width: '1%' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {filtered.map(company => {
+                  const nextAction = nextActions.get(company.id);
+                  return (
+                    <tr key={company.id}>
+                      <td className="co-name">{company.name}</td>
+                      <td>{company.country}</td>
+                      <td>{company.industry || <span className="co-muted">-</span>}</td>
+                      {isAdmin && (
+                        <td>
+                          {company.rapporto ? (
+                            <span className={`co-rapporto-badge rapporto-${company.rapporto.toLowerCase()}`}>{company.rapporto}</span>
+                          ) : <span className="co-muted">-</span>}
+                        </td>
+                      )}
+                      <td className="co-next-action">{nextAction || <span className="co-muted">-</span>}</td>
+                      <td>
+                        <div className="co-actions">
+                          {isAdmin && (
+                            <button className="co-action-btn" onClick={() => handleEdit(company)}>Edit</button>
+                          )}
+                          <div className="co-more-wrap" ref={openMoreId === company.id ? moreRef : undefined}>
+                            <button className="co-more-btn" onClick={() => setOpenMoreId(openMoreId === company.id ? null : company.id)}>&#x22EE;</button>
+                            {openMoreId === company.id && (
+                              <div className="co-more-menu">
+                                {isAdmin && (
+                                  <>
+                                    <button className="co-more-item danger" onClick={() => handleDelete(company.id)}>Delete</button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

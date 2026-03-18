@@ -43,6 +43,7 @@ export interface Company {
   name: string;
   country: string;
   industry?: string;
+  rapporto?: string;
   created_at: string;
 }
 

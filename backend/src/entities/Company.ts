@@ -16,6 +16,9 @@ export class Company {
   @Column({ nullable: true })
   industry: string;
 
+  @Column({ nullable: true })
+  rapporto: string;
+
   @CreateDateColumn()
   created_at: Date;
 
