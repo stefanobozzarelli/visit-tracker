@@ -791,6 +791,55 @@ class ApiService {
     const response = await this.api.delete<ApiResponse<any>>(`/admin/permissions/${permissionId}`);
     return response.data;
   }
+
+  // ==================== Invoices ====================
+
+  async uploadInvoice(file: File, companyId: string, clientId?: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('company_id', companyId);
+    if (clientId) formData.append('client_id', clientId);
+    const response = await this.api.post<ApiResponse<any>>('/invoices', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+    return response.data;
+  }
+
+  async getInvoices(filters?: { company_id?: string; client_id?: string; status?: string; start_date?: string; end_date?: string; page?: number; limit?: number }) {
+    const response = await this.api.get<ApiResponse<any>>('/invoices', { params: filters });
+    return response.data;
+  }
+
+  async getInvoice(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/invoices/${id}`);
+    return response.data;
+  }
+
+  async deleteInvoice(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/invoices/${id}`);
+    return response.data;
+  }
+
+  async reprocessInvoice(id: string) {
+    const response = await this.api.post<ApiResponse<any>>(`/invoices/${id}/reprocess`);
+    return response.data;
+  }
+
+  async getInvoiceStats(filters?: { company_id?: string; client_id?: string; start_date?: string; end_date?: string }) {
+    const response = await this.api.get<ApiResponse<any>>('/invoices/stats', { params: filters });
+    return response.data;
+  }
+
+  async askInvoiceQuestion(question: string) {
+    const response = await this.api.post<ApiResponse<any>>('/invoices/ask', { question });
+    return response.data;
+  }
+
+  async getInvoiceDownloadUrl(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/invoices/${id}/download`);
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

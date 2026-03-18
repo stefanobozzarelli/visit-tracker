@@ -19,6 +19,7 @@ import { ReportDetail } from './pages/ReportDetail';
 import { ExportPdf } from './pages/ExportPdf';
 import { Tasks } from './pages/Tasks';
 import { Settings } from './pages/Settings';
+import { Revenue } from './pages/Revenue';
 import { TodoForm } from './pages/TodoForm';
 import { OrderForm } from './pages/OrderForm';
 import './styles/App.css';
@@ -52,6 +53,7 @@ const AppContent: React.FC = () => {
           <Route path="/reports" element={<ExportPdf />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/revenue" element={<Revenue />} />
           <Route path="/todos/new" element={<TodoForm />} />
           <Route path="/todos/edit/:id" element={<TodoForm />} />
           <Route path="/orders/new/:visitId" element={<OrderForm />} />

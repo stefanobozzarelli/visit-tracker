@@ -10,6 +10,8 @@ import { UserPermission } from '../entities/UserPermission';
 import { TodoItem } from '../entities/TodoItem';
 import { CustomerOrder } from '../entities/CustomerOrder';
 import { CustomerOrderItem } from '../entities/CustomerOrderItem';
+import { Invoice } from '../entities/Invoice';
+import { InvoiceLineItem } from '../entities/InvoiceLineItem';
 
 require('dotenv').config();
 
@@ -24,7 +26,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'visit_tracker',
   synchronize: true,
   logging: isDevelopment,
-  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, CustomerOrder, CustomerOrderItem],
+  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: ['src/subscribers/**/*.ts'],
 });
