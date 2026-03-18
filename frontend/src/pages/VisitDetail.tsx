@@ -125,13 +125,20 @@ export const VisitDetail: React.FC = () => {
     <div className="crud-page">
       <div className="page-header">
         <h1>Visit - {visit.client?.name}</h1>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => navigate(`/todos/new?clientId=${visit.client_id}`)}
+            className="btn-primary"
+            title="Create a follow-up task for this visit"
+          >
+            + Create Task
+          </button>
           <button
             onClick={() => navigate(`/orders/new/${id}`)}
-            className="btn-primary"
+            className="btn-secondary"
             title="Create a new customer order"
           >
-            📦 Create Order
+            + Create Order
           </button>
           <button
             onClick={handleDeleteVisit}

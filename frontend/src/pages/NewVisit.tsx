@@ -295,26 +295,7 @@ export const NewVisit: React.FC = () => {
                 onChange={e => setMetadata({ ...metadata, outcome: e.target.value })}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', marginTop: '0.75rem', alignItems: 'end' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Next Action</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Send quotation, schedule demo..."
-                  value={metadata.nextAction}
-                  onChange={e => setMetadata({ ...metadata, nextAction: e.target.value })}
-                />
-              </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                <input
-                  type="checkbox"
-                  checked={metadata.followUpRequired}
-                  onChange={e => setMetadata({ ...metadata, followUpRequired: e.target.checked })}
-                  style={{ width: '16px', height: '16px' }}
-                />
-                Follow-up required
-              </label>
-            </div>
+            {/* Next Action and Follow-up removed — use Tasks page to create follow-ups */}
           </div>
 
           <h3>Report per Company</h3>
