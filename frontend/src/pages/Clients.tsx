@@ -30,6 +30,8 @@ export const Clients: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', country: '', notes: '', role: 'cliente' });
+  const [isAddingCountry, setIsAddingCountry] = useState(false);
+  const [newCountryInput, setNewCountryInput] = useState('');
 
   // Filters
   const [localSearch, setLocalSearch] = useState('');
@@ -258,7 +260,41 @@ export const Clients: React.FC = () => {
               </div>
               <div className="clients-form-group">
                 <label>Country *</label>
-                <input type="text" value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} required />
+                {isAddingCountry ? (
+                  <div className="clients-country-add">
+                    <input
+                      type="text"
+                      value={newCountryInput}
+                      onChange={e => setNewCountryInput(e.target.value)}
+                      placeholder="New country name..."
+                      autoFocus
+                    />
+                    <button type="button" className="clients-country-btn" onClick={() => {
+                      if (newCountryInput.trim()) {
+                        setFormData({ ...formData, country: newCountryInput.trim() });
+                        setIsAddingCountry(false);
+                        setNewCountryInput('');
+                      }
+                    }}>OK</button>
+                    <button type="button" className="clients-country-btn cancel" onClick={() => { setIsAddingCountry(false); setNewCountryInput(''); }}>X</button>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.country}
+                    onChange={e => {
+                      if (e.target.value === '__add_new__') {
+                        setIsAddingCountry(true);
+                      } else {
+                        setFormData({ ...formData, country: e.target.value });
+                      }
+                    }}
+                    required
+                  >
+                    <option value="">Select country...</option>
+                    {countries.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="__add_new__">+ Add new country...</option>
+                  </select>
+                )}
               </div>
               <div className="clients-form-group">
                 <label>Type</label>

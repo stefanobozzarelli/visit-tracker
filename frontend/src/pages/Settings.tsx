@@ -18,6 +18,7 @@ interface UserItem {
 interface ClientItem {
   id: string;
   name: string;
+  country?: string;
 }
 
 interface CompanyItem {
@@ -464,7 +465,7 @@ const CompanyAccessTab: React.FC = () => {
   );
 };
 
-// ─── Client Permissions Tab ──────────────────────────
+// ─── Client Permissions Tab (Country > Client hierarchy) ──────
 const ClientPermissionsTab: React.FC = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [companies, setCompanies] = useState<CompanyItem[]>([]);
@@ -475,7 +476,7 @@ const ClientPermissionsTab: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [searchClient, setSearchClient] = useState('');
+  const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => {
@@ -498,92 +499,76 @@ const ClientPermissionsTab: React.FC = () => {
     } catch { setError('Error loading data'); } finally { setLoading(false); }
   };
 
-  // User's companies (derived from permissions)
+  const reloadPerms = async () => {
+    const r = await apiService.getPermissions();
+    if (r.success) setPermissions(r.data || []);
+  };
+
   const userCompanies = useMemo(() => {
     if (!selectedUserId) return [];
-    const companyIds = new Set(
-      permissions.filter(p => p.user_id === selectedUserId).map(p => p.company_id)
-    );
-    return companies.filter(c => companyIds.has(c.id));
+    const ids = new Set(permissions.filter(p => p.user_id === selectedUserId).map(p => p.company_id));
+    return companies.filter(c => ids.has(c.id));
   }, [selectedUserId, permissions, companies]);
 
-  // Permission lookup: `${clientId}-${companyId}` → Permission
   const permLookup = useMemo(() => {
     const map = new Map<string, Permission>();
     if (!selectedUserId) return map;
     for (const p of permissions) {
-      if (p.user_id === selectedUserId) {
-        map.set(`${p.client_id}-${p.company_id}`, p);
-      }
+      if (p.user_id === selectedUserId) map.set(`${p.client_id}-${p.company_id}`, p);
     }
     return map;
   }, [selectedUserId, permissions]);
 
-  // Filtered clients
-  const filteredClients = useMemo(() => {
-    let list = clients;
-    if (searchClient.trim()) {
-      const q = searchClient.toLowerCase();
-      list = list.filter(c => c.name.toLowerCase().includes(q));
+  // Group clients by country
+  const clientsByCountry = useMemo(() => {
+    const map = new Map<string, ClientItem[]>();
+    for (const c of clients) {
+      const country = c.country || 'Unknown';
+      if (!map.has(country)) map.set(country, []);
+      map.get(country)!.push(c);
     }
-    return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, searchClient]);
+    const sorted = new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+    for (const [, list] of sorted) list.sort((a, b) => a.name.localeCompare(b.name));
+    return sorted;
+  }, [clients]);
 
-  const handleTogglePermission = async (clientId: string, companyId: string) => {
+  const clientHasAll = useCallback((clientId: string) => userCompanies.every(c => permLookup.has(`${clientId}-${c.id}`)), [userCompanies, permLookup]);
+  const clientHasNone = useCallback((clientId: string) => userCompanies.every(c => !permLookup.has(`${clientId}-${c.id}`)), [userCompanies, permLookup]);
+
+  const toggleCountry = (country: string) => {
+    setExpandedCountries(prev => { const n = new Set(prev); if (n.has(country)) n.delete(country); else n.add(country); return n; });
+  };
+
+  const handleToggleCountry = async (countryClients: ClientItem[], grant: boolean) => {
     if (!selectedUserId) return;
     setSaving(true);
-    setError('');
-
-    const key = `${clientId}-${companyId}`;
-    const existing = permLookup.get(key);
-
     try {
-      if (existing) {
-        await apiService.revokePermission(existing.id);
-      } else {
-        await apiService.assignPermission(selectedUserId, clientId, companyId, {
-          can_view: true, can_create: true, can_edit: true,
-        });
+      const calls: Promise<any>[] = [];
+      for (const client of countryClients) {
+        for (const company of userCompanies) {
+          const key = `${client.id}-${company.id}`;
+          if (grant && !permLookup.has(key)) {
+            calls.push(apiService.assignPermission(selectedUserId, client.id, company.id, { can_view: true, can_create: true, can_edit: true }));
+          } else if (!grant && permLookup.has(key)) {
+            calls.push(apiService.revokePermission(permLookup.get(key)!.id));
+          }
+        }
       }
-      const permsRes = await apiService.getPermissions();
-      if (permsRes.success) setPermissions(permsRes.data || []);
-    } catch {
-      setError('Error updating permission');
-    } finally {
-      setSaving(false);
-    }
+      await Promise.all(calls);
+      setSuccess(grant ? `Granted access for ${countryClients.length} clients` : `Revoked access for ${countryClients.length} clients`);
+      await reloadPerms();
+    } catch { setError('Error updating permissions'); } finally { setSaving(false); }
   };
 
-  const handleGrantAllForClient = async (clientId: string) => {
+  const handleToggleClient = async (clientId: string, grant: boolean) => {
     if (!selectedUserId) return;
     setSaving(true);
     try {
-      const toCreate = userCompanies.filter(c => !permLookup.has(`${clientId}-${c.id}`));
-      await Promise.all(
-        toCreate.map(c =>
-          apiService.assignPermission(selectedUserId, clientId, c.id, {
-            can_view: true, can_create: true, can_edit: true,
-          })
-        )
-      );
-      const permsRes = await apiService.getPermissions();
-      if (permsRes.success) setPermissions(permsRes.data || []);
-      setSuccess(`Granted all companies for this client`);
-    } catch { setError('Error'); } finally { setSaving(false); }
-  };
-
-  const handleRevokeAllForClient = async (clientId: string) => {
-    if (!selectedUserId) return;
-    if (!window.confirm('Revoke all company access for this client?')) return;
-    setSaving(true);
-    try {
-      const toDelete = userCompanies
-        .map(c => permLookup.get(`${clientId}-${c.id}`))
-        .filter(Boolean) as Permission[];
-      await Promise.all(toDelete.map(p => apiService.revokePermission(p.id)));
-      const permsRes = await apiService.getPermissions();
-      if (permsRes.success) setPermissions(permsRes.data || []);
-      setSuccess('Revoked all companies for this client');
+      const calls = grant
+        ? userCompanies.filter(c => !permLookup.has(`${clientId}-${c.id}`)).map(c => apiService.assignPermission(selectedUserId, clientId, c.id, { can_view: true, can_create: true, can_edit: true }))
+        : userCompanies.map(c => permLookup.get(`${clientId}-${c.id}`)).filter(Boolean).map(p => apiService.revokePermission(p!.id));
+      await Promise.all(calls);
+      await reloadPerms();
     } catch { setError('Error'); } finally { setSaving(false); }
   };
 
@@ -597,26 +582,11 @@ const ClientPermissionsTab: React.FC = () => {
       <div className="cp-header">
         <div className="form-group">
           <label>Select User</label>
-          <select
-            value={selectedUserId}
-            onChange={e => setSelectedUserId(e.target.value)}
-            className="cp-user-select"
-          >
+          <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)} className="cp-user-select">
             <option value="">Choose a user...</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-            ))}
+            {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
           </select>
         </div>
-        {selectedUserId && (
-          <input
-            type="text"
-            placeholder="Search clients..."
-            value={searchClient}
-            onChange={e => setSearchClient(e.target.value)}
-            className="settings-search cp-search"
-          />
-        )}
       </div>
 
       {!selectedUserId ? (
@@ -624,65 +594,55 @@ const ClientPermissionsTab: React.FC = () => {
       ) : userCompanies.length === 0 ? (
         <p className="settings-empty">This user has no company access. Assign companies first in the "Company Access" tab.</p>
       ) : (
-        <div className="cp-matrix-wrap">
-          <table className="cp-matrix">
-            <thead>
-              <tr>
-                <th className="cp-client-col">Client</th>
-                {userCompanies.map(c => (
-                  <th key={c.id} className="cp-company-col">{c.name}</th>
-                ))}
-                <th className="cp-actions-col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredClients.map(client => {
-                const hasAll = userCompanies.every(c => permLookup.has(`${client.id}-${c.id}`));
-                const hasNone = userCompanies.every(c => !permLookup.has(`${client.id}-${c.id}`));
-                const hasSome = !hasAll && !hasNone;
+        <div className="cp-country-list">
+          <p className="cp-hint">Select countries and clients this user can access. Permissions apply to all assigned companies.</p>
+          {[...clientsByCountry.entries()].map(([country, countryClients]) => {
+            const allGranted = countryClients.every(c => clientHasAll(c.id));
+            const noneGranted = countryClients.every(c => clientHasNone(c.id));
+            const isExpanded = expandedCountries.has(country);
+            const grantedCount = countryClients.filter(c => clientHasAll(c.id)).length;
 
-                return (
-                  <tr key={client.id} className={hasNone ? 'cp-row-none' : ''}>
-                    <td className="cp-client-name">{client.name}</td>
-                    {userCompanies.map(company => {
-                      const hasPerm = permLookup.has(`${client.id}-${company.id}`);
+            return (
+              <div key={country} className="cp-country-group">
+                <div className="cp-country-header">
+                  <button className="cp-country-expand" onClick={() => toggleCountry(country)} type="button">
+                    {isExpanded ? '\u25BE' : '\u25B8'}
+                  </button>
+                  <label className="cp-country-check">
+                    <input
+                      type="checkbox"
+                      checked={allGranted}
+                      ref={el => { if (el) el.indeterminate = !allGranted && !noneGranted; }}
+                      onChange={() => handleToggleCountry(countryClients, !allGranted)}
+                      disabled={saving}
+                    />
+                    <span className="cp-country-name">{country}</span>
+                    <span className="cp-country-count">{grantedCount}/{countryClients.length} clients</span>
+                  </label>
+                </div>
+                {isExpanded && (
+                  <div className="cp-clients-list">
+                    {countryClients.map(client => {
+                      const hasAll = clientHasAll(client.id);
+                      const hasNone = clientHasNone(client.id);
                       return (
-                        <td key={company.id} className="cp-check-cell">
-                          <button
-                            className={`cp-check${hasPerm ? ' on' : ''}`}
-                            onClick={() => handleTogglePermission(client.id, company.id)}
+                        <label key={client.id} className="cp-client-check">
+                          <input
+                            type="checkbox"
+                            checked={hasAll}
+                            ref={el => { if (el) el.indeterminate = !hasAll && !hasNone; }}
+                            onChange={() => handleToggleClient(client.id, !hasAll)}
                             disabled={saving}
-                          >
-                            {hasPerm ? '\u2713' : ''}
-                          </button>
-                        </td>
+                          />
+                          <span className="cp-client-label">{client.name}</span>
+                        </label>
                       );
                     })}
-                    <td className="cp-row-actions">
-                      {!hasAll && (
-                        <button
-                          className="btn btn-small btn-info-outline"
-                          onClick={() => handleGrantAllForClient(client.id)}
-                          disabled={saving}
-                        >
-                          All
-                        </button>
-                      )}
-                      {!hasNone && (
-                        <button
-                          className="btn btn-small btn-danger-outline"
-                          onClick={() => handleRevokeAllForClient(client.id)}
-                          disabled={saving}
-                        >
-                          None
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </>

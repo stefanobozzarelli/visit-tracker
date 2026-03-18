@@ -380,107 +380,23 @@
   flex: 0 1 auto;
 }
 
-.cp-matrix-wrap {
-  overflow-x: auto;
-}
+/* Country > Client hierarchy */
+.cp-country-list { display: flex; flex-direction: column; gap: 0.25rem; }
+.cp-hint { font-size: 0.75rem; color: var(--color-text-tertiary); margin: 0 0 0.75rem; }
 
-.cp-matrix {
-  width: 100%;
-  border-collapse: collapse;
-}
+.cp-country-group { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.cp-country-header { display: flex; align-items: center; gap: 0.25rem; padding: 0.625rem 0.75rem; background: var(--color-bg-primary); border-bottom: 1px solid var(--color-border); }
+.cp-country-expand { background: none; border: none; cursor: pointer; font-size: 0.75rem; color: var(--color-text-tertiary); padding: 0.125rem; width: 20px; text-align: center; }
+.cp-country-check { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex: 1; font-size: 0.813rem; }
+.cp-country-check input { cursor: pointer; width: 16px; height: 16px; accent-color: var(--color-info); }
+.cp-country-name { font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.cp-country-count { font-size: 0.688rem; color: var(--color-text-tertiary); margin-left: auto; }
 
-.cp-matrix thead {
-  background: var(--color-bg-primary);
-}
-
-.cp-matrix th {
-  padding: 0.5rem 0.625rem;
-  text-align: center;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-tertiary);
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.688rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-
-.cp-client-col {
-  text-align: left !important;
-  min-width: 150px;
-}
-
-.cp-company-col {
-  min-width: 80px;
-}
-
-.cp-actions-col {
-  min-width: 100px;
-}
-
-.cp-matrix td {
-  padding: 0.375rem 0.625rem;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.813rem;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.cp-matrix tbody tr:hover {
-  background: var(--color-bg-tertiary);
-}
-
-.cp-client-name {
-  text-align: left !important;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-}
-
-.cp-row-none {
-  opacity: 0.5;
-}
-
-.cp-row-none:hover {
-  opacity: 0.8;
-}
-
-/* Permission checkbox button */
-.cp-check {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--color-border-strong);
-  background: var(--color-white);
-  cursor: pointer;
-  font-size: 0.75rem;
-  color: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.cp-check:hover {
-  border-color: var(--color-info);
-  background: rgba(0, 122, 255, 0.04);
-}
-
-.cp-check.on {
-  background: var(--color-info);
-  border-color: var(--color-info);
-  color: white;
-}
-
-.cp-check:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.cp-row-actions {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: center;
-}
+.cp-clients-list { padding: 0.375rem 0.75rem 0.375rem 2.5rem; }
+.cp-client-check { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; cursor: pointer; font-size: 0.813rem; }
+.cp-client-check input { cursor: pointer; width: 15px; height: 15px; accent-color: var(--color-info); }
+.cp-client-label { color: var(--color-text-secondary); }
+.cp-client-check:hover .cp-client-label { color: var(--color-text-primary); }
 
 /* ---- Shared Utilities ---- */
 .settings-loading {
