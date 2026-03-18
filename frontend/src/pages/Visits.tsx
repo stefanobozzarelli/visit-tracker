@@ -609,7 +609,7 @@ export const Visits: React.FC = () => {
                           </button>
                           <button
                             className="visit-action-btn"
-                            onClick={() => navigate(`/visits/${visit.id}/edit`)}
+                            onClick={() => navigate(`/visits/${visit.id}`)}
                           >
                             Edit
                           </button>
