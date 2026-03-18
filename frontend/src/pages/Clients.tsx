@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, Visit, TodoItem, Company } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
@@ -19,6 +20,8 @@ const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime())
 // ---- Component ----
 export const Clients: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   // Data
   const [clients, setClients] = useState<Client[]>([]);
@@ -513,13 +516,17 @@ export const Clients: React.FC = () => {
                                 >
                                   Register Visit
                                 </button>
-                                <div className="client-more-divider" />
-                                <button
-                                  className="client-more-item danger"
-                                  onClick={() => handleDelete(client)}
-                                >
-                                  Delete
-                                </button>
+                                {isAdmin && (
+                                  <>
+                                    <div className="client-more-divider" />
+                                    <button
+                                      className="client-more-item danger"
+                                      onClick={() => handleDelete(client)}
+                                    >
+                                      Delete
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
