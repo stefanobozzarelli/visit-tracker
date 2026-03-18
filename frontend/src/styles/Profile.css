@@ -51,13 +51,13 @@
 }
 
 .profile-alert.error {
-  background: #fff0f0;
+  background: #F8ECEA;
   color: var(--color-error);
   border: 1px solid rgba(255, 59, 48, 0.2);
 }
 
 .profile-alert.success {
-  background: #f0faf0;
+  background: #EDF5EE;
   color: var(--color-success);
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
@@ -87,7 +87,7 @@
 .profile-form-group input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.08);
 }
 
 .profile-form-group input:disabled {
@@ -120,7 +120,7 @@
 }
 
 .profile-btn.primary:hover {
-  background: #1D4ED8;
+  background: #4E6858;
 }
 
 .profile-btn:disabled {

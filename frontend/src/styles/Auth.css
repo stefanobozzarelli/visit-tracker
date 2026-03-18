@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, #eeeeee 100%);
+  background: var(--color-bg-primary);
 }
 
 .auth-card {
@@ -52,7 +52,7 @@
 .form-group input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(92, 122, 104, 0.1);
 }
 
 .auth-card button {
@@ -69,11 +69,11 @@
 }
 
 .auth-card button:hover:not(:disabled) {
-  background-color: #1D4ED8;
+  background-color: #4E6858;
 }
 
 .auth-card button:active:not(:disabled) {
-  background-color: #1E40AF;
+  background-color: #3D5847;
 }
 
 .auth-card button:disabled {

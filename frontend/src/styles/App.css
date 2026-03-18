@@ -1,32 +1,32 @@
 /* ========================================
-   Design System — Neutral, Sober, Readable
+   Design System — Warm, Neutral, Premium
    ======================================== */
 
 :root {
   --sidebar-width: 260px;
   --page-max-width: 1200px;
 
-  /* Neutrals — warm, clean */
-  --color-white: #ffffff;
+  /* Warm neutrals */
+  --color-white: #FFFFFF;
   --color-black: #000000;
-  --color-bg-primary: #F4F4F5;
-  --color-bg-secondary: #EAEAEC;
-  --color-bg-tertiary: #F8F8F9;
-  --color-text-primary: #18181B;
-  --color-text-secondary: #52525B;
-  --color-text-tertiary: #A1A1AA;
-  --color-border: #E4E4E7;
-  --color-border-strong: #D4D4D8;
+  --color-bg-primary: #F7F5F0;
+  --color-bg-secondary: #FBF9F4;
+  --color-bg-tertiary: #F3F0E8;
+  --color-text-primary: #22211D;
+  --color-text-secondary: #666258;
+  --color-text-tertiary: #8C877C;
+  --color-border: #E7E2D8;
+  --color-border-strong: #D4CFC4;
 
-  /* Accent — sober steel blue (NOT indigo, NOT violet) */
-  --color-info: #2563EB;
+  /* Accent — sage green */
+  --color-info: #5C7A68;
 
-  /* Semantic — muted, soft */
-  --color-success: #16A34A;
-  --color-warning: #CA8A04;
-  --color-error: #DC2626;
+  /* Semantic — soft, warm */
+  --color-success: #5F8A63;
+  --color-warning: #A9793D;
+  --color-error: #A9574D;
 
-  /* Shadows — minimal */
+  /* Shadows */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -39,18 +39,18 @@
   --radius-lg: 12px;
   --radius-full: 9999px;
 
-  /* Typography — LARGER across the board */
+  /* Typography — LARGE, comfortable */
   --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
 
-  --text-2xs: 0.75rem;    /* 12px */
-  --text-xs: 0.8125rem;   /* 13px */
-  --text-sm: 0.875rem;    /* 14px */
-  --text-base: 0.9375rem; /* 15px */
-  --text-md: 1rem;        /* 16px */
+  --text-2xs: 0.8125rem;  /* 13px */
+  --text-xs: 0.875rem;    /* 14px */
+  --text-sm: 0.9375rem;   /* 15px */
+  --text-base: 1rem;      /* 16px */
+  --text-md: 1.0625rem;   /* 17px */
   --text-lg: 1.125rem;    /* 18px */
-  --text-xl: 1.25rem;     /* 20px */
-  --text-2xl: 1.75rem;    /* 28px — page titles */
-  --text-3xl: 2.25rem;    /* 36px */
+  --text-xl: 1.5rem;      /* 24px */
+  --text-2xl: 2rem;       /* 32px */
+  --text-3xl: 2.25rem;    /* 36px — page titles */
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;

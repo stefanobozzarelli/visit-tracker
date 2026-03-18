@@ -18,7 +18,7 @@
 
 .tasks-header-left h1 {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 2.25rem;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   line-height: 1.2;
@@ -46,7 +46,7 @@
 }
 
 .tasks-btn-new:hover {
-  background: #1D4ED8;
+  background: #4E6858;
 }
 
 /* ---- Alerts ---- */
@@ -62,15 +62,15 @@
 }
 
 .tasks-alert-error {
-  background: #fff0f0;
+  background: #F8ECEA;
   color: var(--color-error);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+  border: 1px solid rgba(169, 87, 77, 0.2);
 }
 
 .tasks-alert-success {
-  background: #f0faf0;
+  background: #EDF5EE;
   color: var(--color-success);
-  border: 1px solid rgba(22, 163, 74, 0.2);
+  border: 1px solid rgba(95, 138, 99, 0.2);
 }
 
 /* ---- KPI Summary ---- */
@@ -110,10 +110,10 @@
   flex-shrink: 0;
 }
 
-.tasks-kpi-icon.blue   { background: rgba(37, 99, 235, 0.08); }
-.tasks-kpi-icon.red    { background: rgba(220, 38, 38, 0.08); }
-.tasks-kpi-icon.orange { background: rgba(202, 138, 4, 0.08); }
-.tasks-kpi-icon.green  { background: rgba(22, 163, 74, 0.08); }
+.tasks-kpi-icon.blue   { background: rgba(92, 122, 104, 0.08); }
+.tasks-kpi-icon.red    { background: rgba(169, 87, 77, 0.08); }
+.tasks-kpi-icon.orange { background: rgba(169, 121, 61, 0.08); }
+.tasks-kpi-icon.green  { background: rgba(95, 138, 99, 0.08); }
 
 .tasks-kpi-body {
   min-width: 0;
@@ -176,7 +176,7 @@
 .tasks-search-input:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.08);
 }
 
 .tasks-filter-select {
@@ -197,13 +197,13 @@
 .tasks-filter-select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.08);
 }
 
 .tasks-filter-select.active {
   border-color: var(--color-info);
   color: var(--color-info);
-  background: rgba(37, 99, 235, 0.04);
+  background: rgba(92, 122, 104, 0.04);
 }
 
 .tasks-filter-divider {
@@ -245,21 +245,21 @@
 }
 
 .tasks-chip.active {
-  background: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(92, 122, 104, 0.08);
+  border-color: rgba(92, 122, 104, 0.3);
   color: var(--color-info);
 }
 
 .tasks-chip.active.chip-red {
-  background: rgba(220, 38, 38, 0.06);
-  border-color: rgba(220, 38, 38, 0.25);
+  background: rgba(169, 87, 77, 0.06);
+  border-color: rgba(169, 87, 77, 0.25);
   color: var(--color-error);
 }
 
 .tasks-chip.active.chip-orange {
-  background: rgba(202, 138, 4, 0.06);
-  border-color: rgba(202, 138, 4, 0.25);
-  color: #A16207;
+  background: rgba(169, 121, 61, 0.06);
+  border-color: rgba(169, 121, 61, 0.25);
+  color: #8B6432;
 }
 
 .tasks-chip-dot {
@@ -400,11 +400,11 @@
 
 /* Row states */
 .tasks-table tr.row-overdue {
-  background: rgba(220, 38, 38, 0.02);
+  background: rgba(169, 87, 77, 0.02);
 }
 
 .tasks-table tr.row-overdue:hover {
-  background: rgba(220, 38, 38, 0.05);
+  background: rgba(169, 87, 77, 0.05);
 }
 
 .tasks-table tr.row-completed {
@@ -499,27 +499,27 @@
 }
 
 .task-status-pill.status-todo {
-  background: rgba(202, 138, 4, 0.08);
-  color: #A16207;
-  border-color: rgba(202, 138, 4, 0.2);
+  background: rgba(169, 121, 61, 0.08);
+  color: #8B6432;
+  border-color: rgba(169, 121, 61, 0.2);
 }
 
 .task-status-pill.status-in_progress {
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(92, 122, 104, 0.08);
   color: var(--color-info);
-  border-color: rgba(37, 99, 235, 0.2);
+  border-color: rgba(92, 122, 104, 0.2);
 }
 
 .task-status-pill.status-waiting {
-  background: rgba(161, 161, 170, 0.08);
+  background: rgba(140, 135, 124, 0.08);
   color: #6e6e73;
-  border-color: rgba(161, 161, 170, 0.2);
+  border-color: rgba(140, 135, 124, 0.2);
 }
 
 .task-status-pill.status-completed {
-  background: rgba(22, 163, 74, 0.08);
-  color: #15803D;
-  border-color: rgba(22, 163, 74, 0.2);
+  background: rgba(95, 138, 99, 0.08);
+  color: #4D7451;
+  border-color: rgba(95, 138, 99, 0.2);
 }
 
 .task-status-pill:hover {
@@ -625,12 +625,12 @@
 
 .task-action-btn.primary {
   color: var(--color-info);
-  border-color: rgba(37, 99, 235, 0.2);
+  border-color: rgba(92, 122, 104, 0.2);
 }
 
 .task-action-btn.primary:hover {
-  background: rgba(37, 99, 235, 0.04);
-  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(92, 122, 104, 0.04);
+  border-color: rgba(92, 122, 104, 0.3);
 }
 
 /* More menu */
@@ -698,7 +698,7 @@
 }
 
 .task-more-item.danger:hover {
-  background: rgba(220, 38, 38, 0.05);
+  background: rgba(169, 87, 77, 0.05);
 }
 
 /* ---- Empty state ---- */

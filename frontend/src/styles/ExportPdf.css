@@ -16,7 +16,7 @@
 .export-pdf h1 {
   margin: 0;
   color: var(--color-text-primary);
-  font-size: 28px;
+  font-size: 36px;
   font-weight: var(--font-weight-semibold);
 }
 
@@ -60,7 +60,7 @@
   margin-top: 0;
   color: var(--color-text-primary);
   margin-bottom: 20px;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: var(--font-weight-semibold);
 }
 
@@ -93,7 +93,7 @@
 .form-group select:focus {
   outline: none;
   border-color: var(--color-info);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 2px rgba(92, 122, 104, 0.1);
 }
 
 .companies-list {
@@ -202,7 +202,7 @@
   display: flex;
   gap: 5px;
   font-size: 12px;
-  background: #e8f0fe;
+  background: #EAF0EC;
   padding: 4px 8px;
   border-radius: 3px;
   border-left: 2px solid var(--color-info);
@@ -233,7 +233,7 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #1D4ED8;
+  background-color: #4E6858;
 }
 
 .btn-primary:disabled {
