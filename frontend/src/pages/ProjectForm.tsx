@@ -286,24 +286,35 @@ export const ProjectForm: React.FC = () => {
                     >X</button>
                   </div>
                 ) : (
-                  <select
-                    value={form.country}
-                    onChange={e => {
-                      if (e.target.value === '__add_new__') {
-                        setIsAddingCountry(true);
-                        setNewCountryInput('');
-                      } else {
-                        handleChange('country', e.target.value);
-                      }
-                    }}
-                  >
-                    <option value="">Select country...</option>
-                    {existingCountries.map(c => <option key={c} value={c}>{c}</option>)}
-                    {form.country && !existingCountries.includes(form.country) && (
-                      <option value={form.country}>{form.country}</option>
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <select
+                      value={form.country}
+                      onChange={e => {
+                        if (e.target.value === '__add_new__') {
+                          setIsAddingCountry(true);
+                          setNewCountryInput('');
+                        } else {
+                          handleChange('country', e.target.value);
+                        }
+                      }}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Select country...</option>
+                      {existingCountries.map(c => <option key={c} value={c}>{c}</option>)}
+                      {form.country && !existingCountries.includes(form.country) && (
+                        <option value={form.country}>{form.country}</option>
+                      )}
+                      <option value="__add_new__">+ Add new country...</option>
+                    </select>
+                    {form.country && (
+                      <button
+                        type="button"
+                        onClick={() => handleChange('country', '')}
+                        style={{ padding: '0.45rem 0.6rem', borderRadius: 8, border: '1px solid #d5d0c8', background: 'white', cursor: 'pointer', fontSize: '0.8rem', color: '#c62828', flexShrink: 0 }}
+                        title="Clear country"
+                      >X</button>
                     )}
-                    <option value="__add_new__">+ Add new country...</option>
-                  </select>
+                  </div>
                 )}
               </div>
             </div>
