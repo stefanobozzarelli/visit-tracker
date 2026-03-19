@@ -42,23 +42,26 @@ interface ChatMessage {
   content: string;
 }
 
+const canAccessRevenue = (user: any) =>
+  user?.role === 'master_admin' || (user?.role === 'admin' && user?.can_view_revenue);
+
 export const Revenue: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('invoices');
 
   useEffect(() => {
-    if (user && user.role !== 'admin') navigate('/dashboard');
+    if (user && !canAccessRevenue(user)) navigate('/dashboard');
   }, [user, navigate]);
 
-  if (!user || user.role !== 'admin') return null;
+  if (!user || !canAccessRevenue(user)) return null;
 
   return (
     <div className="revenue-page">
       <div className="revenue-header">
         <div>
-          <h1 className="revenue-title">Revenue</h1>
-          <p className="revenue-subtitle">Manage invoices, analyze revenue, and get AI-powered insights</p>
+          <h1 className="revenue-title">Fatturato</h1>
+          <p className="revenue-subtitle">Gestisci fatture, analizza il fatturato e ottieni analisi AI</p>
         </div>
       </div>
 
@@ -69,7 +72,7 @@ export const Revenue: React.FC = () => {
             className={`revenue-tab ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
-            {tab === 'invoices' ? 'Invoices' : tab === 'statistics' ? 'Statistics' : 'AI Assistant'}
+            {tab === 'invoices' ? 'Fatture' : tab === 'statistics' ? 'Statistiche' : 'Assistente AI'}
           </button>
         ))}
       </div>
@@ -115,7 +118,7 @@ const InvoicesTab: React.FC = () => {
       setCompanies(compRes.data || []);
       setClients(cliRes.data || []);
     } catch (err) {
-      console.error('Error loading invoices:', err);
+      console.error('Errore caricamento fatture:', err);
     }
     setLoading(false);
   }, [filterCompany, filterClient, filterStatus]);
@@ -141,18 +144,18 @@ const InvoicesTab: React.FC = () => {
       const res = await apiService.getInvoice(id);
       setExpandedInvoice(res.data);
     } catch (err) {
-      console.error('Error loading invoice detail:', err);
+      console.error('Errore caricamento dettaglio fattura:', err);
     }
   };
 
   const handleUpload = async (files: FileList) => {
-    if (!uploadCompanyId) { alert('Please select a company first'); return; }
+    if (!uploadCompanyId) { alert('Seleziona prima un\'azienda'); return; }
     setUploading(true);
     for (const file of Array.from(files)) {
       try {
         await apiService.uploadInvoice(file, uploadCompanyId, uploadClientId || undefined);
       } catch (err) {
-        console.error('Upload error:', err);
+        console.error('Errore upload:', err);
       }
     }
     setUploading(false);
@@ -160,7 +163,7 @@ const InvoicesTab: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this invoice and all extracted data?')) return;
+    if (!window.confirm('Eliminare questa fattura e tutti i dati estratti?')) return;
     try {
       await apiService.deleteInvoice(id);
       await loadData();
@@ -191,10 +194,10 @@ const InvoicesTab: React.FC = () => {
 
   const statusConf = (s: string) => {
     switch (s) {
-      case 'processed': return { label: 'Processed', cls: 'status-processed' };
-      case 'processing': return { label: 'Processing...', cls: 'status-processing' };
-      case 'error': return { label: 'Error', cls: 'status-error' };
-      default: return { label: 'Pending', cls: 'status-pending' };
+      case 'processed': return { label: 'Elaborata', cls: 'status-processed' };
+      case 'processing': return { label: 'In elaborazione...', cls: 'status-processing' };
+      case 'error': return { label: 'Errore', cls: 'status-error' };
+      default: return { label: 'In attesa', cls: 'status-pending' };
     }
   };
 
@@ -202,15 +205,15 @@ const InvoicesTab: React.FC = () => {
     <div className="revenue-tab-content">
       {/* Upload Section */}
       <div className="revenue-card">
-        <h3 className="card-section-title">Upload Invoice</h3>
+        <h3 className="card-section-title">Carica Fattura</h3>
         <div className="upload-controls">
           <div className="upload-selectors">
             <select value={uploadCompanyId} onChange={e => setUploadCompanyId(e.target.value)}>
-              <option value="">Select Company *</option>
+              <option value="">Seleziona Azienda *</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select value={uploadClientId} onChange={e => setUploadClientId(e.target.value)}>
-              <option value="">Select Client (optional)</option>
+              <option value="">Seleziona Cliente (opzionale)</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -229,12 +232,12 @@ const InvoicesTab: React.FC = () => {
               onChange={e => { if (e.target.files?.length) handleUpload(e.target.files); e.target.value = ''; }}
             />
             {uploading ? (
-              <p className="upload-text">Uploading & processing...</p>
+              <p className="upload-text">Caricamento ed elaborazione in corso...</p>
             ) : (
               <>
                 <svg className="upload-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <p className="upload-text">Drag PDF invoices here or <label htmlFor="invoice-upload" className="upload-link">browse</label></p>
-                <p className="upload-hint">PDF files only. AI will extract line items automatically.</p>
+                <p className="upload-text">Trascina le fatture PDF qui o <label htmlFor="invoice-upload" className="upload-link">sfoglia</label></p>
+                <p className="upload-hint">Solo file PDF. L'AI estrarrà automaticamente le righe della fattura.</p>
               </>
             )}
           </div>
@@ -244,44 +247,44 @@ const InvoicesTab: React.FC = () => {
       {/* Filters */}
       <div className="revenue-filters">
         <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)}>
-          <option value="">All Companies</option>
+          <option value="">Tutte le Aziende</option>
           {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select value={filterClient} onChange={e => setFilterClient(e.target.value)}>
-          <option value="">All Clients</option>
+          <option value="">Tutti i Clienti</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-          <option value="">All Statuses</option>
-          <option value="processed">Processed</option>
-          <option value="processing">Processing</option>
-          <option value="error">Error</option>
-          <option value="pending">Pending</option>
+          <option value="">Tutti gli Stati</option>
+          <option value="processed">Elaborata</option>
+          <option value="processing">In elaborazione</option>
+          <option value="error">Errore</option>
+          <option value="pending">In attesa</option>
         </select>
       </div>
 
       {/* Invoice List */}
       <div className="revenue-card">
-        <div className="invoice-count">{invoices.length} invoice{invoices.length !== 1 ? 's' : ''}</div>
+        <div className="invoice-count">{invoices.length} fattur{invoices.length === 1 ? 'a' : 'e'}</div>
 
         {loading && invoices.length === 0 ? (
-          <div className="revenue-empty">Loading invoices...</div>
+          <div className="revenue-empty">Caricamento fatture...</div>
         ) : invoices.length === 0 ? (
           <div className="revenue-empty">
-            <p>No invoices found</p>
-            <p className="empty-hint">Upload a PDF invoice to get started</p>
+            <p>Nessuna fattura trovata</p>
+            <p className="empty-hint">Carica una fattura PDF per iniziare</p>
           </div>
         ) : (
           <table className="revenue-table">
             <thead>
               <tr>
-                <th>INVOICE</th>
-                <th>COMPANY</th>
-                <th>CLIENT</th>
-                <th>DATE</th>
-                <th>TOTAL</th>
-                <th>STATUS</th>
-                <th>ACTIONS</th>
+                <th>FATTURA</th>
+                <th>AZIENDA</th>
+                <th>CLIENTE</th>
+                <th>DATA</th>
+                <th>TOTALE</th>
+                <th>STATO</th>
+                <th>AZIONI</th>
               </tr>
             </thead>
             <tbody>
@@ -292,7 +295,7 @@ const InvoicesTab: React.FC = () => {
                   <React.Fragment key={inv.id}>
                     <tr className={`invoice-row ${isExpanded ? 'expanded' : ''}`} onClick={() => handleExpand(inv.id)}>
                       <td>
-                        <div className="invoice-cell-primary">{inv.invoice_number || 'N/A'}</div>
+                        <div className="invoice-cell-primary">{inv.invoice_number || 'N/D'}</div>
                         <div className="invoice-cell-secondary">{inv.original_filename}</div>
                       </td>
                       <td>{inv.company?.name || '–'}</td>
@@ -301,15 +304,15 @@ const InvoicesTab: React.FC = () => {
                       <td className="invoice-amount">{formatCurrency(inv.total_amount)}</td>
                       <td><span className={`invoice-status ${sc.cls}`}>{sc.label}</span></td>
                       <td className="invoice-actions" onClick={e => e.stopPropagation()}>
-                        <button className="btn-icon" title="Download PDF" onClick={() => handleDownload(inv.id)}>
+                        <button className="btn-icon" title="Scarica PDF" onClick={() => handleDownload(inv.id)}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         </button>
-                        {inv.status === 'error' && (
-                          <button className="btn-icon" title="Reprocess" onClick={() => handleReprocess(inv.id)}>
+                        {(inv.status === 'error' || inv.status === 'pending') && (
+                          <button className="btn-icon" title="Rielabora" onClick={() => handleReprocess(inv.id)}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                           </button>
                         )}
-                        <button className="btn-icon btn-icon-danger" title="Delete" onClick={() => handleDelete(inv.id)}>
+                        <button className="btn-icon btn-icon-danger" title="Elimina" onClick={() => handleDelete(inv.id)}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                       </td>
@@ -341,16 +344,16 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem }> = ({ invoice }) => {
     <div className="invoice-detail">
       {invoice.error_message && (
         <div className="invoice-error-msg">
-          <strong>Error:</strong> {invoice.error_message}
+          <strong>Errore:</strong> {invoice.error_message}
         </div>
       )}
 
       <div className="invoice-detail-header">
         <div className="detail-meta">
-          <span>Invoice #{invoice.invoice_number || 'N/A'}</span>
-          <span>Company: <strong>{invoice.company?.name || '–'}</strong></span>
-          <span>Client: <strong>{invoice.client?.name || '–'}</strong></span>
-          <span>Uploaded by: {invoice.uploaded_by_user?.name || '–'}</span>
+          <span>Fattura #{invoice.invoice_number || 'N/D'}</span>
+          <span>Azienda: <strong>{invoice.company?.name || '–'}</strong></span>
+          <span>Cliente: <strong>{invoice.client?.name || '–'}</strong></span>
+          <span>Caricata da: {invoice.uploaded_by_user?.name || '–'}</span>
         </div>
       </div>
 
@@ -359,13 +362,13 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem }> = ({ invoice }) => {
           <thead>
             <tr>
               <th>#</th>
-              <th>ARTICLE</th>
-              <th>DESCRIPTION</th>
-              <th>QTY</th>
-              <th>UNIT</th>
-              <th>PRICE</th>
-              <th>DISCOUNT</th>
-              <th>TOTAL</th>
+              <th>ARTICOLO</th>
+              <th>DESCRIZIONE</th>
+              <th>QTÀ</th>
+              <th>UNITÀ</th>
+              <th>PREZZO</th>
+              <th>SCONTO</th>
+              <th>TOTALE</th>
             </tr>
           </thead>
           <tbody>
@@ -384,13 +387,13 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem }> = ({ invoice }) => {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={7} className="total-label">Total</td>
+              <td colSpan={7} className="total-label">Totale</td>
               <td className="num total-value">{formatCurrency(invoice.total_amount)}</td>
             </tr>
           </tfoot>
         </table>
       ) : (
-        <p className="no-items">No line items extracted yet.</p>
+        <p className="no-items">Nessuna riga estratta.</p>
       )}
     </div>
   );
@@ -432,52 +435,52 @@ const StatisticsTab: React.FC = () => {
   const formatNum = (n: number) =>
     new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(Number(n) || 0);
 
-  if (loading) return <div className="revenue-tab-content"><div className="revenue-empty">Loading statistics...</div></div>;
-  if (!stats) return <div className="revenue-tab-content"><div className="revenue-empty">No data available</div></div>;
+  if (loading) return <div className="revenue-tab-content"><div className="revenue-empty">Caricamento statistiche...</div></div>;
+  if (!stats) return <div className="revenue-tab-content"><div className="revenue-empty">Nessun dato disponibile</div></div>;
 
   return (
     <div className="revenue-tab-content">
       {/* Filters */}
       <div className="revenue-filters">
         <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)}>
-          <option value="">All Companies</option>
+          <option value="">Tutte le Aziende</option>
           {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} placeholder="Start date" />
-        <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} placeholder="End date" />
+        <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} placeholder="Data inizio" />
+        <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} placeholder="Data fine" />
       </div>
 
       {/* Summary KPI */}
       <div className="stats-kpi-row">
         <div className="stats-kpi-card">
           <div className="stats-kpi-value">{formatCurrency(stats.grand_total)}</div>
-          <div className="stats-kpi-label">TOTAL REVENUE</div>
+          <div className="stats-kpi-label">FATTURATO TOTALE</div>
         </div>
         <div className="stats-kpi-card">
           <div className="stats-kpi-value">{stats.invoice_count}</div>
-          <div className="stats-kpi-label">INVOICES</div>
+          <div className="stats-kpi-label">FATTURE</div>
         </div>
         <div className="stats-kpi-card">
           <div className="stats-kpi-value">
             {formatNum(stats.unit_totals?.find((u: any) => u.unit === 'm2')?.total_quantity || 0)} m²
           </div>
-          <div className="stats-kpi-label">TOTAL M²</div>
+          <div className="stats-kpi-label">TOTALE M²</div>
         </div>
         <div className="stats-kpi-card">
           <div className="stats-kpi-value">
             {stats.invoice_count > 0 ? formatCurrency(stats.grand_total / stats.invoice_count) : '–'}
           </div>
-          <div className="stats-kpi-label">AVG INVOICE</div>
+          <div className="stats-kpi-label">MEDIA FATTURA</div>
         </div>
       </div>
 
       {/* Revenue by Company */}
       {stats.revenue_by_company?.length > 0 && (
         <div className="revenue-card">
-          <h3 className="card-section-title">Revenue by Company</h3>
+          <h3 className="card-section-title">Fatturato per Azienda</h3>
           <table className="revenue-table stats-table">
             <thead>
-              <tr><th>COMPANY</th><th>INVOICES</th><th className="num">REVENUE</th></tr>
+              <tr><th>AZIENDA</th><th>FATTURE</th><th className="num">FATTURATO</th></tr>
             </thead>
             <tbody>
               {stats.revenue_by_company.map((r: any) => (
@@ -495,10 +498,10 @@ const StatisticsTab: React.FC = () => {
       {/* Revenue by Client */}
       {stats.revenue_by_client?.length > 0 && (
         <div className="revenue-card">
-          <h3 className="card-section-title">Revenue by Client</h3>
+          <h3 className="card-section-title">Fatturato per Cliente</h3>
           <table className="revenue-table stats-table">
             <thead>
-              <tr><th>CLIENT</th><th>INVOICES</th><th className="num">REVENUE</th></tr>
+              <tr><th>CLIENTE</th><th>FATTURE</th><th className="num">FATTURATO</th></tr>
             </thead>
             <tbody>
               {stats.revenue_by_client.map((r: any) => (
@@ -516,10 +519,10 @@ const StatisticsTab: React.FC = () => {
       {/* Revenue by Month */}
       {stats.revenue_by_month?.length > 0 && (
         <div className="revenue-card">
-          <h3 className="card-section-title">Revenue by Month</h3>
+          <h3 className="card-section-title">Fatturato per Mese</h3>
           <table className="revenue-table stats-table">
             <thead>
-              <tr><th>MONTH</th><th>INVOICES</th><th className="num">REVENUE</th></tr>
+              <tr><th>MESE</th><th>FATTURE</th><th className="num">FATTURATO</th></tr>
             </thead>
             <tbody>
               {stats.revenue_by_month.map((r: any) => (
@@ -537,10 +540,10 @@ const StatisticsTab: React.FC = () => {
       {/* Top Articles */}
       {stats.top_articles?.length > 0 && (
         <div className="revenue-card">
-          <h3 className="card-section-title">Top Articles</h3>
+          <h3 className="card-section-title">Articoli Principali</h3>
           <table className="revenue-table stats-table">
             <thead>
-              <tr><th>ARTICLE</th><th>DESCRIPTION</th><th>UNIT</th><th className="num">QTY</th><th className="num">AVG PRICE</th><th className="num">REVENUE</th></tr>
+              <tr><th>ARTICOLO</th><th>DESCRIZIONE</th><th>UNITÀ</th><th className="num">QTÀ</th><th className="num">PREZZO MEDIO</th><th className="num">FATTURATO</th></tr>
             </thead>
             <tbody>
               {stats.top_articles.map((a: any, idx: number) => (
@@ -561,10 +564,10 @@ const StatisticsTab: React.FC = () => {
       {/* Unit Totals */}
       {stats.unit_totals?.length > 0 && (
         <div className="revenue-card">
-          <h3 className="card-section-title">Totals by Unit</h3>
+          <h3 className="card-section-title">Totali per Unità</h3>
           <table className="revenue-table stats-table">
             <thead>
-              <tr><th>UNIT</th><th className="num">TOTAL QTY</th><th className="num">TOTAL REVENUE</th></tr>
+              <tr><th>UNITÀ</th><th className="num">QTÀ TOTALE</th><th className="num">FATTURATO TOTALE</th></tr>
             </thead>
             <tbody>
               {stats.unit_totals.map((u: any) => (
@@ -609,9 +612,9 @@ const AssistantTab: React.FC = () => {
 
     try {
       const res = await apiService.askInvoiceQuestion(q);
-      setMessages(prev => [...prev, { role: 'assistant', content: res.data?.answer || 'No response.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: res.data?.answer || 'Nessuna risposta.' }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Error processing request. Please try again.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Errore nell\'elaborazione. Riprova.' }]);
     }
     setLoading(false);
   };
@@ -624,8 +627,8 @@ const AssistantTab: React.FC = () => {
             <div className="welcome-icon">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-info)" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             </div>
-            <h3>AI Revenue Assistant</h3>
-            <p>Ask questions about your invoice data in natural language</p>
+            <h3>Assistente AI Fatturato</h3>
+            <p>Fai domande sui dati delle fatture in linguaggio naturale</p>
             <div className="example-prompts">
               {examplePrompts.map((p, i) => (
                 <button key={i} className="example-chip" onClick={() => handleSend(p)}>{p}</button>
@@ -648,7 +651,7 @@ const AssistantTab: React.FC = () => {
         {loading && (
           <div className="chat-message assistant">
             <div className="message-avatar">AI</div>
-            <div className="message-content loading-dots">Analyzing...</div>
+            <div className="message-content loading-dots">Analisi in corso...</div>
           </div>
         )}
       </div>
@@ -659,7 +662,7 @@ const AssistantTab: React.FC = () => {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-          placeholder="Ask a question about your revenue data..."
+          placeholder="Fai una domanda sui dati di fatturato..."
           disabled={loading}
         />
         <button onClick={() => handleSend()} disabled={loading || !input.trim()} className="send-btn">

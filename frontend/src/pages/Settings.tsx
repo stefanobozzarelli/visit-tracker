@@ -13,6 +13,7 @@ interface UserItem {
   role: string;
   company_id?: string;
   created_at: string;
+  can_view_revenue?: boolean;
 }
 
 interface ClientItem {
@@ -53,8 +54,10 @@ export const Settings: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<Tab>('users');
 
+  const isMasterAdmin = user?.role === 'master_admin';
+
   useEffect(() => {
-    if (user && user.role !== 'admin' && user.role !== 'manager') {
+    if (user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'master_admin') {
       navigate('/dashboard');
     }
   }, [user, navigate]);
@@ -96,7 +99,7 @@ export const Settings: React.FC = () => {
       </div>
 
       <div className="settings-content">
-        {activeTab === 'users' && <UsersTab />}
+        {activeTab === 'users' && <UsersTab isMasterAdmin={!!isMasterAdmin} />}
         {activeTab === 'companies' && <CompanyAccessTab />}
         {activeTab === 'clients' && <ClientPermissionsTab />}
       </div>
@@ -105,7 +108,7 @@ export const Settings: React.FC = () => {
 };
 
 // ─── Users Tab ────────────────────────────────────────
-const UsersTab: React.FC = () => {
+const UsersTab: React.FC<{ isMasterAdmin: boolean }> = ({ isMasterAdmin }) => {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -202,6 +205,13 @@ const UsersTab: React.FC = () => {
     } catch (err) { setError((err as Error).message || 'Error resetting password'); }
   };
 
+  const handleToggleRevenue = async (userId: string, currentValue: boolean) => {
+    try {
+      await apiService.toggleRevenueAccess(userId, !currentValue);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, can_view_revenue: !currentValue } : u));
+    } catch (err) { console.error(err); }
+  };
+
   const resetForm = () => {
     setEditingUserId(null);
     setFormData({ name: '', email: '', password: '', role: 'sales_rep' });
@@ -289,13 +299,27 @@ const UsersTab: React.FC = () => {
 
           {loading ? <p className="settings-loading">Loading users...</p> : filteredUsers.length === 0 ? <p className="settings-empty">No users found</p> : (
             <table className="settings-table">
-              <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Email</th><th>Name</th><th>Role</th>{isMasterAdmin && <th>Fatturato</th>}<th>Actions</th></tr></thead>
               <tbody>
                 {filteredUsers.map(u => (
                   <tr key={u.id}>
                     <td>{u.email}</td>
                     <td>{u.name}</td>
-                    <td><span className={`role-badge role-${u.role}`}>{u.role}</span></td>
+                    <td><span className={`role-badge role-${u.role}`}>{u.role === 'master_admin' ? 'Master Admin' : u.role}</span></td>
+                    {isMasterAdmin && (
+                      <td>
+                        {u.role === 'master_admin' ? (
+                          <span className="revenue-access-badge active">Sempre</span>
+                        ) : u.role === 'admin' ? (
+                          <label className="toggle-switch">
+                            <input type="checkbox" checked={!!u.can_view_revenue} onChange={() => handleToggleRevenue(u.id, !!u.can_view_revenue)} />
+                            <span className="toggle-slider" />
+                          </label>
+                        ) : (
+                          <span className="revenue-access-badge">–</span>
+                        )}
+                      </td>
+                    )}
                     <td className="settings-actions">
                       <button className="btn btn-small btn-info-outline" onClick={() => handleEdit(u)}>Edit</button>
                       <button className="btn btn-small btn-danger-outline" onClick={() => setDeleteConfirm({ userId: u.id, email: u.email })}>Delete</button>

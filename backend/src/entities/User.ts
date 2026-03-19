@@ -17,8 +17,11 @@ export class User {
   @Column()
   password_hash: string;
 
-  @Column({ type: 'enum', enum: ['admin', 'manager', 'sales_rep'], default: 'sales_rep' })
+  @Column({ type: 'enum', enum: ['master_admin', 'admin', 'manager', 'sales_rep'], default: 'sales_rep' })
   role: string;
+
+  @Column({ default: false })
+  can_view_revenue: boolean;
 
   @Column({ nullable: true })
   company_id: string;

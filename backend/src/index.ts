@@ -39,8 +39,33 @@ app.get('/health', (req, res) => {
 
 // Initialize database and start server
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     console.log('Database connection established');
+
+    // Ensure master_admin enum value and can_view_revenue column exist
+    try {
+      const qr = AppDataSource.createQueryRunner();
+      // Add master_admin to role enum if not exists
+      await qr.query(`
+        DO $$ BEGIN
+          ALTER TYPE users_role_enum ADD VALUE IF NOT EXISTS 'master_admin' BEFORE 'admin';
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+      `).catch(() => {});
+      // Ensure can_view_revenue column exists
+      await qr.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_revenue BOOLEAN DEFAULT false;
+      `).catch(() => {});
+      // Set Stefano as master_admin (one-time, safe to re-run)
+      await qr.query(`
+        UPDATE users SET role = 'master_admin' WHERE email = 'stefanobozzarelli@gmail.com' AND role != 'master_admin';
+      `).catch(() => {});
+      await qr.release();
+      console.log('Database schema updates applied');
+    } catch (e) {
+      console.log('Schema update note:', (e as Error).message);
+    }
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

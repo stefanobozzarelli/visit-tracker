@@ -7,9 +7,14 @@ const router = Router();
 const invoiceService = new InvoiceService();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// All routes require auth + admin role
+// All routes require auth + revenue access (master_admin or admin with can_view_revenue)
 router.use(authMiddleware);
-router.use(roleMiddleware(['admin']));
+router.use((req: Request, res: Response, next) => {
+  const user = req.user as any;
+  if (user?.role === 'master_admin') return next();
+  if (user?.role === 'admin' && user?.can_view_revenue) return next();
+  return res.status(403).json({ success: false, error: 'Revenue access not authorized' });
+});
 
 // Upload invoice PDF
 router.post('/', upload.single('file'), async (req: Request, res: Response) => {

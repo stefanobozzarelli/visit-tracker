@@ -578,3 +578,50 @@
     max-width: none;
   }
 }
+
+/* Toggle Switch for Revenue Access */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  cursor: pointer;
+}
+.toggle-switch input { display: none; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--color-border);
+  border-radius: 24px;
+  transition: 0.2s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--color-accent);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+.revenue-access-badge {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.revenue-access-badge.active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.role-badge.role-master_admin {
+  background: rgba(92, 122, 104, 0.12);
+  color: #3a5a44;
+  font-weight: 600;
+}

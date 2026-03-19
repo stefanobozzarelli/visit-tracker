@@ -7,12 +7,24 @@ const router = Router();
 const permissionService = new PermissionService();
 const userService = new UserService();
 
-// Middleware: solo admin
+// Middleware: solo admin (include master_admin)
 function adminOnly(req: Request, res: Response, next: Function) {
-  if ((req.user as any)?.role !== 'admin') {
+  const role = (req.user as any)?.role;
+  if (role !== 'admin' && role !== 'master_admin') {
     return res.status(403).json({
       success: false,
       error: 'Access reserved for administrators',
+    });
+  }
+  next();
+}
+
+// Middleware: solo master_admin
+function masterAdminOnly(req: Request, res: Response, next: Function) {
+  if ((req.user as any)?.role !== 'master_admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Access reserved for master admin',
     });
   }
   next();
@@ -302,6 +314,21 @@ router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, 
       success: false,
       error: (error as Error).message,
     });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:userId/revenue-access
+ * Master admin only: toggle can_view_revenue for a user
+ */
+router.put('/users/:userId/revenue-access', authMiddleware, masterAdminOnly, async (req: Request, res: Response) => {
+  try {
+    const { can_view_revenue } = req.body;
+    const userRepo = (await import('typeorm')).getRepository((await import('../entities/User')).User);
+    await userRepo.update(req.params.userId, { can_view_revenue: !!can_view_revenue });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 

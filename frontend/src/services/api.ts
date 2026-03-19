@@ -749,6 +749,11 @@ class ApiService {
     return response.data;
   }
 
+  async toggleRevenueAccess(userId: string, canViewRevenue: boolean) {
+    const response = await this.api.put<ApiResponse<any>>(`/admin/users/${userId}/revenue-access`, { can_view_revenue: canViewRevenue });
+    return response.data;
+  }
+
   async deleteUser(id: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/admin/users/${id}`);
     return response.data;
