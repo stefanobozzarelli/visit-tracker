@@ -68,8 +68,8 @@ router.get('/', async (req: Request, res: Response) => {
 
     let allClients = await clientService.getClients();
 
-    // Filtra clienti per sales_rep, admin/manager vede tutti
-    if (userRole !== 'admin' && userRole !== 'manager') {
+    // Filtra clienti per sales_rep, master_admin/admin/manager vede tutti
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
       const visibleClientIds = await permissionService.getVisibleClients(userId);
 
       // If no access to '*' (all), filter for only assigned clients

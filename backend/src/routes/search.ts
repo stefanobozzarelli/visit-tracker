@@ -53,7 +53,7 @@ router.post('/todos', async (req: Request, res: Response) => {
     }
 
     // Admin can search all TODOs, other users only their own
-    const userId = req.user!.role === 'admin' ? undefined : req.user!.id;
+    const userId = (req.user!.role === 'admin' || req.user!.role === 'master_admin') ? undefined : req.user!.id;
     const todos = await searchService.searchTodos(query, userId);
 
     const response: ApiResponse<any> = {

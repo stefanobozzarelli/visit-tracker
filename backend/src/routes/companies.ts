@@ -29,7 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
     let allCompanies = await companyService.getCompanies();
 
     // Filter companies for sales_rep, admin/manager sees all
-    if (userRole !== 'admin' && userRole !== 'manager') {
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
       // For sales_rep, we need to filter companies for assigned clients
       const visibleClientIds = await permissionService.getVisibleClients(userId);
 

@@ -50,7 +50,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userRole = (req.user as any).role;
-    if (userRole !== 'admin' && userRole !== 'manager') {
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
       return res.status(403).json({
         success: false,
         error: 'Only admin/manager can view all todos',
@@ -130,7 +130,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     // Permission check: only assigned user or admin can view
     const userId = (req.user as any).id;
     const userRole = (req.user as any).role;
-    if (userRole !== 'admin' && userRole !== 'manager' && todo.assigned_to_user_id !== userId) {
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager' && todo.assigned_to_user_id !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Unauthorized to view this todo',
@@ -219,7 +219,7 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
     // Permission check: only creator or admin can delete
     const userId = (req.user as any).id;
     const userRole = (req.user as any).role;
-    if (userRole !== 'admin' && userRole !== 'manager' && todo.created_by_user_id !== userId) {
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager' && todo.created_by_user_id !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Unauthorized to delete this todo',
