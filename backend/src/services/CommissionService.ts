@@ -376,12 +376,12 @@ export class CommissionService {
 
   async getCommissionStats(filters?: { company_id?: string; company_ids?: string[]; country?: string; start_date?: string; end_date?: string; status?: string }): Promise<any> {
     const applyFilters = (qb: any, invAlias = 'inv') => {
-      if (filters?.company_id) qb.andWhere(`${invAlias}.company_id = :cid`, { cid: filters.company_id });
-      if (filters?.company_ids?.length) qb.andWhere(`${invAlias}.company_id IN (:...cids)`, { cids: filters.company_ids });
-      if (filters?.country) qb.andWhere('cl.country = :country', { country: filters.country });
-      if (filters?.start_date) qb.andWhere(`${invAlias}.invoice_date >= :sd`, { sd: filters.start_date });
-      if (filters?.end_date) qb.andWhere(`${invAlias}.invoice_date <= :ed`, { ed: filters.end_date });
-      if (filters?.status) qb.andWhere('ic.commission_status = :fstatus', { fstatus: filters.status });
+      if (filters?.company_id && filters.company_id !== 'undefined') qb.andWhere(`${invAlias}.company_id = :cid`, { cid: filters.company_id });
+      if (filters?.company_ids && filters.company_ids.length > 0) qb.andWhere(`${invAlias}.company_id IN (:...cids)`, { cids: filters.company_ids });
+      if (filters?.country && filters.country !== 'undefined') qb.andWhere('cl.country = :country', { country: filters.country });
+      if (filters?.start_date && filters.start_date !== 'undefined') qb.andWhere(`${invAlias}.invoice_date >= :sd`, { sd: filters.start_date });
+      if (filters?.end_date && filters.end_date !== 'undefined') qb.andWhere(`${invAlias}.invoice_date <= :ed`, { ed: filters.end_date });
+      if (filters?.status && filters.status !== 'undefined') qb.andWhere('ic.commission_status = :fstatus', { fstatus: filters.status });
     };
 
     // Totals
@@ -435,7 +435,7 @@ export class CommissionService {
       .where('inv.status = :s', { s: 'processed' });
     applyFilters(countryQ);
     const byCountry = await countryQ
-      .select('COALESCE(cl.country, \'N/D\')', 'country')
+      .select("COALESCE(cl.country, 'N/D')", 'country')
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(ic.gross_commission)', 'total_gross')
       .addSelect('SUM(ic.net_commission)', 'total_net')
