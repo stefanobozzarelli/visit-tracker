@@ -5,6 +5,7 @@ import { SubAgentCommissionRate } from '../entities/SubAgentCommissionRate';
 import { InvoiceCommission } from '../entities/InvoiceCommission';
 import { InvoiceSubAgentCommission } from '../entities/InvoiceSubAgentCommission';
 import { Invoice } from '../entities/Invoice';
+import { SubAgentExpense } from '../entities/SubAgentExpense';
 
 export class CommissionService {
   private rateRepo = AppDataSource.getRepository(CommissionRate);
@@ -626,7 +627,7 @@ export class CommissionService {
     };
 
     // Fetch all sub-agent expenses within the date range
-    const expenseQb = AppDataSource.getRepository('sub_agent_expense')
+    const expenseQb = AppDataSource.getRepository(SubAgentExpense)
       .createQueryBuilder('se');
 
     if (filters?.start_date && filters.start_date !== 'undefined') expenseQb.andWhere('se.expense_date >= :sd', { sd: filters.start_date });
