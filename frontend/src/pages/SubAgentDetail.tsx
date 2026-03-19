@@ -21,6 +21,9 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [showPaidSub, setShowPaidSub] = useState(false);
 
   // Expense form
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -63,6 +66,36 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
 
   const totalExpenses = useMemo(() =>
     expenses.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0), [expenses]);
+
+  // Saldo totale = provvigioni + spese (both owed to sub-agent)
+  const saldoTotale = useMemo(() =>
+    (totals.total_amount || 0) + totalExpenses, [totals.total_amount, totalExpenses]);
+
+  // Filter commissions
+  const filteredCommissions = useMemo(() => {
+    let list = commissions;
+    // Hide pagati_subagenti by default
+    if (!showPaidSub) {
+      list = list.filter((sac: any) => sac.invoice_commission?.commission_status !== 'pagati_subagenti');
+    }
+    // Status filter
+    if (filterStatus) {
+      list = list.filter((sac: any) => sac.invoice_commission?.commission_status === filterStatus);
+    }
+    // Search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((sac: any) => {
+        const inv = sac.invoice_commission?.invoice;
+        return (
+          (inv?.invoice_number || '').toLowerCase().includes(q) ||
+          (inv?.company?.name || '').toLowerCase().includes(q) ||
+          (inv?.client?.name || '').toLowerCase().includes(q)
+        );
+      });
+    }
+    return list;
+  }, [commissions, showPaidSub, filterStatus, searchQuery]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,8 +145,8 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
           <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#8C877C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Totale Spese</div>
         </div>
         <div className="admin-card" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#5F8A63' }}>{fmtCur((totals.total_amount || 0) - totalExpenses)}</div>
-          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#8C877C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Saldo Netto</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#4A6078' }}>{fmtCur(saldoTotale)}</div>
+          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#8C877C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Saldo Totale</div>
         </div>
       </div>
 
@@ -128,6 +161,30 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
             Cancella filtro
           </button>
         )}
+      </div>
+
+      {/* Search + filters */}
+      <div className="admin-card" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Cerca fattura, azienda, cliente..."
+          style={{ flex: '1 1 200px', padding: '0.5rem', border: '1px solid #E7E2D8', borderRadius: '6px' }}
+        />
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          style={{ padding: '0.5rem', border: '1px solid #E7E2D8', borderRadius: '6px' }}>
+          <option value="">Tutti gli stati</option>
+          <option value="aggiunta">Aggiunta</option>
+          <option value="controllata">Controllata</option>
+          <option value="fatturata">Fatturata</option>
+          <option value="pagata">Pagata</option>
+          <option value="pagati_subagenti">Pagati Subagenti</option>
+        </select>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9375rem', color: '#666258' }}>
+          <input type="checkbox" checked={showPaidSub} onChange={e => setShowPaidSub(e.target.checked)} />
+          Mostra pagati subagenti
+        </label>
       </div>
 
       {/* Status breakdown */}
@@ -153,10 +210,10 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
 
       {/* Commissions table */}
       <div className="admin-card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '1.125rem', fontWeight: 600 }}>Provvigioni ({commissions.length})</h3>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '1.125rem', fontWeight: 600 }}>Provvigioni ({filteredCommissions.length}{!showPaidSub && commissions.length !== filteredCommissions.length ? ` / ${commissions.length}` : ''})</h3>
         {loading ? (
           <p style={{ color: '#8C877C' }}>Caricamento...</p>
-        ) : commissions.length === 0 ? (
+        ) : filteredCommissions.length === 0 ? (
           <p style={{ color: '#8C877C' }}>Nessuna provvigione trovata per questo periodo.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -174,7 +231,7 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
                 </tr>
               </thead>
               <tbody>
-                {commissions.map((sac: any) => {
+                {filteredCommissions.map((sac: any) => {
                   const inv = sac.invoice_commission?.invoice;
                   const status = sac.invoice_commission?.commission_status || 'aggiunta';
                   return (

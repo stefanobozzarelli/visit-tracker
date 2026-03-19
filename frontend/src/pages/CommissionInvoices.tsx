@@ -48,6 +48,7 @@ export const CommissionInvoices: React.FC = () => {
   const [savingOverride, setSavingOverride] = useState(false);
 
   const [recalculating, setRecalculating] = useState(false);
+  const [showPaidSub, setShowPaidSub] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -149,6 +150,10 @@ export const CommissionInvoices: React.FC = () => {
     setRecalculating(false);
   };
 
+  const filteredCommissions = showPaidSub
+    ? commissions
+    : commissions.filter(c => c.commission_status !== 'pagati_subagenti');
+
   return (
     <div className="admin-tab-content">
       {/* Filters */}
@@ -169,8 +174,15 @@ export const CommissionInvoices: React.FC = () => {
         <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9375rem', color: '#666258' }}>
+          <input type="checkbox" checked={showPaidSub} onChange={e => setShowPaidSub(e.target.checked)} />
+          Mostra pagati subagenti
+        </label>
+      </div>
+
       <div className="admin-action-row">
-        <span className="admin-count">{commissions.length} provvigion{commissions.length === 1 ? 'e' : 'i'}</span>
+        <span className="admin-count">{filteredCommissions.length} provvigion{filteredCommissions.length === 1 ? 'e' : 'i'}{!showPaidSub && commissions.length !== filteredCommissions.length ? ` (${commissions.length - filteredCommissions.length} nascosti)` : ''}</span>
         <button
           className="admin-btn admin-btn-secondary"
           onClick={handleRecalculateAll}
@@ -183,7 +195,7 @@ export const CommissionInvoices: React.FC = () => {
       {/* Table */}
       {loading ? (
         <div className="admin-empty">Caricamento provvigioni...</div>
-      ) : commissions.length === 0 ? (
+      ) : filteredCommissions.length === 0 ? (
         <div className="admin-empty">Nessuna provvigione trovata</div>
       ) : (
         <div className="admin-card">
@@ -203,7 +215,7 @@ export const CommissionInvoices: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {commissions.map(comm => {
+              {filteredCommissions.map(comm => {
                 const inv = comm.invoice || {};
                 const isExpanded = expandedId === comm.invoice_id;
                 return (

@@ -311,6 +311,10 @@ export class CommissionService {
     if (data.manual_amount !== undefined) {
       commission.manual_override = true;
       commission.manual_amount = data.manual_amount;
+      commission.gross_commission = data.manual_amount;
+      // Recalculate % as manual_amount / invoice_total * 100
+      const invTotal = Number(invoice.total_amount) || 1;
+      commission.commission_rate_percent = Math.round((data.manual_amount / invTotal) * 10000) / 100;
       newGross = data.manual_amount;
     } else if (data.rate_percent !== undefined) {
       commission.commission_rate_percent = data.rate_percent;
