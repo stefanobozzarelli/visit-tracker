@@ -199,3 +199,35 @@ export interface InvoiceSubAgentCommissionItem {
   amount: number;
   sub_agent?: SubAgentItem;
 }
+
+export interface Project {
+  id: string;
+  project_number: number;
+  supplier_id?: string;
+  client_id?: string;
+  country?: string;
+  registration_date?: string;
+  project_name?: string;
+  status: 'ATTIVO' | 'COMPLETATO' | 'SOSPESO' | 'CANCELLATO';
+  project_development?: string;
+  project_registration?: string;
+  project_address?: string;
+  project_type?: string;
+  detail_of_project_type?: string;
+  designated_area?: string;
+  architect_designer?: string;
+  developer?: string;
+  contractor?: string;
+  item?: string;
+  quantity?: string;
+  note?: string;
+  estimated_order_date?: string;
+  estimated_delivery_date?: string;
+  estimated_arrival_date?: string;
+  project_value?: number;
+  total_value_shipped?: number;
+  created_at: string;
+  updated_at: string;
+  supplier?: Company;
+  client?: Client;
+}

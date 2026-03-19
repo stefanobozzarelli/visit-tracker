@@ -962,6 +962,43 @@ class ApiService {
     const response = await this.api.put<ApiResponse<any>>(`/invoices/${invoiceId}/total`, { total });
     return response.data;
   }
+
+  // Projects
+  async getProjects(filters?: any) {
+    const params = new URLSearchParams();
+    if (filters?.supplier_id) params.set('supplier_id', filters.supplier_id);
+    if (filters?.client_id) params.set('client_id', filters.client_id);
+    if (filters?.country) params.set('country', filters.country);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.project_type) params.set('project_type', filters.project_type);
+    if (filters?.search) params.set('search', filters.search);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.cachedGet<ApiResponse<any>>(`/projects${q}`);
+    return response.data;
+  }
+  async getProject(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/projects/${id}`);
+    return response.data;
+  }
+  async createProject(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/projects', data);
+    this.memoryCache.clear();
+    return response.data;
+  }
+  async updateProject(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/projects/${id}`, data);
+    this.memoryCache.clear();
+    return response.data;
+  }
+  async deleteProject(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/projects/${id}`);
+    this.memoryCache.clear();
+    return response.data;
+  }
+  async getProjectStats() {
+    const response = await this.cachedGet<ApiResponse<any>>('/projects/stats/summary');
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();
