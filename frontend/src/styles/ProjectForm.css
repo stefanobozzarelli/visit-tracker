@@ -1,0 +1,328 @@
+/* ===================== Project Form — Modern CRM Layout ===================== */
+
+/* Wrapper: centered container */
+.pf-wrapper {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ---- Loading ---- */
+.pf-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem 2rem;
+  color: #888;
+  font-size: 0.9rem;
+}
+.pf-loading-spinner {
+  width: 28px; height: 28px;
+  border: 3px solid #e5e1db;
+  border-top-color: #4A6078;
+  border-radius: 50%;
+  animation: pf-spin 0.7s linear infinite;
+}
+@keyframes pf-spin { to { transform: rotate(360deg); } }
+
+/* ---- Sticky page header ---- */
+.pf-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #f7f5f2;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid #e8e4de;
+}
+.pf-page-header-inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 0;
+  gap: 1rem;
+}
+.pf-page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+  margin: 0;
+}
+.pf-page-header p {
+  font-size: 0.82rem;
+  color: #888;
+  margin: 2px 0 0;
+}
+.pf-page-header-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+/* ---- Buttons ---- */
+.pf-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.3rem;
+  background: #4A6078;
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.pf-btn-primary:hover { background: #3c5067; }
+.pf-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.pf-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1.1rem;
+  background: #fff;
+  color: #444;
+  font-size: 0.84rem;
+  font-weight: 500;
+  border: 1px solid #d5d0c8;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.pf-btn-secondary:hover { background: #f5f2ee; }
+.pf-btn-secondary svg { flex-shrink: 0; }
+
+.pf-btn-spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: pf-spin 0.6s linear infinite;
+}
+
+/* ---- Error banner ---- */
+.pf-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  font-size: 0.84rem;
+  margin-top: 1rem;
+}
+.pf-error-banner svg { flex-shrink: 0; }
+.pf-error-banner button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #b91c1c;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  line-height: 1;
+}
+
+/* ---- Form ---- */
+.pf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-top: 1.25rem;
+}
+
+/* ---- Cards ---- */
+.pf-card {
+  background: #fff;
+  border: 1px solid #e8e4de;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.pf-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.4rem;
+  border-bottom: 1px solid #f0ece6;
+}
+.pf-card-icon {
+  width: 36px; height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #f0ece6;
+  color: #4A6078;
+  flex-shrink: 0;
+}
+.pf-card-header h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+  line-height: 1.25;
+}
+.pf-card-header span {
+  font-size: 0.78rem;
+  color: #999;
+  line-height: 1.2;
+}
+.pf-card-body {
+  padding: 1.15rem 1.4rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* Side-by-side card row */
+.pf-card-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem;
+}
+.pf-card-half { min-width: 0; }
+
+/* ---- Grid system ---- */
+.pf-grid { display: grid; gap: 0.85rem; }
+.pf-grid-1 { grid-template-columns: 1fr; }
+.pf-grid-2 { grid-template-columns: 1fr 1fr; }
+.pf-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.pf-span-2 { grid-column: span 2; }
+
+/* ---- Field ---- */
+.pf-field { display: flex; flex-direction: column; min-width: 0; }
+.pf-field label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 0.35rem;
+}
+.pf-required { color: #c0392b; }
+
+.pf-field input,
+.pf-field select,
+.pf-field textarea {
+  height: 38px;
+  padding: 0 0.75rem;
+  font-size: 0.86rem;
+  color: #1a1a1a;
+  border: 1px solid #ddd8d0;
+  border-radius: 8px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pf-field textarea {
+  height: auto;
+  padding: 0.6rem 0.75rem;
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.45;
+}
+.pf-field select { appearance: auto; }
+
+.pf-field input:hover,
+.pf-field select:hover,
+.pf-field textarea:hover {
+  border-color: #bbb5ab;
+}
+.pf-field input:focus,
+.pf-field select:focus,
+.pf-field textarea:focus {
+  border-color: #4A6078;
+  box-shadow: 0 0 0 3px rgba(74,96,120,0.1);
+}
+.pf-field input::placeholder,
+.pf-field textarea::placeholder {
+  color: #bbb;
+}
+
+/* Currency input with prefix */
+.pf-input-with-prefix {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #ddd8d0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pf-input-with-prefix:hover { border-color: #bbb5ab; }
+.pf-input-with-prefix:focus-within {
+  border-color: #4A6078;
+  box-shadow: 0 0 0 3px rgba(74,96,120,0.1);
+}
+.pf-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 0.65rem;
+  background: #f7f5f2;
+  color: #888;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border-right: 1px solid #ddd8d0;
+  white-space: nowrap;
+}
+.pf-input-with-prefix input {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ---- Separator ---- */
+.pf-separator {
+  height: 1px;
+  background: #f0ece6;
+  margin: 0.3rem 0;
+}
+
+/* ---- Bottom actions (visible on mobile, hidden on desktop) ---- */
+.pf-bottom-actions {
+  display: none;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1024px) {
+  .pf-grid-3 { grid-template-columns: 1fr 1fr; }
+  .pf-span-2 { grid-column: span 2; }
+}
+
+@media (max-width: 768px) {
+  .pf-wrapper { padding: 0 0.75rem 2rem; }
+
+  .pf-page-header-inner { flex-direction: column; align-items: flex-start; }
+  .pf-page-header-actions { width: 100%; }
+  .pf-page-header-actions .pf-btn-primary,
+  .pf-page-header-actions .pf-btn-secondary { flex: 1; justify-content: center; }
+
+  .pf-grid-3,
+  .pf-grid-2 { grid-template-columns: 1fr; }
+  .pf-span-2 { grid-column: span 1; }
+
+  .pf-card-row { grid-template-columns: 1fr; }
+
+  .pf-card-body { padding: 1rem; }
+  .pf-card-header { padding: 0.85rem 1rem; }
+
+  .pf-bottom-actions { display: flex; }
+  .pf-page-header-actions { display: none; }
+}
