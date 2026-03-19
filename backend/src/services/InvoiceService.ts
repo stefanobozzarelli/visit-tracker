@@ -291,7 +291,9 @@ CRITICAL — how to identify quantity and unit_price:
 
   async getStats(filters: {
     company_id?: string;
+    company_ids?: string[];
     client_id?: string;
+    country?: string;
     start_date?: string;
     end_date?: string;
   } = {}): Promise<any> {
@@ -299,7 +301,9 @@ CRITICAL — how to identify quantity and unit_price:
     const params: any = {};
 
     if (filters.company_id) { whereClause.push('inv.company_id = :companyId'); params.companyId = filters.company_id; }
+    if (filters.company_ids?.length) { whereClause.push('inv.company_id IN (:...companyIds)'); params.companyIds = filters.company_ids; }
     if (filters.client_id) { whereClause.push('inv.client_id = :clientId'); params.clientId = filters.client_id; }
+    if (filters.country) { whereClause.push('cl.country = :country'); params.country = filters.country; }
     if (filters.start_date) { whereClause.push('inv.invoice_date >= :startDate'); params.startDate = filters.start_date; }
     if (filters.end_date) { whereClause.push('inv.invoice_date <= :endDate'); params.endDate = filters.end_date; }
 
@@ -312,6 +316,7 @@ CRITICAL — how to identify quantity and unit_price:
       .addSelect('SUM(inv.total_amount)', 'total')
       .addSelect('COUNT(inv.id)', 'count')
       .leftJoin('inv.company', 'c')
+      .leftJoin('inv.client', 'cl')
       .where(where, params)
       .groupBy('inv.company_id')
       .addGroupBy('c.name')
@@ -331,8 +336,20 @@ CRITICAL — how to identify quantity and unit_price:
       .orderBy('total', 'DESC')
       .getRawMany();
 
+    // Revenue by country
+    const revenueByCountry = await this.invoiceRepo.createQueryBuilder('inv')
+      .select("COALESCE(cl.country, 'N/D')", 'country')
+      .addSelect('SUM(inv.total_amount)', 'total')
+      .addSelect('COUNT(inv.id)', 'count')
+      .leftJoin('inv.client', 'cl')
+      .where(where, params)
+      .groupBy('cl.country')
+      .orderBy('total', 'DESC')
+      .getRawMany();
+
     // Revenue by month
     const revenueByMonth = await this.invoiceRepo.createQueryBuilder('inv')
+      .leftJoin('inv.client', 'cl')
       .select("TO_CHAR(inv.invoice_date, 'YYYY-MM')", 'month')
       .addSelect('SUM(inv.total_amount)', 'total')
       .addSelect('COUNT(inv.id)', 'count')
@@ -350,6 +367,7 @@ CRITICAL — how to identify quantity and unit_price:
       .addSelect('SUM(li.line_total)', 'total_revenue')
       .addSelect('AVG(li.unit_price)', 'avg_price')
       .innerJoin('li.invoice', 'inv')
+      .leftJoin('inv.client', 'cl')
       .where(where, params)
       .andWhere('li.article_code IS NOT NULL')
       .groupBy('li.article_code')
@@ -365,6 +383,7 @@ CRITICAL — how to identify quantity and unit_price:
       .addSelect('SUM(li.quantity)', 'total_quantity')
       .addSelect('SUM(li.line_total)', 'total_revenue')
       .innerJoin('li.invoice', 'inv')
+      .leftJoin('inv.client', 'cl')
       .where(where, params)
       .groupBy('li.unit')
       .orderBy('total_revenue', 'DESC')
@@ -372,6 +391,7 @@ CRITICAL — how to identify quantity and unit_price:
 
     // Grand totals
     const grandTotal = await this.invoiceRepo.createQueryBuilder('inv')
+      .leftJoin('inv.client', 'cl')
       .select('SUM(inv.total_amount)', 'total')
       .addSelect('COUNT(inv.id)', 'count')
       .where(where, params)
@@ -380,6 +400,7 @@ CRITICAL — how to identify quantity and unit_price:
     return {
       revenue_by_company: revenueByCompany,
       revenue_by_client: revenueByClient,
+      revenue_by_country: revenueByCountry,
       revenue_by_month: revenueByMonth,
       top_articles: topArticles,
       unit_totals: unitTotals,

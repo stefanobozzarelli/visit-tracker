@@ -559,30 +559,50 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; onUpdate?: () => void }> =
 /* ============================================================
    STATISTICS TAB
    ============================================================ */
+const ABK_GROUP_NAMES_STATS = ['Materia', 'Abk Stone', 'Abk Group', 'Gardenia Ariana', 'Versace', 'Abk', 'Flaviker'];
+
 export const StatisticsTab: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCompany, setFilterCompany] = useState('');
+  const [filterCountry, setFilterCountry] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+
+  const countries = useMemo(() =>
+    [...new Set(clients.map((c: any) => c.country).filter(Boolean))].sort(), [clients]);
+
+  const getCompanyFilter = useCallback(() => {
+    if (filterCompany === 'gruppo_abk') {
+      const ids = companies.filter(c => ABK_GROUP_NAMES_STATS.some(n => c.name.toLowerCase().includes(n.toLowerCase()))).map(c => c.id);
+      return { company_ids: ids.join(',') };
+    }
+    if (filterCompany) return { company_id: filterCompany };
+    return {};
+  }, [filterCompany, companies]);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, compRes] = await Promise.all([
+      const compFilter = getCompanyFilter();
+      const [statsRes, compRes, cliRes] = await Promise.all([
         apiService.getInvoiceStats({
-          company_id: filterCompany || undefined,
+          ...compFilter,
+          country: filterCountry || undefined,
           start_date: filterStartDate || undefined,
           end_date: filterEndDate || undefined,
-        }),
+        } as any),
         apiService.getCompanies(),
+        apiService.getClients(),
       ]);
       setStats(statsRes.data);
       setCompanies(compRes.data || []);
+      setClients(cliRes.data || []);
     } catch (err) { console.error(err); }
     setLoading(false);
-  }, [filterCompany, filterStartDate, filterEndDate]);
+  }, [filterCompany, filterCountry, filterStartDate, filterEndDate, getCompanyFilter]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
 
@@ -598,10 +618,15 @@ export const StatisticsTab: React.FC = () => {
   return (
     <div className="revenue-tab-content">
       {/* Filters */}
-      <div className="revenue-filters">
+      <div className="revenue-filters" style={{ flexWrap: 'wrap' }}>
         <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)}>
           <option value="">Tutte le Aziende</option>
+          <option value="gruppo_abk" style={{ fontWeight: 700 }}>── Gruppo ABK ──</option>
           {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)}>
+          <option value="">Tutti i Paesi</option>
+          {countries.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} placeholder="Data inizio" />
         <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} placeholder="Data fine" />
@@ -643,6 +668,27 @@ export const StatisticsTab: React.FC = () => {
               {stats.revenue_by_company.map((r: any) => (
                 <tr key={r.company_id}>
                   <td><strong>{r.company_name}</strong></td>
+                  <td>{r.count}</td>
+                  <td className="num">{formatCurrency(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Revenue by Country */}
+      {stats.revenue_by_country?.length > 0 && (
+        <div className="revenue-card">
+          <h3 className="card-section-title">Fatturato per Nazione</h3>
+          <table className="revenue-table stats-table">
+            <thead>
+              <tr><th>NAZIONE</th><th>FATTURE</th><th className="num">FATTURATO</th></tr>
+            </thead>
+            <tbody>
+              {stats.revenue_by_country.map((r: any) => (
+                <tr key={r.country}>
+                  <td><strong>{r.country}</strong></td>
                   <td>{r.count}</td>
                   <td className="num">{formatCurrency(r.total)}</td>
                 </tr>

@@ -836,7 +836,7 @@ class ApiService {
     return response.data;
   }
 
-  async getInvoiceStats(filters?: { company_id?: string; client_id?: string; start_date?: string; end_date?: string }) {
+  async getInvoiceStats(filters?: { company_id?: string; company_ids?: string; client_id?: string; country?: string; start_date?: string; end_date?: string }) {
     const response = await this.api.get<ApiResponse<any>>('/invoices/stats', { params: filters });
     return response.data;
   }

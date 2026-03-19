@@ -62,9 +62,12 @@ router.get('/', async (req: Request, res: Response) => {
 // Get statistics
 router.get('/stats', async (req: Request, res: Response) => {
   try {
+    const companyIds = req.query.company_ids ? (req.query.company_ids as string).split(',') : undefined;
     const filters = {
       company_id: req.query.company_id as string,
+      company_ids: companyIds,
       client_id: req.query.client_id as string,
+      country: req.query.country as string,
       start_date: req.query.start_date as string,
       end_date: req.query.end_date as string,
     };

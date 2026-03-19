@@ -143,10 +143,14 @@ router.post('/recalculate-all', async (req: Request, res: Response) => {
 
 router.get('/stats', async (req: Request, res: Response) => {
   try {
+    const companyIds = req.query.company_ids ? (req.query.company_ids as string).split(',') : undefined;
     const stats = await commissionService.getCommissionStats({
       company_id: req.query.company_id as string,
+      company_ids: companyIds,
+      country: req.query.country as string,
       start_date: req.query.start_date as string,
       end_date: req.query.end_date as string,
+      status: req.query.status as string,
     });
     res.json({ success: true, data: stats });
   } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }

@@ -374,24 +374,35 @@ export class CommissionService {
 
   // ─── Stats ─────────────────────────────────────────────
 
-  async getCommissionStats(filters?: { company_id?: string; start_date?: string; end_date?: string }): Promise<any> {
-    let baseQ = this.commissionRepo.createQueryBuilder('ic')
+  async getCommissionStats(filters?: { company_id?: string; company_ids?: string[]; country?: string; start_date?: string; end_date?: string; status?: string }): Promise<any> {
+    const applyFilters = (qb: any, invAlias = 'inv') => {
+      if (filters?.company_id) qb.andWhere(`${invAlias}.company_id = :cid`, { cid: filters.company_id });
+      if (filters?.company_ids?.length) qb.andWhere(`${invAlias}.company_id IN (:...cids)`, { cids: filters.company_ids });
+      if (filters?.country) qb.andWhere('cl.country = :country', { country: filters.country });
+      if (filters?.start_date) qb.andWhere(`${invAlias}.invoice_date >= :sd`, { sd: filters.start_date });
+      if (filters?.end_date) qb.andWhere(`${invAlias}.invoice_date <= :ed`, { ed: filters.end_date });
+      if (filters?.status) qb.andWhere('ic.commission_status = :fstatus', { fstatus: filters.status });
+    };
+
+    // Totals
+    const totalsQ = this.commissionRepo.createQueryBuilder('ic')
       .leftJoin('ic.invoice', 'inv')
+      .leftJoin('inv.client', 'cl')
       .where('inv.status = :s', { s: 'processed' });
-
-    if (filters?.company_id) baseQ.andWhere('inv.company_id = :cid', { cid: filters.company_id });
-    if (filters?.start_date) baseQ.andWhere('inv.invoice_date >= :sd', { sd: filters.start_date });
-    if (filters?.end_date) baseQ.andWhere('inv.invoice_date <= :ed', { ed: filters.end_date });
-
-    const totals = await baseQ
+    applyFilters(totalsQ);
+    const totals = await totalsQ
       .select('SUM(ic.gross_commission)', 'total_gross')
       .addSelect('SUM(ic.net_commission)', 'total_net')
       .addSelect('COUNT(ic.id)', 'count')
       .getRawOne();
 
-    const byStatus = await this.commissionRepo.createQueryBuilder('ic')
+    // By Status
+    const statusQ = this.commissionRepo.createQueryBuilder('ic')
       .leftJoin('ic.invoice', 'inv')
-      .where('inv.status = :s', { s: 'processed' })
+      .leftJoin('inv.client', 'cl')
+      .where('inv.status = :s', { s: 'processed' });
+    applyFilters(statusQ);
+    const byStatus = await statusQ
       .select('ic.commission_status', 'status')
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(ic.gross_commission)', 'total_gross')
@@ -399,24 +410,54 @@ export class CommissionService {
       .groupBy('ic.commission_status')
       .getRawMany();
 
-    const byCompany = await this.commissionRepo.createQueryBuilder('ic')
+    // By Company
+    const compQ = this.commissionRepo.createQueryBuilder('ic')
       .leftJoin('ic.invoice', 'inv')
       .leftJoin('inv.company', 'c')
-      .where('inv.status = :s', { s: 'processed' })
+      .leftJoin('inv.client', 'cl')
+      .where('inv.status = :s', { s: 'processed' });
+    applyFilters(compQ);
+    const byCompany = await compQ
       .select('c.name', 'company_name')
+      .addSelect('c.id', 'company_id')
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(ic.gross_commission)', 'total_gross')
       .addSelect('SUM(ic.net_commission)', 'total_net')
-      .groupBy('c.name')
+      .groupBy('c.id')
+      .addGroupBy('c.name')
       .orderBy('SUM(ic.gross_commission)', 'DESC')
       .getRawMany();
 
-    const subAgentTotals = await this.subCommissionRepo.createQueryBuilder('sac')
+    // By Country
+    const countryQ = this.commissionRepo.createQueryBuilder('ic')
+      .leftJoin('ic.invoice', 'inv')
+      .leftJoin('inv.client', 'cl')
+      .where('inv.status = :s', { s: 'processed' });
+    applyFilters(countryQ);
+    const byCountry = await countryQ
+      .select('COALESCE(cl.country, \'N/D\')', 'country')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('SUM(ic.gross_commission)', 'total_gross')
+      .addSelect('SUM(ic.net_commission)', 'total_net')
+      .groupBy('cl.country')
+      .orderBy('SUM(ic.gross_commission)', 'DESC')
+      .getRawMany();
+
+    // Sub-agent totals (with filters)
+    const subQ = this.subCommissionRepo.createQueryBuilder('sac')
       .leftJoin('sac.sub_agent', 'sa')
+      .leftJoin('sac.invoice_commission', 'ic')
+      .leftJoin('ic.invoice', 'inv')
+      .leftJoin('inv.client', 'cl')
+      .where('inv.status = :s', { s: 'processed' });
+    applyFilters(subQ);
+    const subAgentTotals = await subQ
       .select('sa.name', 'sub_agent_name')
+      .addSelect('sa.id', 'sub_agent_id')
       .addSelect('SUM(sac.amount)', 'total')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('sa.name')
+      .groupBy('sa.id')
+      .addGroupBy('sa.name')
       .orderBy('SUM(sac.amount)', 'DESC')
       .getRawMany();
 
@@ -427,6 +468,7 @@ export class CommissionService {
       count: Number(totals?.count) || 0,
       by_status: byStatus,
       by_company: byCompany,
+      by_country: byCountry,
       sub_agent_totals: subAgentTotals,
     };
   }
