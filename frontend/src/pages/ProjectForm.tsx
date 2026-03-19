@@ -67,21 +67,26 @@ export const ProjectForm: React.FC = () => {
   const [form, setForm] = useState<FormData>(emptyForm);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [allProjects, setAllProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isAddingCountry, setIsAddingCountry] = useState(false);
+  const [newCountryInput, setNewCountryInput] = useState('');
 
   useEffect(() => { loadData(); }, [id]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [compRes, cliRes] = await Promise.all([
+      const [compRes, cliRes, projRes] = await Promise.all([
         apiService.getCompanies(),
         apiService.getClients(),
+        apiService.getProjects(),
       ]);
       if (compRes.success && compRes.data) setCompanies(compRes.data);
       if (cliRes.success && cliRes.data) setClients(cliRes.data);
+      if (projRes.success && projRes.data) setAllProjects(projRes.data);
 
       if (isEdit) {
         const projRes = await apiService.getProject(id!);
@@ -127,6 +132,13 @@ export const ProjectForm: React.FC = () => {
       setForm(prev => ({ ...prev, country: selectedClient.country || '' }));
     }
   }, [selectedClient]);
+
+  // Derive unique countries from clients + existing projects
+  const existingCountries = useMemo(() => {
+    const fromClients = clients.map(c => c.country).filter(Boolean);
+    const fromProjects = allProjects.map((p: any) => p.country).filter(Boolean);
+    return [...new Set([...fromClients, ...fromProjects])].sort();
+  }, [clients, allProjects]);
 
   const handleChange = (field: keyof FormData, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -247,7 +259,52 @@ export const ProjectForm: React.FC = () => {
               </div>
               <div className="pf-field">
                 <label>Country</label>
-                <input value={form.country} onChange={e => handleChange('country', e.target.value)} placeholder="e.g. China, Korea" />
+                {isAddingCountry ? (
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <input
+                      value={newCountryInput}
+                      onChange={e => setNewCountryInput(e.target.value.toUpperCase())}
+                      placeholder="NEW COUNTRY"
+                      autoFocus
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newCountryInput.trim()) {
+                          handleChange('country', newCountryInput.trim());
+                        }
+                        setIsAddingCountry(false);
+                        setNewCountryInput('');
+                      }}
+                      style={{ padding: '0.45rem 0.7rem', borderRadius: 8, border: '1px solid #4A6078', background: '#4A6078', color: 'white', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >OK</button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsAddingCountry(false); setNewCountryInput(''); }}
+                      style={{ padding: '0.45rem 0.7rem', borderRadius: 8, border: '1px solid #d5d0c8', background: 'white', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >X</button>
+                  </div>
+                ) : (
+                  <select
+                    value={form.country}
+                    onChange={e => {
+                      if (e.target.value === '__add_new__') {
+                        setIsAddingCountry(true);
+                        setNewCountryInput('');
+                      } else {
+                        handleChange('country', e.target.value);
+                      }
+                    }}
+                  >
+                    <option value="">Select country...</option>
+                    {existingCountries.map(c => <option key={c} value={c}>{c}</option>)}
+                    {form.country && !existingCountries.includes(form.country) && (
+                      <option value={form.country}>{form.country}</option>
+                    )}
+                    <option value="__add_new__">+ Add new country...</option>
+                  </select>
+                )}
               </div>
             </div>
           </div>
