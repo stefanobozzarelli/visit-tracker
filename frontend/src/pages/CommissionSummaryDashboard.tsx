@@ -80,16 +80,16 @@ export const CommissionSummaryDashboard: React.FC = () => {
       if (status) filters.status = status;
 
       // Fetch commission stats
-      const commStats = await apiService.getCommissionStats(filters);
-      setCommissionStats(commStats);
+      const commStatsRes = await apiService.getCommissionStats(filters);
+      setCommissionStats(commStatsRes?.data || null);
 
       // Fetch invoice stats
-      const invStats = await apiService.getInvoiceStats(filters);
-      setInvoiceStats(invStats);
+      const invStatsRes = await apiService.getInvoiceStats(filters);
+      setInvoiceStats(invStatsRes?.data || null);
 
       // Fetch expense allocation
-      const expenseData = await apiService.getExpenseAllocation(filters);
-      setExpenseAllocation(expenseData?.data || null);
+      const expenseRes = await apiService.getExpenseAllocation(filters);
+      setExpenseAllocation(expenseRes?.data || null);
 
       setLastUpdated(new Date());
     } catch (err) {
