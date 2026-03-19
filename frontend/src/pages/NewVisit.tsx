@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -18,6 +18,8 @@ export const NewVisit: React.FC = () => {
 
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [newClientData, setNewClientData] = useState({ name: '', country: '' });
+  const [isAddingNewCountry, setIsAddingNewCountry] = useState(false);
+  const [newCountryInput, setNewCountryInput] = useState('');
 
   const [showNewCompanyForm, setShowNewCompanyForm] = useState(false);
   const [newCompanyData, setNewCompanyData] = useState({ name: '', country: '', industry: '' });
@@ -42,6 +44,12 @@ export const NewVisit: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Derive unique countries from existing clients
+  const countries = useMemo(() => {
+    const uniqueCountries = new Set(clients.map(c => c.country).filter(Boolean));
+    return Array.from(uniqueCountries).sort();
+  }, [clients]);
 
   const loadData = async () => {
     try {
@@ -245,12 +253,53 @@ export const NewVisit: React.FC = () => {
                 </div>
                 <div className="form-group">
                   <label>Country</label>
-                  <input
-                    type="text"
-                    placeholder="Country"
-                    value={newClientData.country}
-                    onChange={(e) => setNewClientData({ ...newClientData, country: e.target.value })}
-                  />
+                  {isAddingNewCountry ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="New country name..."
+                        value={newCountryInput}
+                        onChange={(e) => setNewCountryInput(e.target.value)}
+                        autoFocus
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newCountryInput.trim()) {
+                            setNewClientData({ ...newClientData, country: newCountryInput.trim() });
+                            setIsAddingNewCountry(false);
+                            setNewCountryInput('');
+                          }
+                        }}
+                        style={{ padding: '8px 16px', backgroundColor: '#4a6078', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        OK
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsAddingNewCountry(false); setNewCountryInput(''); }}
+                        style={{ padding: '8px 12px', backgroundColor: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={newClientData.country}
+                      onChange={(e) => {
+                        if (e.target.value === '__add_new__') {
+                          setIsAddingNewCountry(true);
+                        } else {
+                          setNewClientData({ ...newClientData, country: e.target.value });
+                        }
+                      }}
+                    >
+                      <option value="">Select country...</option>
+                      {countries.map(c => <option key={c} value={c}>{c}</option>)}
+                      <option value="__add_new__">+ Add new country...</option>
+                    </select>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button type="button" onClick={handleCreateClient} className="btn-primary" style={{ flex: 1 }}>

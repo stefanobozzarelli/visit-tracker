@@ -156,6 +156,22 @@ router.get('/stats', async (req: Request, res: Response) => {
   } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }
 });
 
+// ─── Expense Allocation ────────────────────────────────
+
+router.get('/expense-allocation', async (req: Request, res: Response) => {
+  try {
+    const companyIds = req.query.company_ids ? (req.query.company_ids as string).split(',') : undefined;
+    const allocation = await commissionService.getExpenseAllocationByCompanyCountry({
+      company_id: req.query.company_id as string,
+      company_ids: companyIds,
+      country: req.query.country as string,
+      start_date: req.query.start_date as string,
+      end_date: req.query.end_date as string,
+    });
+    res.json({ success: true, data: allocation });
+  } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }
+});
+
 // ─── Sub-Agent Detail ─────────────────────────────────
 
 router.get('/sub-agents/:subAgentId/commissions', async (req: Request, res: Response) => {

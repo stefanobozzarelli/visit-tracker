@@ -6,15 +6,16 @@ import { CommissionDashboard } from './CommissionDashboard';
 import { CommissionRates } from './CommissionRates';
 import { SubAgents } from './SubAgents';
 import { CommissionInvoices } from './CommissionInvoices';
+import { CommissionSummaryDashboard } from './CommissionSummaryDashboard';
 import '../styles/Revenue.css';
 import '../styles/Amministrazione.css';
 
 type TopTab = 'fatturato' | 'provvigioni';
 type RevenueSubTab = 'invoices' | 'statistics' | 'assistant';
-type CommissionSubTab = 'dashboard' | 'aziende' | 'subagenti' | 'fatture';
+type CommissionSubTab = 'dashboard' | 'aziende' | 'subagenti' | 'fatture' | 'summary';
 
 const canAccess = (user: any) =>
-  user?.role === 'master_admin' || (user?.role === 'admin' && user?.can_view_revenue);
+  user?.role === 'master_admin' || user?.role === 'manager' || (user?.role === 'admin' && user?.can_view_revenue);
 
 export const Amministrazione: React.FC = () => {
   const { user } = useAuth();
@@ -101,6 +102,7 @@ export const Amministrazione: React.FC = () => {
           <div className="admin-sub-tabs">
             {([
               { key: 'dashboard' as CommissionSubTab, label: 'Dashboard' },
+              { key: 'summary' as CommissionSubTab, label: 'Dashboard Riepilogativa' },
               { key: 'aziende' as CommissionSubTab, label: 'Aziende' },
               { key: 'subagenti' as CommissionSubTab, label: 'Subagenti' },
               { key: 'fatture' as CommissionSubTab, label: 'Fatture' },
@@ -115,6 +117,7 @@ export const Amministrazione: React.FC = () => {
             ))}
           </div>
           {commissionSubTab === 'dashboard' && <CommissionDashboard />}
+          {commissionSubTab === 'summary' && <CommissionSummaryDashboard />}
           {commissionSubTab === 'aziende' && <CommissionRates />}
           {commissionSubTab === 'subagenti' && <SubAgents />}
           {commissionSubTab === 'fatture' && <CommissionInvoices />}

@@ -933,6 +933,18 @@ class ApiService {
     const response = await this.api.get<ApiResponse<any>>(`/commissions/stats${q}`);
     return response.data;
   }
+
+  async getExpenseAllocation(filters?: any) {
+    const params = new URLSearchParams();
+    if (filters?.company_id) params.set('company_id', filters.company_id);
+    if (filters?.company_ids) params.set('company_ids', filters.company_ids);
+    if (filters?.start_date) params.set('start_date', filters.start_date);
+    if (filters?.end_date) params.set('end_date', filters.end_date);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.api.get<ApiResponse<any>>(`/commissions/expense-allocation${q}`);
+    return response.data;
+  }
+
   // Line item editing
   async updateInvoiceLineItem(invoiceId: string, itemId: string, data: any) {
     const response = await this.api.put<ApiResponse<any>>(`/invoices/${invoiceId}/items/${itemId}`, data);

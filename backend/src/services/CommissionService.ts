@@ -490,17 +490,193 @@ export class CommissionService {
 
     const commissions = await qb.getMany();
 
+    // Get total expenses and calculate allocation
+    const expenseAllocation = await this.getSubAgentExpenseAllocation(subAgentId, filters);
+
     const totals = commissions.reduce((acc, sac) => {
-      acc.total_amount += Number(sac.amount) || 0;
+      const amount = Number(sac.amount) || 0;
+      acc.total_amount += amount;
       acc.count++;
       const status = sac.invoice_commission?.commission_status || 'aggiunta';
-      if (!acc.by_status[status]) acc.by_status[status] = { count: 0, total: 0 };
+      if (!acc.by_status[status]) acc.by_status[status] = { count: 0, total: 0, total_allocated_expense: 0 };
       acc.by_status[status].count++;
-      acc.by_status[status].total += Number(sac.amount) || 0;
+      acc.by_status[status].total += amount;
       return acc;
-    }, { total_amount: 0, count: 0, by_status: {} as Record<string, { count: number; total: number }> });
+    }, { total_amount: 0, count: 0, by_status: {} as Record<string, { count: number; total: number; total_allocated_expense: number }> });
 
-    return { commissions, totals };
+    // Add allocated expense information to totals
+    totals.total_allocated_expense = expenseAllocation.total_allocated_expense;
+    totals.by_country = expenseAllocation.by_country;
+    totals.by_company = expenseAllocation.by_company;
+
+    // Allocate expenses to each commission based on its share of total commissions
+    const commissionsWithExpense = commissions.map(sac => {
+      const country = sac.invoice_commission?.invoice?.client?.country || 'N/D';
+      const company_id = sac.invoice_commission?.invoice?.company_id;
+      const allocated = expenseAllocation.commission_allocation.get(`${company_id}:${country}`) || 0;
+      return { ...sac, allocated_expense: allocated };
+    });
+
+    // Update by_status totals with allocated expenses
+    for (const sac of commissionsWithExpense) {
+      const status = sac.invoice_commission?.commission_status || 'aggiunta';
+      if (totals.by_status[status]) {
+        totals.by_status[status].total_allocated_expense += sac.allocated_expense;
+      }
+    }
+
+    return { commissions: commissionsWithExpense, totals };
+  }
+
+  // Calculate expense allocation by country/company based on commission share
+  private async getSubAgentExpenseAllocation(subAgentId: string, filters?: { start_date?: string; end_date?: string }) {
+    // Fetch all expenses for this sub-agent within the date range
+    const expenseQb = AppDataSource.getRepository('sub_agent_expense')
+      .createQueryBuilder('se')
+      .where('se.sub_agent_id = :sid', { sid: subAgentId });
+
+    if (filters?.start_date) expenseQb.andWhere('se.expense_date >= :sd', { sd: filters.start_date });
+    if (filters?.end_date) expenseQb.andWhere('se.expense_date <= :ed', { ed: filters.end_date });
+
+    const expenses = await expenseQb.getMany() as any[];
+    const total_expenses = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    // Fetch all commissions with company/country info
+    const commissionQb = this.subCommissionRepo.createQueryBuilder('sac')
+      .leftJoinAndSelect('sac.invoice_commission', 'ic')
+      .leftJoinAndSelect('ic.invoice', 'inv')
+      .leftJoinAndSelect('inv.company', 'c')
+      .leftJoinAndSelect('inv.client', 'cl')
+      .where('sac.sub_agent_id = :sid', { sid: subAgentId });
+
+    if (filters?.start_date) commissionQb.andWhere('inv.invoice_date >= :sd', { sd: filters.start_date });
+    if (filters?.end_date) commissionQb.andWhere('inv.invoice_date <= :ed', { ed: filters.end_date });
+
+    const commissions = await commissionQb.getMany();
+    const total_commissions = commissions.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
+    // Group commissions by country and company
+    const by_country: Record<string, number> = {};
+    const by_company: Record<string, { name: string; id: string; total: number }> = {};
+    const commission_allocation = new Map<string, number>();
+
+    for (const c of commissions) {
+      const country = c.invoice_commission?.invoice?.client?.country || 'N/D';
+      const company = c.invoice_commission?.invoice?.company;
+      const amount = Number(c.amount || 0);
+
+      by_country[country] = (by_country[country] || 0) + amount;
+      if (company?.id) {
+        if (!by_company[company.id]) by_company[company.id] = { name: company.name, id: company.id, total: 0 };
+        by_company[company.id].total += amount;
+      }
+    }
+
+    // Calculate allocated expenses per commission (at the finest grain)
+    if (total_commissions > 0) {
+      for (const c of commissions) {
+        const country = c.invoice_commission?.invoice?.client?.country || 'N/D';
+        const company_id = c.invoice_commission?.invoice?.company_id;
+        const key = `${company_id}:${country}`;
+        const share = Number(c.amount) / total_commissions;
+        const allocated = total_expenses * share;
+        commission_allocation.set(key, (commission_allocation.get(key) || 0) + allocated);
+      }
+    }
+
+    // Convert by_country to array format and calculate allocated expenses
+    const by_country_array = Object.entries(by_country).map(([country, total]) => ({
+      country,
+      total_commission: total,
+      allocated_expense: total_commissions > 0 ? (total / total_commissions) * total_expenses : 0,
+    }));
+
+    // Convert by_company to array format and calculate allocated expenses
+    const by_company_array = Object.entries(by_company).map(([company_id, data]) => ({
+      company_id,
+      company_name: data.name,
+      total_commission: data.total,
+      allocated_expense: total_commissions > 0 ? (data.total / total_commissions) * total_expenses : 0,
+    }));
+
+    return {
+      total_expenses,
+      total_allocated_expense: total_commissions > 0 ? total_expenses : 0,
+      by_country: by_country_array,
+      by_company: by_company_array,
+      commission_allocation, // Map for per-commission allocation
+    };
+  }
+
+  // Calculate total expense allocation aggregated by company/country across all sub-agents
+  async getExpenseAllocationByCompanyCountry(filters?: { company_id?: string; company_ids?: string[]; country?: string; start_date?: string; end_date?: string }) {
+    const applyFilters = (qb: any, invAlias = 'inv') => {
+      if (filters?.company_id && filters.company_id !== 'undefined') qb.andWhere(`${invAlias}.company_id = :cid`, { cid: filters.company_id });
+      if (filters?.company_ids && filters.company_ids.length > 0) qb.andWhere(`${invAlias}.company_id IN (:...cids)`, { cids: filters.company_ids });
+      if (filters?.country && filters.country !== 'undefined') qb.andWhere('cl.country = :country', { country: filters.country });
+      if (filters?.start_date && filters.start_date !== 'undefined') qb.andWhere(`${invAlias}.invoice_date >= :sd`, { sd: filters.start_date });
+      if (filters?.end_date && filters.end_date !== 'undefined') qb.andWhere(`${invAlias}.invoice_date <= :ed`, { ed: filters.end_date });
+    };
+
+    // Fetch all sub-agent expenses within the date range
+    const expenseQb = AppDataSource.getRepository('sub_agent_expense')
+      .createQueryBuilder('se');
+
+    if (filters?.start_date && filters.start_date !== 'undefined') expenseQb.andWhere('se.expense_date >= :sd', { sd: filters.start_date });
+    if (filters?.end_date && filters.end_date !== 'undefined') expenseQb.andWhere('se.expense_date <= :ed', { ed: filters.end_date });
+
+    const expenses = await expenseQb.getMany() as any[];
+    const total_expenses = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    // Fetch all sub-agent commissions with company/country info
+    const commissionQb = this.subCommissionRepo.createQueryBuilder('sac')
+      .leftJoinAndSelect('sac.invoice_commission', 'ic')
+      .leftJoinAndSelect('ic.invoice', 'inv')
+      .leftJoinAndSelect('inv.company', 'c')
+      .leftJoinAndSelect('inv.client', 'cl')
+      .where('inv.status = :s', { s: 'processed' });
+
+    applyFilters(commissionQb);
+    const commissions = await commissionQb.getMany();
+    const total_commissions = commissions.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
+    // Group commissions by country and company
+    const by_country: Record<string, number> = {};
+    const by_company: Record<string, { name: string; id: string; total: number }> = {};
+
+    for (const c of commissions) {
+      const country = c.invoice_commission?.invoice?.client?.country || 'N/D';
+      const company = c.invoice_commission?.invoice?.company;
+      const amount = Number(c.amount || 0);
+
+      by_country[country] = (by_country[country] || 0) + amount;
+      if (company?.id) {
+        if (!by_company[company.id]) by_company[company.id] = { name: company.name, id: company.id, total: 0 };
+        by_company[company.id].total += amount;
+      }
+    }
+
+    // Convert by_country to array format and calculate allocated expenses
+    const by_country_array = Object.entries(by_country).map(([country, total]) => ({
+      country,
+      total_commission: total,
+      allocated_expense: total_commissions > 0 ? (total / total_commissions) * total_expenses : 0,
+    }));
+
+    // Convert by_company to array format and calculate allocated expenses
+    const by_company_array = Object.entries(by_company).map(([company_id, data]) => ({
+      company_id,
+      company_name: data.name,
+      total_commission: data.total,
+      allocated_expense: total_commissions > 0 ? (data.total / total_commissions) * total_expenses : 0,
+    }));
+
+    return {
+      total_expenses,
+      total_allocated_expense: total_commissions > 0 ? total_expenses : 0,
+      by_country: by_country_array,
+      by_company: by_company_array,
+    };
   }
 
   // ─── Sub-Agent Expenses ─────────────────────────────────
