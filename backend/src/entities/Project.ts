@@ -44,7 +44,7 @@ export class Project {
   @Column({ nullable: true })
   supplier_id: string;
 
-  @ManyToOne(() => Company, { nullable: true, eager: true })
+  @ManyToOne(() => Company, { nullable: true, eager: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'supplier_id' })
   supplier: Company;
 
@@ -52,7 +52,7 @@ export class Project {
   @Column({ nullable: true })
   client_id: string;
 
-  @ManyToOne(() => Client, { nullable: true, eager: true })
+  @ManyToOne(() => Client, { nullable: true, eager: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'client_id' })
   client: Client;
 

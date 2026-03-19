@@ -37,7 +37,7 @@ export class UserPermission {
   @ManyToOne(() => User, user => user.permissions)
   user: User;
 
-  @ManyToOne(() => Client, client => client.permissions)
+  @ManyToOne(() => Client, client => client.permissions, { onDelete: 'CASCADE' })
   client: Client;
 
   @ManyToOne(() => Company, company => company.permissions)

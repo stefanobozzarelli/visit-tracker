@@ -69,7 +69,7 @@ export class CustomerOrder {
   @JoinColumn({ name: 'supplier_id' })
   supplier: Company;
 
-  @ManyToOne(() => Client)
+  @ManyToOne(() => Client, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'client_id' })
   client: Client;
 

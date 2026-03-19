@@ -48,7 +48,7 @@ export class TodoItem {
   @JoinColumn({ name: 'created_by_user_id' })
   created_by_user: User;
 
-  @ManyToOne(() => Client)
+  @ManyToOne(() => Client, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
