@@ -45,11 +45,15 @@ export const NewVisit: React.FC = () => {
     loadData();
   }, []);
 
-  // Derive unique countries from existing clients
+  // Derive unique countries from existing clients + newly added countries in form
   const countries = useMemo(() => {
     const uniqueCountries = new Set(clients.map(c => c.country).filter(Boolean));
+    // Also include newClientData.country if it's set but not in the list (for new countries being added)
+    if (newClientData.country && !uniqueCountries.has(newClientData.country)) {
+      uniqueCountries.add(newClientData.country);
+    }
     return Array.from(uniqueCountries).sort();
-  }, [clients]);
+  }, [clients, newClientData.country]);
 
   const loadData = async () => {
     try {

@@ -146,10 +146,15 @@ export const Clients: React.FC = () => {
     return { total, withContacts, notVisited, withOpenFollowups };
   }, [clients, clientEnrichment]);
 
-  // ---- Countries for filter ----
+  // ---- Countries for filter and form ----
   const countries = useMemo(() => {
-    return [...new Set(clients.map(c => c.country).filter(Boolean))].sort();
-  }, [clients]);
+    const countrySet = new Set(clients.map(c => c.country).filter(Boolean));
+    // Also include formData.country if it's set but not in the list (for new countries being added)
+    if (formData.country && !countrySet.has(formData.country)) {
+      countrySet.add(formData.country);
+    }
+    return Array.from(countrySet).sort();
+  }, [clients, formData.country]);
 
   // ---- Visible clients ----
   const visibleClients = useMemo(() => {
