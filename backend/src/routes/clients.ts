@@ -28,8 +28,8 @@ router.post('/', async (req: Request, res: Response) => {
         const userRole = (req.user as any)?.role;
         let companyIds: string[];
 
-        if (userRole === 'admin' || userRole === 'manager') {
-          // Admin/manager get all companies
+        if (userRole === 'admin' || userRole === 'manager' || userRole === 'master_admin') {
+          // Admin/manager/master_admin get all companies
           const companies = await companyService.getCompanies();
           companyIds = companies.map(c => c.id);
         } else {
@@ -111,8 +111,8 @@ router.delete('/:id', checkVisitPermission, async (req: Request, res: Response) 
   try {
     const userRole = (req.user as any)?.role;
 
-    // Only admin can delete clients
-    if (userRole !== 'admin') {
+    // Only admin/manager/master_admin can delete clients
+    if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'master_admin') {
       return res.status(403).json({ success: false, error: 'Only administrators can delete clients' });
     }
 

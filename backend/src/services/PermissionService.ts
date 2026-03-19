@@ -91,14 +91,9 @@ export class PermissionService {
     companyId: string,
     requiredPermission: 'view' | 'create' | 'edit' = 'view'
   ): Promise<boolean> {
-    // Admin has full access
+    // Admin/Manager/Master Admin have full access
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (user?.role === 'admin') {
-      return true;
-    }
-
-    // Manager has full access
-    if (user?.role === 'backoffice') {
+    if (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin') {
       return true;
     }
 
@@ -142,8 +137,8 @@ export class PermissionService {
   async getVisibleClients(userId: string): Promise<string[]> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
-    // Admin sees all clients
-    if (user?.role === 'admin' || user?.role === 'backoffice') {
+    // Admin/Manager/Master Admin see all clients
+    if (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin') {
       return ['*']; // Wildcard to indicate "all"
     }
 
@@ -162,8 +157,8 @@ export class PermissionService {
   async getVisibleCompanies(userId: string, clientId: string): Promise<string[]> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
-    // Admin sees all
-    if (user?.role === 'admin' || user?.role === 'backoffice') {
+    // Admin/Manager/Master Admin see all
+    if (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin') {
       return ['*'];
     }
 

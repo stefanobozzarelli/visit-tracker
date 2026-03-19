@@ -16,8 +16,8 @@ export async function checkVisitPermission(req: Request, res: Response, next: Ne
       return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
 
-    // Admin e manager bypassano il controllo
-    if (userRole === 'admin' || userRole === 'manager') {
+    // Admin, manager e master_admin bypassano il controllo
+    if (userRole === 'admin' || userRole === 'manager' || userRole === 'master_admin') {
       return next();
     }
 
@@ -79,8 +79,8 @@ export function checkSpecificPermission(requiredAction: 'view' | 'create' | 'edi
         return res.status(401).json({ success: false, error: 'Not authenticated' });
       }
 
-      // Admin e manager bypassano
-      if (userRole === 'admin' || userRole === 'manager') {
+      // Admin, manager e master_admin bypassano
+      if (userRole === 'admin' || userRole === 'manager' || userRole === 'master_admin') {
         return next();
       }
 
