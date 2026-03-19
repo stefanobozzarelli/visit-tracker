@@ -206,10 +206,21 @@ const UsersTab: React.FC<{ isMasterAdmin: boolean }> = ({ isMasterAdmin }) => {
   };
 
   const handleToggleRevenue = async (userId: string, currentValue: boolean) => {
+    const newValue = !currentValue;
+    // Optimistic update
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, can_view_revenue: newValue } : u));
     try {
-      await apiService.toggleRevenueAccess(userId, !currentValue);
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, can_view_revenue: !currentValue } : u));
-    } catch (err) { console.error(err); }
+      const res = await apiService.toggleRevenueAccess(userId, newValue);
+      if (!res.success) {
+        // Rollback
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, can_view_revenue: currentValue } : u));
+        setError('Errore nel cambio accesso fatturato');
+      }
+    } catch (err) {
+      console.error('Toggle revenue error:', err);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, can_view_revenue: currentValue } : u));
+      setError('Errore nel cambio accesso fatturato');
+    }
   };
 
   const resetForm = () => {
@@ -311,10 +322,13 @@ const UsersTab: React.FC<{ isMasterAdmin: boolean }> = ({ isMasterAdmin }) => {
                         {u.role === 'master_admin' ? (
                           <span className="revenue-access-badge active">Sempre</span>
                         ) : u.role === 'admin' ? (
-                          <label className="toggle-switch">
-                            <input type="checkbox" checked={!!u.can_view_revenue} onChange={() => handleToggleRevenue(u.id, !!u.can_view_revenue)} />
-                            <span className="toggle-slider" />
-                          </label>
+                          <button
+                            type="button"
+                            className={`toggle-btn ${u.can_view_revenue ? 'active' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); handleToggleRevenue(u.id, !!u.can_view_revenue); }}
+                          >
+                            <span className="toggle-btn-knob" />
+                          </button>
                         ) : (
                           <span className="revenue-access-badge">–</span>
                         )}
