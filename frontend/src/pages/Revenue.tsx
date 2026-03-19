@@ -593,7 +593,17 @@ export const StatisticsTab: React.FC = () => {
     try {
       const params: any = {};
       if (filterCompany === 'gruppo_abk') {
-        const ids = companiesRef.current.filter(c => ABK_GROUP_NAMES_STATS.includes(c.name.toLowerCase().trim())).map(c => c.id);
+        const normalizedAbkNames = ABK_GROUP_NAMES_STATS.map(n => n.toLowerCase().trim());
+        const matched: any[] = [];
+        const ids = companiesRef.current
+          .filter(c => {
+            const normalized = c.name.toLowerCase().trim().replace(/\s+/g, ' ');
+            const isMatch = normalizedAbkNames.includes(normalized);
+            if (isMatch) matched.push(c.name);
+            return isMatch;
+          })
+          .map(c => c.id);
+        console.log('Gruppo ABK filter - All companies:', companiesRef.current.map(c => c.name), '→ Matched:', matched, '→ IDs:', ids);
         if (ids.length) params.company_ids = ids.join(',');
       } else if (filterCompany) {
         params.company_id = filterCompany;

@@ -119,6 +119,11 @@ export const CommissionInvoices: React.FC = () => {
       });
       setShowOverride(false);
       await loadData();
+      // Refresh expanded detail if the overridden invoice is currently expanded
+      if (expandedId === overrideInvoiceId) {
+        const res = await apiService.getInvoiceCommission(overrideInvoiceId);
+        setExpandedDetail(res.data);
+      }
     } catch (err) {
       console.error('Errore override provvigione:', err);
     }

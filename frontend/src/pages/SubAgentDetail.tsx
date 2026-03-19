@@ -67,9 +67,13 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
   const totalExpenses = useMemo(() =>
     expenses.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0), [expenses]);
 
-  // Saldo totale = provvigioni + spese (both owed to sub-agent)
+  // Total allocated expenses (distributed proportionally based on commissions)
+  const allocatedExpenses = useMemo(() =>
+    totals.total_allocated_expense || 0, [totals.total_allocated_expense]);
+
+  // Saldo totale = provvigioni + spese allocate (both owed to sub-agent)
   const saldoTotale = useMemo(() =>
-    (totals.total_amount || 0) + totalExpenses, [totals.total_amount, totalExpenses]);
+    (totals.total_amount || 0) + allocatedExpenses, [totals.total_amount, allocatedExpenses]);
 
   // Filter commissions
   const filteredCommissions = useMemo(() => {
@@ -141,8 +145,8 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
           <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#8C877C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Totale Provvigioni</div>
         </div>
         <div className="admin-card" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#A9574D' }}>{fmtCur(totalExpenses)}</div>
-          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#8C877C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Totale Spese</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#A9574D' }}>{fmtCur(allocatedExpenses)}</div>
+          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#8C877C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Spese Allocate</div>
         </div>
         <div className="admin-card" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#4A6078' }}>{fmtCur(saldoTotale)}</div>
@@ -227,6 +231,7 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
                   <th>Tasso</th>
                   <th>Calcolo Su</th>
                   <th style={{ textAlign: 'right' }}>Importo</th>
+                  <th style={{ textAlign: 'right' }}>Spese Allocate</th>
                   <th>Stato</th>
                 </tr>
               </thead>
@@ -245,6 +250,7 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
                         {sac.calc_on === 'residual' ? 'Residuo' : 'Lordo'}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtCur(sac.amount)}</td>
+                      <td style={{ textAlign: 'right', fontSize: '0.875rem', color: '#8C877C' }}>{fmtCur(sac.allocated_expense || 0)}</td>
                       <td>
                         <span style={{
                           padding: '0.2rem 0.6rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 600,
@@ -261,6 +267,7 @@ export const SubAgentDetail: React.FC<SubAgentDetailProps> = ({ subAgentId, subA
                 <tr style={{ fontWeight: 700, borderTop: '2px solid #E7E2D8' }}>
                   <td colSpan={6}>Totale</td>
                   <td style={{ textAlign: 'right' }}>{fmtCur(totals.total_amount)}</td>
+                  <td style={{ textAlign: 'right' }}>{fmtCur(totals.total_allocated_expense || 0)}</td>
                   <td></td>
                 </tr>
               </tfoot>

@@ -78,7 +78,7 @@
 /* KPI Grid */
 .summary-kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.2rem;
   margin-bottom: 2rem;
   page-break-inside: avoid;
@@ -141,7 +141,7 @@
 /* Responsive */
 @media (max-width: 1280px) {
   .summary-kpi-row {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
   }
 

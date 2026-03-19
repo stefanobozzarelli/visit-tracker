@@ -34,6 +34,8 @@ export const CommissionDashboard: React.FC = () => {
     [...new Set(clients.map((c: any) => c.country).filter(Boolean))].sort(),
     [clients]);
 
+  const [companiesReady, setCompaniesReady] = useState(false);
+
   // Load companies and clients once
   useEffect(() => {
     (async () => {
@@ -46,20 +48,31 @@ export const CommissionDashboard: React.FC = () => {
         setCompanies(comps);
         companiesRef.current = comps;
         setClients(cliRes.data || []);
+        setCompaniesReady(true);
       } catch (e) { console.error(e); }
     })();
   }, []);
 
-  // Load stats when filters change
+  // Load stats when filters change (only after companies are loaded)
   const loadStats = useCallback(async () => {
+    if (!companiesReady) return;
     setLoading(true);
     try {
       const params: any = {};
       if (filterCompany === 'gruppo_abk') {
+        const normalizedAbkNames = ABK_GROUP_NAMES.map(n => n.toLowerCase().trim());
+        const matched: any[] = [];
         const ids = companiesRef.current
-          .filter(c => ABK_GROUP_NAMES.includes(c.name.toLowerCase().trim()))
+          .filter(c => {
+            const normalized = c.name.toLowerCase().trim().replace(/\s+/g, ' ');
+            const isMatch = normalizedAbkNames.includes(normalized);
+            if (isMatch) matched.push(c.name);
+            return isMatch;
+          })
           .map(c => c.id);
+        console.log('Gruppo ABK filter - All companies:', companiesRef.current.map(c => c.name), '→ Matched:', matched, '→ IDs:', ids);
         if (ids.length) params.company_ids = ids.join(',');
+        else { setLoading(false); setStats({ total_gross: 0, total_net: 0, total_sub_agents: 0, count: 0, by_status: [], by_company: [], by_country: [], sub_agent_totals: [] }); return; }
       } else if (filterCompany) {
         params.company_id = filterCompany;
       }
@@ -74,7 +87,7 @@ export const CommissionDashboard: React.FC = () => {
       console.error('Errore caricamento statistiche provvigioni:', err);
     }
     setLoading(false);
-  }, [filterCompany, filterCountry, filterStatus, filterStartDate, filterEndDate]);
+  }, [companiesReady, filterCompany, filterCountry, filterStatus, filterStartDate, filterEndDate]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
 

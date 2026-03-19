@@ -115,7 +115,6 @@ export const CommissionSummaryDashboard: React.FC = () => {
   const totalProvvigioniLorde = commissionStats?.total_gross || 0;
   const totalExpenses = expenseAllocation?.total_allocated_expense || 0;
   const totalProvvigioniNette = totalProvvigioniLorde - totalExpenses;
-  const saldo = totalFatturato - totalProvvigioniNette;
 
   return (
     <div className="summary-container">
@@ -168,7 +167,6 @@ export const CommissionSummaryDashboard: React.FC = () => {
             <KPICard value={totalFatturato} label="Fatturato Totale" />
             <KPICard value={totalProvvigioniLorde} label="Provvigioni Lorde" />
             <KPICard value={totalProvvigioniNette} label="Provvigioni Nette" />
-            <KPICard value={saldo} label="Saldo" />
           </div>
 
           {/* By Company */}
@@ -185,7 +183,6 @@ export const CommissionSummaryDashboard: React.FC = () => {
                     (c) => c.company_id === company.company_id
                   )?.allocated_expense || 0;
                 const companyNetCommission = company.total_gross - companyExpense;
-                const companySaldo = companyFatturato - companyNetCommission;
 
                 return (
                   <div key={company.company_id}>
@@ -194,7 +191,6 @@ export const CommissionSummaryDashboard: React.FC = () => {
                       <KPICard value={companyFatturato} label="Fatturato" />
                       <KPICard value={company.total_gross} label="Provvigioni Lorde" />
                       <KPICard value={companyNetCommission} label="Provvigioni Nette" />
-                      <KPICard value={companySaldo} label="Saldo" />
                     </div>
                   </div>
                 );
@@ -216,7 +212,6 @@ export const CommissionSummaryDashboard: React.FC = () => {
                     (c) => c.country === country.country
                   )?.allocated_expense || 0;
                 const countryNetCommission = country.total_gross - countryExpense;
-                const countrySaldo = countryFatturato - countryNetCommission;
 
                 return (
                   <div key={country.country}>
@@ -225,7 +220,6 @@ export const CommissionSummaryDashboard: React.FC = () => {
                       <KPICard value={countryFatturato} label="Fatturato" />
                       <KPICard value={country.total_gross} label="Provvigioni Lorde" />
                       <KPICard value={countryNetCommission} label="Provvigioni Nette" />
-                      <KPICard value={countrySaldo} label="Saldo" />
                     </div>
                   </div>
                 );
