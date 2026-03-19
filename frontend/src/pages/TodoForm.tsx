@@ -61,7 +61,7 @@ export const TodoForm = () => {
     // Load existing todo for edit mode
     if (editId) {
       try {
-        const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+        const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
         const res = isAdmin
           ? await apiService.getTodos()
           : await apiService.getMyTodos();

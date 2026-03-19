@@ -9,7 +9,7 @@ const RAPPORTO_OPTIONS = ['AGENZIA', 'PROCACCERIA', 'OCCASIONALE', 'CHIUSO'];
 
 export const Companies: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [todos, setTodos] = useState<any[]>([]);

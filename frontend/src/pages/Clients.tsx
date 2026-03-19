@@ -21,7 +21,7 @@ const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime())
 export const Clients: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
 
   // Data
   const [clients, setClients] = useState<Client[]>([]);

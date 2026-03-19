@@ -11,7 +11,7 @@ export const Sidebar: React.FC = () => {
 
   const isMasterAdmin = user.role === 'master_admin';
   const isAdmin = user.role === 'admin' || isMasterAdmin;
-  const isManager = user.role === 'manager';
+  const isManager = user.role === 'manager' || isMasterAdmin;
   const canViewRevenue = isMasterAdmin || (user.role === 'admin' && !!user.can_view_revenue);
 
   const closeSidebar = () => setOpen(false);

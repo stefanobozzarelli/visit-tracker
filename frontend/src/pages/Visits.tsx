@@ -63,7 +63,7 @@ const FOLLOWUP_CONFIG: Record<FollowUpStatus, { label: string; className: string
 export const Visits: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
 
   // Data
   const [visits, setVisits] = useState<Visit[]>([]);

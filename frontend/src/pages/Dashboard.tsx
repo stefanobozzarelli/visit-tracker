@@ -37,7 +37,7 @@ export const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData>({ visits: [], todos: [], companies: [], clients: [], users: [] });
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
 
   useEffect(() => { loadData(); }, [user?.id]);
 

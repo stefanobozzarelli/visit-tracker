@@ -59,7 +59,7 @@ const getInitials = (name: string) => {
 export const Tasks: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
 
   // Data
   const [todos, setTodos] = useState<TodoItem[]>([]);
