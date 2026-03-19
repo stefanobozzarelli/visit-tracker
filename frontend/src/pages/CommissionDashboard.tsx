@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { apiService } from '../services/api';
 
 const ABK_GROUP_NAMES = ['Materia', 'Abk Stone', 'Abk Group', 'Gardenia Ariana', 'Versace', 'Abk', 'Flaviker'];
@@ -28,49 +28,57 @@ export const CommissionDashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const companiesRef = useRef<any[]>([]);
 
-  // Get unique countries from clients
   const countries = useMemo(() =>
     [...new Set(clients.map((c: any) => c.country).filter(Boolean))].sort(),
     [clients]);
 
-  // Resolve company filter to IDs
-  const getCompanyFilter = useCallback(() => {
-    if (filterCompany === 'gruppo_abk') {
-      const ids = companies.filter(c => ABK_GROUP_NAMES.some(n => c.name.toLowerCase().includes(n.toLowerCase()))).map(c => c.id);
-      return { company_ids: ids.join(',') };
-    }
-    if (filterCompany) return { company_id: filterCompany };
-    return {};
-  }, [filterCompany, companies]);
+  // Load companies and clients once
+  useEffect(() => {
+    (async () => {
+      try {
+        const [compRes, cliRes] = await Promise.all([
+          apiService.getCompanies(),
+          apiService.getClients(),
+        ]);
+        const comps = compRes.data || [];
+        setCompanies(comps);
+        companiesRef.current = comps;
+        setClients(cliRes.data || []);
+      } catch (e) { console.error(e); }
+    })();
+  }, []);
 
-  const loadData = useCallback(async () => {
+  // Load stats when filters change
+  const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const compFilter = getCompanyFilter();
-      const [statsRes, compRes, cliRes] = await Promise.all([
-        apiService.getCommissionStats({
-          ...compFilter,
-          country: filterCountry || undefined,
-          start_date: filterStartDate || undefined,
-          end_date: filterEndDate || undefined,
-          status: filterStatus || undefined,
-        } as any),
-        apiService.getCompanies(),
-        apiService.getClients(),
-      ]);
+      const params: any = {};
+      if (filterCompany === 'gruppo_abk') {
+        const ids = companiesRef.current
+          .filter(c => ABK_GROUP_NAMES.some(n => c.name.toLowerCase().includes(n.toLowerCase())))
+          .map(c => c.id);
+        if (ids.length) params.company_ids = ids.join(',');
+      } else if (filterCompany) {
+        params.company_id = filterCompany;
+      }
+      if (filterCountry) params.country = filterCountry;
+      if (filterStartDate) params.start_date = filterStartDate;
+      if (filterEndDate) params.end_date = filterEndDate;
+      if (filterStatus) params.status = filterStatus;
+
+      const statsRes = await apiService.getCommissionStats(params);
       setStats(statsRes.data);
-      setCompanies(compRes.data || []);
-      setClients(cliRes.data || []);
     } catch (err) {
       console.error('Errore caricamento statistiche provvigioni:', err);
     }
     setLoading(false);
-  }, [filterCompany, filterCountry, filterStatus, filterStartDate, filterEndDate, getCompanyFilter]);
+  }, [filterCompany, filterCountry, filterStatus, filterStartDate, filterEndDate]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadStats(); }, [loadStats]);
 
-  if (loading) return <div className="admin-tab-content"><div className="admin-empty">Caricamento statistiche...</div></div>;
+  if (loading && !stats) return <div className="admin-tab-content"><div className="admin-empty">Caricamento statistiche...</div></div>;
   if (!stats) return <div className="admin-tab-content"><div className="admin-empty">Nessun dato disponibile</div></div>;
 
   const byStatus = stats.by_status || [];
@@ -124,9 +132,7 @@ export const CommissionDashboard: React.FC = () => {
         <div className="admin-card">
           <h3 className="admin-card-title">Per Stato</h3>
           <table className="admin-table">
-            <thead>
-              <tr><th>STATO</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr>
-            </thead>
+            <thead><tr><th>STATO</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr></thead>
             <tbody>
               {byStatus.map((row: any) => (
                 <tr key={row.status}>
@@ -146,17 +152,10 @@ export const CommissionDashboard: React.FC = () => {
         <div className="admin-card">
           <h3 className="admin-card-title">Per Azienda</h3>
           <table className="admin-table">
-            <thead>
-              <tr><th>AZIENDA</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr>
-            </thead>
+            <thead><tr><th>AZIENDA</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr></thead>
             <tbody>
               {byCompany.map((row: any) => (
-                <tr key={row.company_id}>
-                  <td><strong>{row.company_name}</strong></td>
-                  <td className="num">{row.count}</td>
-                  <td className="num admin-amount">{formatCurrency(row.total_gross)}</td>
-                  <td className="num admin-amount">{formatCurrency(row.total_net)}</td>
-                </tr>
+                <tr key={row.company_id}><td><strong>{row.company_name}</strong></td><td className="num">{row.count}</td><td className="num admin-amount">{formatCurrency(row.total_gross)}</td><td className="num admin-amount">{formatCurrency(row.total_net)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -168,17 +167,10 @@ export const CommissionDashboard: React.FC = () => {
         <div className="admin-card">
           <h3 className="admin-card-title">Per Nazione</h3>
           <table className="admin-table">
-            <thead>
-              <tr><th>NAZIONE</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr>
-            </thead>
+            <thead><tr><th>NAZIONE</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr></thead>
             <tbody>
               {byCountry.map((row: any) => (
-                <tr key={row.country}>
-                  <td><strong>{row.country}</strong></td>
-                  <td className="num">{row.count}</td>
-                  <td className="num admin-amount">{formatCurrency(row.total_gross)}</td>
-                  <td className="num admin-amount">{formatCurrency(row.total_net)}</td>
-                </tr>
+                <tr key={row.country}><td><strong>{row.country}</strong></td><td className="num">{row.count}</td><td className="num admin-amount">{formatCurrency(row.total_gross)}</td><td className="num admin-amount">{formatCurrency(row.total_net)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -190,16 +182,10 @@ export const CommissionDashboard: React.FC = () => {
         <div className="admin-card">
           <h3 className="admin-card-title">Per Subagente</h3>
           <table className="admin-table">
-            <thead>
-              <tr><th>SUBAGENTE</th><th className="num">FATTURE</th><th className="num">PROVVIGIONI</th></tr>
-            </thead>
+            <thead><tr><th>SUBAGENTE</th><th className="num">FATTURE</th><th className="num">PROVVIGIONI</th></tr></thead>
             <tbody>
               {bySubAgent.map((row: any) => (
-                <tr key={row.sub_agent_id}>
-                  <td><strong>{row.sub_agent_name}</strong></td>
-                  <td className="num">{row.count}</td>
-                  <td className="num admin-amount">{formatCurrency(row.total)}</td>
-                </tr>
+                <tr key={row.sub_agent_id}><td><strong>{row.sub_agent_name}</strong></td><td className="num">{row.count}</td><td className="num admin-amount">{formatCurrency(row.total)}</td></tr>
               ))}
             </tbody>
           </table>

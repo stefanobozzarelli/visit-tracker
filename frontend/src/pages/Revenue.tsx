@@ -570,39 +570,43 @@ export const StatisticsTab: React.FC = () => {
   const [filterCountry, setFilterCountry] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const companiesRef = React.useRef<any[]>([]);
 
   const countries = useMemo(() =>
     [...new Set(clients.map((c: any) => c.country).filter(Boolean))].sort(), [clients]);
 
-  const getCompanyFilter = useCallback(() => {
-    if (filterCompany === 'gruppo_abk') {
-      const ids = companies.filter(c => ABK_GROUP_NAMES_STATS.some(n => c.name.toLowerCase().includes(n.toLowerCase()))).map(c => c.id);
-      return { company_ids: ids.join(',') };
-    }
-    if (filterCompany) return { company_id: filterCompany };
-    return {};
-  }, [filterCompany, companies]);
+  // Load companies and clients once
+  useEffect(() => {
+    (async () => {
+      try {
+        const [compRes, cliRes] = await Promise.all([apiService.getCompanies(), apiService.getClients()]);
+        const comps = compRes.data || [];
+        setCompanies(comps);
+        companiesRef.current = comps;
+        setClients(cliRes.data || []);
+      } catch (e) { console.error(e); }
+    })();
+  }, []);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const compFilter = getCompanyFilter();
-      const [statsRes, compRes, cliRes] = await Promise.all([
-        apiService.getInvoiceStats({
-          ...compFilter,
-          country: filterCountry || undefined,
-          start_date: filterStartDate || undefined,
-          end_date: filterEndDate || undefined,
-        } as any),
-        apiService.getCompanies(),
-        apiService.getClients(),
-      ]);
+      const params: any = {};
+      if (filterCompany === 'gruppo_abk') {
+        const ids = companiesRef.current.filter(c => ABK_GROUP_NAMES_STATS.some(n => c.name.toLowerCase().includes(n.toLowerCase()))).map(c => c.id);
+        if (ids.length) params.company_ids = ids.join(',');
+      } else if (filterCompany) {
+        params.company_id = filterCompany;
+      }
+      if (filterCountry) params.country = filterCountry;
+      if (filterStartDate) params.start_date = filterStartDate;
+      if (filterEndDate) params.end_date = filterEndDate;
+
+      const statsRes = await apiService.getInvoiceStats(params);
       setStats(statsRes.data);
-      setCompanies(compRes.data || []);
-      setClients(cliRes.data || []);
     } catch (err) { console.error(err); }
     setLoading(false);
-  }, [filterCompany, filterCountry, filterStartDate, filterEndDate, getCompanyFilter]);
+  }, [filterCompany, filterCountry, filterStartDate, filterEndDate]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
 
