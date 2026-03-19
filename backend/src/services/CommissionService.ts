@@ -17,32 +17,38 @@ export class CommissionService {
   // ─── Rate Hierarchy Lookup ──────────────────────────────
 
   async getEffectiveRate(companyId: string, country?: string, clientId?: string): Promise<number> {
-    // 1. Client-specific rate
+    // 1. Client + Country specific rate
     if (clientId && country) {
-      const clientRate = await this.rateRepo.findOne({
-        where: { company_id: companyId, country, client_id: clientId },
-      });
-      if (clientRate) return Number(clientRate.rate_percent);
+      const rate = await this.rateRepo.createQueryBuilder('r')
+        .where('r.company_id = :companyId', { companyId })
+        .andWhere('r.country = :country', { country })
+        .andWhere('r.client_id = :clientId', { clientId })
+        .getOne();
+      if (rate) return Number(rate.rate_percent);
     }
 
-    // 2. Country-specific rate
+    // 2. Client only (no country)
+    if (clientId) {
+      const rate = await this.rateRepo.createQueryBuilder('r')
+        .where('r.company_id = :companyId', { companyId })
+        .andWhere('r.country IS NULL')
+        .andWhere('r.client_id = :clientId', { clientId })
+        .getOne();
+      if (rate) return Number(rate.rate_percent);
+    }
+
+    // 3. Country only (no client)
     if (country) {
-      const countryRate = await this.rateRepo.findOne({
-        where: { company_id: companyId, country, client_id: undefined as any },
-      });
-      // TypeORM: need IS NULL check
-      const countryRateQ = await this.rateRepo
-        .createQueryBuilder('r')
+      const rate = await this.rateRepo.createQueryBuilder('r')
         .where('r.company_id = :companyId', { companyId })
         .andWhere('r.country = :country', { country })
         .andWhere('r.client_id IS NULL')
         .getOne();
-      if (countryRateQ) return Number(countryRateQ.rate_percent);
+      if (rate) return Number(rate.rate_percent);
     }
 
-    // 3. Company default rate
-    const defaultRate = await this.rateRepo
-      .createQueryBuilder('r')
+    // 4. Company default (no country, no client)
+    const defaultRate = await this.rateRepo.createQueryBuilder('r')
       .where('r.company_id = :companyId', { companyId })
       .andWhere('r.country IS NULL')
       .andWhere('r.client_id IS NULL')
@@ -74,10 +80,13 @@ export class CommissionService {
 
     const effectiveRates: SubAgentCommissionRate[] = [];
     for (const [subAgentId, rates] of bySubAgent) {
-      // Priority: client > country > default
+      // Priority: client+country > client only > country only > default
       let best: SubAgentCommissionRate | null = null;
       if (clientId && country) {
         best = rates.find(r => r.client_id === clientId && r.country === country) || null;
+      }
+      if (!best && clientId) {
+        best = rates.find(r => r.client_id === clientId && !r.country) || null;
       }
       if (!best && country) {
         best = rates.find(r => r.country === country && !r.client_id) || null;
