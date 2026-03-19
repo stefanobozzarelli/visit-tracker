@@ -137,6 +137,104 @@
   background-color: var(--color-bg-tertiary);
 }
 
+/* Attachments */
+.attachments-section {
+  margin-top: 24px;
+  margin-bottom: 20px;
+}
+
+.attachments-section > label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.attachment-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  background: var(--color-bg-secondary, #fafaf8);
+}
+
+.attachment-dropzone:hover {
+  border-color: var(--color-info);
+  background: #f0f4f8;
+}
+
+.attachment-dropzone.drag-over {
+  border-color: var(--color-info);
+  background: #e5f0ff;
+}
+
+.attachment-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--color-bg-secondary, #fafaf8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.attachment-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+}
+
+.attachment-name {
+  color: var(--color-info);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-name:hover {
+  text-decoration: underline;
+}
+
+.attachment-size {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.attachment-delete {
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.attachment-delete:hover {
+  background: #ffe5e5;
+  color: var(--color-error);
+}
+
 @media (max-width: 600px) {
   .todo-form-container {
     padding: 10px;

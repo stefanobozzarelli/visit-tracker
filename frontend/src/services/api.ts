@@ -619,6 +619,31 @@ class ApiService {
     return response.data;
   }
 
+  // Todo Attachments
+  async uploadTodoAttachment(todoId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/todos/${todoId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getTodoAttachments(todoId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/todos/${todoId}/attachments`);
+    return response.data;
+  }
+
+  async downloadTodoAttachment(todoId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/todos/${todoId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteTodoAttachment(todoId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/todos/${todoId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
   // Customer Orders
   async createOrder(data: {
     visit_id: string;

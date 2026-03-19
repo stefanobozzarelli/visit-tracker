@@ -1,8 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { User } from './User';
 import { Client } from './Client';
 import { Company } from './Company';
 import { VisitReport } from './VisitReport';
+import { TodoAttachment } from './TodoAttachment';
 
 @Entity('todo_items')
 export class TodoItem {
@@ -59,4 +60,7 @@ export class TodoItem {
   @ManyToOne(() => VisitReport, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'visit_report_id' })
   visit_report: VisitReport | null;
+
+  @OneToMany(() => TodoAttachment, attachment => attachment.todo, { cascade: true })
+  attachments: TodoAttachment[];
 }

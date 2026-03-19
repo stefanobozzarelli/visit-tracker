@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
-import { Client, Company, User } from '../types';
+import { Client, Company, User, TodoAttachment } from '../types';
 import '../styles/TodoForm.css';
 
 export const TodoForm = () => {
@@ -23,6 +23,11 @@ export const TodoForm = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+
+  const [attachments, setAttachments] = useState<TodoAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -81,8 +86,68 @@ export const TodoForm = () => {
           }
         }
       } catch {}
+
+      // Load attachments
+      try {
+        const attRes = await apiService.getTodoAttachments(editId);
+        if (attRes.success && attRes.data) {
+          setAttachments(attRes.data);
+        }
+      } catch {}
     }
     setLoadingData(false);
+  };
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || !editId) return;
+    setUploading(true);
+    setError('');
+    try {
+      for (let i = 0; i < files.length; i++) {
+        await apiService.uploadTodoAttachment(editId, files[i]);
+      }
+      // Reload attachments
+      const attRes = await apiService.getTodoAttachments(editId);
+      if (attRes.success && attRes.data) {
+        setAttachments(attRes.data);
+      }
+      setSuccess('File caricato con successo');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch {
+      setError('Errore durante il caricamento del file');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string, filename: string) => {
+    if (!editId) return;
+    if (!window.confirm(`Eliminare "${filename}"?`)) return;
+    try {
+      await apiService.deleteTodoAttachment(editId, attachmentId);
+      setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+    } catch {
+      setError('Errore durante la cancellazione');
+    }
+  };
+
+  const handleDownloadAttachment = async (attachmentId: string) => {
+    if (!editId) return;
+    try {
+      const res = await apiService.downloadTodoAttachment(editId, attachmentId);
+      if (res.success && res.data?.url) {
+        window.open(res.data.url, '_blank');
+      }
+    } catch {
+      setError('Errore durante il download');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -223,6 +288,67 @@ export const TodoForm = () => {
           {visitReportId && (
             <div className="info-note">
               This task is linked to a visit report
+            </div>
+          )}
+
+          {/* Attachments section - only in edit mode */}
+          {isEdit && (
+            <div className="attachments-section">
+              <label>Allegati</label>
+
+              {/* Drop zone */}
+              <div
+                className={`attachment-dropzone ${dragOver ? 'drag-over' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFileUpload(e.dataTransfer.files); }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                />
+                {uploading ? (
+                  <span>Caricamento in corso...</span>
+                ) : (
+                  <span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Trascina file qui o clicca per caricare
+                  </span>
+                )}
+              </div>
+
+              {/* Attachment list */}
+              {attachments.length > 0 && (
+                <div className="attachment-list">
+                  {attachments.map((att) => (
+                    <div key={att.id} className="attachment-item">
+                      <div className="attachment-info">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                        </svg>
+                        <span className="attachment-name" onClick={() => handleDownloadAttachment(att.id)} title="Clicca per scaricare">
+                          {att.filename}
+                        </span>
+                        <span className="attachment-size">{formatFileSize(att.file_size)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="attachment-delete"
+                        onClick={() => handleDeleteAttachment(att.id, att.filename)}
+                        title="Elimina"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

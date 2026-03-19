@@ -1,9 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { TodoService } from '../services/TodoService';
+import { S3Service } from '../services/S3Service';
 import { authMiddleware } from '../middleware/auth';
+import multer from 'multer';
 
 const router = Router();
 const todoService = new TodoService();
+const s3Service = new S3Service();
+const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * POST /api/todos
@@ -237,6 +241,134 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
       success: false,
       error: (error as Error).message,
     });
+  }
+});
+
+/**
+ * POST /api/todos/:id/attachments
+ * Upload attachment to a todo
+ */
+router.post('/:id/attachments', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file provided' });
+    }
+
+    const todo = await todoService.getTodoById(id);
+    if (!todo) {
+      return res.status(404).json({ success: false, error: 'Todo not found' });
+    }
+
+    const userId = (req.user as any).id;
+    const userRole = (req.user as any).role;
+    if (
+      userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager' &&
+      todo.assigned_to_user_id !== userId && todo.created_by_user_id !== userId
+    ) {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const filename = req.file.originalname;
+    const fileBuffer = req.file.buffer;
+    const fileSize = req.file.size;
+    const contentType = req.file.mimetype;
+
+    const { v4: uuidv4 } = require('uuid');
+    const s3Key = `todo-attachments/${uuidv4()}.${filename.split('.').pop()}`;
+
+    const { PutObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+    const s3Client = new S3Client({
+      region: process.env.AWS_REGION || 'eu-north-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+      },
+    });
+
+    await s3Client.send(new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
+      Key: s3Key,
+      Body: fileBuffer,
+      ContentType: contentType,
+    }));
+
+    const attachment = await todoService.addAttachment(id, userId, filename, fileSize, s3Key);
+
+    res.json({
+      success: true,
+      data: {
+        id: attachment.id,
+        filename: attachment.filename,
+        file_size: attachment.file_size,
+        created_at: attachment.created_at,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/todos/:id/attachments
+ * List attachments for a todo
+ */
+router.get('/:id/attachments', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const attachments = await todoService.getAttachments(req.params.id);
+    res.json({ success: true, data: attachments });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/todos/:id/attachments/:attachmentId/download
+ * Get presigned download URL for attachment
+ */
+router.get('/:id/attachments/:attachmentId/download', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const attachment = await todoService.getAttachment(req.params.attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+
+    const downloadUrl = await s3Service.getDownloadUrl(attachment.s3_key);
+    res.json({ success: true, data: { url: downloadUrl, filename: attachment.filename } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * DELETE /api/todos/:id/attachments/:attachmentId
+ * Delete attachment
+ */
+router.delete('/:id/attachments/:attachmentId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const todo = await todoService.getTodoById(req.params.id);
+    if (!todo) {
+      return res.status(404).json({ success: false, error: 'Todo not found' });
+    }
+
+    const userId = (req.user as any).id;
+    const userRole = (req.user as any).role;
+    if (
+      userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager' &&
+      todo.assigned_to_user_id !== userId && todo.created_by_user_id !== userId
+    ) {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const attachment = await todoService.getAttachment(req.params.attachmentId);
+    if (attachment) {
+      await s3Service.deleteFile(attachment.s3_key);
+    }
+    await todoService.deleteAttachment(req.params.attachmentId);
+
+    res.json({ success: true, message: 'Attachment deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 

@@ -89,6 +89,17 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+export interface TodoAttachment {
+  id: string;
+  todo_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
 export interface TodoItem {
   id: string;
   title: string;
@@ -106,6 +117,7 @@ export interface TodoItem {
   created_by_user?: User;
   client?: Client;
   company?: Company;
+  attachments?: TodoAttachment[];
 }
 
 export interface CustomerOrderItem {

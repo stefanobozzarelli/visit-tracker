@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/database';
 import { TodoItem } from '../entities/TodoItem';
+import { TodoAttachment } from '../entities/TodoAttachment';
 
 interface TodoFilters {
   status?: string;
@@ -13,6 +14,7 @@ interface TodoFilters {
 
 export class TodoService {
   private todoRepository = AppDataSource.getRepository(TodoItem);
+  private attachmentRepository = AppDataSource.getRepository(TodoAttachment);
 
   async createTodo(
     title: string,
@@ -42,7 +44,8 @@ export class TodoService {
       .leftJoinAndSelect('todo.assigned_to_user', 'assigned_user')
       .leftJoinAndSelect('todo.created_by_user', 'created_user')
       .leftJoinAndSelect('todo.client', 'client')
-      .leftJoinAndSelect('todo.company', 'company');
+      .leftJoinAndSelect('todo.company', 'company')
+      .leftJoinAndSelect('todo.attachments', 'attachments');
 
     if (filters?.status) {
       query = query.where('todo.status = :status', { status: filters.status });
@@ -149,7 +152,7 @@ export class TodoService {
   async getTodoById(id: string): Promise<TodoItem | null> {
     return await this.todoRepository.findOne({
       where: { id },
-      relations: ['assigned_to_user', 'created_by_user', 'client', 'company', 'visit_report'],
+      relations: ['assigned_to_user', 'created_by_user', 'client', 'company', 'visit_report', 'attachments'],
     });
   }
 
@@ -227,5 +230,36 @@ export class TodoService {
       .where('todo.due_date BETWEEN :today AND :sevenDays', { today: todayStr, sevenDays: sevenDaysStr })
       .orderBy('todo.due_date', 'ASC')
       .getMany();
+  }
+
+  // --- Attachment methods ---
+
+  async addAttachment(todoId: string, userId: string, filename: string, fileSize: number, s3Key: string): Promise<TodoAttachment> {
+    const attachment = this.attachmentRepository.create({
+      todo_id: todoId,
+      uploaded_by_user_id: userId,
+      filename,
+      file_size: fileSize,
+      s3_key: s3Key,
+    });
+    return await this.attachmentRepository.save(attachment);
+  }
+
+  async getAttachments(todoId: string): Promise<TodoAttachment[]> {
+    return await this.attachmentRepository.find({
+      where: { todo_id: todoId },
+      relations: ['uploaded_by_user'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async getAttachment(attachmentId: string): Promise<TodoAttachment | null> {
+    return await this.attachmentRepository.findOne({
+      where: { id: attachmentId },
+    });
+  }
+
+  async deleteAttachment(attachmentId: string): Promise<void> {
+    await this.attachmentRepository.delete(attachmentId);
   }
 }

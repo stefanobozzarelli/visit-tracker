@@ -427,6 +427,19 @@
   word-break: break-word;
 }
 
+.task-attachment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary, #f5f3ee);
+  padding: 1px 6px;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+
 .task-created-by {
   font-size: 0.688rem;
   color: var(--color-text-tertiary);
