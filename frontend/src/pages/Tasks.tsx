@@ -484,7 +484,7 @@ export const Tasks: React.FC = () => {
                 <tr>
                   <th>Task</th>
                   <th>Client / Company</th>
-                  {isAdmin && <th>Assigned To</th>}
+                  <th>Assigned To</th>
                   <th>Status</th>
                   <th>Due Date</th>
                   <th style={{ width: '1%' }}>Actions</th>
@@ -518,14 +518,12 @@ export const Tasks: React.FC = () => {
                       </td>
 
                       {/* Assigned To */}
-                      {isAdmin && (
-                        <td>
-                          <div className="task-assignee">
-                            <span className="task-avatar">{getInitials(assigneeName)}</span>
-                            <span className="task-assignee-name">{assigneeName}</span>
-                          </div>
-                        </td>
-                      )}
+                      <td>
+                        <div className="task-assignee">
+                          <span className="task-avatar">{getInitials(assigneeName)}</span>
+                          <span className="task-assignee-name">{assigneeName}</span>
+                        </div>
+                      </td>
 
                       {/* Status */}
                       <td>
