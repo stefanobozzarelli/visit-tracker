@@ -20,7 +20,7 @@ interface InvoiceItem {
   error_message?: string;
   created_at: string;
   company?: { id: string; name: string };
-  client?: { id: string; name: string };
+  client?: { id: string; name: string; country?: string };
   uploaded_by_user?: { id: string; name: string };
   items?: LineItem[];
 }
@@ -320,7 +320,11 @@ export const InvoicesTab: React.FC = () => {
                     {isExpanded && expandedInvoice && (
                       <tr className="invoice-detail-row">
                         <td colSpan={7}>
-                          <InvoiceDetail invoice={expandedInvoice} />
+                          <InvoiceDetail invoice={expandedInvoice} onUpdate={async () => {
+                            const res = await apiService.getInvoice(expandedId!);
+                            setExpandedInvoice(res.data);
+                            await loadData();
+                          }} />
                         </td>
                       </tr>
                     )}
@@ -335,10 +339,85 @@ export const InvoicesTab: React.FC = () => {
   );
 };
 
-/* Invoice Detail (expanded row) */
-const InvoiceDetail: React.FC<{ invoice: InvoiceItem }> = ({ invoice }) => {
+/* Invoice Detail (expanded row) — EDITABLE */
+const InvoiceDetail: React.FC<{ invoice: InvoiceItem; onUpdate?: () => void }> = ({ invoice, onUpdate }) => {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
+
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<any>({});
+  const [addingRow, setAddingRow] = useState(false);
+  const [newRow, setNewRow] = useState({ article_code: '', description: '', quantity: '', unit: 'pz', unit_price: '' });
+  const [editingTotal, setEditingTotal] = useState(false);
+  const [newTotal, setNewTotal] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = (item: any) => {
+    setEditingItemId(item.id);
+    setEditData({
+      article_code: item.article_code || '',
+      description: item.description || '',
+      quantity: item.quantity,
+      unit: item.unit || 'pz',
+      unit_price: item.unit_price,
+      discount_percent: item.discount_percent || '',
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingItemId) return;
+    setSaving(true);
+    try {
+      await apiService.updateInvoiceLineItem(invoice.id, editingItemId, {
+        article_code: editData.article_code,
+        description: editData.description,
+        quantity: Number(editData.quantity),
+        unit: editData.unit,
+        unit_price: Number(editData.unit_price),
+        discount_percent: editData.discount_percent ? Number(editData.discount_percent) : null,
+      });
+      setEditingItemId(null);
+      onUpdate?.();
+    } catch (err) { console.error(err); }
+    setSaving(false);
+  };
+
+  const deleteItem = async (itemId: string) => {
+    if (!window.confirm('Eliminare questa riga?')) return;
+    try {
+      await apiService.deleteInvoiceLineItem(invoice.id, itemId);
+      onUpdate?.();
+    } catch (err) { console.error(err); }
+  };
+
+  const addRow = async () => {
+    if (!newRow.description) return;
+    setSaving(true);
+    try {
+      await apiService.addInvoiceLineItem(invoice.id, {
+        article_code: newRow.article_code,
+        description: newRow.description,
+        quantity: Number(newRow.quantity) || 0,
+        unit: newRow.unit,
+        unit_price: Number(newRow.unit_price) || 0,
+      });
+      setAddingRow(false);
+      setNewRow({ article_code: '', description: '', quantity: '', unit: 'pz', unit_price: '' });
+      onUpdate?.();
+    } catch (err) { console.error(err); }
+    setSaving(false);
+  };
+
+  const saveTotal = async () => {
+    if (!newTotal) return;
+    setSaving(true);
+    try {
+      await apiService.updateInvoiceTotal(invoice.id, Number(newTotal));
+      setEditingTotal(false);
+      onUpdate?.();
+    } catch (err) { console.error(err); }
+    setSaving(false);
+  };
 
   return (
     <div className="invoice-detail">
@@ -353,6 +432,7 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem }> = ({ invoice }) => {
           <span>Fattura #{invoice.invoice_number || 'N/D'}</span>
           <span>Azienda: <strong>{invoice.company?.name || '–'}</strong></span>
           <span>Cliente: <strong>{invoice.client?.name || '–'}</strong></span>
+          {invoice.client?.country && <span>Nazione: <strong>{invoice.client.country}</strong></span>}
           <span>Caricata da: {invoice.uploaded_by_user?.name || '–'}</span>
         </div>
       </div>
@@ -369,31 +449,108 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem }> = ({ invoice }) => {
               <th>PREZZO</th>
               <th>SCONTO</th>
               <th>TOTALE</th>
+              <th>AZIONI</th>
             </tr>
           </thead>
           <tbody>
             {invoice.items.map(item => (
-              <tr key={item.id}>
-                <td>{item.line_number}</td>
-                <td className="article-code">{item.article_code || '–'}</td>
-                <td>{item.description}</td>
-                <td className="num">{Number(item.quantity).toFixed(2)}</td>
-                <td>{item.unit}</td>
-                <td className="num">{formatCurrency(item.unit_price)}</td>
-                <td className="num">{item.discount_percent ? `${item.discount_percent}%` : '–'}</td>
-                <td className="num">{formatCurrency(item.line_total)}</td>
-              </tr>
+              editingItemId === item.id ? (
+                <tr key={item.id} className="editing-row">
+                  <td>{item.line_number}</td>
+                  <td><input value={editData.article_code} onChange={e => setEditData({...editData, article_code: e.target.value})} style={{width:'80px'}} /></td>
+                  <td><input value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} style={{width:'100%'}} /></td>
+                  <td><input type="number" value={editData.quantity} onChange={e => setEditData({...editData, quantity: e.target.value})} style={{width:'70px'}} step="0.01" /></td>
+                  <td><input value={editData.unit} onChange={e => setEditData({...editData, unit: e.target.value})} style={{width:'50px'}} /></td>
+                  <td><input type="number" value={editData.unit_price} onChange={e => setEditData({...editData, unit_price: e.target.value})} style={{width:'80px'}} step="0.01" /></td>
+                  <td><input type="number" value={editData.discount_percent} onChange={e => setEditData({...editData, discount_percent: e.target.value})} style={{width:'50px'}} step="0.1" /></td>
+                  <td className="num">{formatCurrency(Number(editData.quantity) * Number(editData.unit_price))}</td>
+                  <td>
+                    <button className="btn-icon" onClick={saveEdit} disabled={saving} title="Salva">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                    <button className="btn-icon" onClick={() => setEditingItemId(null)} title="Annulla">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={item.id}>
+                  <td>{item.line_number}</td>
+                  <td className="article-code">{item.article_code || '–'}</td>
+                  <td>{item.description}</td>
+                  <td className="num">{Number(item.quantity).toFixed(2)}</td>
+                  <td>{item.unit}</td>
+                  <td className="num">{formatCurrency(item.unit_price)}</td>
+                  <td className="num">{item.discount_percent ? `${item.discount_percent}%` : '–'}</td>
+                  <td className="num">{formatCurrency(item.line_total)}</td>
+                  <td>
+                    <button className="btn-icon" onClick={() => startEdit(item)} title="Modifica">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button className="btn-icon btn-icon-danger" onClick={() => deleteItem(item.id)} title="Elimina">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              )
             ))}
+            {addingRow && (
+              <tr className="editing-row">
+                <td>+</td>
+                <td><input value={newRow.article_code} onChange={e => setNewRow({...newRow, article_code: e.target.value})} placeholder="Cod." style={{width:'80px'}} /></td>
+                <td><input value={newRow.description} onChange={e => setNewRow({...newRow, description: e.target.value})} placeholder="Descrizione" style={{width:'100%'}} /></td>
+                <td><input type="number" value={newRow.quantity} onChange={e => setNewRow({...newRow, quantity: e.target.value})} placeholder="0" style={{width:'70px'}} step="0.01" /></td>
+                <td><input value={newRow.unit} onChange={e => setNewRow({...newRow, unit: e.target.value})} style={{width:'50px'}} /></td>
+                <td><input type="number" value={newRow.unit_price} onChange={e => setNewRow({...newRow, unit_price: e.target.value})} placeholder="0" style={{width:'80px'}} step="0.01" /></td>
+                <td>–</td>
+                <td className="num">{formatCurrency(Number(newRow.quantity || 0) * Number(newRow.unit_price || 0))}</td>
+                <td>
+                  <button className="btn-icon" onClick={addRow} disabled={saving} title="Aggiungi">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button className="btn-icon" onClick={() => setAddingRow(false)} title="Annulla">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={7} className="total-label">Totale</td>
-              <td className="num total-value">{formatCurrency(invoice.total_amount)}</td>
+              <td colSpan={7} className="total-label">
+                Totale
+                {!addingRow && (
+                  <button className="btn-icon" onClick={() => setAddingRow(true)} title="Aggiungi riga" style={{marginLeft:'1rem'}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                )}
+              </td>
+              <td className="num total-value">
+                {editingTotal ? (
+                  <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
+                    <input type="number" value={newTotal} onChange={e => setNewTotal(e.target.value)} style={{width:'100px'}} step="0.01" />
+                    <button className="btn-icon" onClick={saveTotal} disabled={saving}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                    <button className="btn-icon" onClick={() => setEditingTotal(false)}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                ) : (
+                  <span onClick={() => { setEditingTotal(true); setNewTotal(String(invoice.total_amount)); }} style={{cursor:'pointer'}} title="Clicca per modificare il totale">
+                    {formatCurrency(invoice.total_amount)}
+                  </span>
+                )}
+              </td>
+              <td></td>
             </tr>
           </tfoot>
         </table>
       ) : (
-        <p className="no-items">Nessuna riga estratta.</p>
+        <div>
+          <p className="no-items">Nessuna riga estratta.</p>
+          <button className="admin-btn admin-btn-primary" onClick={() => setAddingRow(true)} style={{marginTop:'0.5rem'}}>+ Aggiungi Riga</button>
+        </div>
       )}
     </div>
   );
