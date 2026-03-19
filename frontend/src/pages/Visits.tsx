@@ -440,6 +440,28 @@ export const Visits: React.FC = () => {
 
           <div className="visits-filter-divider" />
 
+          {/* Reset filters button if any are active */}
+          {(clientId || companyId || visitedBy || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
+            <button
+              type="button"
+              className="visits-chip"
+              onClick={() => {
+                setClientId('');
+                setCompanyId('');
+                setVisitedBy('');
+                setThisMonth(false);
+                setLast30Days(false);
+                setWithReport(false);
+                setMissingReport(false);
+                setFollowUpNeeded(false);
+                setLocalSearch('');
+              }}
+              style={{ background: '#fff3cd', color: '#856404', borderColor: '#ffc107' }}
+            >
+              ✕ Reset Filters
+            </button>
+          )}
+
           {/* Quick filter chips */}
           <div className="visits-chips">
             <button

@@ -3,21 +3,84 @@ import { authMiddleware } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { Project } from '../entities/Project';
 import { ApiResponse } from '../types';
+import { PermissionService } from '../services/PermissionService';
 
 const router = Router();
 router.use(authMiddleware);
 
 const repo = () => AppDataSource.getRepository(Project);
+const permissionService = new PermissionService();
 
-// GET all projects (with filters)
+// GET project stats (MUST be before /:id to avoid conflict)
+router.get('/stats/summary', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+
+    let baseQb = repo().createQueryBuilder('p');
+
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        if (visibleClientIds.length > 0) {
+          baseQb = baseQb.andWhere('p.client_id IN (:...visibleClientIds)', { visibleClientIds });
+        } else {
+          return res.json({ success: true, data: { total: 0, active: 0, completed: 0, total_value: 0, total_shipped: 0 } });
+        }
+      }
+    }
+
+    const total = await baseQb.clone().getCount();
+    const active = await baseQb.clone().andWhere('p.status = :s', { s: 'ATTIVO' }).getCount();
+    const completed = await baseQb.clone().andWhere('p.status = :s', { s: 'COMPLETATO' }).getCount();
+
+    const valueResult = await baseQb.clone()
+      .select('SUM(p.project_value)', 'total_value')
+      .addSelect('SUM(p.total_value_shipped)', 'total_shipped')
+      .andWhere('p.status = :status', { status: 'ATTIVO' })
+      .getRawOne();
+
+    const response: ApiResponse<any> = {
+      success: true,
+      data: {
+        total,
+        active,
+        completed,
+        total_value: parseFloat(valueResult?.total_value || '0'),
+        total_shipped: parseFloat(valueResult?.total_shipped || '0'),
+      }
+    };
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// GET all projects (with filters + permission-based visibility)
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { supplier_id, client_id, country, status, project_type, search } = req.query;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
 
     let qb = repo().createQueryBuilder('p')
       .leftJoinAndSelect('p.supplier', 'supplier')
       .leftJoinAndSelect('p.client', 'client')
       .orderBy('p.project_number', 'DESC');
+
+    // Permission-based filtering: admin/master_admin/manager see all, sales_rep only sees permitted clients
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        if (visibleClientIds.length > 0) {
+          qb = qb.andWhere('p.client_id IN (:...visibleClientIds)', { visibleClientIds });
+        } else {
+          const response: ApiResponse<any> = { success: true, data: [] };
+          return res.json(response);
+        }
+      }
+    }
 
     if (supplier_id) qb = qb.andWhere('p.supplier_id = :supplier_id', { supplier_id });
     if (client_id) qb = qb.andWhere('p.client_id = :client_id', { client_id });
@@ -39,14 +102,26 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET single project
+// GET single project (with permission check)
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+
     const project = await repo().findOne({
       where: { id: req.params.id },
       relations: ['supplier', 'client'],
     });
     if (!project) return res.status(404).json({ success: false, error: 'Project not found' });
+
+    // Permission check for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*') && project.client_id && !visibleClientIds.includes(project.client_id)) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+    }
+
     const response: ApiResponse<any> = { success: true, data: project };
     res.json(response);
   } catch (error) {
@@ -112,35 +187,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
     res.json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
-  }
-});
-
-// GET project stats
-router.get('/stats/summary', async (req: Request, res: Response) => {
-  try {
-    const total = await repo().count();
-    const active = await repo().count({ where: { status: 'ATTIVO' as any } });
-    const completed = await repo().count({ where: { status: 'COMPLETATO' as any } });
-
-    const valueResult = await repo().createQueryBuilder('p')
-      .select('SUM(p.project_value)', 'total_value')
-      .addSelect('SUM(p.total_value_shipped)', 'total_shipped')
-      .where('p.status = :status', { status: 'ATTIVO' })
-      .getRawOne();
-
-    const response: ApiResponse<any> = {
-      success: true,
-      data: {
-        total,
-        active,
-        completed,
-        total_value: parseFloat(valueResult?.total_value || '0'),
-        total_shipped: parseFloat(valueResult?.total_shipped || '0'),
-      }
-    };
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 
