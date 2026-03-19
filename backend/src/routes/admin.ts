@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { PermissionService } from '../services/PermissionService';
 import { UserService } from '../services/UserService';
+import { User } from '../entities/User';
+import { AppDataSource } from '../config/database';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
@@ -324,7 +326,7 @@ router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, 
 router.put('/users/:userId/revenue-access', authMiddleware, masterAdminOnly, async (req: Request, res: Response) => {
   try {
     const { can_view_revenue } = req.body;
-    const userRepo = (await import('typeorm')).getRepository((await import('../entities/User')).User);
+    const userRepo = AppDataSource.getRepository(User);
     await userRepo.update(req.params.userId, { can_view_revenue: !!can_view_revenue });
     res.json({ success: true });
   } catch (error) {
