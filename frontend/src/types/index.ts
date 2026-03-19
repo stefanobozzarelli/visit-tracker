@@ -2,7 +2,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'manager' | 'sales_rep';
+  role: 'master_admin' | 'admin' | 'manager' | 'sales_rep';
+  can_view_revenue?: boolean;
 }
 
 export interface AuthContextType {
