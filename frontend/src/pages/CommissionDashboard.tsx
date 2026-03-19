@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { apiService } from '../services/api';
 
-const ABK_GROUP_NAMES = ['Materia', 'Abk Stone', 'Abk Group', 'Gardenia Ariana', 'Versace', 'Abk', 'Flaviker'];
+const ABK_GROUP_NAMES = ['materia', 'abk stone', 'abk group', 'gardenia ariana', 'versace', 'abk', 'flaviker'];
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(amount) || 0);
@@ -57,7 +57,7 @@ export const CommissionDashboard: React.FC = () => {
       const params: any = {};
       if (filterCompany === 'gruppo_abk') {
         const ids = companiesRef.current
-          .filter(c => ABK_GROUP_NAMES.some(n => c.name.toLowerCase().includes(n.toLowerCase())))
+          .filter(c => ABK_GROUP_NAMES.includes(c.name.toLowerCase().trim()))
           .map(c => c.id);
         if (ids.length) params.company_ids = ids.join(',');
       } else if (filterCompany) {

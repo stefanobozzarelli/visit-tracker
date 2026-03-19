@@ -559,7 +559,7 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; onUpdate?: () => void }> =
 /* ============================================================
    STATISTICS TAB
    ============================================================ */
-const ABK_GROUP_NAMES_STATS = ['Materia', 'Abk Stone', 'Abk Group', 'Gardenia Ariana', 'Versace', 'Abk', 'Flaviker'];
+const ABK_GROUP_NAMES_STATS = ['materia', 'abk stone', 'abk group', 'gardenia ariana', 'versace', 'abk', 'flaviker'];
 
 export const StatisticsTab: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
@@ -593,7 +593,7 @@ export const StatisticsTab: React.FC = () => {
     try {
       const params: any = {};
       if (filterCompany === 'gruppo_abk') {
-        const ids = companiesRef.current.filter(c => ABK_GROUP_NAMES_STATS.some(n => c.name.toLowerCase().includes(n.toLowerCase()))).map(c => c.id);
+        const ids = companiesRef.current.filter(c => ABK_GROUP_NAMES_STATS.includes(c.name.toLowerCase().trim())).map(c => c.id);
         if (ids.length) params.company_ids = ids.join(',');
       } else if (filterCompany) {
         params.company_id = filterCompany;
