@@ -760,6 +760,11 @@ class ApiService {
   }
 
   // ---- Profile (self-service) ----
+  async getProfile() {
+    const response = await this.api.get<ApiResponse<any>>('/auth/me');
+    return response.data;
+  }
+
   async updateProfile(data: { name: string }) {
     const response = await this.api.put<ApiResponse<any>>('/auth/profile', data);
     return response.data;

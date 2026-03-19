@@ -205,7 +205,7 @@ export class PermissionService {
    */
   async getAllUsers(): Promise<User[]> {
     return await this.userRepository.find({
-      select: ['id', 'email', 'name', 'role'],
+      select: ['id', 'email', 'name', 'role', 'can_view_revenue'],
     });
   }
 

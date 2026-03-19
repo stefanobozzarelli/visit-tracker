@@ -73,7 +73,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
     }
     res.json({
       success: true,
-      data: { id: user.id, email: user.email, name: user.name, role: user.role },
+      data: { id: user.id, email: user.email, name: user.name, role: user.role, can_view_revenue: !!(user as any).can_view_revenue },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });

@@ -46,6 +46,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setIsInitializing(false);
+
+    // Refresh user data from server to get updated fields (can_view_revenue, role, etc.)
+    if (savedToken && savedUser && navigator.onLine && validateJWTToken(savedToken)) {
+      apiService.getProfile().then(res => {
+        if (res.success && res.data) {
+          const freshUser = res.data;
+          setUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   const login = async (email: string, password: string) => {
