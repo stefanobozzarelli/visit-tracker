@@ -289,7 +289,12 @@ export const SubAgents: React.FC = () => {
                                 </div>
                                 <div className="admin-form-group">
                                   <label>Paese</label>
-                                  <input type="text" value={rateCountry} onChange={e => setRateCountry(e.target.value)} placeholder="es. IT" />
+                                  <select value={rateCountry} onChange={e => setRateCountry(e.target.value)}>
+                                    <option value="">Tutti</option>
+                                    {[...new Set(clients.map((c: any) => c.country).filter(Boolean))].sort().map(country => (
+                                      <option key={country} value={country}>{country}</option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div className="admin-form-group">
                                   <label>Cliente</label>

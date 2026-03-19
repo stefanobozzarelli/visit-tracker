@@ -115,7 +115,12 @@ export const CommissionRates: React.FC = () => {
           </div>
           <div className="admin-form-group">
             <label>Paese (opzionale)</label>
-            <input type="text" value={formCountry} onChange={e => setFormCountry(e.target.value)} placeholder="es. IT, CN, DE" />
+            <select value={formCountry} onChange={e => setFormCountry(e.target.value)}>
+              <option value="">Nessuno (default)</option>
+              {[...new Set(clients.map((c: any) => c.country).filter(Boolean))].sort().map(country => (
+                <option key={country} value={country}>{country}</option>
+              ))}
+            </select>
           </div>
           <div className="admin-form-group">
             <label>Cliente (opzionale)</label>
