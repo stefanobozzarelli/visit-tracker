@@ -11,6 +11,7 @@ export const NewVisit: React.FC = () => {
   const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -39,7 +40,7 @@ export const NewVisit: React.FC = () => {
   });
 
   // Inline tasks to create with the visit
-  const [tasks, setTasks] = useState<{ title: string; companyId: string; dueDate: string }[]>([]);
+  const [tasks, setTasks] = useState<{ title: string; companyId: string; dueDate: string; assignedToUserId: string }[]>([]);
 
   useEffect(() => {
     loadData();
@@ -82,6 +83,18 @@ export const NewVisit: React.FC = () => {
         }
       } catch (err) {
         console.warn('[NewVisit] Failed to load companies:', err);
+      }
+
+      try {
+        const usersRes = await apiService.getUsers();
+        if (usersRes.success && usersRes.data) {
+          const sortedUsers = usersRes.data.sort((a: any, b: any) =>
+            (a.name || '').localeCompare(b.name || '')
+          );
+          setUsers(sortedUsers);
+        }
+      } catch (err) {
+        console.warn('[NewVisit] Failed to load users:', err);
       }
     } finally {
       setIsLoading(false);
@@ -187,7 +200,7 @@ export const NewVisit: React.FC = () => {
                 task.title,
                 formData.clientId,
                 task.companyId || formData.reports[0]?.companyId || '',
-                user?.id || '',
+                task.assignedToUserId || user?.id || '',
                 task.dueDate || undefined,
               );
             } catch { /* non-blocking */ }
@@ -508,7 +521,7 @@ export const NewVisit: React.FC = () => {
           </p>
           {tasks.map((task, idx) => (
             <div key={idx} style={{ padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-tertiary)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>Task *</label>
                   <input
@@ -532,6 +545,18 @@ export const NewVisit: React.FC = () => {
                   </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Assigned To</label>
+                  <select
+                    value={task.assignedToUserId}
+                    onChange={e => { const t = [...tasks]; t[idx].assignedToUserId = e.target.value; setTasks(t); }}
+                  >
+                    <option value="">Select user...</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>Due Date</label>
                   <input
                     type="date"
@@ -551,7 +576,7 @@ export const NewVisit: React.FC = () => {
           ))}
           <button
             type="button"
-            onClick={() => setTasks([...tasks, { title: '', companyId: formData.reports[0]?.companyId || '', dueDate: '' }])}
+            onClick={() => setTasks([...tasks, { title: '', companyId: formData.reports[0]?.companyId || '', dueDate: '', assignedToUserId: '' }])}
             className="btn-secondary"
             style={{ marginBottom: '1rem' }}
           >
