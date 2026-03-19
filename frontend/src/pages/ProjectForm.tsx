@@ -73,6 +73,8 @@ export const ProjectForm: React.FC = () => {
   const [error, setError] = useState('');
   const [isAddingCountry, setIsAddingCountry] = useState(false);
   const [newCountryInput, setNewCountryInput] = useState('');
+  const [isDeletingCountry, setIsDeletingCountry] = useState(false);
+  const [countryToDelete, setCountryToDelete] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -285,6 +287,54 @@ export const ProjectForm: React.FC = () => {
                       style={{ padding: '0.45rem 0.7rem', borderRadius: 8, border: '1px solid #d5d0c8', background: 'white', cursor: 'pointer', fontSize: '0.8rem' }}
                     >X</button>
                   </div>
+                ) : isDeletingCountry ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#666' }}>Select a country to remove:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {existingCountries.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setCountryToDelete(c)}
+                          style={{
+                            padding: '0.3rem 0.6rem', borderRadius: 6, fontSize: '0.78rem', cursor: 'pointer',
+                            border: countryToDelete === c ? '1px solid #c62828' : '1px solid #d5d0c8',
+                            background: countryToDelete === c ? '#fce4ec' : 'white',
+                            color: countryToDelete === c ? '#c62828' : '#333',
+                          }}
+                        >{c}</button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.3rem' }}>
+                      <button
+                        type="button"
+                        disabled={!countryToDelete}
+                        onClick={async () => {
+                          if (!countryToDelete) return;
+                          // Remove country from all projects that have it
+                          const toUpdate = allProjects.filter((p: any) => p.country === countryToDelete);
+                          for (const p of toUpdate) {
+                            await apiService.updateProject(p.id, { country: null });
+                          }
+                          // If current form has this country, clear it
+                          if (form.country === countryToDelete) {
+                            handleChange('country', '');
+                          }
+                          // Refresh project list
+                          const projRes = await apiService.getProjects();
+                          if (projRes.success && projRes.data) setAllProjects(projRes.data);
+                          setCountryToDelete(null);
+                          setIsDeletingCountry(false);
+                        }}
+                        style={{ padding: '0.4rem 0.8rem', borderRadius: 8, border: 'none', background: countryToDelete ? '#c62828' : '#ccc', color: 'white', cursor: countryToDelete ? 'pointer' : 'not-allowed', fontSize: '0.8rem' }}
+                      >Confirm Delete</button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsDeletingCountry(false); setCountryToDelete(null); }}
+                        style={{ padding: '0.4rem 0.8rem', borderRadius: 8, border: '1px solid #d5d0c8', background: 'white', cursor: 'pointer', fontSize: '0.8rem' }}
+                      >Cancel</button>
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     <select
@@ -293,6 +343,9 @@ export const ProjectForm: React.FC = () => {
                         if (e.target.value === '__add_new__') {
                           setIsAddingCountry(true);
                           setNewCountryInput('');
+                        } else if (e.target.value === '__delete__') {
+                          setIsDeletingCountry(true);
+                          setCountryToDelete(null);
                         } else {
                           handleChange('country', e.target.value);
                         }
@@ -305,6 +358,7 @@ export const ProjectForm: React.FC = () => {
                         <option value={form.country}>{form.country}</option>
                       )}
                       <option value="__add_new__">+ Add new country...</option>
+                      <option value="__delete__">- Remove a country...</option>
                     </select>
                     {form.country && (
                       <button
