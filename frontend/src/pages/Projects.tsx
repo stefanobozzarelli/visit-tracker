@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { config } from '../config';
 import { Project, Company, Client } from '../types';
 import '../styles/Projects.css';
+
+const API_BASE_URL = config.API_BASE_URL;
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
 const formatCurrency = (v?: number) => v != null ? new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v) : '-';
@@ -29,6 +33,11 @@ export const Projects: React.FC = () => {
   const [countryFilter, setCountryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+
+  // AI Search
+  const [nlpQuery, setNlpQuery] = useState('');
+  const [nlpResults, setNlpResults] = useState<Project[] | null>(null);
+  const [nlpSearching, setNlpSearching] = useState(false);
 
   // Delete
   const [deleteConfirm, setDeleteConfirm] = useState<Project | null>(null);
@@ -59,7 +68,8 @@ export const Projects: React.FC = () => {
   const countries = useMemo(() => [...new Set(projects.map(p => p.country).filter(Boolean))].sort(), [projects]);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter(p => {
+    const baseList = nlpResults !== null ? nlpResults : projects;
+    return baseList.filter(p => {
       if (search) {
         const s = search.toLowerCase();
         const match = (p.project_name || '').toLowerCase().includes(s)
@@ -78,7 +88,7 @@ export const Projects: React.FC = () => {
       if (typeFilter && p.project_type !== typeFilter) return false;
       return true;
     });
-  }, [projects, search, supplierFilter, clientFilter, countryFilter, statusFilter, typeFilter]);
+  }, [projects, nlpResults, search, supplierFilter, clientFilter, countryFilter, statusFilter, typeFilter]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -102,6 +112,32 @@ export const Projects: React.FC = () => {
     }
     setDeleteConfirm(null);
     setDeleteChecked(false);
+  };
+
+  const handleNlpSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nlpQuery.trim()) return;
+    try {
+      setNlpSearching(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${API_BASE_URL}/search/projects`,
+        { query: nlpQuery },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        setNlpResults(res.data.data || []);
+      }
+    } catch {
+      setError('AI search failed');
+    } finally {
+      setNlpSearching(false);
+    }
+  };
+
+  const clearNlpSearch = () => {
+    setNlpQuery('');
+    setNlpResults(null);
   };
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading projects...</div>;
@@ -176,9 +212,29 @@ export const Projects: React.FC = () => {
         </select>
       </div>
 
+      {/* AI Search */}
+      <form className="projects-nlp-row" onSubmit={handleNlpSearch}>
+        <input
+          type="text"
+          placeholder='Natural language search... e.g. "hotel projects in Korea" or "progetti attivi Kronos"'
+          value={nlpQuery}
+          onChange={e => setNlpQuery(e.target.value)}
+        />
+        <button type="submit" disabled={nlpSearching || !nlpQuery.trim()}>
+          {nlpSearching ? 'Searching...' : 'AI Search'}
+        </button>
+        {nlpResults !== null && (
+          <button type="button" className="projects-nlp-clear" onClick={clearNlpSearch}>
+            Clear
+          </button>
+        )}
+      </form>
+
       {/* Table */}
       <div className="projects-table-wrapper">
-        <div className="projects-count">{filteredProjects.length} projects</div>
+        <div className="projects-count">
+          {filteredProjects.length} projects{nlpResults !== null ? ' (AI search results)' : ''}
+        </div>
         {filteredProjects.length === 0 ? (
           <div className="projects-empty">No projects found</div>
         ) : (

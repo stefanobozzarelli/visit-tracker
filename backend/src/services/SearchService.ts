@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AppDataSource } from '../config/database';
 import { Visit } from '../entities/Visit';
 import { TodoItem } from '../entities/TodoItem';
+import { Project } from '../entities/Project';
 
 const getClient = () => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -492,5 +493,96 @@ RESPONSE ONLY JSON, no text!`,
     queryBuilder = queryBuilder.orderBy('todo.due_date', 'DESC');
 
     return await queryBuilder.getMany();
+  }
+
+  /**
+   * Search projects with semantic filters
+   */
+  async searchProjects(query: string): Promise<Project[]> {
+    console.log('🔍 Search projects - Query:', query);
+    const filters = await this.interpretSearchQuery(query, 'visits'); // reuse same interpreter
+
+    const projectRepository = AppDataSource.getRepository(Project);
+    let queryBuilder = projectRepository
+      .createQueryBuilder('project')
+      .leftJoinAndSelect('project.supplier', 'supplier')
+      .leftJoinAndSelect('project.client', 'client')
+      .distinct(true);
+
+    // Date filters on registration_date
+    if (filters.startDate) {
+      queryBuilder = queryBuilder.andWhere('project.registration_date >= :startDate', {
+        startDate: filters.startDate,
+      });
+    }
+    if (filters.endDate) {
+      queryBuilder = queryBuilder.andWhere('project.registration_date <= :endDate', {
+        endDate: filters.endDate,
+      });
+    }
+
+    // Status filter
+    if (filters.status) {
+      queryBuilder = queryBuilder.andWhere('project.status = :status', {
+        status: filters.status.toUpperCase(),
+      });
+    }
+
+    // Keyword search across ALL project fields
+    if (filters.keywords && filters.keywords.length > 0) {
+      const conditions: string[] = [];
+      const params: any = {};
+
+      filters.keywords.forEach((kw, idx) => {
+        const key = `kw${idx}`;
+        const likeValue = `%${kw}%`;
+
+        // Project fields
+        conditions.push(`project.project_name ILIKE :${key}_name`);
+        conditions.push(`project.country ILIKE :${key}_country`);
+        conditions.push(`project.status::text ILIKE :${key}_status`);
+        conditions.push(`project.project_development ILIKE :${key}_dev`);
+        conditions.push(`project.project_registration ILIKE :${key}_reg`);
+        conditions.push(`project.project_address ILIKE :${key}_addr`);
+        conditions.push(`project.project_type ILIKE :${key}_type`);
+        conditions.push(`project.detail_of_project_type ILIKE :${key}_detail`);
+        conditions.push(`project.designated_area ILIKE :${key}_area`);
+        conditions.push(`project.architect_designer ILIKE :${key}_arch`);
+        conditions.push(`project.developer ILIKE :${key}_devlpr`);
+        conditions.push(`project.contractor ILIKE :${key}_contr`);
+        conditions.push(`project.item ILIKE :${key}_item`);
+        conditions.push(`project.note ILIKE :${key}_note`);
+        // Related entities
+        conditions.push(`supplier.name ILIKE :${key}_supplier`);
+        conditions.push(`client.name ILIKE :${key}_client`);
+
+        params[`${key}_name`] = likeValue;
+        params[`${key}_country`] = likeValue;
+        params[`${key}_status`] = likeValue;
+        params[`${key}_dev`] = likeValue;
+        params[`${key}_reg`] = likeValue;
+        params[`${key}_addr`] = likeValue;
+        params[`${key}_type`] = likeValue;
+        params[`${key}_detail`] = likeValue;
+        params[`${key}_area`] = likeValue;
+        params[`${key}_arch`] = likeValue;
+        params[`${key}_devlpr`] = likeValue;
+        params[`${key}_contr`] = likeValue;
+        params[`${key}_item`] = likeValue;
+        params[`${key}_note`] = likeValue;
+        params[`${key}_supplier`] = likeValue;
+        params[`${key}_client`] = likeValue;
+      });
+
+      if (conditions.length > 0) {
+        queryBuilder = queryBuilder.andWhere(`(${conditions.join(' OR ')})`, params);
+      }
+    }
+
+    queryBuilder = queryBuilder.orderBy('project.project_number', 'DESC');
+
+    const results = await queryBuilder.getMany();
+    console.log(`✅ Found ${results.length} projects`);
+    return results;
   }
 }

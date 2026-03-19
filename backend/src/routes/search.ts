@@ -71,4 +71,34 @@ router.post('/todos', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/search/projects
+ * Semantic search in projects
+ */
+router.post('/projects', async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body;
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required',
+      });
+    }
+
+    const projects = await searchService.searchProjects(query);
+    const response: ApiResponse<any> = {
+      success: true,
+      data: projects,
+      message: `Found ${projects.length} projects`,
+    };
+    res.json(response);
+  } catch (error) {
+    console.error('Search projects error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Search error: ' + (error as Error).message,
+    });
+  }
+});
+
 export default router;
