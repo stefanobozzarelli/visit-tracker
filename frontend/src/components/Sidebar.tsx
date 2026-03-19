@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../styles/Sidebar.css';
@@ -6,6 +6,17 @@ import '../styles/Sidebar.css';
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', String(collapsed));
+    document.documentElement.style.setProperty(
+      '--sidebar-width',
+      collapsed ? '64px' : '260px'
+    );
+  }, [collapsed]);
 
   if (!user) return null;
 
@@ -15,6 +26,7 @@ export const Sidebar: React.FC = () => {
   const canViewRevenue = isMasterAdmin || (user.role === 'admin' && !!user.can_view_revenue);
 
   const closeSidebar = () => setOpen(false);
+  const toggleCollapse = () => setCollapsed(!collapsed);
 
   const initials = user.name
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -33,12 +45,22 @@ export const Sidebar: React.FC = () => {
         onClick={closeSidebar}
       />
 
-      <aside className={`sidebar ${open ? 'open' : ''}`}>
+      <aside className={`sidebar ${open ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
         {/* Logo */}
-        <Link to="/dashboard" className="sidebar-logo" onClick={closeSidebar}>
-          <div className="sidebar-logo-icon">VT</div>
-          <span className="sidebar-logo-text">Visit Tracker</span>
-        </Link>
+        <div className="sidebar-header">
+          <Link to="/dashboard" className="sidebar-logo" onClick={closeSidebar}>
+            <div className="sidebar-logo-icon">VT</div>
+            {!collapsed && <span className="sidebar-logo-text">Visit Tracker</span>}
+          </Link>
+          <button className="sidebar-collapse-btn" onClick={toggleCollapse} title={collapsed ? 'Espandi' : 'Nascondi'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {collapsed
+                ? <><polyline points="9 18 15 12 9 6" /></>
+                : <><polyline points="15 18 9 12 15 6" /></>
+              }
+            </svg>
+          </button>
+        </div>
 
         {/* Navigation */}
         <nav className="sidebar-nav">
@@ -134,14 +156,18 @@ export const Sidebar: React.FC = () => {
         <div className="sidebar-footer">
           <NavLink to="/profile" className="sidebar-user" onClick={closeSidebar}>
             <div className="sidebar-avatar">{initials}</div>
-            <div>
-              <div className="sidebar-user-name">{user.name}</div>
-              <div className="sidebar-user-role">{user.role}</div>
-            </div>
+            {!collapsed && (
+              <div>
+                <div className="sidebar-user-name">{user.name}</div>
+                <div className="sidebar-user-role">{user.role}</div>
+              </div>
+            )}
           </NavLink>
-          <button className="sidebar-logout" onClick={logout} title="Logout">
-            ↪
-          </button>
+          {!collapsed && (
+            <button className="sidebar-logout" onClick={logout} title="Logout">
+              ↪
+            </button>
+          )}
         </div>
       </aside>
     </>
