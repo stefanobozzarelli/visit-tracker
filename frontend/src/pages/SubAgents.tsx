@@ -204,8 +204,8 @@ export const SubAgents: React.FC = () => {
           <div className="admin-form-group">
             <label>Utente collegato</label>
             <select value={agentUserId} onChange={e => setAgentUserId(e.target.value)}>
-              <option value="">Nessuno</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+              <option value="">Esterno (non collegato)</option>
+              {users.filter(u => u.role === 'sales_rep').map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
             </select>
           </div>
           <div className="admin-form-group">
