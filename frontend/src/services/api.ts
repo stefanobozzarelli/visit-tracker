@@ -850,6 +850,106 @@ class ApiService {
     const response = await this.api.get<ApiResponse<any>>(`/invoices/${id}/download`);
     return response.data;
   }
+
+  // ---- Commissions ----
+  async getCommissionRates(companyId?: string) {
+    const params = companyId ? `?company_id=${companyId}` : '';
+    const response = await this.api.get<ApiResponse<any>>(`/commissions/rates${params}`);
+    return response.data;
+  }
+  async upsertCommissionRate(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/commissions/rates', data);
+    return response.data;
+  }
+  async deleteCommissionRate(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/commissions/rates/${id}`);
+    return response.data;
+  }
+  async getSubAgents() {
+    const response = await this.api.get<ApiResponse<any>>('/commissions/sub-agents');
+    return response.data;
+  }
+  async createSubAgent(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/commissions/sub-agents', data);
+    return response.data;
+  }
+  async updateSubAgent(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/commissions/sub-agents/${id}`, data);
+    return response.data;
+  }
+  async deleteSubAgent(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/commissions/sub-agents/${id}`);
+    return response.data;
+  }
+  async getSubAgentRates(subAgentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/commissions/sub-agents/${subAgentId}/rates`);
+    return response.data;
+  }
+  async upsertSubAgentRate(subAgentId: string, data: any) {
+    const response = await this.api.post<ApiResponse<any>>(`/commissions/sub-agents/${subAgentId}/rates`, data);
+    return response.data;
+  }
+  async deleteSubAgentRate(rateId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/commissions/sub-agents/rates/${rateId}`);
+    return response.data;
+  }
+  async getInvoiceCommissions(filters?: any) {
+    const params = new URLSearchParams();
+    if (filters?.company_id) params.set('company_id', filters.company_id);
+    if (filters?.client_id) params.set('client_id', filters.client_id);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.start_date) params.set('start_date', filters.start_date);
+    if (filters?.end_date) params.set('end_date', filters.end_date);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.api.get<ApiResponse<any>>(`/commissions/invoices${q}`);
+    return response.data;
+  }
+  async getInvoiceCommission(invoiceId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/commissions/invoices/${invoiceId}`);
+    return response.data;
+  }
+  async overrideCommission(invoiceId: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/commissions/invoices/${invoiceId}/override`, data);
+    return response.data;
+  }
+  async updateCommissionStatus(invoiceId: string, status: string) {
+    const response = await this.api.put<ApiResponse<any>>(`/commissions/invoices/${invoiceId}/status`, { status });
+    return response.data;
+  }
+  async recalculateCommission(invoiceId: string) {
+    const response = await this.api.post<ApiResponse<any>>(`/commissions/invoices/${invoiceId}/recalculate`);
+    return response.data;
+  }
+  async recalculateAllCommissions() {
+    const response = await this.api.post<ApiResponse<any>>('/commissions/recalculate-all');
+    return response.data;
+  }
+  async getCommissionStats(filters?: any) {
+    const params = new URLSearchParams();
+    if (filters?.company_id) params.set('company_id', filters.company_id);
+    if (filters?.start_date) params.set('start_date', filters.start_date);
+    if (filters?.end_date) params.set('end_date', filters.end_date);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.api.get<ApiResponse<any>>(`/commissions/stats${q}`);
+    return response.data;
+  }
+  // Line item editing
+  async updateInvoiceLineItem(invoiceId: string, itemId: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/invoices/${invoiceId}/items/${itemId}`, data);
+    return response.data;
+  }
+  async addInvoiceLineItem(invoiceId: string, data: any) {
+    const response = await this.api.post<ApiResponse<any>>(`/invoices/${invoiceId}/items`, data);
+    return response.data;
+  }
+  async deleteInvoiceLineItem(invoiceId: string, itemId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/invoices/${invoiceId}/items/${itemId}`);
+    return response.data;
+  }
+  async updateInvoiceTotal(invoiceId: string, total: number) {
+    const response = await this.api.put<ApiResponse<any>>(`/invoices/${invoiceId}/total`, { total });
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

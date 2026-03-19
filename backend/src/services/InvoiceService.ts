@@ -202,6 +202,16 @@ CRITICAL — how to identify quantity and unit_price:
       await this.invoiceRepo.save(invoice);
       console.log(`[INVOICE] ✅ Processed ${invoice.id}: ${parsed.line_items?.length || 0} line items`);
 
+      // Auto-calculate commission
+      try {
+        const { CommissionService } = require('./CommissionService');
+        const commService = new CommissionService();
+        await commService.calculateInvoiceCommission(invoice.id);
+        console.log(`[INVOICE] ✅ Commission calculated for ${invoice.id}`);
+      } catch (commErr) {
+        console.warn(`[INVOICE] ⚠️ Commission calc failed for ${invoice.id}:`, (commErr as Error).message);
+      }
+
     } catch (err) {
       invoice.status = InvoiceStatus.ERROR;
       invoice.error_message = (err as Error).message;
@@ -421,5 +431,62 @@ Se non hai abbastanza dati per rispondere, dillo chiaramente.`
     const invoice = await this.invoiceRepo.findOneBy({ id });
     if (!invoice) throw new Error('Invoice not found');
     return this.s3Service.getDownloadUrl(invoice.s3_key);
+  }
+
+  // ─── Line Item Editing ─────────────────────────────────
+
+  async updateLineItem(invoiceId: string, itemId: string, data: Partial<InvoiceLineItem>): Promise<InvoiceLineItem | null> {
+    const item = await this.lineItemRepo.findOne({ where: { id: itemId, invoice_id: invoiceId } });
+    if (!item) return null;
+    Object.assign(item, data);
+    if (data.quantity !== undefined || data.unit_price !== undefined) {
+      item.line_total = Number(item.quantity) * Number(item.unit_price);
+    }
+    await this.lineItemRepo.save(item);
+    await this.recalcInvoiceTotal(invoiceId);
+    return item;
+  }
+
+  async addLineItem(invoiceId: string, data: Partial<InvoiceLineItem>): Promise<InvoiceLineItem> {
+    const maxLine = await this.lineItemRepo.createQueryBuilder('li')
+      .where('li.invoice_id = :id', { id: invoiceId })
+      .select('MAX(li.line_number)', 'max')
+      .getRawOne();
+    const item = this.lineItemRepo.create({
+      ...data,
+      invoice_id: invoiceId,
+      line_number: (Number(maxLine?.max) || 0) + 1,
+      line_total: Number(data.quantity || 0) * Number(data.unit_price || 0),
+    } as any);
+    const saved = await this.lineItemRepo.save(item) as any as InvoiceLineItem;
+    await this.recalcInvoiceTotal(invoiceId);
+    return saved;
+  }
+
+  async deleteLineItem(invoiceId: string, itemId: string): Promise<void> {
+    await this.lineItemRepo.delete({ id: itemId, invoice_id: invoiceId });
+    await this.recalcInvoiceTotal(invoiceId);
+  }
+
+  async updateInvoiceTotal(invoiceId: string, total: number): Promise<void> {
+    await this.invoiceRepo.update(invoiceId, { total_amount: total });
+    // Recalculate commission
+    try {
+      const { CommissionService } = require('./CommissionService');
+      const commService = new CommissionService();
+      await commService.calculateInvoiceCommission(invoiceId);
+    } catch (e) { /* ignore */ }
+  }
+
+  private async recalcInvoiceTotal(invoiceId: string): Promise<void> {
+    const items = await this.lineItemRepo.find({ where: { invoice_id: invoiceId } });
+    const total = items.reduce((sum, item) => sum + Number(item.line_total), 0);
+    await this.invoiceRepo.update(invoiceId, { total_amount: total });
+    // Recalculate commission
+    try {
+      const { CommissionService } = require('./CommissionService');
+      const commService = new CommissionService();
+      await commService.calculateInvoiceCommission(invoiceId);
+    } catch (e) { /* ignore */ }
   }
 }

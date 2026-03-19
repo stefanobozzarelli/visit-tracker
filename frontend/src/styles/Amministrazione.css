@@ -1,0 +1,436 @@
+/* ========================================
+   Amministrazione Page — Pantone 2026 Palette
+   ======================================== */
+
+.admin-page {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* Header */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+.admin-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+.admin-subtitle {
+  font-size: var(--text-md);
+  color: var(--color-text-secondary);
+  margin: 0.25rem 0 0;
+}
+
+/* Top-level tabs */
+.admin-top-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: 1.5rem;
+}
+.admin-top-tab {
+  padding: 0.75rem 1.5rem;
+  font-size: var(--text-md);
+  font-weight: 500;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s ease;
+}
+.admin-top-tab:hover { color: var(--color-text-primary); }
+.admin-top-tab.active {
+  color: var(--color-info);
+  border-bottom-color: var(--color-info);
+  font-weight: 600;
+}
+
+/* Sub-tabs (inside provvigioni) */
+.admin-sub-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.admin-sub-tab {
+  padding: 0.5rem 1rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.admin-sub-tab:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+.admin-sub-tab.active {
+  background: var(--color-info);
+  border-color: var(--color-info);
+  color: var(--color-white);
+  font-weight: 600;
+}
+
+/* Tab Content */
+.admin-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Cards */
+.admin-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+.admin-card-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem;
+}
+
+/* KPI Row */
+.admin-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.admin-kpi-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+.admin-kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.admin-kpi-label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Filters */
+.admin-filters {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.admin-filters select,
+.admin-filters input[type="date"] {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  min-width: 160px;
+}
+
+/* Tables */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.admin-table th {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+.admin-table td {
+  padding: 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-bg-secondary);
+  vertical-align: middle;
+}
+.admin-table th.num,
+.admin-table td.num {
+  text-align: right;
+}
+.admin-table tr.clickable-row {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.admin-table tr.clickable-row:hover {
+  background: var(--color-bg-tertiary);
+}
+.admin-table tr.expanded-row {
+  background: var(--color-bg-secondary);
+}
+
+/* Expanded sub-table */
+.admin-sub-table-wrap {
+  padding: 1rem 1.5rem;
+  background: var(--color-bg-tertiary);
+}
+.admin-sub-table-wrap td {
+  padding: 0 !important;
+  border-bottom: 2px solid var(--color-border);
+}
+.admin-sub-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.admin-sub-table th {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.625rem;
+  background: var(--color-bg-secondary);
+  text-align: left;
+}
+.admin-sub-table td {
+  padding: 0.5rem 0.625rem;
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-bg-secondary);
+}
+
+/* Commission Status Badges */
+.comm-status {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.comm-status-aggiunta { background: rgba(176, 152, 64, 0.1); color: var(--color-warning); }
+.comm-status-controllata { background: rgba(74, 96, 120, 0.1); color: var(--color-info); }
+.comm-status-fatturata { background: rgba(91, 138, 101, 0.1); color: var(--color-success); }
+.comm-status-pagata { background: rgba(91, 138, 101, 0.2); color: #3d6b47; }
+.comm-status-pagati_subagenti { background: rgba(91, 138, 101, 0.3); color: #2c5233; }
+
+/* Buttons */
+.admin-btn {
+  padding: 0.5rem 1rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.admin-btn-primary {
+  background: var(--color-info);
+  color: var(--color-white);
+}
+.admin-btn-primary:hover { background: #3D5064; }
+.admin-btn-secondary {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+.admin-btn-secondary:hover {
+  background: var(--color-bg-secondary);
+}
+.admin-btn-danger {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  color: var(--color-error);
+}
+.admin-btn-danger:hover {
+  border-color: var(--color-error);
+  background: rgba(158, 90, 82, 0.06);
+}
+.admin-btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: var(--text-xs);
+}
+
+.admin-btn-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.admin-btn-icon:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+.admin-btn-icon.danger:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+  background: rgba(158, 90, 82, 0.06);
+}
+
+/* Inline form row */
+.admin-form-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 140px;
+}
+.admin-form-group label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.admin-form-group input,
+.admin-form-group select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+}
+.admin-form-group input:focus,
+.admin-form-group select:focus {
+  outline: none;
+  border-color: var(--color-info);
+}
+
+/* Modal */
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.admin-modal {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 520px;
+  box-shadow: var(--shadow-xl);
+}
+.admin-modal h3 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem;
+}
+.admin-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+/* Action row (above table) */
+.admin-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.admin-action-row .admin-count {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+}
+
+/* Empty state */
+.admin-empty {
+  text-align: center;
+  padding: 2.5rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-md);
+}
+
+/* Amount formatting */
+.admin-amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status select inside table */
+.admin-status-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-2xs);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* Textarea in form */
+.admin-form-group textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+.admin-form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-info);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-page { padding: 1rem; }
+  .admin-kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .admin-filters { flex-direction: column; }
+  .admin-form-row { flex-direction: column; }
+  .admin-sub-tabs { flex-wrap: wrap; }
+  .admin-table { font-size: var(--text-xs); }
+}

@@ -132,4 +132,35 @@ router.get('/:id/download', async (req: Request, res: Response) => {
   }
 });
 
+// ─── Line Item Editing ───────────────────────────────────
+
+router.put('/:id/items/:itemId', async (req: Request, res: Response) => {
+  try {
+    const item = await invoiceService.updateLineItem(req.params.id, req.params.itemId, req.body);
+    if (!item) return res.status(404).json({ success: false, error: 'Line item not found' });
+    res.json({ success: true, data: item });
+  } catch (error) { res.status(500).json({ success: false, error: (error as Error).message }); }
+});
+
+router.post('/:id/items', async (req: Request, res: Response) => {
+  try {
+    const item = await invoiceService.addLineItem(req.params.id, req.body);
+    res.json({ success: true, data: item });
+  } catch (error) { res.status(500).json({ success: false, error: (error as Error).message }); }
+});
+
+router.delete('/:id/items/:itemId', async (req: Request, res: Response) => {
+  try {
+    await invoiceService.deleteLineItem(req.params.id, req.params.itemId);
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ success: false, error: (error as Error).message }); }
+});
+
+router.put('/:id/total', async (req: Request, res: Response) => {
+  try {
+    await invoiceService.updateInvoiceTotal(req.params.id, req.body.total);
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ success: false, error: (error as Error).message }); }
+});
+
 export default router;

@@ -142,3 +142,60 @@ export interface CustomerOrder {
   client?: Client;
   items?: CustomerOrderItem[];
 }
+
+export interface CommissionRate {
+  id: string;
+  company_id: string;
+  country?: string;
+  client_id?: string;
+  rate_percent: number;
+  company?: Company;
+  client?: Client;
+}
+
+export interface SubAgentItem {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  user_id?: string;
+  user?: User;
+  rates?: SubAgentCommissionRateItem[];
+}
+
+export interface SubAgentCommissionRateItem {
+  id: string;
+  sub_agent_id: string;
+  company_id: string;
+  country?: string;
+  client_id?: string;
+  rate_percent: number;
+  calc_on: 'gross' | 'residual';
+  priority: number;
+  company?: Company;
+  client?: Client;
+}
+
+export interface InvoiceCommissionItem {
+  id: string;
+  invoice_id: string;
+  commission_rate_percent: number;
+  gross_commission: number;
+  net_commission: number;
+  manual_override: boolean;
+  manual_amount?: number;
+  commission_status: 'aggiunta' | 'controllata' | 'fatturata' | 'pagata' | 'pagati_subagenti';
+  notes?: string;
+  invoice?: any;
+  sub_agent_commissions?: InvoiceSubAgentCommissionItem[];
+}
+
+export interface InvoiceSubAgentCommissionItem {
+  id: string;
+  sub_agent_id: string;
+  rate_percent: number;
+  calc_on: string;
+  amount: number;
+  sub_agent?: SubAgentItem;
+}

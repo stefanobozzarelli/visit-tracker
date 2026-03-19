@@ -11,6 +11,7 @@ import todoRoutes from './routes/todos';
 import searchRoutes from './routes/search';
 import ordersRoutes from './routes/orders';
 import invoiceRoutes from './routes/invoices';
+import commissionRoutes from './routes/commissions';
 
 require('dotenv').config();
 
@@ -31,6 +32,7 @@ app.use('/api/todos', todoRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/commissions', commissionRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -59,6 +61,11 @@ AppDataSource.initialize()
       // Set Stefano as master_admin (one-time, safe to re-run)
       await qr.query(`
         UPDATE users SET role = 'master_admin' WHERE email = 'stefanobozzarelli@gmail.com' AND role != 'master_admin';
+      `).catch(() => {});
+      // Unique index for commission_rates (handles NULLs)
+      await qr.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_commission_rates_unique
+        ON commission_rates (company_id, COALESCE(country, ''), COALESCE(client_id, '00000000-0000-0000-0000-000000000000'));
       `).catch(() => {});
       await qr.release();
       console.log('Database schema updates applied');

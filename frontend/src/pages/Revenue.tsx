@@ -87,7 +87,7 @@ export const Revenue: React.FC = () => {
 /* ============================================================
    INVOICES TAB
    ============================================================ */
-const InvoicesTab: React.FC = () => {
+export const InvoicesTab: React.FC = () => {
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -402,7 +402,7 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem }> = ({ invoice }) => {
 /* ============================================================
    STATISTICS TAB
    ============================================================ */
-const StatisticsTab: React.FC = () => {
+export const StatisticsTab: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -588,7 +588,7 @@ const StatisticsTab: React.FC = () => {
 /* ============================================================
    AI ASSISTANT TAB
    ============================================================ */
-const AssistantTab: React.FC = () => {
+export const AssistantTab: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
