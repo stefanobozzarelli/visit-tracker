@@ -303,34 +303,62 @@ export class CommissionService {
     let commission = await this.commissionRepo.findOne({ where: { invoice_id: invoiceId } });
     if (!commission) return null;
 
-    const invoice = await this.invoiceRepo.findOne({ where: { id: invoiceId } });
+    const invoice = await this.invoiceRepo.findOne({ where: { id: invoiceId }, relations: ['company', 'client'] });
     if (!invoice) return null;
+
+    let newGross: number;
 
     if (data.manual_amount !== undefined) {
       commission.manual_override = true;
       commission.manual_amount = data.manual_amount;
-      // Net commission recalculated with manual amount
-      const subTotal = await this.subCommissionRepo
-        .createQueryBuilder('sac')
-        .where('sac.invoice_commission_id = :id', { id: commission.id })
-        .select('SUM(sac.amount)', 'total')
-        .getRawOne();
-      commission.net_commission = data.manual_amount - (Number(subTotal?.total) || 0);
+      newGross = data.manual_amount;
     } else if (data.rate_percent !== undefined) {
       commission.commission_rate_percent = data.rate_percent;
-      commission.gross_commission = Math.round(Number(invoice.total_amount) * data.rate_percent) / 100;
+      newGross = Math.round(Number(invoice.total_amount) * data.rate_percent) / 100;
+      commission.gross_commission = newGross;
       commission.manual_override = true;
-      commission.manual_amount = commission.gross_commission;
-      // Recalculate sub-agents and net
-      const subTotal = await this.subCommissionRepo
-        .createQueryBuilder('sac')
-        .where('sac.invoice_commission_id = :id', { id: commission.id })
-        .select('SUM(sac.amount)', 'total')
-        .getRawOne();
-      commission.net_commission = commission.gross_commission - (Number(subTotal?.total) || 0);
+      commission.manual_amount = newGross;
+    } else {
+      return commission;
     }
 
-    return this.commissionRepo.save(commission);
+    // Recalculate sub-agent commissions based on new gross
+    const companyId = invoice.company_id;
+    const country = invoice.client?.country || undefined;
+    const clientId = invoice.client_id || undefined;
+    const subAgentRates = await this.getEffectiveSubAgentRates(companyId, country, clientId);
+
+    let remaining = newGross;
+    const subCommissions: { sub_agent_id: string; rate_percent: number; calc_on: string; amount: number }[] = [];
+
+    for (const saRate of subAgentRates) {
+      const rate = Number(saRate.rate_percent);
+      const base = saRate.calc_on === 'residual' ? remaining : newGross;
+      const amount = Math.round(base * rate) / 100;
+      subCommissions.push({
+        sub_agent_id: saRate.sub_agent_id,
+        rate_percent: rate,
+        calc_on: saRate.calc_on,
+        amount,
+      });
+      remaining -= amount;
+    }
+
+    const subTotal = subCommissions.reduce((sum, sc) => sum + sc.amount, 0);
+    commission.net_commission = newGross - subTotal;
+
+    await this.commissionRepo.save(commission);
+
+    // Delete and recreate sub-agent commissions
+    await this.subCommissionRepo.delete({ invoice_commission_id: commission.id });
+    for (const sc of subCommissions) {
+      await this.subCommissionRepo.save(this.subCommissionRepo.create({
+        invoice_commission_id: commission.id,
+        ...sc,
+      }));
+    }
+
+    return this.getInvoiceCommission(invoiceId);
   }
 
   async updateCommissionStatus(invoiceId: string, status: string): Promise<InvoiceCommission | null> {
@@ -397,6 +425,44 @@ export class CommissionService {
       by_company: byCompany,
       sub_agent_totals: subAgentTotals,
     };
+  }
+
+  // ─── Sub-Agent Detail ─────────────────────────────────
+
+  async getSubAgentCommissions(subAgentId: string, filters?: { start_date?: string; end_date?: string }) {
+    const qb = this.subCommissionRepo.createQueryBuilder('sac')
+      .leftJoinAndSelect('sac.invoice_commission', 'ic')
+      .leftJoinAndSelect('ic.invoice', 'inv')
+      .leftJoinAndSelect('inv.company', 'c')
+      .leftJoinAndSelect('inv.client', 'cl')
+      .where('sac.sub_agent_id = :sid', { sid: subAgentId });
+
+    if (filters?.start_date) qb.andWhere('inv.invoice_date >= :sd', { sd: filters.start_date });
+    if (filters?.end_date) qb.andWhere('inv.invoice_date <= :ed', { ed: filters.end_date });
+
+    qb.orderBy('inv.invoice_date', 'DESC');
+
+    const commissions = await qb.getMany();
+
+    const totals = commissions.reduce((acc, sac) => {
+      acc.total_amount += Number(sac.amount) || 0;
+      acc.count++;
+      const status = sac.invoice_commission?.commission_status || 'aggiunta';
+      if (!acc.by_status[status]) acc.by_status[status] = { count: 0, total: 0 };
+      acc.by_status[status].count++;
+      acc.by_status[status].total += Number(sac.amount) || 0;
+      return acc;
+    }, { total_amount: 0, count: 0, by_status: {} as Record<string, { count: number; total: number }> });
+
+    return { commissions, totals };
+  }
+
+  // ─── Sub-Agent Expenses ─────────────────────────────────
+
+  async getSubAgentExpenses(subAgentId: string) {
+    return AppDataSource.getRepository('sub_agent_expense')
+      .find({ where: { sub_agent_id: subAgentId }, order: { expense_date: 'DESC' } })
+      .catch(() => []);
   }
 
   // ─── Batch Recalculate ─────────────────────────────────

@@ -152,4 +152,58 @@ router.get('/stats', async (req: Request, res: Response) => {
   } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }
 });
 
+// ─── Sub-Agent Detail ─────────────────────────────────
+
+router.get('/sub-agents/:subAgentId/commissions', async (req: Request, res: Response) => {
+  try {
+    const result = await commissionService.getSubAgentCommissions(req.params.subAgentId, {
+      start_date: req.query.start_date as string,
+      end_date: req.query.end_date as string,
+    });
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }
+});
+
+// ─── Sub-Agent Expenses ─────────────────────────────────
+
+router.get('/sub-agents/:subAgentId/expenses', async (req: Request, res: Response) => {
+  try {
+    const { SubAgentExpense } = require('../entities/SubAgentExpense');
+    const { AppDataSource } = require('../config/database');
+    const repo = AppDataSource.getRepository(SubAgentExpense);
+    const expenses = await repo.find({
+      where: { sub_agent_id: req.params.subAgentId },
+      order: { expense_date: 'DESC' },
+    });
+    res.json({ success: true, data: expenses });
+  } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }
+});
+
+router.post('/sub-agents/:subAgentId/expenses', async (req: Request, res: Response) => {
+  try {
+    const { SubAgentExpense } = require('../entities/SubAgentExpense');
+    const { AppDataSource } = require('../config/database');
+    const repo = AppDataSource.getRepository(SubAgentExpense);
+    const expense = repo.create({
+      sub_agent_id: req.params.subAgentId,
+      expense_date: req.body.expense_date,
+      expense_type: req.body.expense_type,
+      amount: req.body.amount,
+      notes: req.body.notes || null,
+    });
+    await repo.save(expense);
+    res.json({ success: true, data: expense });
+  } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }
+});
+
+router.delete('/sub-agents/:subAgentId/expenses/:expenseId', async (req: Request, res: Response) => {
+  try {
+    const { SubAgentExpense } = require('../entities/SubAgentExpense');
+    const { AppDataSource } = require('../config/database');
+    const repo = AppDataSource.getRepository(SubAgentExpense);
+    await repo.delete(req.params.expenseId);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: (e as Error).message }); }
+});
+
 export default router;

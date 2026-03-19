@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
+import { SubAgentDetail } from './SubAgentDetail';
 
 const formatPercent = (n: number) =>
   new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
@@ -12,6 +13,7 @@ export const SubAgents: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedRates, setExpandedRates] = useState<any[]>([]);
+  const [detailAgent, setDetailAgent] = useState<{ id: string; name: string } | null>(null);
 
   // Agent form
   const [showAgentForm, setShowAgentForm] = useState(false);
@@ -177,6 +179,19 @@ export const SubAgents: React.FC = () => {
     }
   };
 
+  // Show detail view
+  if (detailAgent) {
+    return (
+      <div className="admin-tab-content">
+        <SubAgentDetail
+          subAgentId={detailAgent.id}
+          subAgentName={detailAgent.name}
+          onBack={() => setDetailAgent(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="admin-tab-content">
       <div className="admin-action-row">
@@ -255,6 +270,10 @@ export const SubAgents: React.FC = () => {
                       <td>{agent.user?.name || '-'}</td>
                       <td onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '0.375rem' }}>
+                          <button className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8125rem' }}
+                            title="Scheda subagente" onClick={() => setDetailAgent({ id: agent.id, name: agent.name })}>
+                            Scheda
+                          </button>
                           <button className="admin-btn-icon" title="Modifica" onClick={() => handleEditAgent(agent)}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           </button>
