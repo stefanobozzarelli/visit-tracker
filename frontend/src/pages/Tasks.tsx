@@ -383,17 +383,6 @@ export const Tasks: React.FC = () => {
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
-          {isAdmin && (
-            <select
-              className={`tasks-filter-select${assignedToUserId ? ' active' : ''}`}
-              value={assignedToUserId}
-              onChange={e => setAssignedToUserId(e.target.value)}
-            >
-              <option value="">All Assignees</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          )}
-
           <select
             className={`tasks-filter-select${statusFilter ? ' active' : ''}`}
             value={statusFilter}
@@ -406,7 +395,39 @@ export const Tasks: React.FC = () => {
             <option value="completed">Completed</option>
           </select>
 
+          {isAdmin && (
+            <select
+              className={`tasks-filter-select${assignedToUserId ? ' active' : ''}`}
+              value={assignedToUserId}
+              onChange={e => setAssignedToUserId(e.target.value)}
+            >
+              <option value="">All Assignees</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          )}
+
           <div className="tasks-filter-divider" />
+
+          {/* Show warning if filters are active */}
+          {(clientId || companyId || assignedToUserId || statusFilter || overdue || thisWeek || next7Days) && (
+            <button
+              type="button"
+              className="tasks-chip"
+              onClick={() => {
+                setClientId('');
+                setCompanyId('');
+                setAssignedToUserId('');
+                setStatusFilter('');
+                setOverdue(false);
+                setThisWeek(false);
+                setNext7Days(false);
+                setLocalSearch('');
+              }}
+              style={{ background: '#fff3cd', color: '#856404', borderColor: '#ffc107' }}
+            >
+              ✕ Reset Filters
+            </button>
+          )}
 
           {/* Quick filter chips */}
           <div className="tasks-chips">
