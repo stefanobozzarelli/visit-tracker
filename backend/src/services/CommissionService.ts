@@ -502,7 +502,14 @@ export class CommissionService {
       acc.by_status[status].count++;
       acc.by_status[status].total += amount;
       return acc;
-    }, { total_amount: 0, count: 0, by_status: {} as Record<string, { count: number; total: number; total_allocated_expense: number }> });
+    }, {
+      total_amount: 0,
+      count: 0,
+      by_status: {} as Record<string, { count: number; total: number; total_allocated_expense: number }>,
+      total_allocated_expense: 0,
+      by_country: [] as any[],
+      by_company: [] as any[]
+    });
 
     // Add allocated expense information to totals
     totals.total_allocated_expense = expenseAllocation.total_allocated_expense;
