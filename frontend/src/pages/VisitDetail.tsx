@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { Visit, VisitReport, CustomerOrder } from '../types';
+import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
 import { decodeMetadata, filterDisplayReports, VisitMetadata } from '../utils/visitMetadata';
 import '../styles/CrudPages.css';
 
@@ -10,6 +10,7 @@ export const VisitDetail: React.FC = () => {
   const navigate = useNavigate();
   const [visit, setVisit] = useState<Visit | null>(null);
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [linkedTasks, setLinkedTasks] = useState<TodoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
@@ -37,6 +38,20 @@ export const VisitDetail: React.FC = () => {
         } catch (ordersErr) {
           console.warn('[VisitDetail] Failed to load orders (non-critical):', ordersErr);
         }
+
+        // Load tasks linked to this visit's reports
+        try {
+          const visitData = response.data;
+          const reportIds = (visitData.reports || []).map((r: any) => r.id);
+          if (reportIds.length > 0) {
+            const todosRes = await apiService.getTodos({ clientId: visitData.client_id });
+            if (todosRes.success && todosRes.data) {
+              const all = Array.isArray(todosRes.data) ? todosRes.data : [];
+              const linked = all.filter((t: any) => t.visit_report_id && reportIds.includes(t.visit_report_id));
+              setLinkedTasks(linked);
+            }
+          }
+        } catch {}
       }
     } catch (err) {
       setError('Error loading visit');
@@ -320,6 +335,47 @@ export const VisitDetail: React.FC = () => {
         </div>
       ) : (
         <p>No reports registered</p>
+      )}
+
+      {/* Linked Tasks */}
+      <h2 style={{ marginTop: '2rem' }}>Tasks</h2>
+      {linkedTasks.length > 0 ? (
+        <div className="form-card" style={{ marginBottom: '1rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>Task</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>Assigned To</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>Due Date</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linkedTasks.map(t => (
+                <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', cursor: 'pointer' }} onClick={() => navigate(`/tasks/${t.id}/edit`)}>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>{t.title}</td>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>{t.assigned_to_user?.name || '-'}</td>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>{t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT') : '-'}</td>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      fontSize: '0.7rem',
+                      fontWeight: 500,
+                      background: t.status === 'todo' ? '#fff3e0' : t.status === 'in_progress' ? '#e3f2fd' : '#e8f5e9',
+                      color: t.status === 'todo' ? '#e65100' : t.status === 'in_progress' ? '#1565c0' : '#2e7d32',
+                    }}>
+                      {t.status === 'todo' ? 'To Do' : t.status === 'in_progress' ? 'In Progress' : 'Done'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.85rem' }}>No tasks linked to this visit</p>
       )}
 
       <h2 style={{ marginTop: '2rem' }}>📦 Customer Orders</h2>

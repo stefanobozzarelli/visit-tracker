@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -36,6 +36,7 @@ export const ClaimForm: React.FC = () => {
   const [tasks, setTasks] = useState<{ title: string; assignedToUserId: string; dueDate: string; files: File[] }[]>([]);
   // Existing tasks linked to this claim
   const [existingTasks, setExistingTasks] = useState<TodoItem[]>([]);
+  const movFileInputRef = useRef<HTMLInputElement>(null);
 
   // UI
   const [loading, setLoading] = useState(true);
@@ -442,23 +443,28 @@ export const ClaimForm: React.FC = () => {
                   </button>
                 </div>
                 <div className="claim-add-movement-files">
-                  <label className="claim-add-movement-file-label">
+                  <input
+                    ref={movFileInputRef}
+                    type="file"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      if (e.target.files) {
+                        setNewMovFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="claim-add-movement-file-label"
+                    onClick={() => movFileInputRef.current?.click()}
+                  >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                     </svg>
                     Attach file
-                    <input
-                      type="file"
-                      multiple
-                      style={{ display: 'none' }}
-                      onChange={e => {
-                        if (e.target.files) {
-                          setNewMovFiles(prev => [...prev, ...Array.from(e.target.files!)]);
-                        }
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
+                  </button>
                   {newMovFiles.map((file, idx) => (
                     <span key={idx} className="claim-add-movement-file-chip">
                       {file.name}
