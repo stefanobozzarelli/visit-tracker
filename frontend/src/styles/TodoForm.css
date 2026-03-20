@@ -235,6 +235,15 @@
   color: var(--color-error);
 }
 
+.attachment-pending-badge {
+  font-size: 10px;
+  background: #fff3cd;
+  color: #856404;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
 @media (max-width: 600px) {
   .todo-form-container {
     padding: 10px;

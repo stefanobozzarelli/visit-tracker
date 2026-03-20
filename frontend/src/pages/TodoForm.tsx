@@ -24,7 +24,10 @@ export const TodoForm = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
+  // Attachments - saved (edit mode)
   const [attachments, setAttachments] = useState<TodoAttachment[]>([]);
+  // Pending files - not yet uploaded (create mode)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,27 +101,40 @@ export const TodoForm = () => {
     setLoadingData(false);
   };
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || !editId) return;
-    setUploading(true);
-    setError('');
-    try {
-      for (let i = 0; i < files.length; i++) {
-        await apiService.uploadTodoAttachment(editId, files[i]);
+  // Handle file selection - in edit mode upload immediately, in create mode queue
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files) return;
+
+    if (isEdit && editId) {
+      // Edit mode: upload immediately
+      setUploading(true);
+      setError('');
+      try {
+        for (let i = 0; i < files.length; i++) {
+          await apiService.uploadTodoAttachment(editId, files[i]);
+        }
+        const attRes = await apiService.getTodoAttachments(editId);
+        if (attRes.success && attRes.data) {
+          setAttachments(attRes.data);
+        }
+        setSuccess('File caricato con successo');
+        setTimeout(() => setSuccess(''), 3000);
+      } catch {
+        setError('Errore durante il caricamento del file');
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
-      // Reload attachments
-      const attRes = await apiService.getTodoAttachments(editId);
-      if (attRes.success && attRes.data) {
-        setAttachments(attRes.data);
-      }
-      setSuccess('File caricato con successo');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch {
-      setError('Errore durante il caricamento del file');
-    } finally {
-      setUploading(false);
+    } else {
+      // Create mode: queue files for upload after task creation
+      const newFiles = Array.from(files);
+      setPendingFiles(prev => [...prev, ...newFiles]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleRemovePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDeleteAttachment = async (attachmentId: string, filename: string) => {
@@ -185,7 +201,21 @@ export const TodoForm = () => {
           dueDate ? new Date(dueDate).toISOString().split('T')[0] : undefined,
           visitReportId || undefined
         );
-        if (response.success) {
+        if (response.success && response.data?.id) {
+          // Upload pending files to the newly created task
+          if (pendingFiles.length > 0) {
+            setSuccess('Task creato, caricamento allegati...');
+            for (const file of pendingFiles) {
+              try {
+                await apiService.uploadTodoAttachment(response.data.id, file);
+              } catch {
+                console.error('Failed to upload:', file.name);
+              }
+            }
+          }
+          setSuccess('Task created successfully');
+          setTimeout(() => navigate('/tasks'), 1000);
+        } else if (response.success) {
           setSuccess('Task created successfully');
           setTimeout(() => navigate('/tasks'), 1000);
         }
@@ -291,66 +321,90 @@ export const TodoForm = () => {
             </div>
           )}
 
-          {/* Attachments section - only in edit mode */}
-          {isEdit && (
-            <div className="attachments-section">
-              <label>Allegati</label>
+          {/* Attachments section - available in both create and edit mode */}
+          <div className="attachments-section">
+            <label>Allegati</label>
 
-              {/* Drop zone */}
-              <div
-                className={`attachment-dropzone ${dragOver ? 'drag-over' : ''}`}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFileUpload(e.dataTransfer.files); }}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                />
-                {uploading ? (
-                  <span>Caricamento in corso...</span>
-                ) : (
-                  <span>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    Trascina file qui o clicca per caricare
-                  </span>
-                )}
-              </div>
-
-              {/* Attachment list */}
-              {attachments.length > 0 && (
-                <div className="attachment-list">
-                  {attachments.map((att) => (
-                    <div key={att.id} className="attachment-item">
-                      <div className="attachment-info">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                        </svg>
-                        <span className="attachment-name" onClick={() => handleDownloadAttachment(att.id)} title="Clicca per scaricare">
-                          {att.filename}
-                        </span>
-                        <span className="attachment-size">{formatFileSize(att.file_size)}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="attachment-delete"
-                        onClick={() => handleDeleteAttachment(att.id, att.filename)}
-                        title="Elimina"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
+            {/* Drop zone */}
+            <div
+              className={`attachment-dropzone ${dragOver ? 'drag-over' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFileSelect(e.dataTransfer.files); }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => handleFileSelect(e.target.files)}
+              />
+              {uploading ? (
+                <span>Caricamento in corso...</span>
+              ) : (
+                <span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  Trascina file qui o clicca per caricare
+                </span>
               )}
             </div>
-          )}
+
+            {/* Pending files (create mode) */}
+            {!isEdit && pendingFiles.length > 0 && (
+              <div className="attachment-list">
+                {pendingFiles.map((file, idx) => (
+                  <div key={idx} className="attachment-item">
+                    <div className="attachment-info">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                      </svg>
+                      <span className="attachment-name">{file.name}</span>
+                      <span className="attachment-size">{formatFileSize(file.size)}</span>
+                      <span className="attachment-pending-badge">Da caricare</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="attachment-delete"
+                      onClick={() => handleRemovePendingFile(idx)}
+                      title="Rimuovi"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Saved attachments (edit mode) */}
+            {isEdit && attachments.length > 0 && (
+              <div className="attachment-list">
+                {attachments.map((att) => (
+                  <div key={att.id} className="attachment-item">
+                    <div className="attachment-info">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                      </svg>
+                      <span className="attachment-name" onClick={() => handleDownloadAttachment(att.id)} title="Clicca per scaricare">
+                        {att.filename}
+                      </span>
+                      <span className="attachment-size">{formatFileSize(att.file_size)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="attachment-delete"
+                      onClick={() => handleDeleteAttachment(att.id, att.filename)}
+                      title="Elimina"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={loading}>

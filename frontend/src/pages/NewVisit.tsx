@@ -40,7 +40,7 @@ export const NewVisit: React.FC = () => {
   });
 
   // Inline tasks to create with the visit
-  const [tasks, setTasks] = useState<{ title: string; companyId: string; dueDate: string; assignedToUserId: string }[]>([]);
+  const [tasks, setTasks] = useState<{ title: string; companyId: string; dueDate: string; assignedToUserId: string; files: File[] }[]>([]);
 
   useEffect(() => {
     loadData();
@@ -196,13 +196,21 @@ export const NewVisit: React.FC = () => {
         for (const task of tasks) {
           if (task.title.trim()) {
             try {
-              await apiService.createTodo(
+              const todoRes = await apiService.createTodo(
                 task.title,
                 formData.clientId,
                 task.companyId || formData.reports[0]?.companyId || '',
                 task.assignedToUserId || user?.id || '',
                 task.dueDate || undefined,
               );
+              // Upload task attachments if any
+              if (todoRes.success && todoRes.data?.id && task.files?.length > 0) {
+                for (const file of task.files) {
+                  try {
+                    await apiService.uploadTodoAttachment(todoRes.data.id, file);
+                  } catch { /* non-blocking */ }
+                }
+              }
             } catch { /* non-blocking */ }
           }
         }
@@ -572,11 +580,45 @@ export const NewVisit: React.FC = () => {
                   ×
                 </button>
               </div>
+              {/* Attachments for this task */}
+              <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <label
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--color-info)', padding: '4px 8px', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                  Allega file
+                  <input
+                    type="file"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      if (e.target.files) {
+                        const t = [...tasks];
+                        t[idx].files = [...(t[idx].files || []), ...Array.from(e.target.files!)];
+                        setTasks(t);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                {(task.files || []).map((file, fIdx) => (
+                  <span key={fIdx} style={{ fontSize: '0.75rem', background: 'var(--color-bg-secondary, #f5f3ee)', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    {file.name}
+                    <button
+                      type="button"
+                      onClick={() => { const t = [...tasks]; t[idx].files = t[idx].files.filter((_, i) => i !== fIdx); setTasks(t); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: '0.75rem', padding: '0 2px' }}
+                    >✕</button>
+                  </span>
+                ))}
+              </div>
             </div>
           ))}
           <button
             type="button"
-            onClick={() => setTasks([...tasks, { title: '', companyId: formData.reports[0]?.companyId || '', dueDate: '', assignedToUserId: '' }])}
+            onClick={() => setTasks([...tasks, { title: '', companyId: formData.reports[0]?.companyId || '', dueDate: '', assignedToUserId: '', files: [] }])}
             className="btn-secondary"
             style={{ marginBottom: '1rem' }}
           >
