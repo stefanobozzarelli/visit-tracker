@@ -350,7 +350,7 @@ export const TodoForm = () => {
 
           {companyVisitId && (
             <div className="info-note">
-              This task is linked to a company visit
+              This task is linked to a company meeting
             </div>
           )}
 

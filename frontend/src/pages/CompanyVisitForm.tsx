@@ -171,7 +171,7 @@ export const CompanyVisitForm: React.FC = () => {
             }
           }
         } catch {
-          setError('Error loading company visit');
+          setError('Error loading company meeting');
         }
 
         // Load attachments
@@ -274,19 +274,19 @@ export const CompanyVisitForm: React.FC = () => {
         companyId,
         date,
         subject,
-        report,
-        participantsUserIds,
-        participantsExternal,
+        report: report || undefined,
+        participantsUserIds: participantsUserIds.length > 0 ? participantsUserIds : undefined,
+        participantsExternal: participantsExternal || undefined,
         status,
       };
 
       if (isEdit && id) {
         const res = await apiService.updateCompanyVisit(id, payload);
         if (res.success) {
-          setSuccess('Company visit updated');
+          setSuccess('Company meeting updated');
           navigate('/company-visits');
         } else {
-          setError(res.error || 'Error updating company visit');
+          setError(res.error || 'Error updating company meeting');
         }
       } else {
         const res = await apiService.createCompanyVisit(payload);
@@ -302,14 +302,18 @@ export const CompanyVisitForm: React.FC = () => {
               }
             }
           }
-          setSuccess('Company visit created');
+          setSuccess('Company meeting created');
           navigate('/company-visits');
         } else {
-          setError(res.error || 'Error creating company visit');
+          setError(res.error || 'Error creating company meeting');
         }
       }
-    } catch (err) {
-      setError((err as Error).message || 'Error saving company visit');
+    } catch (err: any) {
+      // Extract actual server error message from axios error
+      const serverError = err?.response?.data?.error;
+      const message = serverError || err?.message || 'Error saving company meeting';
+      setError(message);
+      console.error('CompanyVisitForm submit error:', err?.response?.data || err);
     } finally {
       setSubmitting(false);
     }
@@ -324,7 +328,7 @@ export const CompanyVisitForm: React.FC = () => {
     <div className="cv-form-page">
       {/* Header */}
       <div className="cv-form-header">
-        <h1>{isEdit ? 'Edit Company Visit' : 'New Company Visit'}</h1>
+        <h1>{isEdit ? 'Edit Company Meeting' : 'New Company Meeting'}</h1>
         <button className="cv-form-back" onClick={() => navigate(-1)}>
           &larr; Back
         </button>
@@ -571,7 +575,7 @@ export const CompanyVisitForm: React.FC = () => {
             )}
             {!isEdit && (
               <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
-                Save the company visit first, then you can create tasks.
+                Save the company meeting first, then you can create tasks.
               </p>
             )}
           </div>

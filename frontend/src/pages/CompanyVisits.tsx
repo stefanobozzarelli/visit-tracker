@@ -86,19 +86,19 @@ export const CompanyVisits: React.FC = () => {
         setVisits(data);
       }
     } catch {
-      setError('Error loading company visits');
+      setError('Error loading company meetings');
     }
   };
 
   // ---- Actions ----
   const handleDelete = async (visitId: string) => {
-    if (!window.confirm('Delete this company visit?')) return;
+    if (!window.confirm('Delete this company meeting?')) return;
     try {
       await apiService.deleteCompanyVisit(visitId);
-      setSuccess('Company visit deleted');
+      setSuccess('Company meeting deleted');
       loadVisits();
     } catch {
-      setError('Error deleting company visit');
+      setError('Error deleting company meeting');
     }
   };
 
@@ -146,7 +146,7 @@ export const CompanyVisits: React.FC = () => {
 
   // ---- Render ----
   if (loading) {
-    return <div className="cv-page"><div className="cv-loading">Loading company visits...</div></div>;
+    return <div className="cv-page"><div className="cv-loading">Loading company meetings...</div></div>;
   }
 
   return (
@@ -154,11 +154,11 @@ export const CompanyVisits: React.FC = () => {
       {/* Header */}
       <div className="cv-header">
         <div className="cv-header-left">
-          <h1>Company Visits</h1>
+          <h1>Company Meetings</h1>
           <p className="cv-header-subtitle">Manage internal company meetings</p>
         </div>
         <button className="cv-btn-new" onClick={() => navigate('/company-visits/new')}>
-          + New Visit
+          + New Meeting
         </button>
       </div>
 
@@ -257,8 +257,8 @@ export const CompanyVisits: React.FC = () => {
             <div className="cv-empty-icon">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
-            <div className="cv-empty-text">No company visits found</div>
-            <div className="cv-empty-hint">Try adjusting your filters or create a new visit</div>
+            <div className="cv-empty-text">No company meetings found</div>
+            <div className="cv-empty-hint">Try adjusting your filters or create a new meeting</div>
           </div>
         ) : (
           <div className="cv-table-scroll">

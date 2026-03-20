@@ -30,7 +30,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       date: new Date(date),
       subject,
       report: report || null,
-      participants_user_ids: participantsUserIds ? JSON.stringify(participantsUserIds) : null,
+      participants_user_ids: Array.isArray(participantsUserIds) && participantsUserIds.length > 0 ? JSON.stringify(participantsUserIds) : null,
       participants_external: participantsExternal || null,
       status: status || 'scheduled',
       created_by_user_id: createdByUserId,
@@ -38,6 +38,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
 
     res.status(201).json({ success: true, data: visit });
   } catch (error) {
+    console.error('Error creating company visit:', error);
     res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
