@@ -310,7 +310,7 @@ export const VisitDetail: React.FC = () => {
                       <button onClick={() => handleEditReport(report)} className="btn-warning">Edit</button>
                       <button onClick={() => handleDeleteReport(report.id)} className="btn-danger">Delete</button>
                       <button onClick={() => navigate(`/visits/${id}/reports/${report.id}`)} className="btn-info">Attachments</button>
-                      <button onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)} className="btn-primary">+ Create Task</button>
+                      <button onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}&visitId=${id}`)} className="btn-primary">+ Create Task</button>
                     </div>
                   </div>
                 )}

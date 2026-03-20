@@ -576,7 +576,22 @@ export const Tasks: React.FC = () => {
                           <div className="task-created-by">by {createdByName}</div>
                         )}
                         {sourceLabel && (
-                          <span className="task-source-label">{sourceLabel}</span>
+                          <span
+                            className="task-source-label task-source-link"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if ((todo as any).visit_report_id || (todo as any).visit_id) {
+                                const vId = (todo as any).visit_id || '';
+                                if (vId) {
+                                  navigate(`/visits/${vId}`);
+                                }
+                              } else if ((todo as any).claim_id) {
+                                navigate(`/claims/${(todo as any).claim_id}/edit`);
+                              }
+                            }}
+                          >
+                            {sourceLabel}
+                          </span>
                         )}
                       </td>
 

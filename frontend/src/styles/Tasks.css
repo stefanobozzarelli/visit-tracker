@@ -464,6 +464,16 @@
   vertical-align: middle;
 }
 
+.task-source-link {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.task-source-link:hover {
+  background: rgba(74, 96, 120, 0.18);
+  text-decoration: underline;
+}
+
 .task-created-by {
   font-size: 0.688rem;
   color: var(--color-text-tertiary);
