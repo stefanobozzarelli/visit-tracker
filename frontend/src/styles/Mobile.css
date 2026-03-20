@@ -1,0 +1,726 @@
+/* ========================================
+   Mobile / iPhone Responsive Overrides
+   Auto-adapts when screen width <= 480px
+   ======================================== */
+
+/* ---- Viewport & Touch Optimization ---- */
+@media (max-width: 480px) {
+
+  /* Prevent zoom on input focus (iOS) */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Smoother touch scrolling */
+  .app-layout-main,
+  .tasks-table-scroll,
+  .visits-table-scroll,
+  .claims-table-scroll,
+  .projects-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ---- Global Layout ---- */
+  .app-layout-main {
+    padding-top: 48px;
+  }
+
+  .app-layout-content {
+    padding: 0.625rem 0.5rem;
+  }
+
+  /* ---- Sidebar Toggle ---- */
+  .sidebar-toggle {
+    width: 36px;
+    height: 36px;
+    top: 0.5rem;
+    left: 0.5rem;
+    font-size: 18px;
+  }
+
+  /* ---- Page Headers — Compact ---- */
+  .dash-header-left h1,
+  .tasks-header-left h1,
+  .visits-header-left h1,
+  .claims-header-left h1,
+  .clients-header-left h1,
+  .projects-page h1 {
+    font-size: 1.5rem !important;
+    line-height: 1.2;
+  }
+
+  .dash-header-subtitle,
+  .tasks-header-subtitle,
+  .visits-header-subtitle,
+  .claims-header-subtitle,
+  .clients-header-subtitle {
+    font-size: 0.7rem;
+  }
+
+  /* ---- KPI Cards — 2 columns, compact ---- */
+  .dash-kpi-row,
+  .tasks-kpi-row,
+  .visits-kpi-row,
+  .claims-kpi-row,
+  .clients-kpi-row,
+  .projects-kpi-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.375rem !important;
+    margin-bottom: 0.625rem;
+  }
+
+  .dash-kpi,
+  .tasks-kpi,
+  .visits-kpi,
+  .claims-kpi,
+  .clients-kpi,
+  .projects-kpi-card {
+    padding: 0.5rem 0.625rem !important;
+    gap: 0.5rem !important;
+  }
+
+  .dash-kpi-icon,
+  .tasks-kpi-icon,
+  .visits-kpi-icon,
+  .claims-kpi-icon,
+  .clients-kpi-icon,
+  .projects-kpi-icon {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 13px;
+  }
+
+  .dash-kpi-value,
+  .tasks-kpi-value,
+  .visits-kpi-value,
+  .claims-kpi-value,
+  .clients-kpi-value,
+  .projects-kpi-value {
+    font-size: 1.125rem !important;
+    line-height: 1.1;
+  }
+
+  .dash-kpi-label,
+  .tasks-kpi-label,
+  .visits-kpi-label,
+  .claims-kpi-label,
+  .clients-kpi-label,
+  .projects-kpi-label {
+    font-size: 0.563rem !important;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---- Filter Toolbars — Stack vertically ---- */
+  .tasks-toolbar,
+  .visits-toolbar,
+  .claims-toolbar,
+  .projects-filters {
+    padding: 0.625rem !important;
+    margin-bottom: 0.625rem;
+  }
+
+  .tasks-filters-row,
+  .visits-filters-row,
+  .claims-filters-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.375rem !important;
+  }
+
+  .tasks-search-input,
+  .visits-search-input,
+  .claims-search-input,
+  .projects-filters input {
+    max-width: none !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 0.5rem 0.625rem;
+    font-size: 14px !important;
+  }
+
+  .tasks-filter-select,
+  .visits-filter-select,
+  .claims-filter-select,
+  .projects-filters select {
+    max-width: none !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 14px !important;
+    padding: 0.5rem 0.625rem;
+  }
+
+  .tasks-filter-divider,
+  .visits-filter-divider,
+  .claims-filter-divider {
+    display: none !important;
+  }
+
+  /* Chips - horizontal scroll */
+  .tasks-chips,
+  .visits-chips,
+  .claims-chips {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.25rem !important;
+    padding-bottom: 0.25rem;
+  }
+
+  .tasks-chip,
+  .visits-chip,
+  .claims-chip {
+    font-size: 0.688rem;
+    padding: 0.25rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  /* NLP search */
+  .tasks-nlp-row,
+  .visits-nlp-row {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .tasks-nlp-input,
+  .visits-nlp-input {
+    font-size: 14px !important;
+  }
+
+  /* ---- Tables — Horizontal scroll with compact cells ---- */
+  .tasks-table-wrap,
+  .visits-table-wrap,
+  .claims-table-wrap,
+  .projects-table-wrap {
+    border-radius: var(--radius-md);
+  }
+
+  .tasks-table,
+  .visits-table,
+  .claims-table {
+    min-width: 580px !important;
+  }
+
+  .tasks-table th,
+  .tasks-table td,
+  .visits-table th,
+  .visits-table td,
+  .claims-table th,
+  .claims-table td {
+    padding: 0.4rem 0.5rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  .task-title-cell,
+  .task-context {
+    max-width: 160px !important;
+  }
+
+  .task-title,
+  .task-client-name {
+    font-size: 0.75rem !important;
+  }
+
+  .task-company-name,
+  .task-created-by {
+    font-size: 0.625rem !important;
+  }
+
+  .task-assignee-name {
+    font-size: 0.7rem !important;
+  }
+
+  .task-avatar {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 0.5rem !important;
+  }
+
+  .task-status-pill {
+    padding: 0.175rem 0.375rem;
+    font-size: 0.625rem !important;
+  }
+
+  .task-due {
+    font-size: 0.7rem !important;
+  }
+
+  .task-action-btn {
+    padding: 0.25rem 0.375rem;
+    font-size: 0.688rem;
+  }
+
+  .task-more-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+
+  /* Result count */
+  .tasks-result-count,
+  .visits-result-count,
+  .claims-result-count {
+    font-size: 0.625rem;
+    padding: 0.375rem 0.625rem;
+  }
+
+  /* ---- "New" Buttons — Full width on phone ---- */
+  .tasks-btn-new,
+  .visits-btn-new,
+  .claims-btn-new,
+  .clients-btn-new {
+    width: 100%;
+    text-align: center;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  /* ---- Dashboard Columns — Single column ---- */
+  .dash-columns {
+    grid-template-columns: 1fr !important;
+    gap: 0.625rem;
+  }
+
+  .dash-card {
+    padding: 0.75rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .dash-card-header h3 {
+    font-size: 0.813rem;
+  }
+
+  .dash-priority-item,
+  .dash-visit-item,
+  .dash-client-item,
+  .dash-activity-item {
+    padding: 0.5rem 0;
+    gap: 0.5rem;
+  }
+
+  .dash-priority-item:hover,
+  .dash-visit-item:hover,
+  .dash-client-item:hover,
+  .dash-activity-item:hover {
+    margin: 0 -0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .dash-priority-title,
+  .dash-visit-client,
+  .dash-client-name {
+    font-size: 0.75rem;
+  }
+
+  .dash-priority-subtitle,
+  .dash-visit-companies,
+  .dash-visit-purpose,
+  .dash-client-last,
+  .dash-activity-label {
+    font-size: 0.625rem;
+  }
+
+  .dash-priority-tag {
+    font-size: 0.563rem;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .dash-priority-date,
+  .dash-visit-date,
+  .dash-activity-date {
+    font-size: 0.625rem;
+  }
+
+  .dash-priority-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .dash-activity-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* ---- Forms — Full width fields ---- */
+  .todo-form-container,
+  .claim-form-container,
+  .visit-form-container {
+    padding: 0 !important;
+  }
+
+  .todo-form-card,
+  .claim-form-card,
+  .visit-form-card {
+    padding: 0.875rem !important;
+    border-radius: var(--radius-md);
+  }
+
+  .todo-form-card h2,
+  .claim-form-card h2 {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.75rem;
+  }
+
+  .form-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+
+  .form-group {
+    margin-bottom: 0.625rem !important;
+  }
+
+  .form-group label {
+    font-size: 0.813rem !important;
+    margin-bottom: 0.25rem;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    font-size: 16px !important;
+    padding: 0.5rem 0.625rem !important;
+  }
+
+  .form-actions {
+    flex-direction: column !important;
+    gap: 0.375rem;
+  }
+
+  .form-actions .btn {
+    width: 100% !important;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    text-align: center;
+  }
+
+  /* Attachments section */
+  .attachment-dropzone {
+    padding: 0.75rem !important;
+    font-size: 0.75rem;
+  }
+
+  .attachment-item {
+    padding: 0.375rem 0;
+  }
+
+  .attachment-name {
+    font-size: 0.75rem !important;
+  }
+
+  .attachment-size {
+    font-size: 0.625rem !important;
+  }
+
+  /* ---- Clients Form ---- */
+  .clients-form-row {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem;
+  }
+
+  .clients-form-card {
+    padding: 0.75rem !important;
+  }
+
+  /* ---- Client Detail ---- */
+  .client-detail-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .client-detail-info-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ---- Visits — Visit Detail ---- */
+  .visit-detail-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .visit-detail-info {
+    grid-template-columns: 1fr !important;
+  }
+
+  .company-report {
+    padding: 0.75rem !important;
+  }
+
+  .company-report-header {
+    flex-direction: column;
+    gap: 0.375rem;
+    align-items: flex-start !important;
+  }
+
+  /* ---- Claims Form — Movements section ---- */
+  .claim-movements-section {
+    padding: 0.625rem !important;
+  }
+
+  .movement-item {
+    padding: 0.625rem !important;
+  }
+
+  .movement-header {
+    flex-direction: column;
+    gap: 0.375rem;
+    align-items: flex-start !important;
+  }
+
+  .movement-add-form {
+    flex-direction: column !important;
+    gap: 0.375rem;
+  }
+
+  .movement-add-form input,
+  .movement-add-form textarea {
+    width: 100% !important;
+    font-size: 16px !important;
+  }
+
+  .movement-attachment-item {
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-start !important;
+  }
+
+  /* Tasks inside visits/claims */
+  .visit-general-tasks,
+  .claim-tasks-section {
+    padding: 0.625rem !important;
+  }
+
+  .inline-task-form {
+    flex-direction: column !important;
+    gap: 0.375rem;
+  }
+
+  .inline-task-form input,
+  .inline-task-form select {
+    width: 100% !important;
+    font-size: 16px !important;
+  }
+
+  /* ---- Projects Table ---- */
+  .projects-table {
+    min-width: 700px !important;
+  }
+
+  .projects-table th,
+  .projects-table td {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  .projects-filters {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .projects-filters input,
+  .projects-filters select {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 14px !important;
+  }
+
+  /* ---- Project Form ---- */
+  .project-form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .project-form-card {
+    padding: 0.875rem !important;
+  }
+
+  /* ---- Companies ---- */
+  .companies-form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .companies-table {
+    min-width: 500px !important;
+  }
+
+  .companies-table th,
+  .companies-table td {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  /* ---- Settings / Admin ---- */
+  .settings-tabs {
+    flex-wrap: wrap;
+    gap: 0.25rem !important;
+  }
+
+  .settings-tab {
+    font-size: 0.75rem !important;
+    padding: 0.375rem 0.625rem !important;
+  }
+
+  .settings-card {
+    padding: 0.75rem !important;
+  }
+
+  .admin-form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ---- Profile ---- */
+  .profile-card {
+    padding: 0.875rem !important;
+  }
+
+  .profile-form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ---- Auth page (Login) ---- */
+  .auth-card {
+    margin: 1rem 0.5rem;
+    padding: 1.25rem !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  /* ---- Empty states ---- */
+  .tasks-empty,
+  .visits-empty,
+  .claims-empty {
+    padding: 2rem 1rem;
+  }
+
+  .tasks-empty-icon,
+  .visits-empty-icon,
+  .claims-empty-icon {
+    font-size: 1.5rem;
+  }
+
+  /* ---- Status dropdown — Position fix for mobile ---- */
+  .task-status-dropdown {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    min-width: auto !important;
+    padding: 0.5rem;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
+    z-index: 1000 !important;
+  }
+
+  .task-status-option {
+    padding: 0.625rem 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* ---- More menu — Bottom sheet on mobile ---- */
+  .task-more-menu {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    min-width: auto !important;
+    padding: 0.5rem;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
+    z-index: 1000 !important;
+  }
+
+  .task-more-item {
+    padding: 0.625rem 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* ---- Scrollbar — Thinner on mobile ---- */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  /* ---- Sidebar Footer on mobile ---- */
+  .sidebar-footer {
+    padding: 0.75rem 1rem;
+  }
+
+  .sidebar-user-name {
+    font-size: 0.813rem;
+  }
+}
+
+/* ---- Safe area support for iPhones with notch ---- */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 480px) {
+    .app-layout-main {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .sidebar {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    .sidebar-toggle {
+      top: calc(0.5rem + env(safe-area-inset-top));
+    }
+
+    .task-status-dropdown,
+    .task-more-menu {
+      padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)) !important;
+    }
+  }
+}
+
+/* ---- Landscape phone ---- */
+@media (max-width: 480px) and (orientation: landscape) {
+  .app-layout-main {
+    padding-top: 40px;
+  }
+
+  .dash-kpi-row,
+  .tasks-kpi-row,
+  .visits-kpi-row,
+  .claims-kpi-row,
+  .clients-kpi-row,
+  .projects-kpi-row {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 0.375rem !important;
+  }
+
+  .dash-columns {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ---- Touch-friendly tap targets ---- */
+@media (max-width: 480px) {
+  /* Ensure minimum 44px touch targets */
+  .sidebar-link {
+    min-height: 44px;
+    padding: 0.625rem 0.75rem;
+  }
+
+  .tasks-chip,
+  .visits-chip,
+  .claims-chip {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Make table rows taller for easier tap */
+  .tasks-table tbody td,
+  .visits-table tbody td,
+  .claims-table tbody td {
+    min-height: 40px;
+  }
+
+  /* Bigger buttons */
+  .btn,
+  button[type="submit"] {
+    min-height: 44px;
+  }
+}

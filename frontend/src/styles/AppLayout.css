@@ -31,3 +31,13 @@
     padding: 1rem;
   }
 }
+
+@media (max-width: 480px) {
+  .app-layout-main {
+    padding-top: 48px;
+  }
+
+  .app-layout-content {
+    padding: 0.625rem 0.5rem;
+  }
+}
