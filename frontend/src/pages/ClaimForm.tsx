@@ -505,18 +505,43 @@ export const ClaimForm: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {existingTasks.map(t => (
-                      <tr key={t.id}>
-                        <td>{t.title}</td>
-                        <td>{t.assigned_to_user?.name || '-'}</td>
-                        <td>{t.due_date ? formatDate(t.due_date) : '-'}</td>
-                        <td>
-                          <span className={`claim-task-status status-${t.status === 'done' ? 'resolved' : t.status}`}>
-                            {t.status === 'todo' ? 'To Do' : t.status === 'in_progress' ? 'In Progress' : t.status === 'done' ? 'Done' : t.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {existingTasks.map(t => {
+                      const stBg = t.status === 'todo' ? '#fff3e0' : t.status === 'in_progress' ? '#e3f2fd' : '#e8f5e9';
+                      const stColor = t.status === 'todo' ? '#e65100' : t.status === 'in_progress' ? '#1565c0' : '#2e7d32';
+                      return (
+                        <tr key={t.id}>
+                          <td
+                            style={{ cursor: 'pointer', color: 'var(--color-info)' }}
+                            onClick={() => navigate(`/todos/edit/${t.id}`)}
+                          >
+                            {t.title}
+                          </td>
+                          <td>{t.assigned_to_user?.name || '-'}</td>
+                          <td>{t.due_date ? formatDate(t.due_date) : '-'}</td>
+                          <td>
+                            <select
+                              value={t.status}
+                              onChange={async (e) => {
+                                const newStatus = e.target.value;
+                                try {
+                                  await apiService.updateTodo(t.id, { status: newStatus });
+                                  setExistingTasks(prev => prev.map(task => task.id === t.id ? { ...task, status: newStatus as any } : task));
+                                } catch {}
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                padding: '2px 6px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 500,
+                                background: stBg, color: stColor, border: `1px solid ${stColor}30`, cursor: 'pointer', outline: 'none',
+                              }}
+                            >
+                              <option value="todo">To Do</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="done">Done</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
