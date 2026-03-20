@@ -582,7 +582,7 @@ class ApiService {
   }
 
   // Todos
-  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string) {
+  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string) {
     const response = await this.api.post<ApiResponse<any>>('/todos', {
       title,
       clientId,
@@ -590,6 +590,7 @@ class ApiService {
       assignedToUserId,
       dueDate,
       visitReportId,
+      claimId,
     });
     return response.data;
   }
@@ -641,6 +642,11 @@ class ApiService {
 
   async deleteTodoAttachment(todoId: string, attachmentId: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/todos/${todoId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  async getTodosByClaimId(claimId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/todos/by-claim/${claimId}`);
     return response.data;
   }
 

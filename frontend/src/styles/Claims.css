@@ -807,6 +807,58 @@
   margin: 0 0 0.25rem;
 }
 
+.claim-existing-tasks {
+  margin-bottom: 1rem;
+}
+
+.claim-existing-tasks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.813rem;
+}
+
+.claim-existing-tasks-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-secondary, #f5f3ee);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+  font-size: 0.688rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.claim-existing-tasks-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.claim-task-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.688rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.claim-task-status.status-todo {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.claim-task-status.status-in_progress {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.claim-task-status.status-resolved {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
 .claim-tasks-hint {
   font-size: 0.813rem;
   color: var(--color-text-tertiary);

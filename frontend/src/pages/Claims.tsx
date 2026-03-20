@@ -271,7 +271,7 @@ export const Claims: React.FC = () => {
                   const movementCount = claim.movements?.length || 0;
 
                   return (
-                    <tr key={claim.id}>
+                    <tr key={claim.id} onDoubleClick={() => navigate(`/claims/${claim.id}/edit`)} style={{ cursor: 'pointer' }}>
                       <td>
                         <div className="claim-client-name">
                           {claim.client?.name || getClientName(claim.client_id)}

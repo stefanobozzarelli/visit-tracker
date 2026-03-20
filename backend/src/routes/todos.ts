@@ -15,7 +15,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId } = req.body;
+    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!title || !clientId || !companyId || !assignedToUserId) {
@@ -32,7 +32,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       assignedToUserId,
       createdByUserId,
       dueDate ? new Date(dueDate) : undefined,
-      visitReportId
+      visitReportId,
+      claimId
     );
 
     res.status(201).json({
@@ -82,6 +83,19 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
       success: false,
       error: (error as Error).message,
     });
+  }
+});
+
+/**
+ * GET /api/todos/by-claim/:claimId
+ * Get todos linked to a claim
+ */
+router.get('/by-claim/:claimId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const todos = await todoService.getTodosByClaimId(req.params.claimId);
+    res.json({ success: true, data: todos });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 

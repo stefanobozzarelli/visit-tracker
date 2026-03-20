@@ -23,7 +23,8 @@ export class TodoService {
     assignedToUserId: string,
     createdByUserId: string,
     dueDate?: Date,
-    visitReportId?: string
+    visitReportId?: string,
+    claimId?: string
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
@@ -33,6 +34,7 @@ export class TodoService {
       created_by_user_id: createdByUserId,
       due_date: dueDate || null,
       visit_report_id: visitReportId || null,
+      claim_id: claimId || null,
       status: 'todo',
     });
     return await this.todoRepository.save(todo);
@@ -230,6 +232,14 @@ export class TodoService {
       .where('todo.due_date BETWEEN :today AND :sevenDays', { today: todayStr, sevenDays: sevenDaysStr })
       .orderBy('todo.due_date', 'ASC')
       .getMany();
+  }
+
+  async getTodosByClaimId(claimId: string): Promise<TodoItem[]> {
+    return await this.todoRepository.find({
+      where: { claim_id: claimId },
+      relations: ['assigned_to_user', 'created_by_user', 'attachments'],
+      order: { created_at: 'DESC' },
+    });
   }
 
   // --- Attachment methods ---

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
-import { Claim, ClaimMovement, Client, Company, User } from '../types';
+import { Claim, ClaimMovement, Client, Company, User, TodoItem } from '../types';
 import '../styles/Claims.css';
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
@@ -32,8 +32,10 @@ export const ClaimForm: React.FC = () => {
   const [newMovAction, setNewMovAction] = useState('');
   const [newMovFiles, setNewMovFiles] = useState<File[]>([]);
 
-  // Inline tasks
+  // Inline tasks (new)
   const [tasks, setTasks] = useState<{ title: string; assignedToUserId: string; dueDate: string; files: File[] }[]>([]);
+  // Existing tasks linked to this claim
+  const [existingTasks, setExistingTasks] = useState<TodoItem[]>([]);
 
   // UI
   const [loading, setLoading] = useState(true);
@@ -105,6 +107,14 @@ export const ClaimForm: React.FC = () => {
         } catch {
           setError('Error loading claim');
         }
+
+        // Load tasks linked to this claim
+        try {
+          const taskRes = await apiService.getTodosByClaimId(id);
+          if (taskRes.success && taskRes.data) {
+            setExistingTasks(taskRes.data);
+          }
+        } catch {}
       }
     } finally {
       setLoading(false);
@@ -129,7 +139,7 @@ export const ClaimForm: React.FC = () => {
         });
         if (res.success) {
           // Create inline tasks
-          await createInlineTasks(clientId, companyId);
+          await createInlineTasks(clientId, companyId, id);
           setSuccess('Claim updated');
           navigate('/claims');
         } else {
@@ -145,7 +155,7 @@ export const ClaimForm: React.FC = () => {
         });
         if (res.success && res.data) {
           // Create inline tasks using the new claim's client/company
-          await createInlineTasks(clientId, companyId);
+          await createInlineTasks(clientId, companyId, res.data.id);
           setSuccess('Claim created');
           navigate('/claims');
         } else {
@@ -159,7 +169,7 @@ export const ClaimForm: React.FC = () => {
     }
   };
 
-  const createInlineTasks = async (claimClientId: string, claimCompanyId: string) => {
+  const createInlineTasks = async (claimClientId: string, claimCompanyId: string, claimId?: string) => {
     for (const task of tasks) {
       if (task.title.trim()) {
         try {
@@ -169,6 +179,8 @@ export const ClaimForm: React.FC = () => {
             claimCompanyId,
             task.assignedToUserId || user?.id || '',
             task.dueDate || undefined,
+            undefined, // visitReportId
+            claimId,   // claimId
           );
           // Upload task attachments
           if (todoRes.success && todoRes.data?.id && task.files?.length > 0) {
@@ -466,6 +478,37 @@ export const ClaimForm: React.FC = () => {
           {/* ---- Tasks Section ---- */}
           <div className="claim-tasks-section">
             <h3>Tasks</h3>
+
+            {/* Existing tasks linked to this claim */}
+            {isEdit && existingTasks.length > 0 && (
+              <div className="claim-existing-tasks">
+                <table className="claim-existing-tasks-table">
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Assigned To</th>
+                      <th>Due Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {existingTasks.map(t => (
+                      <tr key={t.id}>
+                        <td>{t.title}</td>
+                        <td>{t.assigned_to_user?.name || '-'}</td>
+                        <td>{t.due_date ? formatDate(t.due_date) : '-'}</td>
+                        <td>
+                          <span className={`claim-task-status status-${t.status === 'done' ? 'resolved' : t.status}`}>
+                            {t.status === 'todo' ? 'To Do' : t.status === 'in_progress' ? 'In Progress' : t.status === 'done' ? 'Done' : t.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             <p className="claim-tasks-hint">
               Add follow-up tasks for this claim. They will be created when you save.
             </p>
