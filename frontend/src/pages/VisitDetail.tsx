@@ -1,59 +1,75 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
-import { decodeMetadata, filterDisplayReports, VisitMetadata } from '../utils/visitMetadata';
+import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
 import '../styles/CrudPages.css';
 
-const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  todo: { bg: '#fff3e0', color: '#e65100', label: 'To Do' },
-  in_progress: { bg: '#e3f2fd', color: '#1565c0', label: 'In Progress' },
-  done: { bg: '#e8f5e9', color: '#2e7d32', label: 'Done' },
+type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'completed';
+const STATUS_CONFIG: Record<TaskStatus, { label: string; dot: string }> = {
+  todo:        { label: 'To Do',       dot: '#B09840' },
+  in_progress: { label: 'In Progress', dot: '#4A6078' },
+  waiting:     { label: 'Waiting',     dot: '#6e6e73' },
+  completed:   { label: 'Completed',   dot: '#4A7653' },
 };
 
-// Inline task row with status change
-const TaskRow: React.FC<{
+const normalizeStatus = (s: string): TaskStatus => {
+  if (s === 'done') return 'completed';
+  if (s in STATUS_CONFIG) return s as TaskStatus;
+  return 'todo';
+};
+
+// Inline task status pill with popup menu
+const TaskStatusPill: React.FC<{
   task: TodoItem;
   onStatusChange: (taskId: string, newStatus: string) => void;
-  onNavigate: (taskId: string) => void;
-}> = ({ task, onStatusChange, onNavigate }) => {
-  const st = STATUS_STYLES[task.status] || STATUS_STYLES.todo;
+}> = ({ task, onStatusChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const status = normalizeStatus(task.status);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (open && ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
   return (
-    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-      <td
-        style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--color-info)' }}
-        onClick={() => onNavigate(task.id)}
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        className={`task-status-pill status-${status}`}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
       >
-        {task.title}
-      </td>
-      <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>{task.assigned_to_user?.name || '-'}</td>
-      <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>{task.due_date ? new Date(task.due_date).toLocaleDateString('it-IT') : '-'}</td>
-      <td style={{ padding: '0.5rem 0.75rem' }}>
-        <select
-          value={task.status}
-          onChange={(e) => onStatusChange(task.id, e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            padding: '2px 6px',
-            borderRadius: '10px',
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            background: st.bg,
-            color: st.color,
-            border: `1px solid ${st.color}30`,
-            cursor: 'pointer',
-            outline: 'none',
-          }}
-        >
-          <option value="todo">To Do</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-      </td>
-    </tr>
+        <span className="status-dot" />
+        {STATUS_CONFIG[status].label}
+      </button>
+      {open && (
+        <div className="task-status-dropdown">
+          {(Object.keys(STATUS_CONFIG) as TaskStatus[]).map(s => (
+            <button
+              key={s}
+              className={`task-status-option${s === status ? ' selected' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const apiStatus = s === 'completed' ? 'done' : s;
+                onStatusChange(task.id, apiStatus);
+                setOpen(false);
+              }}
+            >
+              <span className="status-dot" style={{ color: STATUS_CONFIG[s].dot }} />
+              {STATUS_CONFIG[s].label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
+// Task table used inside reports and at bottom
 const TaskTable: React.FC<{
   tasks: TodoItem[];
   onStatusChange: (taskId: string, newStatus: string) => void;
@@ -73,7 +89,19 @@ const TaskTable: React.FC<{
       </thead>
       <tbody>
         {tasks.map(t => (
-          <TaskRow key={t.id} task={t} onStatusChange={onStatusChange} onNavigate={onNavigate} />
+          <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <td
+              style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--color-info)' }}
+              onClick={() => onNavigate(t.id)}
+            >
+              {t.title}
+            </td>
+            <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>{t.assigned_to_user?.name || '-'}</td>
+            <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>{t.due_date ? new Date(t.due_date).toLocaleDateString('it-IT') : '-'}</td>
+            <td style={{ padding: '0.5rem 0.75rem' }}>
+              <TaskStatusPill task={t} onStatusChange={onStatusChange} />
+            </td>
+          </tr>
         ))}
       </tbody>
     </table>
@@ -92,9 +120,7 @@ export const VisitDetail: React.FC = () => {
   const [editContent, setEditContent] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    loadVisit();
-  }, [id]);
+  useEffect(() => { loadVisit(); }, [id]);
 
   const loadVisit = async () => {
     if (!id) return;
@@ -104,7 +130,6 @@ export const VisitDetail: React.FC = () => {
       if (response.success && response.data) {
         setVisit(response.data);
 
-        // Load associated orders
         try {
           const ordersResponse = await apiService.getOrdersByVisit(id);
           if (ordersResponse.success && ordersResponse.data) {
@@ -112,27 +137,28 @@ export const VisitDetail: React.FC = () => {
           }
         } catch {}
 
-        // Load ALL tasks for this client to find ones linked to this visit
+        // Load ALL tasks for this client
         try {
           const visitData = response.data;
           const todosRes = await apiService.getTodos({ clientId: visitData.client_id });
           if (todosRes.success && todosRes.data) {
             const all = Array.isArray(todosRes.data) ? todosRes.data : [];
             const reportIds = (visitData.reports || []).map((r: any) => r.id);
-            // Tasks linked to this visit: have visit_report_id matching one of the reports
-            const linked = all.filter((t: any) => t.visit_report_id && reportIds.includes(t.visit_report_id));
+            // Tasks linked to reports of this visit, OR general visit tasks (same client, no visit_report_id created same day)
+            const linked = all.filter((t: any) =>
+              (t.visit_report_id && reportIds.includes(t.visit_report_id))
+            );
             setAllTasks(linked);
           }
         } catch {}
       }
-    } catch (err) {
+    } catch {
       setError('Error loading visit');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Split tasks: per-report vs visit-level (created from top button, no visit_report_id)
   const getTasksForReport = (reportId: string) => allTasks.filter(t => t.visit_report_id === reportId);
   const visitLevelTasks = allTasks.filter(t => !t.visit_report_id);
 
@@ -146,7 +172,7 @@ export const VisitDetail: React.FC = () => {
   };
 
   const handleTaskNavigate = (taskId: string) => {
-    navigate(`/todos/edit/${taskId}`);
+    navigate(`/tasks?highlight=${taskId}`);
   };
 
   const handleEditReport = (report: VisitReport) => {
@@ -160,9 +186,7 @@ export const VisitDetail: React.FC = () => {
       await apiService.updateVisitReport(id, reportId, { content: editContent });
       setEditingReportId(null);
       loadVisit();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    } catch (err) { setError((err as Error).message); }
   };
 
   const handleDeleteReport = async (reportId: string) => {
@@ -170,9 +194,7 @@ export const VisitDetail: React.FC = () => {
     try {
       await apiService.deleteVisitReport(id, reportId);
       loadVisit();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    } catch (err) { setError((err as Error).message); }
   };
 
   const handleDeleteVisit = async () => {
@@ -180,25 +202,19 @@ export const VisitDetail: React.FC = () => {
     try {
       setIsDeleting(true);
       setError('');
-
       const checkResponse = await apiService.canDeleteVisit(id);
       if (!checkResponse.success || !checkResponse.data) {
         setError('Error checking visit');
         setIsDeleting(false);
         return;
       }
-
       const { canDelete, reportCount } = checkResponse.data;
       if (!canDelete && reportCount > 0) {
-        const confirmDelete = window.confirm(
-          `There are still ${reportCount} associated reports. Do you want to delete them and cancel the visit?`
-        );
-        if (!confirmDelete) {
+        if (!window.confirm(`There are still ${reportCount} associated reports. Do you want to delete them and cancel the visit?`)) {
           setIsDeleting(false);
           return;
         }
       }
-
       const deleteResponse = await apiService.deleteVisit(id);
       if (deleteResponse.success) {
         navigate('/visits', { state: { message: 'Visit cancelled successfully' } });
@@ -223,31 +239,16 @@ export const VisitDetail: React.FC = () => {
       <div className="page-header">
         <h1>Visit - {visit.client?.name}</h1>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => navigate(`/todos/new?clientId=${visit.client_id}`)}
-            className="btn-primary"
-            title="Create a follow-up task for this visit"
-          >
+          <button onClick={() => navigate(`/todos/new?clientId=${visit.client_id}`)} className="btn-primary" title="Create a follow-up task for this visit">
             + Create Task
           </button>
-          <button
-            onClick={() => navigate(`/orders/new/${id}`)}
-            className="btn-secondary"
-            title="Create a new customer order"
-          >
+          <button onClick={() => navigate(`/orders/new/${id}`)} className="btn-secondary" title="Create a new customer order">
             + Create Order
           </button>
-          <button
-            onClick={handleDeleteVisit}
-            disabled={isDeleting}
-            className="btn-danger"
-            title={visit.reports?.length ? `${visit.reports.length} associated reports` : 'Cancel this visit'}
-          >
+          <button onClick={handleDeleteVisit} disabled={isDeleting} className="btn-danger">
             {isDeleting ? 'Cancelling...' : '🗑️ Cancel Visit'}
           </button>
-          <button onClick={() => navigate('/visits')} className="btn-secondary">
-            ← Back to Visits
-          </button>
+          <button onClick={() => navigate('/visits')} className="btn-secondary">← Back to Visits</button>
         </div>
       </div>
 
@@ -256,45 +257,24 @@ export const VisitDetail: React.FC = () => {
       <div className="form-card">
         <h3>Visit Information</h3>
         <div className="info-group">
-          <div>
-            <label>Client</label>
-            <p>{visit.client?.name}</p>
-          </div>
-          <div>
-            <label>Date</label>
-            <p>{new Date(visit.visit_date).toLocaleDateString('it-IT')}</p>
-          </div>
-          <div>
-            <label>Visited By</label>
-            <p>{visit.visited_by_user?.name}</p>
-          </div>
+          <div><label>Client</label><p>{visit.client?.name}</p></div>
+          <div><label>Date</label><p>{new Date(visit.visit_date).toLocaleDateString('it-IT')}</p></div>
+          <div><label>Visited By</label><p>{visit.visited_by_user?.name}</p></div>
         </div>
-
         {visitMetadata && (
           <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e5e5' }}>
             <div className="info-group">
-              {visitMetadata.location && (
-                <div><label>Location</label><p>{visitMetadata.location}</p></div>
-              )}
-              {visitMetadata.purpose && (
-                <div><label>Purpose</label><p>{visitMetadata.purpose}</p></div>
-              )}
-              {visitMetadata.outcome && (
-                <div><label>Outcome</label><p>{visitMetadata.outcome}</p></div>
-              )}
-              {visitMetadata.nextAction && (
-                <div><label>Next Action</label><p>{visitMetadata.nextAction}</p></div>
-              )}
-              {visitMetadata.followUpRequired && (
-                <div><label>Follow-up</label><p style={{ color: 'var(--color-warning)', fontWeight: 500 }}>Required</p></div>
-              )}
+              {visitMetadata.location && <div><label>Location</label><p>{visitMetadata.location}</p></div>}
+              {visitMetadata.purpose && <div><label>Purpose</label><p>{visitMetadata.purpose}</p></div>}
+              {visitMetadata.outcome && <div><label>Outcome</label><p>{visitMetadata.outcome}</p></div>}
+              {visitMetadata.nextAction && <div><label>Next Action</label><p>{visitMetadata.nextAction}</p></div>}
+              {visitMetadata.followUpRequired && <div><label>Follow-up</label><p style={{ color: 'var(--color-warning)', fontWeight: 500 }}>Required</p></div>}
             </div>
           </div>
         )}
       </div>
 
       <h2>Company Reports</h2>
-
       {displayReports.length > 0 ? (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
           {displayReports.map((report) => {
@@ -307,9 +287,7 @@ export const VisitDetail: React.FC = () => {
                     padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.9rem',
                     backgroundColor: report.status === 'draft' ? '#fff3cd' : report.status === 'submitted' ? '#d1ecf1' : '#d4edda',
                     color: report.status === 'draft' ? '#856404' : report.status === 'submitted' ? '#0c5460' : '#155724',
-                  }}>
-                    {report.status}
-                  </span>
+                  }}>{report.status}</span>
                 </div>
 
                 {editingReportId === report.id ? (
@@ -327,12 +305,7 @@ export const VisitDetail: React.FC = () => {
                       <button onClick={() => handleEditReport(report)} className="btn-warning">Edit</button>
                       <button onClick={() => handleDeleteReport(report.id)} className="btn-danger">Delete</button>
                       <button onClick={() => navigate(`/visits/${id}/reports/${report.id}`)} className="btn-info">Attachments</button>
-                      <button
-                        onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)}
-                        className="btn-primary"
-                      >
-                        + Create Task
-                      </button>
+                      <button onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)} className="btn-primary">+ Create Task</button>
                     </div>
                   </div>
                 )}
@@ -363,7 +336,7 @@ export const VisitDetail: React.FC = () => {
         <p>No reports registered</p>
       )}
 
-      {/* Visit-level tasks (created from top button, not linked to a specific report) */}
+      {/* Visit-level tasks */}
       {visitLevelTasks.length > 0 && (
         <>
           <h2 style={{ marginTop: '2rem' }}>Visit Tasks</h2>
@@ -390,23 +363,13 @@ export const VisitDetail: React.FC = () => {
                     padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.9rem',
                     backgroundColor: order.status === 'draft' ? '#fff3cd' : order.status === 'confirmed' ? '#d1ecf1' : '#d4edda',
                     color: order.status === 'draft' ? '#856404' : order.status === 'confirmed' ? '#0c5460' : '#155724',
-                  }}>
-                    {order.status}
-                  </span>
-                  <button onClick={() => navigate(`/orders/${order.id}/edit`)} className="btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
-                    ✎ Edit
-                  </button>
+                  }}>{order.status}</span>
+                  <button onClick={() => navigate(`/orders/${order.id}/edit`)} className="btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>✎ Edit</button>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label>Lines</label>
-                  <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem' }}>{order.items?.length || 0}</p>
-                </div>
-                <div>
-                  <label>Total Amount</label>
-                  <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p>
-                </div>
+                <div><label>Lines</label><p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem' }}>{order.items?.length || 0}</p></div>
+                <div><label>Total Amount</label><p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p></div>
               </div>
             </div>
           ))}

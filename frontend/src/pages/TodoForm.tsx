@@ -18,6 +18,7 @@ export const TodoForm = () => {
   const [assignedToUserId, setAssignedToUserId] = useState(user?.id || '');
   const [dueDate, setDueDate] = useState('');
   const [visitReportId, setVisitReportId] = useState('');
+  const [claimId, setClaimId] = useState('');
   const [status, setStatus] = useState('todo');
 
   const [clients, setClients] = useState<Client[]>([]);
@@ -41,10 +42,12 @@ export const TodoForm = () => {
     const urlClientId = searchParams.get('clientId');
     const urlCompanyId = searchParams.get('companyId');
     const urlVisitReportId = searchParams.get('visitReportId');
+    const urlClaimId = searchParams.get('claimId');
 
     if (urlClientId) setClientId(urlClientId);
     if (urlCompanyId) setCompanyId(urlCompanyId);
     if (urlVisitReportId) setVisitReportId(urlVisitReportId);
+    if (urlClaimId) setClaimId(urlClaimId);
 
     loadData();
   }, []);
@@ -199,7 +202,8 @@ export const TodoForm = () => {
           companyId,
           assignedToUserId,
           dueDate ? new Date(dueDate).toISOString().split('T')[0] : undefined,
-          visitReportId || undefined
+          visitReportId || undefined,
+          claimId || undefined
         );
         if (response.success && response.data?.id) {
           // Upload pending files to the newly created task

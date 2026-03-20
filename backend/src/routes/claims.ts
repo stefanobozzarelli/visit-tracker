@@ -99,6 +99,20 @@ router.post('/:id/movements', async (req: Request, res: Response) => {
   }
 });
 
+router.put('/:id/movements/:movementId', async (req: Request, res: Response) => {
+  try {
+    const { date, action } = req.body;
+    const updateData: any = {};
+    if (date) updateData.date = new Date(date);
+    if (action !== undefined) updateData.action = action;
+
+    const movement = await claimService.updateMovement(req.params.movementId, updateData);
+    res.json({ success: true, data: movement });
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
 router.delete('/:id/movements/:movementId', async (req: Request, res: Response) => {
   try {
     await claimService.deleteMovement(req.params.movementId);

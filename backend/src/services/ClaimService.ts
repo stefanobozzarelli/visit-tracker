@@ -97,6 +97,13 @@ export class ClaimService {
     });
   }
 
+  async updateMovement(movementId: string, data: { date?: Date; action?: string }): Promise<ClaimMovement> {
+    await this.movementRepository.update(movementId, data as any);
+    const updated = await this.movementRepository.findOne({ where: { id: movementId }, relations: ['attachments', 'created_by_user'] });
+    if (!updated) throw new Error('Movement not found');
+    return updated;
+  }
+
   async deleteMovement(movementId: string): Promise<void> {
     await this.movementRepository.delete(movementId);
   }

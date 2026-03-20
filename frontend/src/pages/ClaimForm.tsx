@@ -7,6 +7,64 @@ import '../styles/Claims.css';
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
 
+type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'completed';
+const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; dot: string }> = {
+  todo:        { label: 'To Do',       dot: '#B09840' },
+  in_progress: { label: 'In Progress', dot: '#4A6078' },
+  waiting:     { label: 'Waiting',     dot: '#6e6e73' },
+  completed:   { label: 'Completed',   dot: '#4A7653' },
+};
+
+const ClaimTaskStatusPill: React.FC<{
+  task: TodoItem;
+  onStatusChange: (taskId: string, newStatus: string) => void;
+}> = ({ task, onStatusChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const status: TaskStatus = task.status === 'done' ? 'completed' : (task.status as TaskStatus in TASK_STATUS_CONFIG ? task.status as TaskStatus : 'todo');
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (open && ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        className={`task-status-pill status-${status}`}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+      >
+        <span className="status-dot" />
+        {TASK_STATUS_CONFIG[status]?.label || task.status}
+      </button>
+      {open && (
+        <div className="task-status-dropdown">
+          {(Object.keys(TASK_STATUS_CONFIG) as TaskStatus[]).map(s => (
+            <button
+              key={s}
+              type="button"
+              className={`task-status-option${s === status ? ' selected' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const apiStatus = s === 'completed' ? 'done' : s;
+                onStatusChange(task.id, apiStatus);
+                setOpen(false);
+              }}
+            >
+              <span className="status-dot" style={{ color: TASK_STATUS_CONFIG[s].dot }} />
+              {TASK_STATUS_CONFIG[s].label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ClaimForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -32,11 +90,15 @@ export const ClaimForm: React.FC = () => {
   const [newMovAction, setNewMovAction] = useState('');
   const [newMovFiles, setNewMovFiles] = useState<File[]>([]);
 
-  // Inline tasks (new)
-  const [tasks, setTasks] = useState<{ title: string; assignedToUserId: string; dueDate: string; files: File[] }[]>([]);
+  // Tasks no longer created inline - using button to navigate to task form
   // Existing tasks linked to this claim
   const [existingTasks, setExistingTasks] = useState<TodoItem[]>([]);
   const movFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Editing movement
+  const [editingMovementId, setEditingMovementId] = useState<string | null>(null);
+  const [editMovDate, setEditMovDate] = useState('');
+  const [editMovAction, setEditMovAction] = useState('');
 
   // UI
   const [loading, setLoading] = useState(true);
@@ -139,8 +201,6 @@ export const ClaimForm: React.FC = () => {
           status,
         });
         if (res.success) {
-          // Create inline tasks
-          await createInlineTasks(clientId, companyId, id);
           setSuccess('Claim updated');
           navigate('/claims');
         } else {
@@ -155,8 +215,6 @@ export const ClaimForm: React.FC = () => {
           comments,
         });
         if (res.success && res.data) {
-          // Create inline tasks using the new claim's client/company
-          await createInlineTasks(clientId, companyId, res.data.id);
           setSuccess('Claim created');
           navigate('/claims');
         } else {
@@ -170,31 +228,6 @@ export const ClaimForm: React.FC = () => {
     }
   };
 
-  const createInlineTasks = async (claimClientId: string, claimCompanyId: string, claimId?: string) => {
-    for (const task of tasks) {
-      if (task.title.trim()) {
-        try {
-          const todoRes = await apiService.createTodo(
-            task.title,
-            claimClientId,
-            claimCompanyId,
-            task.assignedToUserId || user?.id || '',
-            task.dueDate || undefined,
-            undefined, // visitReportId
-            claimId,   // claimId
-          );
-          // Upload task attachments
-          if (todoRes.success && todoRes.data?.id && task.files?.length > 0) {
-            for (const file of task.files) {
-              try {
-                await apiService.uploadTodoAttachment(todoRes.data.id, file);
-              } catch { /* non-blocking */ }
-            }
-          }
-        } catch { /* non-blocking */ }
-      }
-    }
-  };
 
   // ---- Movements ----
   const handleAddMovement = async () => {
@@ -372,44 +405,59 @@ export const ClaimForm: React.FC = () => {
 
               {movements.map(mov => (
                 <div key={mov.id} className="claim-movement-item">
-                  <div className="claim-movement-header">
-                    <div>
-                      <span className="claim-movement-date">{formatDate(mov.date)}</span>
-                      {mov.created_by_user && (
-                        <span className="claim-movement-by">by {mov.created_by_user.name}</span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="claim-movement-delete"
-                      onClick={() => handleDeleteMovement(mov.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  <div className="claim-movement-action">{mov.action}</div>
+                  {editingMovementId === mov.id ? (
+                    /* Editing mode */
+                    <>
+                      <div className="claim-add-movement-row" style={{ marginBottom: '0.5rem' }}>
+                        <input type="date" value={editMovDate} onChange={e => setEditMovDate(e.target.value)} />
+                        <textarea value={editMovAction} onChange={e => setEditMovAction(e.target.value)} rows={2} />
+                        <button
+                          type="button" className="claim-movement-add-btn"
+                          onClick={async () => {
+                            if (!id) return;
+                            try {
+                              await apiService.updateClaimMovement(id, mov.id, { date: editMovDate, action: editMovAction });
+                              const claimRes = await apiService.getClaimById(id);
+                              if (claimRes.success && claimRes.data) setMovements(claimRes.data.movements || []);
+                              setEditingMovementId(null);
+                              setSuccess('Movement updated');
+                            } catch { setError('Error updating movement'); }
+                          }}
+                        >Save</button>
+                        <button type="button" className="claim-movement-delete" onClick={() => setEditingMovementId(null)}>Cancel</button>
+                      </div>
+                    </>
+                  ) : (
+                    /* View mode */
+                    <>
+                      <div className="claim-movement-header">
+                        <div>
+                          <span className="claim-movement-date">{formatDate(mov.date)}</span>
+                          {mov.created_by_user && (
+                            <span className="claim-movement-by">by {mov.created_by_user.name}</span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            type="button" className="claim-movement-delete" style={{ color: 'var(--color-info)' }}
+                            onClick={() => { setEditingMovementId(mov.id); setEditMovDate(mov.date?.substring(0, 10) || ''); setEditMovAction(mov.action || ''); }}
+                          >Edit</button>
+                          <button type="button" className="claim-movement-delete" onClick={() => handleDeleteMovement(mov.id)}>Delete</button>
+                        </div>
+                      </div>
+                      <div className="claim-movement-action">{mov.action}</div>
+                    </>
+                  )}
 
                   {(mov.attachments?.length ?? 0) > 0 && (
                     <div className="claim-movement-attachments">
                       {mov.attachments!.map(att => (
                         <span key={att.id} className="claim-attachment-chip">
                           {att.filename}
-                          <button
-                            type="button"
-                            className="download-btn"
-                            title="Download"
-                            onClick={() => handleDownloadAttachment(mov.id, att.id, att.filename)}
-                          >
+                          <button type="button" className="download-btn" title="Download" onClick={() => handleDownloadAttachment(mov.id, att.id, att.filename)}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                           </button>
-                          <button
-                            type="button"
-                            className="delete-btn"
-                            title="Delete"
-                            onClick={() => handleDeleteAttachment(mov.id, att.id)}
-                          >
-                            &times;
-                          </button>
+                          <button type="button" className="delete-btn" title="Delete" onClick={() => handleDeleteAttachment(mov.id, att.id)}>&times;</button>
                         </span>
                       ))}
                     </div>
@@ -506,38 +554,34 @@ export const ClaimForm: React.FC = () => {
                   </thead>
                   <tbody>
                     {existingTasks.map(t => {
-                      const stBg = t.status === 'todo' ? '#fff3e0' : t.status === 'in_progress' ? '#e3f2fd' : '#e8f5e9';
-                      const stColor = t.status === 'todo' ? '#e65100' : t.status === 'in_progress' ? '#1565c0' : '#2e7d32';
+                      const normStatus = t.status === 'done' ? 'completed' : t.status;
+                      const statusConf: Record<string, { bg: string; color: string; label: string; dot: string }> = {
+                        todo:        { bg: 'rgba(176,152,64,0.08)', color: '#947E35', label: 'To Do', dot: '#B09840' },
+                        in_progress: { bg: 'rgba(74,96,120,0.08)',  color: '#4A6078', label: 'In Progress', dot: '#4A6078' },
+                        waiting:     { bg: 'rgba(168,162,158,0.08)',color: '#6e6e73', label: 'Waiting', dot: '#6e6e73' },
+                        completed:   { bg: 'rgba(91,138,101,0.08)', color: '#4A7653', label: 'Completed', dot: '#4A7653' },
+                      };
+                      const st = statusConf[normStatus] || statusConf.todo;
                       return (
                         <tr key={t.id}>
                           <td
                             style={{ cursor: 'pointer', color: 'var(--color-info)' }}
-                            onClick={() => navigate(`/todos/edit/${t.id}`)}
+                            onClick={() => navigate(`/tasks?highlight=${t.id}`)}
                           >
                             {t.title}
                           </td>
                           <td>{t.assigned_to_user?.name || '-'}</td>
                           <td>{t.due_date ? formatDate(t.due_date) : '-'}</td>
                           <td>
-                            <select
-                              value={t.status}
-                              onChange={async (e) => {
-                                const newStatus = e.target.value;
+                            <ClaimTaskStatusPill
+                              task={t}
+                              onStatusChange={async (taskId, newStatus) => {
                                 try {
-                                  await apiService.updateTodo(t.id, { status: newStatus });
-                                  setExistingTasks(prev => prev.map(task => task.id === t.id ? { ...task, status: newStatus as any } : task));
+                                  await apiService.updateTodo(taskId, { status: newStatus });
+                                  setExistingTasks(prev => prev.map(task => task.id === taskId ? { ...task, status: newStatus as any } : task));
                                 } catch {}
                               }}
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                padding: '2px 6px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 500,
-                                background: stBg, color: stColor, border: `1px solid ${stColor}30`, cursor: 'pointer', outline: 'none',
-                              }}
-                            >
-                              <option value="todo">To Do</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="done">Done</option>
-                            </select>
+                            />
                           </td>
                         </tr>
                       );
@@ -547,123 +591,21 @@ export const ClaimForm: React.FC = () => {
               </div>
             )}
 
-            <p className="claim-tasks-hint">
-              Add follow-up tasks for this claim. They will be created when you save.
-            </p>
-
-            {tasks.map((task, idx) => (
-              <div key={idx} className="claim-task-row">
-                <div className="claim-task-fields">
-                  <div className="form-group">
-                    <label>Task *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Follow up with supplier..."
-                      value={task.title}
-                      onChange={e => {
-                        const t = [...tasks];
-                        t[idx].title = e.target.value;
-                        setTasks(t);
-                      }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Assigned To</label>
-                    <select
-                      value={task.assignedToUserId}
-                      onChange={e => {
-                        const t = [...tasks];
-                        t[idx].assignedToUserId = e.target.value;
-                        setTasks(t);
-                      }}
-                    >
-                      <option value="">Select user...</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>{u.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Due Date</label>
-                    <input
-                      type="date"
-                      value={task.dueDate}
-                      onChange={e => {
-                        const t = [...tasks];
-                        t[idx].dueDate = e.target.value;
-                        setTasks(t);
-                      }}
-                    />
-                  </div>
-                  <div className="form-group" style={{ display: 'flex', alignItems: 'end', position: 'relative' }}>
-                    <input
-                      type="file"
-                      multiple
-                      id={`task-file-${idx}`}
-                      style={{ position: 'absolute', width: 0, height: 0, opacity: 0, overflow: 'hidden' }}
-                      onChange={e => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          const t = [...tasks];
-                          t[idx].files = [...(t[idx].files || []), ...Array.from(e.target.files)];
-                          setTasks(t);
-                        }
-                        e.target.value = '';
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="claim-task-file-label"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const input = document.getElementById(`task-file-${idx}`) as HTMLInputElement;
-                        if (input) input.click();
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                      </svg>
-                      Attach file
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="claim-task-remove-btn"
-                    onClick={() => setTasks(tasks.filter((_, i) => i !== idx))}
-                  >
-                    &times;
-                  </button>
-                </div>
-                {/* Show attached files */}
-                {(task.files || []).length > 0 && (
-                  <div className="claim-task-file-row">
-                    {task.files.map((file, fIdx) => (
-                      <span key={fIdx} className="claim-task-file-chip">
-                        {file.name}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const t = [...tasks];
-                            t[idx].files = t[idx].files.filter((_, i) => i !== fIdx);
-                            setTasks(t);
-                          }}
-                        >
-                          &times;
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <button
-              type="button"
-              className="claim-add-task-btn"
-              onClick={() => setTasks([...tasks, { title: '', assignedToUserId: '', dueDate: '', files: [] }])}
-            >
-              + Add Task
-            </button>
+            {/* Button to create task - navigates to task form */}
+            {isEdit && id && (
+              <button
+                type="button"
+                className="claim-add-task-btn"
+                onClick={() => navigate(`/todos/new?clientId=${clientId}&companyId=${companyId}&claimId=${id}`)}
+              >
+                + Create Task
+              </button>
+            )}
+            {!isEdit && (
+              <p className="claim-tasks-hint" style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                Save the claim first, then you can create tasks.
+              </p>
+            )}
           </div>
 
           {/* Form actions */}

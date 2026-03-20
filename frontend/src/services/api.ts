@@ -681,6 +681,11 @@ class ApiService {
     return response.data;
   }
 
+  async updateClaimMovement(claimId: string, movementId: string, data: { date?: string; action?: string }) {
+    const response = await this.api.put<ApiResponse<any>>(`/claims/${claimId}/movements/${movementId}`, data);
+    return response.data;
+  }
+
   async deleteClaimMovement(claimId: string, movementId: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/claims/${claimId}/movements/${movementId}`);
     return response.data;
