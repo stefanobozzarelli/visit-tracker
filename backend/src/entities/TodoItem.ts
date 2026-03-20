@@ -6,6 +6,7 @@ import { VisitReport } from './VisitReport';
 import { Visit } from './Visit';
 import { TodoAttachment } from './TodoAttachment';
 import { Claim } from './Claim';
+import { CompanyVisit } from './CompanyVisit';
 
 @Entity('todo_items')
 export class TodoItem {
@@ -42,6 +43,9 @@ export class TodoItem {
   @Column({ nullable: true })
   claim_id: string | null;
 
+  @Column({ nullable: true })
+  company_visit_id: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 
@@ -76,6 +80,10 @@ export class TodoItem {
   @ManyToOne(() => Claim, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'claim_id' })
   claim: Claim | null;
+
+  @ManyToOne(() => CompanyVisit, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'company_visit_id' })
+  company_visit: CompanyVisit | null;
 
   @OneToMany(() => TodoAttachment, attachment => attachment.todo, { cascade: true })
   attachments: TodoAttachment[];

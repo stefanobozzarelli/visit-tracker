@@ -27,6 +27,8 @@ import { Projects } from './pages/Projects';
 import { ProjectForm } from './pages/ProjectForm';
 import { Claims } from './pages/Claims';
 import { ClaimForm } from './pages/ClaimForm';
+import { CompanyVisits } from './pages/CompanyVisits';
+import { CompanyVisitForm } from './pages/CompanyVisitForm';
 import './styles/App.css';
 
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -57,6 +59,9 @@ const AppContent: React.FC = () => {
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/new" element={<ProjectForm />} />
           <Route path="/projects/:id/edit" element={<ProjectForm />} />
+          <Route path="/company-visits" element={<CompanyVisits />} />
+          <Route path="/company-visits/new" element={<CompanyVisitForm />} />
+          <Route path="/company-visits/:id/edit" element={<CompanyVisitForm />} />
           <Route path="/claims" element={<Claims />} />
           <Route path="/claims/new" element={<ClaimForm />} />
           <Route path="/claims/:id/edit" element={<ClaimForm />} />

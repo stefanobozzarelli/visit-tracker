@@ -14,6 +14,7 @@ import invoiceRoutes from './routes/invoices';
 import commissionRoutes from './routes/commissions';
 import projectRoutes from './routes/projects';
 import claimRoutes from './routes/claims';
+import companyVisitRoutes from './routes/company-visits';
 
 require('dotenv').config();
 
@@ -37,6 +38,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/claims', claimRoutes);
+app.use('/api/company-visits', companyVisitRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

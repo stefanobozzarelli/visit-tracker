@@ -582,7 +582,7 @@ class ApiService {
   }
 
   // Todos
-  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string) {
+  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string) {
     const response = await this.api.post<ApiResponse<any>>('/todos', {
       title,
       clientId,
@@ -592,6 +592,7 @@ class ApiService {
       visitReportId,
       claimId,
       visitId,
+      companyVisitId,
     });
     return response.data;
   }
@@ -708,6 +709,61 @@ class ApiService {
 
   async deleteClaimMovementAttachment(claimId: string, movementId: string, attachmentId: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/claims/${claimId}/movements/${movementId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  // Company Visits
+  async createCompanyVisit(data: { companyId: string; date: string; subject: string; report?: string; participantsUserIds?: string[]; participantsExternal?: string; status?: string }) {
+    const response = await this.api.post<ApiResponse<any>>('/company-visits', data);
+    return response.data;
+  }
+
+  async getCompanyVisits(filters?: { companyId?: string; status?: string }) {
+    const response = await this.api.get<ApiResponse<any>>('/company-visits', { params: filters });
+    return response.data;
+  }
+
+  async getCompanyVisitById(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/company-visits/${id}`);
+    return response.data;
+  }
+
+  async updateCompanyVisit(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/company-visits/${id}`, data);
+    return response.data;
+  }
+
+  async deleteCompanyVisit(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/company-visits/${id}`);
+    return response.data;
+  }
+
+  async uploadCompanyVisitAttachment(visitId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/company-visits/${visitId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getCompanyVisitAttachments(visitId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/company-visits/${visitId}/attachments`);
+    return response.data;
+  }
+
+  async downloadCompanyVisitAttachment(visitId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/company-visits/${visitId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteCompanyVisitAttachment(visitId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/company-visits/${visitId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  async getTodosByCompanyVisitId(companyVisitId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/todos/by-company-visit/${companyVisitId}`);
     return response.data;
   }
 

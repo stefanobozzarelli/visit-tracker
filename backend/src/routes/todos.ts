@@ -15,7 +15,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId } = req.body;
+    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!title || !clientId || !companyId || !assignedToUserId) {
@@ -34,7 +34,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       dueDate ? new Date(dueDate) : undefined,
       visitReportId,
       claimId,
-      visitId
+      visitId,
+      companyVisitId
     );
 
     res.status(201).json({
@@ -94,6 +95,19 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
 router.get('/by-claim/:claimId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const todos = await todoService.getTodosByClaimId(req.params.claimId);
+    res.json({ success: true, data: todos });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/todos/by-company-visit/:companyVisitId
+ * Get todos linked to a company visit
+ */
+router.get('/by-company-visit/:companyVisitId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const todos = await todoService.getTodosByCompanyVisitId(req.params.companyVisitId);
     res.json({ success: true, data: todos });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });

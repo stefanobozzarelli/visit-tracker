@@ -25,7 +25,8 @@ export class TodoService {
     dueDate?: Date,
     visitReportId?: string,
     claimId?: string,
-    visitId?: string
+    visitId?: string,
+    companyVisitId?: string
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
@@ -37,6 +38,7 @@ export class TodoService {
       visit_report_id: visitReportId || null,
       claim_id: claimId || null,
       visit_id: visitId || null,
+      company_visit_id: companyVisitId || null,
       status: 'todo',
     });
     return await this.todoRepository.save(todo);
@@ -240,6 +242,14 @@ export class TodoService {
   async getTodosByClaimId(claimId: string): Promise<TodoItem[]> {
     return await this.todoRepository.find({
       where: { claim_id: claimId },
+      relations: ['assigned_to_user', 'created_by_user', 'attachments'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async getTodosByCompanyVisitId(companyVisitId: string): Promise<TodoItem[]> {
+    return await this.todoRepository.find({
+      where: { company_visit_id: companyVisitId },
       relations: ['assigned_to_user', 'created_by_user', 'attachments'],
       order: { created_at: 'DESC' },
     });

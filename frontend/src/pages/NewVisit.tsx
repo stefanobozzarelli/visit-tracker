@@ -230,7 +230,7 @@ export const NewVisit: React.FC = () => {
       <div className="page-header">
         <h1>Register Visit</h1>
         <button onClick={() => navigate('/visits')} className="btn-secondary">
-          ← Back to Visits
+          ← Back to Client Meetings
         </button>
       </div>
 

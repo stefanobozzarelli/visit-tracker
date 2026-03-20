@@ -265,7 +265,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="dash-kpi-body">
             <div className="dash-kpi-value">{kpis.visitsThisMonth}</div>
-            <div className="dash-kpi-label">Visits This Month</div>
+            <div className="dash-kpi-label">Client Meetings This Month</div>
           </div>
         </div>
 
@@ -348,7 +348,7 @@ export const Dashboard: React.FC = () => {
         {/* Recent Visits */}
         <div className="dash-card">
           <div className="dash-card-header">
-            <h3>Recent Visits</h3>
+            <h3>Recent Client Meetings</h3>
             <button className="dash-link" onClick={() => navigate('/visits')}>View all</button>
           </div>
           {recentVisits.length === 0 ? (

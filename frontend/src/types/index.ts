@@ -138,6 +138,34 @@ export interface TodoAttachment {
   uploaded_by_user?: User;
 }
 
+export interface CompanyVisit {
+  id: string;
+  company_id: string;
+  date: string;
+  subject: string;
+  report?: string | null;
+  participants_user_ids?: string | null;
+  participants_external?: string | null;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  company?: Company;
+  created_by_user?: User;
+  attachments?: CompanyVisitAttachment[];
+}
+
+export interface CompanyVisitAttachment {
+  id: string;
+  company_visit_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
 export interface TodoItem {
   id: string;
   title: string;
@@ -150,6 +178,7 @@ export interface TodoItem {
   visit_report_id?: string;
   visit_id?: string;
   claim_id?: string;
+  company_visit_id?: string;
   created_at: string;
   updated_at: string;
   // Relations

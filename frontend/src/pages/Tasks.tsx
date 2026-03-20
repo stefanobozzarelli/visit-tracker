@@ -549,7 +549,7 @@ export const Tasks: React.FC = () => {
                   const assigneeName = getUserName(todo.assigned_to_user_id);
                   const createdByName = (todo as any).created_by_user?.name;
 
-                  const sourceLabel = ((todo as any).visit_report_id || (todo as any).visit_id) ? 'Visit' : (todo as any).claim_id ? 'Claim' : null;
+                  const sourceLabel = ((todo as any).visit_report_id || (todo as any).visit_id) ? 'Visit' : (todo as any).claim_id ? 'Claim' : (todo as any).company_visit_id ? 'Company Visit' : null;
 
                   return (
                     <tr
@@ -587,6 +587,8 @@ export const Tasks: React.FC = () => {
                                 }
                               } else if ((todo as any).claim_id) {
                                 navigate(`/claims/${(todo as any).claim_id}/edit`);
+                              } else if ((todo as any).company_visit_id) {
+                                navigate(`/company-visits/${(todo as any).company_visit_id}/edit`);
                               }
                             }}
                           >

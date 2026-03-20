@@ -338,8 +338,8 @@ export const Visits: React.FC = () => {
       {/* Header */}
       <div className="visits-header">
         <div className="visits-header-left">
-          <h1>Visits</h1>
-          <p className="visits-header-subtitle">Track client visits, reports, and follow-up activity</p>
+          <h1>Client Meetings</h1>
+          <p className="visits-header-subtitle">Track client meetings, reports, and follow-up activity</p>
         </div>
         <button className="visits-btn-new" onClick={() => navigate('/visits/new')}>
           + Register New Visit
