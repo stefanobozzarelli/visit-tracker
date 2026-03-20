@@ -86,6 +86,7 @@ export const TodoForm = () => {
             setAssignedToUserId(todo.assigned_to_user_id || '');
             setStatus(todo.status || 'todo');
             setVisitReportId(todo.visit_report_id || '');
+            setClaimId(todo.claim_id || '');
             if (todo.due_date) {
               setDueDate(new Date(todo.due_date).toISOString().split('T')[0]);
             }
@@ -322,6 +323,12 @@ export const TodoForm = () => {
           {visitReportId && (
             <div className="info-note">
               This task is linked to a visit report
+            </div>
+          )}
+
+          {claimId && (
+            <div className="info-note">
+              This task is linked to a claim
             </div>
           )}
 
