@@ -581,7 +581,7 @@ export const Tasks: React.FC = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               if ((todo as any).visit_report_id || (todo as any).visit_id) {
-                                const vId = (todo as any).visit_id || '';
+                                const vId = (todo as any).visit_id || (todo as any).visit_report?.visit_id || '';
                                 if (vId) {
                                   navigate(`/visits/${vId}`);
                                 }

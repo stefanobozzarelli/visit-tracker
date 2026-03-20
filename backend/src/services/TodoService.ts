@@ -49,7 +49,8 @@ export class TodoService {
       .leftJoinAndSelect('todo.created_by_user', 'created_user')
       .leftJoinAndSelect('todo.client', 'client')
       .leftJoinAndSelect('todo.company', 'company')
-      .leftJoinAndSelect('todo.attachments', 'attachments');
+      .leftJoinAndSelect('todo.attachments', 'attachments')
+      .leftJoinAndSelect('todo.visit_report', 'visit_report');
 
     if (filters?.status) {
       query = query.where('todo.status = :status', { status: filters.status });
