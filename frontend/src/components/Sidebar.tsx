@@ -49,8 +49,8 @@ export const Sidebar: React.FC = () => {
         {/* Logo */}
         <div className="sidebar-header">
           <Link to="/dashboard" className="sidebar-logo" onClick={closeSidebar}>
-            <div className="sidebar-logo-icon">VT</div>
-            {!collapsed && <span className="sidebar-logo-text">Visit Tracker</span>}
+            <div className="sidebar-logo-icon">TF</div>
+            {!collapsed && <span className="sidebar-logo-text">TradeFlow</span>}
           </Link>
           <button className="sidebar-collapse-btn" onClick={toggleCollapse} title={collapsed ? 'Espandi' : 'Nascondi'}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
