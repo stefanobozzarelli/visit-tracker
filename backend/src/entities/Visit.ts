@@ -1,8 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Client } from './Client';
 import { User } from './User';
 import { VisitReport } from './VisitReport';
 import { CustomerOrder } from './CustomerOrder';
+import { VisitDirectAttachment } from './VisitDirectAttachment';
 
 @Entity('visits')
 export class Visit {
@@ -18,8 +19,21 @@ export class Visit {
   @Column({ type: 'date' })
   visit_date: Date;
 
+  @Column({
+    type: 'enum',
+    enum: ['scheduled', 'completed', 'cancelled'],
+    default: 'scheduled',
+  })
+  status: 'scheduled' | 'completed' | 'cancelled';
+
+  @Column({ type: 'text', nullable: true })
+  preparation: string | null;
+
   @CreateDateColumn()
   created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 
   @ManyToOne(() => Client, client => client.visits, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'client_id' })
@@ -34,4 +48,7 @@ export class Visit {
 
   @OneToMany(() => CustomerOrder, order => order.visit, { cascade: true })
   orders: CustomerOrder[];
+
+  @OneToMany(() => VisitDirectAttachment, attachment => attachment.visit, { cascade: true })
+  direct_attachments: VisitDirectAttachment[];
 }

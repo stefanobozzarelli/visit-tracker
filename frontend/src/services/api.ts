@@ -501,16 +501,23 @@ class ApiService {
   }
 
   // Visits
-  async createVisit(clientId: string, visitDate: string, reports: any[]) {
+  async createVisit(clientId: string, visitDate: string, reports: any[], options?: { status?: string; preparation?: string }) {
     const response = await this.api.post<ApiResponse<any>>('/visits', {
       client_id: clientId,
       visit_date: visitDate,
       reports,
+      ...(options?.status && { status: options.status }),
+      ...(options?.preparation && { preparation: options.preparation }),
     });
     return response.data;
   }
 
-  async getVisits(filters?: { client_id?: string; user_id?: string }) {
+  async updateVisit(visitId: string, data: { status?: string; preparation?: string | null; visit_date?: string }) {
+    const response = await this.api.put<ApiResponse<any>>(`/visits/${visitId}`, data);
+    return response.data;
+  }
+
+  async getVisits(filters?: { client_id?: string; user_id?: string; status?: string }) {
     const response = await this.cachedGet<ApiResponse<any>>('/visits', { params: filters });
     return response.data;
   }
@@ -558,7 +565,32 @@ class ApiService {
     return response.data;
   }
 
-  // File Upload
+  // Visit Direct Attachments
+  async uploadVisitDirectAttachment(visitId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/visits/${visitId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getVisitDirectAttachments(visitId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/visits/${visitId}/attachments`);
+    return response.data;
+  }
+
+  async downloadVisitDirectAttachment(visitId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/visits/${visitId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteVisitDirectAttachment(visitId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/visits/${visitId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  // Report File Upload
   async getPresignedUrl(visitId: string, reportId: string, filename: string, fileSize: number, contentType: string = 'application/octet-stream') {
     const response = await this.api.post<ApiResponse<any>>(
       `/visits/${visitId}/reports/${reportId}/upload`,

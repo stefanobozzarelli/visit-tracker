@@ -76,6 +76,7 @@ export const Visits: React.FC = () => {
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [visitedBy, setVisitedBy] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [localSearch, setLocalSearch] = useState('');
 
   // Quick filters
@@ -248,6 +249,11 @@ export const Visits: React.FC = () => {
       list = list.filter(v => v.visited_by_user_id === visitedBy);
     }
 
+    // Status filter
+    if (statusFilter) {
+      list = list.filter(v => (v.status || 'scheduled') === statusFilter);
+    }
+
     // Quick filters
     if (thisMonth) {
       list = list.filter(v => isThisMonth(v.visit_date));
@@ -284,7 +290,7 @@ export const Visits: React.FC = () => {
     }
 
     return list;
-  }, [visits, nlpResults, clientId, companyId, visitedBy, thisMonth, last30Days,
+  }, [visits, nlpResults, clientId, companyId, visitedBy, statusFilter, thisMonth, last30Days,
       withReport, missingReport, followUpNeeded, localSearch,
       getClientName, getUserName, getVisitCompanies, visitFollowUp]);
 
@@ -438,10 +444,21 @@ export const Visits: React.FC = () => {
             </select>
           )}
 
+          <select
+            className={`visits-filter-select${statusFilter ? ' active' : ''}`}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+
           <div className="visits-filter-divider" />
 
           {/* Reset filters button if any are active */}
-          {(clientId || companyId || visitedBy || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
+          {(clientId || companyId || visitedBy || statusFilter || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
             <button
               type="button"
               className="visits-chip"
@@ -449,6 +466,7 @@ export const Visits: React.FC = () => {
                 setClientId('');
                 setCompanyId('');
                 setVisitedBy('');
+                setStatusFilter('');
                 setThisMonth(false);
                 setLast30Days(false);
                 setWithReport(false);
@@ -549,6 +567,7 @@ export const Visits: React.FC = () => {
                 <tr>
                   <th>Visit</th>
                   <th>Date</th>
+                  <th>Status</th>
                   <th>Visited By</th>
                   <th>Report</th>
                   <th>Follow-up</th>
@@ -594,6 +613,25 @@ export const Visits: React.FC = () => {
                       {/* Date */}
                       <td>
                         <span className="visit-date">{formatDate(visit.visit_date)}</span>
+                      </td>
+
+                      {/* Status */}
+                      <td>
+                        {(() => {
+                          const st = (visit.status || 'scheduled') as 'scheduled' | 'completed' | 'cancelled';
+                          const configs: Record<string, { label: string; className: string }> = {
+                            scheduled:  { label: 'Scheduled',  className: 'visit-status-scheduled' },
+                            completed:  { label: 'Completed',  className: 'visit-status-completed' },
+                            cancelled:  { label: 'Cancelled',  className: 'visit-status-cancelled' },
+                          };
+                          const c = configs[st] || configs.scheduled;
+                          return (
+                            <span className={`visit-status-pill ${c.className}`}>
+                              <span className="visit-status-dot" />
+                              {c.label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Visited By */}

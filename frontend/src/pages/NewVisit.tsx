@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -28,6 +28,8 @@ export const NewVisit: React.FC = () => {
   const [formData, setFormData] = useState({
     clientId: '',
     visitDate: '',
+    status: 'scheduled',
+    preparation: '',
     reports: [{ companyId: '', section: '', content: '' }],
   });
 
@@ -38,6 +40,10 @@ export const NewVisit: React.FC = () => {
     followUpRequired: false,
     nextAction: '',
   });
+
+  const [pendingDirectFiles, setPendingDirectFiles] = useState<File[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const directFileInputRef = useRef<HTMLInputElement>(null);
 
   // Inline tasks to create with the visit
   const [tasks, setTasks] = useState<{ title: string; companyId: string; dueDate: string; assignedToUserId: string; files: File[] }[]>([]);
@@ -168,6 +174,23 @@ export const NewVisit: React.FC = () => {
     }
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const handleDirectFileSelect = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files);
+    setPendingDirectFiles(prev => [...prev, ...newFiles]);
+    if (directFileInputRef.current) directFileInputRef.current.value = '';
+  };
+
+  const handleRemovePendingDirectFile = (index: number) => {
+    setPendingDirectFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -190,8 +213,21 @@ export const NewVisit: React.FC = () => {
         });
       }
 
-      const response = await apiService.createVisit(formData.clientId, formData.visitDate, reports);
+      const response = await apiService.createVisit(formData.clientId, formData.visitDate, reports, {
+        status: formData.status,
+        preparation: formData.preparation || undefined,
+      });
       if (response.success) {
+        // Upload pending direct files
+        if (pendingDirectFiles.length > 0 && response.data?.id) {
+          for (const file of pendingDirectFiles) {
+            try {
+              await apiService.uploadVisitDirectAttachment(response.data.id, file);
+            } catch {
+              console.error('Failed to upload direct attachment:', file.name);
+            }
+          }
+        }
         // Create inline tasks if any
         for (const task of tasks) {
           if (task.title.trim()) {
@@ -346,13 +382,36 @@ export const NewVisit: React.FC = () => {
             )}
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="form-group">
+              <label>Visit Date *</label>
+              <input
+                type="date"
+                value={formData.visitDate}
+                onChange={(e) => setFormData({ ...formData, visitDate: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+              >
+                <option value="scheduled">Scheduled</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
           <div className="form-group">
-            <label>Visit Date *</label>
-            <input
-              type="date"
-              value={formData.visitDate}
-              onChange={(e) => setFormData({ ...formData, visitDate: e.target.value })}
-              required
+            <label>Preparation / Pre-meeting Notes</label>
+            <textarea
+              value={formData.preparation}
+              onChange={(e) => setFormData(prev => ({ ...prev, preparation: e.target.value }))}
+              rows={5}
+              placeholder="Notes, agenda items, topics to discuss..."
             />
           </div>
 
@@ -624,6 +683,58 @@ export const NewVisit: React.FC = () => {
           >
             + Add Task
           </button>
+
+          {/* Direct File Attachments */}
+          <div className="cv-attachments-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+            <label>Attachments</label>
+
+            <div
+              className={`cv-attachment-dropzone ${dragOver ? 'drag-over' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleDirectFileSelect(e.dataTransfer.files); }}
+              onClick={() => directFileInputRef.current?.click()}
+            >
+              <input
+                ref={directFileInputRef}
+                type="file"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => handleDirectFileSelect(e.target.files)}
+              />
+              <span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Drag files here or click to upload
+              </span>
+            </div>
+
+            {pendingDirectFiles.length > 0 && (
+              <div className="cv-attachment-list">
+                {pendingDirectFiles.map((file, idx) => (
+                  <div key={idx} className="cv-attachment-item">
+                    <div className="attachment-info">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
+                      <span className="attachment-name">{file.name}</span>
+                      <span className="attachment-size">{formatFileSize(file.size)}</span>
+                      <span className="attachment-pending-badge">Pending upload</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="attachment-delete"
+                      onClick={() => handleRemovePendingDirectFile(idx)}
+                      title="Remove"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="form-actions">
             <button type="submit" disabled={isSubmitting} className="btn-primary">

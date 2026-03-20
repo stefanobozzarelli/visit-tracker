@@ -686,6 +686,45 @@
   margin: 0.25rem 0;
 }
 
+/* Visit status pill */
+.visit-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.688rem;
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.visit-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.visit-status-pill.visit-status-scheduled {
+  background: rgba(176, 152, 64, 0.08);
+  color: #947E35;
+  border-color: rgba(176, 152, 64, 0.2);
+}
+
+.visit-status-pill.visit-status-completed {
+  background: rgba(91, 138, 101, 0.08);
+  color: #4A7653;
+  border-color: rgba(91, 138, 101, 0.2);
+}
+
+.visit-status-pill.visit-status-cancelled {
+  background: rgba(110, 110, 115, 0.08);
+  color: #6e6e73;
+  border-color: rgba(110, 110, 115, 0.2);
+}
+
 /* ---- Empty state ---- */
 .visits-empty {
   text-align: center;

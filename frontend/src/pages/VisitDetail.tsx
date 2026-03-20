@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
+import { Visit, VisitReport, CustomerOrder, TodoItem, VisitDirectAttachment } from '../types';
 import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
 import '../styles/CrudPages.css';
 
@@ -108,6 +108,84 @@ const TaskTable: React.FC<{
   );
 };
 
+// Visit status config
+type VisitStatus = 'scheduled' | 'completed' | 'cancelled';
+const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: string; bg: string; border: string }> = {
+  scheduled:  { label: 'Scheduled',  color: '#947E35', bg: 'rgba(176, 152, 64, 0.08)',  border: 'rgba(176, 152, 64, 0.2)' },
+  completed:  { label: 'Completed',  color: '#4A7653', bg: 'rgba(91, 138, 101, 0.08)',  border: 'rgba(91, 138, 101, 0.2)' },
+  cancelled:  { label: 'Cancelled',  color: '#6e6e73', bg: 'rgba(110, 110, 115, 0.08)', border: 'rgba(110, 110, 115, 0.2)' },
+};
+
+const VisitStatusPill: React.FC<{
+  status: VisitStatus;
+  onStatusChange: (newStatus: VisitStatus) => void;
+}> = ({ status, onStatusChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const conf = VISIT_STATUS_CONFIG[status];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (open && ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+          padding: '0.3rem 0.75rem', borderRadius: '9999px', border: `1px solid ${conf.border}`,
+          background: conf.bg, color: conf.color, fontSize: '0.813rem', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s ease',
+        }}
+      >
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: conf.color }} />
+        {conf.label}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
+          background: '#fff', border: '1px solid var(--color-border)', borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '0.25rem', minWidth: '140px',
+        }}>
+          {(Object.keys(VISIT_STATUS_CONFIG) as VisitStatus[]).map(s => {
+            const c = VISIT_STATUS_CONFIG[s];
+            return (
+              <button
+                key={s}
+                onClick={() => { onStatusChange(s); setOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  padding: '0.4rem 0.625rem', borderRadius: '4px', border: 'none',
+                  background: s === status ? c.bg : 'none', color: c.color, fontSize: '0.75rem',
+                  fontWeight: 500, cursor: 'pointer', width: '100%', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => { if (s !== status) (e.target as HTMLElement).style.background = 'var(--color-bg-secondary)'; }}
+                onMouseLeave={e => { if (s !== status) (e.target as HTMLElement).style.background = 'none'; }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
 export const VisitDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -120,6 +198,16 @@ export const VisitDetail: React.FC = () => {
   const [editContent, setEditContent] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Preparation editing
+  const [editingPreparation, setEditingPreparation] = useState(false);
+  const [preparationDraft, setPreparationDraft] = useState('');
+
+  // Direct attachments
+  const [directAttachments, setDirectAttachments] = useState<VisitDirectAttachment[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => { loadVisit(); }, [id]);
 
   const loadVisit = async () => {
@@ -129,6 +217,16 @@ export const VisitDetail: React.FC = () => {
       const response = await apiService.getVisit(id);
       if (response.success && response.data) {
         setVisit(response.data);
+
+        // Load direct attachments
+        if (response.data.direct_attachments) {
+          setDirectAttachments(response.data.direct_attachments);
+        } else {
+          try {
+            const attRes = await apiService.getVisitDirectAttachments(id);
+            if (attRes.success && attRes.data) setDirectAttachments(attRes.data);
+          } catch {}
+        }
 
         try {
           const ordersResponse = await apiService.getOrdersByVisit(id);
@@ -233,6 +331,68 @@ export const VisitDetail: React.FC = () => {
     }
   };
 
+  // ---- Visit Status ----
+  const handleUpdateStatus = async (newStatus: VisitStatus) => {
+    if (!id) return;
+    try {
+      await apiService.updateVisit(id, { status: newStatus });
+      setVisit(prev => prev ? { ...prev, status: newStatus } : prev);
+    } catch { setError('Error updating status'); }
+  };
+
+  // ---- Preparation ----
+  const handleEditPreparation = () => {
+    setPreparationDraft(visit?.preparation || '');
+    setEditingPreparation(true);
+  };
+
+  const handleSavePreparation = async () => {
+    if (!id) return;
+    try {
+      await apiService.updateVisit(id, { preparation: preparationDraft || null });
+      setVisit(prev => prev ? { ...prev, preparation: preparationDraft || null } : prev);
+      setEditingPreparation(false);
+    } catch { setError('Error updating preparation'); }
+  };
+
+  // ---- Direct Attachments ----
+  const handleFileUpload = async (files: FileList | File[]) => {
+    if (!id || files.length === 0) return;
+    setUploadingFiles(true);
+    try {
+      for (const file of Array.from(files)) {
+        await apiService.uploadVisitDirectAttachment(id, file);
+      }
+      const attRes = await apiService.getVisitDirectAttachments(id);
+      if (attRes.success && attRes.data) setDirectAttachments(attRes.data);
+    } catch { setError('Error uploading file'); }
+    finally { setUploadingFiles(false); }
+  };
+
+  const handleDownloadAttachment = async (attachment: VisitDirectAttachment) => {
+    if (!id) return;
+    try {
+      const res = await apiService.downloadVisitDirectAttachment(id, attachment.id);
+      if (res.success && res.data?.url) {
+        window.open(res.data.url, '_blank');
+      }
+    } catch { setError('Error downloading file'); }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!id || !window.confirm('Delete this attachment?')) return;
+    try {
+      await apiService.deleteVisitDirectAttachment(id, attachmentId);
+      setDirectAttachments(prev => prev.filter(a => a.id !== attachmentId));
+    } catch { setError('Error deleting attachment'); }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files);
+  };
+
   const visitMetadata = useMemo(() => visit ? decodeMetadata(visit.reports || []) : null, [visit]);
   const displayReports = useMemo(() => visit ? filterDisplayReports(visit.reports || []) : [], [visit]);
 
@@ -260,7 +420,13 @@ export const VisitDetail: React.FC = () => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="form-card">
-        <h3>Visit Information</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <h3 style={{ margin: 0 }}>Visit Information</h3>
+          <VisitStatusPill
+            status={(visit.status as VisitStatus) || 'scheduled'}
+            onStatusChange={handleUpdateStatus}
+          />
+        </div>
         <div className="info-group">
           <div><label>Client</label><p>{visit.client?.name}</p></div>
           <div><label>Date</label><p>{new Date(visit.visit_date).toLocaleDateString('it-IT')}</p></div>
@@ -275,6 +441,104 @@ export const VisitDetail: React.FC = () => {
               {visitMetadata.nextAction && <div><label>Next Action</label><p>{visitMetadata.nextAction}</p></div>}
               {visitMetadata.followUpRequired && <div><label>Follow-up</label><p style={{ color: 'var(--color-warning)', fontWeight: 500 }}>Required</p></div>}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Preparation */}
+      <div className="form-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <h3 style={{ margin: 0 }}>Preparation / Pre-meeting Notes</h3>
+          {!editingPreparation && (
+            <button onClick={handleEditPreparation} className="btn-warning" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}>
+              {visit.preparation ? 'Edit' : '+ Add'}
+            </button>
+          )}
+        </div>
+        {editingPreparation ? (
+          <div>
+            <textarea
+              value={preparationDraft}
+              onChange={e => setPreparationDraft(e.target.value)}
+              rows={5}
+              placeholder="Add preparation notes for this meeting..."
+              style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'inherit', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button onClick={handleSavePreparation} className="btn-primary">Save</button>
+              <button onClick={() => setEditingPreparation(false)} className="btn-secondary">Cancel</button>
+            </div>
+          </div>
+        ) : (
+          visit.preparation ? (
+            <p style={{ whiteSpace: 'pre-wrap', color: '#555', margin: 0, fontSize: '0.875rem', lineHeight: 1.6 }}>{visit.preparation}</p>
+          ) : (
+            <p style={{ color: 'var(--color-text-tertiary)', fontStyle: 'italic', margin: 0, fontSize: '0.813rem' }}>No preparation notes yet</p>
+          )
+        )}
+      </div>
+
+      {/* Direct Attachments */}
+      <div className="form-card">
+        <h3 style={{ marginBottom: '0.75rem' }}>Visit Attachments</h3>
+        {/* Drop zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: `2px dashed ${dragOver ? 'var(--color-info)' : 'var(--color-border)'}`,
+            borderRadius: '8px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer',
+            background: dragOver ? 'rgba(74, 96, 120, 0.04)' : 'var(--color-bg-primary)',
+            transition: 'all 0.15s ease', marginBottom: directAttachments.length > 0 ? '1rem' : 0,
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={e => { if (e.target.files) { handleFileUpload(e.target.files); e.target.value = ''; } }}
+          />
+          {uploadingFiles ? (
+            <p style={{ margin: 0, color: 'var(--color-info)', fontSize: '0.813rem' }}>Uploading...</p>
+          ) : (
+            <p style={{ margin: 0, color: 'var(--color-text-tertiary)', fontSize: '0.813rem' }}>
+              Drop files here or click to upload
+            </p>
+          )}
+        </div>
+
+        {/* Attachment list */}
+        {directAttachments.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {directAttachments.map(att => (
+              <div key={att.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0.5rem 0.75rem', background: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)', borderRadius: '6px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                  <span style={{ fontSize: '1rem' }}>📄</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '0.813rem', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.filename}</div>
+                    <div style={{ fontSize: '0.688rem', color: 'var(--color-text-tertiary)' }}>
+                      {formatFileSize(att.file_size)} · {new Date(att.created_at).toLocaleDateString('it-IT')}
+                      {att.uploaded_by_user && ` · ${att.uploaded_by_user.name}`}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
+                  <button onClick={() => handleDownloadAttachment(att)} className="btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                    ↓ Download
+                  </button>
+                  <button onClick={() => handleDeleteAttachment(att.id)} className="btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

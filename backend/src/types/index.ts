@@ -41,6 +41,8 @@ export interface CreateVisitRequest {
   client_id: string;
   visit_date: string;
   reports: CreateVisitReportRequest[];
+  status?: 'scheduled' | 'completed' | 'cancelled';
+  preparation?: string;
 }
 
 export interface CreateVisitReportRequest {

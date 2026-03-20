@@ -48,15 +48,30 @@ export interface Company {
   created_at: string;
 }
 
+export interface VisitDirectAttachment {
+  id: string;
+  visit_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
 export interface Visit {
   id: string;
   client_id: string;
   visited_by_user_id: string;
   visit_date: string;
+  status?: 'scheduled' | 'completed' | 'cancelled';
+  preparation?: string | null;
   created_at: string;
+  updated_at?: string;
   client?: Client;
   visited_by_user?: User;
   reports?: VisitReport[];
+  direct_attachments?: VisitDirectAttachment[];
 }
 
 export interface VisitReport {

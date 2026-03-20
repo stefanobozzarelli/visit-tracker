@@ -87,6 +87,7 @@ router.get('/', async (req: Request, res: Response) => {
     const filters = {
       client_id: req.query.client_id as string,
       user_id: req.query.user_id as string,
+      status: req.query.status as string,
     };
 
     let visits = await visitService.getVisits(filters);
@@ -181,6 +182,27 @@ router.delete('/:id', async (req: Request, res: Response) => {
     res.json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Update visit (status, preparation, etc.)
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const visit = await visitService.getVisitById(req.params.id);
+    if (!visit) return res.status(404).json({ success: false, error: 'Visit not found' });
+
+    const { status, preparation, visit_date } = req.body;
+    const updateData: any = {};
+
+    if (status !== undefined) updateData.status = status;
+    if (preparation !== undefined) updateData.preparation = preparation || null;
+    if (visit_date) updateData.visit_date = new Date(visit_date);
+
+    const updated = await visitService.updateVisit(req.params.id, updateData);
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Error updating visit:', error);
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 
@@ -289,6 +311,97 @@ router.delete('/:visitId/reports/:reportId/attachments/:attachmentId', async (re
     res.json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// --- Visit Direct Attachments ---
+
+router.post('/:visitId/attachments', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { visitId } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file provided' });
+    }
+
+    const visit = await visitService.getVisitById(visitId);
+    if (!visit) {
+      return res.status(404).json({ success: false, error: 'Visit not found' });
+    }
+
+    const userId = req.user!.id;
+    const filename = req.file.originalname;
+    const fileBuffer = req.file.buffer;
+    const fileSize = req.file.size;
+    const contentType = req.file.mimetype;
+
+    const { v4: uuidv4 } = require('uuid');
+    const s3Key = `visit-direct-attachments/${uuidv4()}.${filename.split('.').pop()}`;
+
+    const { PutObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+    const s3Client = new S3Client({
+      region: process.env.AWS_REGION || 'eu-north-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+      },
+    });
+
+    await s3Client.send(new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
+      Key: s3Key,
+      Body: fileBuffer,
+      ContentType: contentType,
+    }));
+
+    const attachment = await visitService.addDirectAttachment(visitId, userId, filename, fileSize, s3Key);
+
+    res.json({
+      success: true,
+      data: {
+        id: attachment.id,
+        filename: attachment.filename,
+        file_size: attachment.file_size,
+        created_at: attachment.created_at,
+      },
+    });
+  } catch (error) {
+    console.error('[UPLOAD ERROR] Visit direct attachment:', error);
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.get('/:visitId/attachments', async (req: Request, res: Response) => {
+  try {
+    const attachments = await visitService.getDirectAttachments(req.params.visitId);
+    res.json({ success: true, data: attachments });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.get('/:visitId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
+  try {
+    const attachment = await visitService.getDirectAttachment(req.params.attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+    const downloadUrl = await s3Service.getDownloadUrl(attachment.s3_key);
+    res.json({ success: true, data: { url: downloadUrl, filename: attachment.filename } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.delete('/:visitId/attachments/:attachmentId', async (req: Request, res: Response) => {
+  try {
+    const attachment = await visitService.getDirectAttachment(req.params.attachmentId);
+    if (attachment) {
+      await s3Service.deleteFile(attachment.s3_key);
+    }
+    await visitService.deleteDirectAttachment(req.params.attachmentId);
+    res.json({ success: true, message: 'Attachment deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 
