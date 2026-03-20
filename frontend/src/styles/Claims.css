@@ -746,6 +746,8 @@
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
+  background: none;
+  font-family: inherit;
 }
 
 .claim-add-movement-file-label:hover {
@@ -932,6 +934,8 @@
   padding: 4px 8px;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-sm);
+  background: none;
+  font-family: inherit;
 }
 
 .claim-task-file-label:hover {

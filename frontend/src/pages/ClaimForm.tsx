@@ -447,10 +447,11 @@ export const ClaimForm: React.FC = () => {
                     ref={movFileInputRef}
                     type="file"
                     multiple
-                    style={{ display: 'none' }}
+                    style={{ position: 'absolute', width: 0, height: 0, opacity: 0, overflow: 'hidden' }}
                     onChange={e => {
-                      if (e.target.files) {
-                        setNewMovFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                      if (e.target.files && e.target.files.length > 0) {
+                        const files = Array.from(e.target.files);
+                        setNewMovFiles(prev => [...prev, ...files]);
                       }
                       e.target.value = '';
                     }}
@@ -458,7 +459,13 @@ export const ClaimForm: React.FC = () => {
                   <button
                     type="button"
                     className="claim-add-movement-file-label"
-                    onClick={() => movFileInputRef.current?.click()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (movFileInputRef.current) {
+                        movFileInputRef.current.click();
+                      }
+                    }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
@@ -563,26 +570,36 @@ export const ClaimForm: React.FC = () => {
                       }}
                     />
                   </div>
-                  <div className="form-group" style={{ display: 'flex', alignItems: 'end' }}>
-                    <label className="claim-task-file-label">
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'end', position: 'relative' }}>
+                    <input
+                      type="file"
+                      multiple
+                      id={`task-file-${idx}`}
+                      style={{ position: 'absolute', width: 0, height: 0, opacity: 0, overflow: 'hidden' }}
+                      onChange={e => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          const t = [...tasks];
+                          t[idx].files = [...(t[idx].files || []), ...Array.from(e.target.files)];
+                          setTasks(t);
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="claim-task-file-label"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const input = document.getElementById(`task-file-${idx}`) as HTMLInputElement;
+                        if (input) input.click();
+                      }}
+                    >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                       </svg>
-                      Allega file
-                      <input
-                        type="file"
-                        multiple
-                        style={{ display: 'none' }}
-                        onChange={e => {
-                          if (e.target.files) {
-                            const t = [...tasks];
-                            t[idx].files = [...(t[idx].files || []), ...Array.from(e.target.files!)];
-                            setTasks(t);
-                          }
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
+                      Attach file
+                    </button>
                   </div>
                   <button
                     type="button"
