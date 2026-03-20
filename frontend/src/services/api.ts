@@ -644,6 +644,61 @@ class ApiService {
     return response.data;
   }
 
+  // Claims
+  async createClaim(data: { client_id: string; company_id: string; date: string; comments?: string; status?: string }) {
+    const response = await this.api.post<ApiResponse<any>>('/claims', data);
+    return response.data;
+  }
+
+  async getClaims(filters?: { client_id?: string; company_id?: string; status?: string }) {
+    const response = await this.api.get<ApiResponse<any>>('/claims', { params: filters });
+    return response.data;
+  }
+
+  async getClaimById(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/claims/${id}`);
+    return response.data;
+  }
+
+  async updateClaim(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/claims/${id}`, data);
+    return response.data;
+  }
+
+  async deleteClaim(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/claims/${id}`);
+    return response.data;
+  }
+
+  async addClaimMovement(claimId: string, data: { date: string; action: string }) {
+    const response = await this.api.post<ApiResponse<any>>(`/claims/${claimId}/movements`, data);
+    return response.data;
+  }
+
+  async deleteClaimMovement(claimId: string, movementId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/claims/${claimId}/movements/${movementId}`);
+    return response.data;
+  }
+
+  async uploadClaimMovementAttachment(claimId: string, movementId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/claims/${claimId}/movements/${movementId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async downloadClaimMovementAttachment(claimId: string, movementId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/claims/${claimId}/movements/${movementId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteClaimMovementAttachment(claimId: string, movementId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/claims/${claimId}/movements/${movementId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
   // Customer Orders
   async createOrder(data: {
     visit_id: string;

@@ -13,6 +13,7 @@ import ordersRoutes from './routes/orders';
 import invoiceRoutes from './routes/invoices';
 import commissionRoutes from './routes/commissions';
 import projectRoutes from './routes/projects';
+import claimRoutes from './routes/claims';
 
 require('dotenv').config();
 
@@ -35,6 +36,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/claims', claimRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

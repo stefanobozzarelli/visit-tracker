@@ -89,6 +89,44 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Claims
+export interface ClaimMovementAttachment {
+  id: string;
+  movement_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+}
+
+export interface ClaimMovement {
+  id: string;
+  claim_id: string;
+  date: string;
+  action: string;
+  created_by_user_id: string;
+  created_at: string;
+  created_by_user?: User;
+  attachments?: ClaimMovementAttachment[];
+}
+
+export interface Claim {
+  id: string;
+  client_id: string;
+  company_id: string;
+  date: string;
+  comments?: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  client?: Client;
+  company?: Company;
+  created_by_user?: User;
+  movements?: ClaimMovement[];
+}
+
 export interface TodoAttachment {
   id: string;
   todo_id: string;

@@ -20,6 +20,9 @@ import { InvoiceSubAgentCommission } from '../entities/InvoiceSubAgentCommission
 import { SubAgentExpense } from '../entities/SubAgentExpense';
 import { Project } from '../entities/Project';
 import { TodoAttachment } from '../entities/TodoAttachment';
+import { Claim } from '../entities/Claim';
+import { ClaimMovement } from '../entities/ClaimMovement';
+import { ClaimMovementAttachment } from '../entities/ClaimMovementAttachment';
 
 require('dotenv').config();
 
@@ -34,7 +37,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'visit_tracker',
   synchronize: true,
   logging: isDevelopment,
-  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project],
+  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: ['src/subscribers/**/*.ts'],
 });
