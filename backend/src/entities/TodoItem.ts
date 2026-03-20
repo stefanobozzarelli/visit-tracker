@@ -3,6 +3,7 @@ import { User } from './User';
 import { Client } from './Client';
 import { Company } from './Company';
 import { VisitReport } from './VisitReport';
+import { Visit } from './Visit';
 import { TodoAttachment } from './TodoAttachment';
 import { Claim } from './Claim';
 
@@ -36,6 +37,9 @@ export class TodoItem {
   visit_report_id: string | null;
 
   @Column({ nullable: true })
+  visit_id: string | null;
+
+  @Column({ nullable: true })
   claim_id: string | null;
 
   @CreateDateColumn()
@@ -64,6 +68,10 @@ export class TodoItem {
   @ManyToOne(() => VisitReport, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'visit_report_id' })
   visit_report: VisitReport | null;
+
+  @ManyToOne(() => Visit, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'visit_id' })
+  visit: Visit | null;
 
   @ManyToOne(() => Claim, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'claim_id' })

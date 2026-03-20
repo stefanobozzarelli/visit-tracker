@@ -15,7 +15,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId } = req.body;
+    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!title || !clientId || !companyId || !assignedToUserId) {
@@ -33,7 +33,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       createdByUserId,
       dueDate ? new Date(dueDate) : undefined,
       visitReportId,
-      claimId
+      claimId,
+      visitId
     );
 
     res.status(201).json({

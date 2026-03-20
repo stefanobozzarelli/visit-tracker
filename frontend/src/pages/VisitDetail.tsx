@@ -146,8 +146,8 @@ export const VisitDetail: React.FC = () => {
             const reportIds = (visitData.reports || []).map((r: any) => r.id);
             // Tasks linked to reports of this visit
             const reportTasks = all.filter((t: any) => t.visit_report_id && reportIds.includes(t.visit_report_id));
-            // General tasks for this client (no visit_report_id, no claim_id)
-            const generalTasks = all.filter((t: any) => !t.visit_report_id && !t.claim_id);
+            // General tasks linked to this visit (via visit_id)
+            const generalTasks = all.filter((t: any) => t.visit_id === id && !t.visit_report_id);
             setAllTasks([...reportTasks, ...generalTasks]);
           }
         } catch {}
@@ -239,7 +239,7 @@ export const VisitDetail: React.FC = () => {
       <div className="page-header">
         <h1>Visit - {visit.client?.name}</h1>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button onClick={() => navigate(`/todos/new?clientId=${visit.client_id}`)} className="btn-primary" title="Create a follow-up task for this visit">
+          <button onClick={() => navigate(`/todos/new?clientId=${visit.client_id}&visitId=${id}`)} className="btn-primary" title="Create a follow-up task for this visit">
             + Create Task
           </button>
           <button onClick={() => navigate(`/orders/new/${id}`)} className="btn-secondary" title="Create a new customer order">

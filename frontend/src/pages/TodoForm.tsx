@@ -18,6 +18,7 @@ export const TodoForm = () => {
   const [assignedToUserId, setAssignedToUserId] = useState(user?.id || '');
   const [dueDate, setDueDate] = useState('');
   const [visitReportId, setVisitReportId] = useState('');
+  const [visitId, setVisitId] = useState('');
   const [claimId, setClaimId] = useState('');
   const [status, setStatus] = useState('todo');
 
@@ -42,11 +43,13 @@ export const TodoForm = () => {
     const urlClientId = searchParams.get('clientId');
     const urlCompanyId = searchParams.get('companyId');
     const urlVisitReportId = searchParams.get('visitReportId');
+    const urlVisitId = searchParams.get('visitId');
     const urlClaimId = searchParams.get('claimId');
 
     if (urlClientId) setClientId(urlClientId);
     if (urlCompanyId) setCompanyId(urlCompanyId);
     if (urlVisitReportId) setVisitReportId(urlVisitReportId);
+    if (urlVisitId) setVisitId(urlVisitId);
     if (urlClaimId) setClaimId(urlClaimId);
 
     loadData();
@@ -86,6 +89,7 @@ export const TodoForm = () => {
             setAssignedToUserId(todo.assigned_to_user_id || '');
             setStatus(todo.status || 'todo');
             setVisitReportId(todo.visit_report_id || '');
+            setVisitId(todo.visit_id || '');
             setClaimId(todo.claim_id || '');
             if (todo.due_date) {
               setDueDate(new Date(todo.due_date).toISOString().split('T')[0]);
@@ -204,7 +208,8 @@ export const TodoForm = () => {
           assignedToUserId,
           dueDate ? new Date(dueDate).toISOString().split('T')[0] : undefined,
           visitReportId || undefined,
-          claimId || undefined
+          claimId || undefined,
+          visitId || undefined
         );
         if (response.success && response.data?.id) {
           // Upload pending files to the newly created task
@@ -323,6 +328,12 @@ export const TodoForm = () => {
           {visitReportId && (
             <div className="info-note">
               This task is linked to a visit report
+            </div>
+          )}
+
+          {visitId && !visitReportId && (
+            <div className="info-note">
+              This task is linked to a visit
             </div>
           )}
 

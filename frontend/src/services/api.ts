@@ -582,7 +582,7 @@ class ApiService {
   }
 
   // Todos
-  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string) {
+  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string) {
     const response = await this.api.post<ApiResponse<any>>('/todos', {
       title,
       clientId,
@@ -591,6 +591,7 @@ class ApiService {
       dueDate,
       visitReportId,
       claimId,
+      visitId,
     });
     return response.data;
   }

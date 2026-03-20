@@ -24,7 +24,8 @@ export class TodoService {
     createdByUserId: string,
     dueDate?: Date,
     visitReportId?: string,
-    claimId?: string
+    claimId?: string,
+    visitId?: string
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
@@ -35,6 +36,7 @@ export class TodoService {
       due_date: dueDate || null,
       visit_report_id: visitReportId || null,
       claim_id: claimId || null,
+      visit_id: visitId || null,
       status: 'todo',
     });
     return await this.todoRepository.save(todo);

@@ -148,6 +148,7 @@ export interface TodoItem {
   client_id: string;
   company_id: string;
   visit_report_id?: string;
+  visit_id?: string;
   claim_id?: string;
   created_at: string;
   updated_at: string;
