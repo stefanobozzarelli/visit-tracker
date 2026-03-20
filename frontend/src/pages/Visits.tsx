@@ -572,6 +572,8 @@ export const Visits: React.FC = () => {
                     <tr
                       key={visit.id}
                       className={needsAttention ? 'row-needs-attention' : ''}
+                      onDoubleClick={() => navigate(`/visits/${visit.id}`)}
+                      style={{ cursor: 'pointer' }}
                     >
                       {/* Visit — Client + Company + metadata */}
                       <td className="visit-context-cell">

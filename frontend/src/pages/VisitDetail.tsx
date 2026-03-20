@@ -144,11 +144,11 @@ export const VisitDetail: React.FC = () => {
           if (todosRes.success && todosRes.data) {
             const all = Array.isArray(todosRes.data) ? todosRes.data : [];
             const reportIds = (visitData.reports || []).map((r: any) => r.id);
-            // Tasks linked to reports of this visit, OR general visit tasks (same client, no visit_report_id created same day)
-            const linked = all.filter((t: any) =>
-              (t.visit_report_id && reportIds.includes(t.visit_report_id))
-            );
-            setAllTasks(linked);
+            // Tasks linked to reports of this visit
+            const reportTasks = all.filter((t: any) => t.visit_report_id && reportIds.includes(t.visit_report_id));
+            // General tasks for this client (no visit_report_id, no claim_id)
+            const generalTasks = all.filter((t: any) => !t.visit_report_id && !t.claim_id);
+            setAllTasks([...reportTasks, ...generalTasks]);
           }
         } catch {}
       }

@@ -261,6 +261,7 @@ export const Claims: React.FC = () => {
                   <th>Client</th>
                   <th>Company (Supplier)</th>
                   <th>Date</th>
+                  <th>Comments</th>
                   <th>Status</th>
                   <th>Movements</th>
                   <th style={{ width: '1%' }}>Actions</th>
@@ -283,6 +284,9 @@ export const Claims: React.FC = () => {
                         </div>
                       </td>
                       <td>{formatDate(claim.date)}</td>
+                      <td style={{ maxWidth: '250px', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                        {claim.comments ? (claim.comments.length > 80 ? claim.comments.substring(0, 80) + '...' : claim.comments) : '-'}
+                      </td>
                       <td>
                         <span className={`claim-status-pill status-${claim.status}`}>
                           <span className="claim-status-dot" />
