@@ -42,7 +42,7 @@ app.use('/api/company-visits', companyVisitRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', version: '1.1.0' });
 });
 
 // Initialize database and start server
