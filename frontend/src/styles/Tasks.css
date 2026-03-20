@@ -451,6 +451,19 @@
   vertical-align: middle;
 }
 
+.task-source-label {
+  display: inline-block;
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 4px;
+  background: rgba(74, 96, 120, 0.08);
+  color: var(--color-info);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
 .task-created-by {
   font-size: 0.688rem;
   color: var(--color-text-tertiary);

@@ -549,11 +549,15 @@ export const Tasks: React.FC = () => {
                   const assigneeName = getUserName(todo.assigned_to_user_id);
                   const createdByName = (todo as any).created_by_user?.name;
 
+                  const sourceLabel = (todo as any).visit_report_id ? 'Visit' : (todo as any).claim_id ? 'Claim' : null;
+
                   return (
                     <tr
                       key={todo.id}
                       id={`task-row-${todo.id}`}
                       className={`${overdueRow ? 'row-overdue' : ''}${status === 'completed' ? ' row-completed' : ''}${highlightId === todo.id ? ' row-highlighted' : ''}`}
+                      onDoubleClick={() => navigate(`/todos/edit/${todo.id}`)}
+                      style={{ cursor: 'pointer' }}
                     >
                       {/* Task title */}
                       <td className="task-title-cell">
@@ -570,6 +574,9 @@ export const Tasks: React.FC = () => {
                         </div>
                         {createdByName && (
                           <div className="task-created-by">by {createdByName}</div>
+                        )}
+                        {sourceLabel && (
+                          <span className="task-source-label">{sourceLabel}</span>
                         )}
                       </td>
 
