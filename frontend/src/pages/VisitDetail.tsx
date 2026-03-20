@@ -146,8 +146,13 @@ export const VisitDetail: React.FC = () => {
             const reportIds = (visitData.reports || []).map((r: any) => r.id);
             // Tasks linked to reports of this visit
             const reportTasks = all.filter((t: any) => t.visit_report_id && reportIds.includes(t.visit_report_id));
-            // General tasks linked to this visit (via visit_id)
-            const generalTasks = all.filter((t: any) => t.visit_id === id && !t.visit_report_id);
+            // General tasks: linked via visit_id OR orphan tasks (no visit_report_id, no claim_id, no visit_id)
+            const generalTasks = all.filter((t: any) =>
+              !t.visit_report_id && (
+                t.visit_id === id ||
+                (!t.visit_id && !t.claim_id)
+              )
+            );
             setAllTasks([...reportTasks, ...generalTasks]);
           }
         } catch {}
