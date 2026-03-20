@@ -415,6 +415,17 @@
   opacity: 0.75;
 }
 
+.tasks-table tr.row-highlighted {
+  background: rgba(74, 96, 120, 0.12) !important;
+  animation: highlight-fade 5s ease-out forwards;
+}
+
+@keyframes highlight-fade {
+  0% { background: rgba(74, 96, 120, 0.18); }
+  70% { background: rgba(74, 96, 120, 0.12); }
+  100% { background: transparent; }
+}
+
 /* Task title cell */
 .task-title-cell {
   max-width: 280px;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { TodoItem, Client, Company, User } from '../types';
@@ -58,8 +58,10 @@ const getInitials = (name: string) => {
 // ---- Component ----
 export const Tasks: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   // Data
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -115,6 +117,34 @@ export const Tasks: React.FC = () => {
       return () => clearTimeout(t);
     }
   }, [success]);
+
+  // Highlight task from URL param
+  useEffect(() => {
+    const hId = searchParams.get('highlight');
+    if (hId) {
+      setHighlightId(hId);
+      // Clear filters to make sure the task is visible
+      setClientId('');
+      setCompanyId('');
+      setAssignedToUserId('');
+      setStatusFilter('');
+      // Auto-clear highlight after 5 seconds
+      const t = setTimeout(() => setHighlightId(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams]);
+
+  // Scroll to highlighted task after data loads
+  useEffect(() => {
+    if (highlightId && todos.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`task-row-${highlightId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+    }
+  }, [highlightId, todos]);
 
   // ---- Data loading ----
   useEffect(() => { loadData(); }, []);
@@ -522,7 +552,8 @@ export const Tasks: React.FC = () => {
                   return (
                     <tr
                       key={todo.id}
-                      className={`${overdueRow ? 'row-overdue' : ''}${status === 'completed' ? ' row-completed' : ''}`}
+                      id={`task-row-${todo.id}`}
+                      className={`${overdueRow ? 'row-overdue' : ''}${status === 'completed' ? ' row-completed' : ''}${highlightId === todo.id ? ' row-highlighted' : ''}`}
                     >
                       {/* Task title */}
                       <td className="task-title-cell">

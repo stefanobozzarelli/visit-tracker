@@ -258,12 +258,12 @@ export const Claims: React.FC = () => {
             <table className="claims-table">
               <thead>
                 <tr>
-                  <th>Client</th>
-                  <th>Company (Supplier)</th>
-                  <th>Date</th>
+                  <th style={{ width: '12%' }}>Client</th>
+                  <th style={{ width: '12%' }}>Company (Supplier)</th>
+                  <th style={{ width: '8%' }}>Date</th>
                   <th>Comments</th>
-                  <th>Status</th>
-                  <th>Movements</th>
+                  <th style={{ width: '10%' }}>Status</th>
+                  <th style={{ width: '6%' }}>Mov.</th>
                   <th style={{ width: '1%' }}>Actions</th>
                 </tr>
               </thead>
