@@ -9,9 +9,9 @@ import '../styles/CompanyVisits.css';
 type VisitStatus = 'scheduled' | 'completed' | 'cancelled';
 
 const STATUS_CONFIG: Record<VisitStatus, { label: string; color: string }> = {
-  scheduled:  { label: 'Scheduled',  color: '#ff9500' },
-  completed:  { label: 'Completed',  color: '#34c759' },
-  cancelled:  { label: 'Cancelled',  color: '#8e8e93' },
+  scheduled:  { label: 'Scheduled',  color: '#B09840' },
+  completed:  { label: 'Completed',  color: '#5B8A65' },
+  cancelled:  { label: 'Cancelled',  color: '#8A7F72' },
 };
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');

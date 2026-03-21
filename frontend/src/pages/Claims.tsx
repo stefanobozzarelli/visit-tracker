@@ -9,10 +9,10 @@ import '../styles/Claims.css';
 type ClaimStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
 const STATUS_CONFIG: Record<ClaimStatus, { label: string; color: string }> = {
-  open:        { label: 'Open',        color: '#ff9500' },
-  in_progress: { label: 'In Progress', color: '#007aff' },
-  resolved:    { label: 'Resolved',    color: '#34c759' },
-  closed:      { label: 'Closed',      color: '#8e8e93' },
+  open:        { label: 'Open',        color: '#B09840' },
+  in_progress: { label: 'In Progress', color: '#4A6078' },
+  resolved:    { label: 'Resolved',    color: '#5B8A65' },
+  closed:      { label: 'Closed',      color: '#8A7F72' },
 };
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
