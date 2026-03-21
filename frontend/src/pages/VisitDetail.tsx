@@ -47,7 +47,7 @@ const TaskTable: React.FC<{ tasks: TodoItem[]; onNavigate: (taskId: string) => v
       </thead>
       <tbody>
         {tasks.map(t => (
-          <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }} onDoubleClick={() => onNavigate(t.id)}>
             <td style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--color-info)' }} onClick={() => onNavigate(t.id)}>
               {t.title}
             </td>
@@ -140,11 +140,20 @@ export const VisitDetail: React.FC = () => {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-      <button onClick={() => navigate('/visits')} style={{ marginBottom: '1rem', padding: '0.5rem 1rem', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}>
-        ← Back
-      </button>
-
-      <h1 style={{ marginBottom: '1.5rem' }}>Client Meeting - {visit.client?.name}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button onClick={() => navigate('/visits')} style={{ padding: '0.5rem 1rem', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}>
+            ← Back
+          </button>
+          <h1 style={{ margin: 0 }}>Client Meeting - {visit.client?.name}</h1>
+        </div>
+        <button
+          onClick={() => navigate(`/todos/new?visitId=${id}`)}
+          style={{ padding: '0.6rem 1.2rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+        >
+          + Add Task
+        </button>
+      </div>
 
       {error && <div style={{ padding: '0.75rem', marginBottom: '1rem', background: '#fee', border: '1px solid #fcc', borderRadius: '4px', color: '#c00' }}>{error}</div>}
 
@@ -199,8 +208,26 @@ export const VisitDetail: React.FC = () => {
               return (
                 <div key={report.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem' }}>
                   <div style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ margin: '0 0 0.5rem 0' }}>{report.company?.name} - {report.section}</h3>
-                    <span style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.875rem', backgroundColor: report.status === 'draft' ? '#fff3cd' : report.status === 'submitted' ? '#d1ecf1' : '#d4edda', color: report.status === 'draft' ? '#856404' : report.status === 'submitted' ? '#0c5460' : '#155724' }}>{report.status}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <div>
+                        <h3 style={{ margin: '0 0 0.5rem 0' }}>{report.company?.name} - {report.section}</h3>
+                        <span style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.875rem', backgroundColor: report.status === 'draft' ? '#fff3cd' : report.status === 'submitted' ? '#d1ecf1' : '#d4edda', color: report.status === 'draft' ? '#856404' : report.status === 'submitted' ? '#0c5460' : '#155724' }}>{report.status}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={() => navigate(`/todos/new?visitReportId=${report.id}`)}
+                          style={{ padding: '0.4rem 0.8rem', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                        >
+                          + Task
+                        </button>
+                        <button
+                          onClick={() => navigate(`/orders/new?visitId=${id}&reportId=${report.id}`)}
+                          style={{ padding: '0.4rem 0.8rem', background: '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                        >
+                          + Order
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <p style={{ whiteSpace: 'pre-wrap', color: '#555', margin: '1rem 0 0 0' }}>{report.content}</p>
                   {report.attachments && report.attachments.length > 0 && (
