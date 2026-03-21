@@ -611,14 +611,43 @@ const ClientPermissionsTab: React.FC = () => {
             <div style={{ marginTop: '1.5rem' }}>
               <h4 style={{ fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--color-text-secondary)' }}>
                 Computed Access: {visibleClients.length} client{visibleClients.length !== 1 ? 's' : ''} visible
+                <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-text-tertiary)', marginLeft: '0.5rem' }}>
+                  (click ✕ to deny access)
+                </span>
               </h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
                 {visibleClients.map((c: any) => (
                   <span key={c.id} style={{
-                    padding: '0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem',
+                    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                    padding: '0.25rem 0.375rem 0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem',
                     background: 'rgba(74, 96, 120, 0.08)', color: '#4A6078', border: '1px solid rgba(74, 96, 120, 0.15)',
                   }}>
                     {c.name} ({c.country})
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm(`Remove ${c.name} from this user's access?`)) return;
+                        try {
+                          await apiService.addUserOverride(selectedUserId, c.id, 'deny');
+                          // Reload visible clients
+                          const res = await apiService.getUserVisibleClients(selectedUserId);
+                          if (res.success) setVisibleClients(res.data || []);
+                          setSuccess(`${c.name} removed from access`);
+                        } catch { setError('Error removing client'); }
+                      }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: '16px', height: '16px', borderRadius: '50%', border: 'none',
+                        background: 'rgba(158, 90, 82, 0.12)', color: '#9E5A52', fontSize: '0.625rem',
+                        cursor: 'pointer', padding: 0, lineHeight: 1, fontWeight: 700,
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => { (e.target as HTMLElement).style.background = 'rgba(158, 90, 82, 0.25)'; }}
+                      onMouseLeave={e => { (e.target as HTMLElement).style.background = 'rgba(158, 90, 82, 0.12)'; }}
+                      title={`Deny access to ${c.name}`}
+                    >
+                      ✕
+                    </button>
                   </span>
                 ))}
               </div>
