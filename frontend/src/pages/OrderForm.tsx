@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { OrderLineItems } from '../components/OrderLineItems';
 import { CustomerOrder, CustomerOrderItem, Visit, Company } from '../types';
@@ -8,6 +8,8 @@ import '../styles/OrderForm.css';
 export const OrderForm: React.FC = () => {
   const navigate = useNavigate();
   const { visitId: urlVisitId, id } = useParams<{ visitId?: string; id?: string }>();
+  const [searchParams] = useSearchParams();
+  const supplierIdFromUrl = searchParams.get('supplierId');
   const isEditMode = !!id;
   // In edit mode, visitId comes from the loaded order; in create mode, from URL params
   const [resolvedVisitId, setResolvedVisitId] = useState<string | undefined>(urlVisitId);
@@ -39,9 +41,13 @@ export const OrderForm: React.FC = () => {
         const companiesResponse = await apiService.getCompanies();
         if (companiesResponse.success && companiesResponse.data) {
           setCompanies(companiesResponse.data);
-          // Pre-select first company if available
-          if (companiesResponse.data.length > 0 && !isEditMode) {
-            setFormData(prev => ({ ...prev, company_id: companiesResponse.data[0].id }));
+          // Pre-select supplier from URL param, or first company as fallback
+          if (!isEditMode) {
+            if (supplierIdFromUrl && companiesResponse.data.some((c: Company) => c.id === supplierIdFromUrl)) {
+              setFormData(prev => ({ ...prev, company_id: supplierIdFromUrl }));
+            } else if (companiesResponse.data.length > 0) {
+              setFormData(prev => ({ ...prev, company_id: companiesResponse.data[0].id }));
+            }
           }
         }
 

@@ -223,7 +223,7 @@ export const VisitDetail: React.FC = () => {
                           + Task
                         </button>
                         <button
-                          onClick={() => navigate(`/orders/new/${id}`)}
+                          onClick={() => navigate(`/orders/new/${id}?supplierId=${report.company_id}`)}
                           style={{ padding: '0.4rem 0.8rem', background: 'var(--color-warning)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
                         >
                           + Order
