@@ -1083,7 +1083,7 @@ export const NewVisit: React.FC = () => {
                                 <select value={order.status} onChange={(e) => handleOrderChange(true, globalIdx, 'status', e.target.value)}>
                                   <option value="draft">Draft</option>
                                   <option value="confirmed">Confirmed</option>
-                                  <option value="completed">Completed</option>
+                                  <option value="shipped">Shipped</option>
                                 </select>
                               </div>
                               <div className="form-group" style={{ marginBottom: 0 }}>

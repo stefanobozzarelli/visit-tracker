@@ -8,7 +8,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft: { bg: '#fff3cd', color: '#856404' },
   confirmed: { bg: '#d1ecf1', color: '#0c5460' },
-  completed: { bg: '#d4edda', color: '#155724' },
+  shipped: { bg: '#d4edda', color: '#155724' },
 };
 
 export const Orders: React.FC = () => {
@@ -84,7 +84,7 @@ export const Orders: React.FC = () => {
           <option value="">All Statuses</option>
           <option value="draft">Draft</option>
           <option value="confirmed">Confirmed</option>
-          <option value="completed">Completed</option>
+          <option value="shipped">Shipped</option>
         </select>
         <div style={{ fontSize: '0.9rem', color: '#666' }}>
           {filtered.length} orders | Total: <strong style={{ color: 'var(--color-info)' }}>€ {totalAmount.toFixed(2)}</strong>

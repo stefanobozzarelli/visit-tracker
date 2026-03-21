@@ -77,7 +77,7 @@ export const OrderForm: React.FC = () => {
               }
             }
           } else {
-            setError('Ordine non trovato');
+            setError('Order not found');
           }
         } else if (urlVisitId) {
           // Create mode: load visit data
@@ -116,19 +116,19 @@ export const OrderForm: React.FC = () => {
         const response = await apiService.addOrderItem(order.id, itemData);
         if (response.success && response.data) {
           setItems([...items, response.data]);
-          setSuccess('Riga ordine aggiunta');
+          setSuccess('Order line added');
           setTimeout(() => setSuccess(null), 3000);
         } else {
-          setError(response.error || 'Errore nell\'aggiunta della riga');
+          setError(response.error || 'Error adding order line');
         }
       } catch (err) {
         console.error('Error adding item:', err);
-        setError((err as Error).message || 'Errore sconosciuto');
+        setError((err as Error).message || 'Unknown error');
       } finally {
         setIsLoading(false);
       }
     } else {
-      setError('Devi prima creare l\'ordine');
+      setError('You must create the order first');
     }
   };
 
@@ -144,7 +144,7 @@ export const OrderForm: React.FC = () => {
           if (updatedOrder.success && updatedOrder.data) {
             setItems(updatedOrder.data.items || []);
             setOrder(updatedOrder.data);
-            setSuccess('Riga ordine aggiornata');
+            setSuccess('Order line updated');
             setTimeout(() => setSuccess(null), 3000);
           }
         }
@@ -158,7 +158,7 @@ export const OrderForm: React.FC = () => {
 
   // Delete order item
   const handleDeleteItem = async (itemId: string) => {
-    if (!window.confirm('Eliminare questa riga ordine?')) return;
+    if (!window.confirm('Delete this order line?')) return;
 
     if (order) {
       try {
@@ -166,7 +166,7 @@ export const OrderForm: React.FC = () => {
         const response = await apiService.deleteOrderItem(order.id, itemId);
         if (response.success) {
           setItems(items.filter(i => i.id !== itemId));
-          setSuccess('Riga ordine eliminata');
+          setSuccess('Order line deleted');
           setTimeout(() => setSuccess(null), 3000);
         }
       } catch (err) {
@@ -185,18 +185,18 @@ export const OrderForm: React.FC = () => {
 
       const activeVisitId = resolvedVisitId || urlVisitId;
       if (!activeVisitId) {
-        setError('Visita non trovata');
+        setError('Visit not found');
         return;
       }
 
       if (!formData.order_date || !formData.company_id) {
-        setError('Compilare i campi obbligatori: Azienda e Data');
+        setError('Please fill required fields: Supplier and Date');
         return;
       }
 
       const selectedCompany = companies.find(c => c.id === formData.company_id);
       if (!selectedCompany) {
-        setError('Azienda selezionata non valida');
+        setError('Invalid supplier selected');
         return;
       }
 
@@ -209,7 +209,7 @@ export const OrderForm: React.FC = () => {
           status: formData.status,
         });
         if (response.success) {
-          setSuccess('Ordine aggiornato con successo');
+          setSuccess('Order updated successfully');
           setTimeout(() => {
             navigate(`/visits/${activeVisitId}`);
           }, 1500);
@@ -230,7 +230,7 @@ export const OrderForm: React.FC = () => {
         if (response.success && response.data) {
           setOrder(response.data);
           setItems(response.data.items || []);
-          setSuccess('Ordine creato con successo');
+          setSuccess('Order created successfully');
         }
       }
     } catch (err) {
@@ -242,14 +242,14 @@ export const OrderForm: React.FC = () => {
 
   // Delete order
   const handleDeleteOrder = async () => {
-    if (!window.confirm('Eliminare questo ordine? Questa azione non può essere annullata.')) return;
+    if (!window.confirm('Delete this order? This action cannot be undone.')) return;
 
     try {
       setIsLoading(true);
       if (order) {
         const response = await apiService.deleteOrder(order.id);
         if (response.success) {
-          setSuccess('Ordine eliminato');
+          setSuccess('Order deleted');
           setTimeout(() => {
             navigate(resolvedVisitId ? `/visits/${resolvedVisitId}` : '/visits');
           }, 1500);
@@ -271,16 +271,16 @@ export const OrderForm: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `ordine_${order.id.substring(0, 8)}.pdf`;
+        link.download = `order_${order.id.substring(0, 8)}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        setSuccess('PDF scaricato con successo');
+        setSuccess('PDF downloaded successfully');
         setTimeout(() => setSuccess(null), 2000);
       }
     } catch (err) {
-      setError('Errore nel download del PDF');
+      setError('Error downloading PDF');
     } finally {
       setIsLoading(false);
     }
@@ -294,16 +294,16 @@ export const OrderForm: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `ordine_${order.id.substring(0, 8)}.xlsx`;
+        link.download = `order_${order.id.substring(0, 8)}.xlsx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        setSuccess('Excel scaricato con successo');
+        setSuccess('Excel downloaded successfully');
         setTimeout(() => setSuccess(null), 2000);
       }
     } catch (err) {
-      setError('Errore nel download di Excel');
+      setError('Error downloading Excel');
     } finally {
       setIsLoading(false);
     }
@@ -312,33 +312,33 @@ export const OrderForm: React.FC = () => {
   const totalAmount = items.reduce((sum, item) => sum + item.total_line, 0);
 
   if (!visit && urlVisitId) {
-    return <div className="loading">Caricamento...</div>;
+    return <div className="loading">Loading...</div>;
   }
 
   return (
     <div className="order-form-page">
       <div className="order-form-container">
         <div className="order-header">
-          <h1>📦 {order ? 'Modifica' : 'Crea'} Ordine Cliente</h1>
-          <button onClick={() => navigate(resolvedVisitId ? `/visits/${resolvedVisitId}` : '/visits')} className="btn-back">← Indietro</button>
+          <h1>📦 {order ? 'Edit' : 'Create'} Customer Order</h1>
+          <button onClick={() => navigate(resolvedVisitId ? `/visits/${resolvedVisitId}` : '/visits')} className="btn-back">← Back</button>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
         <div className="order-testata">
-          <h2>Intestazione Ordine</h2>
+          <h2>Order Header</h2>
 
           <div className="testata-grid">
             <div className="testata-field">
-              <label>Azienda Fornitrice *</label>
+              <label>Supplier *</label>
               <select
                 name="company_id"
                 value={formData.company_id}
                 onChange={handleChange}
                 disabled={isLoading || order !== null}
               >
-                <option value="">-- Seleziona --</option>
+                <option value="">-- Select --</option>
                 {companies.map(company => (
                   <option key={company.id} value={company.id}>
                     {company.name}
@@ -348,12 +348,12 @@ export const OrderForm: React.FC = () => {
             </div>
 
             <div className="testata-field">
-              <label>Cliente</label>
+              <label>Client</label>
               <input type="text" value={visit?.client?.name || ''} disabled className="input-disabled" />
             </div>
 
             <div className="testata-field">
-              <label>Data Ordine *</label>
+              <label>Order Date *</label>
               <input
                 type="date"
                 name="order_date"
@@ -364,24 +364,24 @@ export const OrderForm: React.FC = () => {
             </div>
 
             <div className="testata-field">
-              <label>Pagamento</label>
+              <label>Payment</label>
               <input
                 type="text"
                 name="payment_method"
                 value={formData.payment_method}
                 onChange={handleChange}
-                placeholder="Es: Bonifico, Contanti, Carta, etc."
+                placeholder="E.g: Bank Transfer, Cash, Card, etc."
                 disabled={isLoading}
               />
             </div>
 
             <div className="testata-field full-width">
-              <label>Note</label>
+              <label>Notes</label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                placeholder="Note aggiuntive..."
+                placeholder="Additional notes..."
                 disabled={isLoading}
               />
             </div>
@@ -395,9 +395,9 @@ export const OrderForm: React.FC = () => {
                   onChange={handleChange}
                   disabled={isLoading}
                 >
-                  <option value="draft">Bozza</option>
-                  <option value="confirmed">Confermato</option>
-                  <option value="completed">Completato</option>
+                  <option value="draft">Draft</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="shipped">Shipped</option>
                 </select>
               </div>
             )}
@@ -421,7 +421,7 @@ export const OrderForm: React.FC = () => {
             disabled={isLoading}
             className="btn-save-order"
           >
-            {isLoading ? 'Salvataggio...' : order ? 'Aggiorna Ordine' : 'Crea Ordine'}
+            {isLoading ? 'Saving...' : order ? 'Update Order' : 'Create Order'}
           </button>
 
           {order && (
@@ -430,7 +430,7 @@ export const OrderForm: React.FC = () => {
                 onClick={handleExportPdf}
                 disabled={isLoading}
                 className="btn-export"
-                title="Scarica ordine in PDF"
+                title="Download order as PDF"
               >
                 📄 PDF
               </button>
@@ -439,7 +439,7 @@ export const OrderForm: React.FC = () => {
                 onClick={handleExportExcel}
                 disabled={isLoading}
                 className="btn-export"
-                title="Scarica ordine in Excel"
+                title="Download order as Excel"
               >
                 📊 Excel
               </button>
@@ -449,7 +449,7 @@ export const OrderForm: React.FC = () => {
                 disabled={isLoading}
                 className="btn-delete-order"
               >
-                Elimina Ordine
+                Delete Order
               </button>
             </>
           )}
@@ -459,7 +459,7 @@ export const OrderForm: React.FC = () => {
             disabled={isLoading}
             className="btn-cancel"
           >
-            Annulla
+            Cancel
           </button>
         </div>
       </div>
