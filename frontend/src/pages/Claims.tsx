@@ -100,9 +100,23 @@ export const Claims: React.FC = () => {
       await apiService.deleteClaim(claimId);
       setSuccess('Claim deleted');
       loadClaims();
-    } catch {
-      setError('Error deleting claim');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error deleting claim');
     }
+  };
+
+  const handleStatusChange = async (claimId: string, newStatus: string) => {
+    try {
+      await apiService.updateClaim(claimId, { status: newStatus });
+      setClaims(prev => prev.map(c => c.id === claimId ? { ...c, status: newStatus } : c));
+    } catch {
+      setError('Error updating status');
+    }
+  };
+
+  const canDeleteClaim = (claim: Claim) => {
+    if (isAdmin) return true;
+    return (claim as any).created_by_user_id === user?.id;
   };
 
   // ---- Computed data ----
@@ -288,10 +302,29 @@ export const Claims: React.FC = () => {
                         {claim.comments ? (claim.comments.length > 80 ? claim.comments.substring(0, 80) + '...' : claim.comments) : '-'}
                       </td>
                       <td>
-                        <span className={`claim-status-pill status-${claim.status}`}>
-                          <span className="claim-status-dot" />
-                          {STATUS_CONFIG[claim.status as ClaimStatus]?.label || claim.status}
-                        </span>
+                        <select
+                          className={`claim-status-select status-${claim.status}`}
+                          value={claim.status}
+                          onChange={e => { e.stopPropagation(); handleStatusChange(claim.id, e.target.value); }}
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            padding: '0.25rem 0.5rem', borderRadius: '9999px', fontSize: '0.688rem',
+                            fontWeight: 600, border: '1px solid transparent', cursor: 'pointer',
+                            fontFamily: 'inherit', appearance: 'none', WebkitAppearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'10\' height=\'6\' viewBox=\'0 0 10 6\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M1 1l4 4 4-4\' stroke=\'%23999\' stroke-width=\'1.5\' stroke-linecap=\'round\'/%3E%3C/svg%3E")',
+                            backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.4rem center',
+                            paddingRight: '1.5rem',
+                            ...(claim.status === 'open' ? { background: 'rgba(255, 149, 0, 0.08)', color: '#c77700', borderColor: 'rgba(255, 149, 0, 0.2)' } :
+                               claim.status === 'in_progress' ? { background: 'rgba(0, 122, 255, 0.08)', color: '#0062cc', borderColor: 'rgba(0, 122, 255, 0.2)' } :
+                               claim.status === 'resolved' ? { background: 'rgba(52, 199, 89, 0.08)', color: '#248a3d', borderColor: 'rgba(52, 199, 89, 0.2)' } :
+                               { background: 'rgba(142, 142, 147, 0.08)', color: '#636366', borderColor: 'rgba(142, 142, 147, 0.2)' }),
+                          }}
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                        </select>
                       </td>
                       <td>
                         <span className="claim-movement-count">
@@ -306,7 +339,7 @@ export const Claims: React.FC = () => {
                           >
                             Edit
                           </button>
-                          {isAdmin && (
+                          {canDeleteClaim(claim) && (
                             <button
                               className="claim-action-btn danger"
                               onClick={() => handleDelete(claim.id)}

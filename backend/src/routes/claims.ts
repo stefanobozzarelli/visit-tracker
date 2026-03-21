@@ -67,10 +67,21 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    const userId = (req.user as any).id;
     const userRole = (req.user as any).role;
+
+    // Admin/manager/master_admin can delete any claim
+    // Sales rep can only delete claims they created
     if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
-      return res.status(403).json({ success: false, error: 'Only administrators can delete claims' });
+      const claim = await claimService.getClaimById(req.params.id);
+      if (!claim) {
+        return res.status(404).json({ success: false, error: 'Claim not found' });
+      }
+      if (claim.created_by_user_id !== userId) {
+        return res.status(403).json({ success: false, error: 'You can only delete claims you created' });
+      }
     }
+
     await claimService.deleteClaim(req.params.id);
     res.json({ success: true, message: 'Claim deleted' });
   } catch (error) {
