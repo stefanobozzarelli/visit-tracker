@@ -50,6 +50,12 @@ export const NewVisit: React.FC = () => {
   // Inline tasks to create with the visit
   const [tasks, setTasks] = useState<{ title: string; companyId: string; dueDate: string; assignedToUserId: string; files: File[] }[]>([]);
 
+  // Edit mode: track existing reports, orders, and deletions
+  const [existingReports, setExistingReports] = useState<{ id: string; companyId: string; section: string; content: string; status: string }[]>([]);
+  const [existingOrders, setExistingOrders] = useState<any[]>([]);
+  const [deletedReportIds, setDeletedReportIds] = useState<Set<string>>(new Set());
+  const [originalVisitData, setOriginalVisitData] = useState<any>(null);
+
   useEffect(() => {
     loadData();
     if (isEditMode && editId) {
@@ -118,17 +124,38 @@ export const NewVisit: React.FC = () => {
       if (res.success && res.data) {
         const visit = res.data;
         const metadata = decodeMetadata(visit.reports || []);
+
+        // Separate existing reports from new ones
+        const existingReportsList = (visit.reports || [])
+          .filter((r: any) => !r.section.startsWith('__metadata'))
+          .map((r: any) => ({
+            id: r.id,
+            companyId: r.company_id,
+            section: r.section,
+            content: r.content,
+            status: r.status,
+          }));
+
+        setExistingReports(existingReportsList);
+        setOriginalVisitData({
+          clientId: visit.client_id,
+          visitDate: visit.visit_date,
+          status: visit.status,
+          preparation: visit.preparation,
+        });
+
         setFormData({
           clientId: visit.client_id,
           visitDate: visit.visit_date ? visit.visit_date.split('T')[0] : '',
           status: visit.status || 'scheduled',
           preparation: visit.preparation || '',
-          reports: (visit.reports || []).map((r: any) => ({
-            companyId: r.company_id,
+          reports: existingReportsList.map(r => ({
+            companyId: r.companyId,
             section: r.section,
             content: r.content,
           })),
         });
+
         setMetadata({
           location: metadata?.location || '',
           purpose: metadata?.purpose || '',
@@ -136,6 +163,16 @@ export const NewVisit: React.FC = () => {
           followUpRequired: metadata?.followUpRequired || false,
           nextAction: metadata?.nextAction || '',
         });
+
+        // Load customer orders
+        try {
+          const ordersRes = await apiService.getOrdersByVisit(visitId);
+          if (ordersRes.success && ordersRes.data) {
+            setExistingOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
+          }
+        } catch (orderErr) {
+          console.warn('[NewVisit] Failed to load orders:', orderErr);
+        }
       }
     } catch (err) {
       setError('Error loading visit');
@@ -151,16 +188,33 @@ export const NewVisit: React.FC = () => {
   };
 
   const handleRemoveReport = (index: number) => {
+    const reportToRemove = formData.reports[index];
+    const existingReport = existingReports[index];
+
+    // If this is an existing report, mark it for deletion
+    if (existingReport?.id) {
+      setDeletedReportIds(prev => new Set([...prev, existingReport.id]));
+    }
+
+    // Remove from form display
     setFormData({
       ...formData,
       reports: formData.reports.filter((_, i) => i !== index),
     });
+    setExistingReports(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleReportChange = (index: number, field: string, value: string) => {
     const newReports = [...formData.reports];
     newReports[index] = { ...newReports[index], [field]: value };
     setFormData({ ...formData, reports: newReports });
+
+    // Also update existingReports if editing an existing report
+    if (existingReports[index]?.id) {
+      const updatedExisting = [...existingReports];
+      updatedExisting[index] = { ...updatedExisting[index], [field]: value };
+      setExistingReports(updatedExisting);
+    }
   };
 
   const handleCreateClient = async () => {
@@ -231,48 +285,93 @@ export const NewVisit: React.FC = () => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
+    const errors: string[] = [];
 
     try {
-      const reports = formData.reports.map((r) => ({
-        company_id: r.companyId,
-        section: r.section,
-        content: r.content,
-      }));
-
-      // Add metadata as hidden report if any fields are filled
-      const metaReport = encodeMetadata(metadata);
-      if (metaReport && formData.reports[0]?.companyId) {
-        reports.push({
-          company_id: formData.reports[0].companyId,
-          section: metaReport.section,
-          content: metaReport.content,
-        });
-      }
-
       let visitId = editId;
 
       if (isEditMode && editId) {
-        // Update existing visit
-        const updateRes = await apiService.updateVisit(editId, {
-          status: formData.status,
-          preparation: formData.preparation || undefined,
-        });
-        if (!updateRes.success) {
-          throw new Error('Error updating visit');
+        // UPDATE EXISTING VISIT MODE
+
+        // 1. Update core visit fields (status, preparation)
+        try {
+          const updateRes = await apiService.updateVisit(editId, {
+            status: formData.status,
+            preparation: formData.preparation || undefined,
+          });
+          if (!updateRes.success) {
+            errors.push('Failed to update visit information');
+          }
+        } catch (err) {
+          console.error('Failed to update visit:', err);
+          errors.push('Error updating visit information');
         }
 
-        // Create new reports if any
-        if (reports.length > 0) {
-          for (const report of reports) {
+        // 2. Update metadata if changed
+        const metaReport = encodeMetadata(metadata);
+        if (metaReport && formData.reports[0]?.companyId) {
+          try {
+            // Find and update metadata report, or create if doesn't exist
+            await apiService.createVisitReport(editId, formData.reports[0].companyId, metaReport.section, metaReport.content);
+          } catch (err) {
+            console.error('Failed to update metadata:', err);
+          }
+        }
+
+        // 3. Update existing reports
+        for (const report of existingReports) {
+          if (deletedReportIds.has(report.id)) {
+            // Delete report
             try {
-              await apiService.createVisitReport(editId, report.company_id, report.section, report.content);
+              await apiService.deleteVisitReport(editId, report.id);
             } catch (err) {
-              console.error('Failed to create report:', err);
+              console.error('Failed to delete report:', err);
+              errors.push(`Failed to delete report for ${report.companyId}`);
+            }
+          } else {
+            // Update report if changed
+            try {
+              await apiService.updateVisitReport(editId, report.id, {
+                company_id: report.companyId,
+                section: report.section,
+                content: report.content,
+              });
+            } catch (err) {
+              console.error('Failed to update report:', err);
+              errors.push(`Failed to update report for ${report.companyId}`);
             }
           }
         }
+
+        // 4. Create new reports (ones without ID)
+        const newReportsToCreate = formData.reports.filter((r, idx) => !existingReports[idx]?.id && r.companyId && r.section);
+        for (const report of newReportsToCreate) {
+          try {
+            await apiService.createVisitReport(editId, report.companyId, report.section, report.content);
+          } catch (err) {
+            console.error('Failed to create report:', err);
+            errors.push('Failed to create new report');
+          }
+        }
       } else {
-        // Create new visit
+        // CREATE NEW VISIT MODE
+
+        const reports = formData.reports.map((r) => ({
+          company_id: r.companyId,
+          section: r.section,
+          content: r.content,
+        }));
+
+        // Add metadata as hidden report if any fields are filled
+        const metaReport = encodeMetadata(metadata);
+        if (metaReport && formData.reports[0]?.companyId) {
+          reports.push({
+            company_id: formData.reports[0].companyId,
+            section: metaReport.section,
+            content: metaReport.content,
+          });
+        }
+
         const response = await apiService.createVisit(formData.clientId, formData.visitDate, reports, {
           status: formData.status,
           preparation: formData.preparation || undefined,
@@ -290,6 +389,7 @@ export const NewVisit: React.FC = () => {
             await apiService.uploadVisitDirectAttachment(visitId, file);
           } catch {
             console.error('Failed to upload direct attachment:', file.name);
+            errors.push(`Failed to upload file: ${file.name}`);
           }
         }
       }
@@ -319,7 +419,14 @@ export const NewVisit: React.FC = () => {
         }
       }
 
-      navigate(`/visits/${visitId}`);
+      // Show errors if any, but still navigate if visitId exists
+      if (errors.length > 0) {
+        setError(errors.join('; '));
+      }
+
+      if (visitId) {
+        navigate(`/visits/${visitId}`);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -813,9 +920,38 @@ export const NewVisit: React.FC = () => {
             )}
           </div>
 
+          {/* Customer Orders Section - Edit Mode Only */}
+          {isEditMode && existingOrders.length > 0 && (
+            <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+              <h3 style={{ marginBottom: '1rem', marginTop: 0 }}>Customer Orders</h3>
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                {existingOrders.map((order) => (
+                  <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem' }}>
+                    <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1.2rem', fontWeight: '700' }}>{order.supplier_name || 'Supplier'}</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>
+                        Order #{order.id.substring(0, 8)} | Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}
+                      </p>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Lines</label>
+                        <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem' }}>{order.items?.length || 0}</p>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Total Amount</label>
+                        <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-info)' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="form-actions">
             <button type="submit" disabled={isSubmitting} className="btn-primary">
-              {isSubmitting ? 'Registering...' : 'Register Visit'}
+              {isEditMode ? (isSubmitting ? 'Saving...' : 'Save Changes') : (isSubmitting ? 'Registering...' : 'Register Visit')}
             </button>
             <button
               type="button"
