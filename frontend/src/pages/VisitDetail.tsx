@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
 import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
@@ -73,13 +73,14 @@ const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: string }>
 export const VisitDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [visit, setVisit] = useState<Visit | null>(null);
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [allTasks, setAllTasks] = useState<TodoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => { loadVisit(); }, [id]);
+  useEffect(() => { loadVisit(); }, [id, location.key]);
 
   const loadVisit = async () => {
     if (!id) return;
