@@ -13,6 +13,7 @@ export const Companies: React.FC = () => {
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [todos, setTodos] = useState<any[]>([]);
+  const [companyVisits, setCompanyVisits] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -44,6 +45,7 @@ export const Companies: React.FC = () => {
       setIsLoading(true);
       try { const r = await apiService.getCompanies(); if (r.success && r.data) setCompanies(r.data); } catch {}
       try { const r = await apiService.getMyTodos(); if (r.success && r.data) setTodos(Array.isArray(r.data) ? r.data : []); } catch {}
+      try { const r = await apiService.getCompanyVisits(); if (r.success && r.data) setCompanyVisits(Array.isArray(r.data) ? r.data : []); } catch {}
     } catch { setError('Error loading data'); } finally { setIsLoading(false); }
   };
 
@@ -53,20 +55,21 @@ export const Companies: React.FC = () => {
     return [...new Set([...SECTOR_OPTIONS, ...fromData])].sort();
   }, [companies]);
 
-  // Next action per company
-  const nextActions = useMemo(() => {
+  // Last visit (company meeting) per company
+  const lastVisits = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of companies) {
-      const openTodos = todos.filter(t => t.company_id === c.id && t.status !== 'done' && t.status !== 'completed');
-      const next = openTodos.reduce((earliest: any, t: any) => {
-        if (!t.due_date) return earliest;
-        if (!earliest) return t;
-        return new Date(t.due_date) < new Date(earliest.due_date) ? t : earliest;
-      }, null);
-      if (next) map.set(c.id, next.title);
+      const visits = companyVisits.filter((v: any) => v.company_id === c.id);
+      if (visits.length > 0) {
+        const last = visits.reduce((latest: any, v: any) => {
+          if (!latest) return v;
+          return new Date(v.date) > new Date(latest.date) ? v : latest;
+        }, null);
+        if (last) map.set(c.id, new Date(last.date).toLocaleDateString('it-IT'));
+      }
     }
     return map;
-  }, [companies, todos]);
+  }, [companies, companyVisits]);
 
   const filtered = useMemo(() => {
     let list = [...companies];
@@ -215,13 +218,13 @@ export const Companies: React.FC = () => {
                   <th>Country</th>
                   <th>Sector</th>
                   {isAdmin && <th>Rapporto</th>}
-                  <th>Next Action</th>
-                  <th style={{ width: '1%' }}>Actions</th>
+                  <th>Last Visit (Company Meeting)</th>
+                  <th style={{ width: '1%' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(company => {
-                  const nextAction = nextActions.get(company.id);
+                  const lastVisit = lastVisits.get(company.id);
                   return (
                     <tr key={company.id}>
                       <td className="co-name">{company.name}</td>
@@ -234,7 +237,7 @@ export const Companies: React.FC = () => {
                           ) : <span className="co-muted">-</span>}
                         </td>
                       )}
-                      <td className="co-next-action">{nextAction || <span className="co-muted">-</span>}</td>
+                      <td className="co-last-visit">{lastVisit || <span className="co-muted">-</span>}</td>
                       <td>
                         <div className="co-actions">
                           {isAdmin && (
