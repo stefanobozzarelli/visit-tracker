@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiService } from '../services/api';
 import { Company } from '../types';
 
 export const CompanyDetail: React.FC = () => {
@@ -11,14 +12,21 @@ export const CompanyDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    const companies = JSON.parse(localStorage.getItem('companies') || '[]') as Company[];
-    const found = companies.find(c => c.id === id);
-    if (found) {
-      setCompany(found);
-    } else {
-      setError('Supplier not found');
-    }
-    setLoading(false);
+    const loadCompany = async () => {
+      try {
+        const res = await apiService.getCompanyById(id);
+        if (res.success && res.data) {
+          setCompany(res.data);
+        } else {
+          setError('Supplier not found');
+        }
+      } catch (err) {
+        setError('Error loading supplier');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadCompany();
   }, [id]);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;

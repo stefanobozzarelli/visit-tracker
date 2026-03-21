@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiService } from '../services/api';
 import { Claim } from '../types';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
@@ -20,14 +21,21 @@ export const ClaimDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    const claims = JSON.parse(localStorage.getItem('claims') || '[]') as Claim[];
-    const found = claims.find(c => c.id === id);
-    if (found) {
-      setClaim(found);
-    } else {
-      setError('Claim not found');
-    }
-    setLoading(false);
+    const loadClaim = async () => {
+      try {
+        const res = await apiService.getClaimById(id);
+        if (res.success && res.data) {
+          setClaim(res.data);
+        } else {
+          setError('Claim not found');
+        }
+      } catch (err) {
+        setError('Error loading claim');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadClaim();
   }, [id]);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;

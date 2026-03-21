@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiService } from '../services/api';
 import { TodoItem } from '../types';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
@@ -21,14 +22,21 @@ export const TodoDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    const todos = JSON.parse(localStorage.getItem('todos') || '[]') as TodoItem[];
-    const found = todos.find(t => t.id === id);
-    if (found) {
-      setTodo(found);
-    } else {
-      setError('Task not found');
-    }
-    setLoading(false);
+    const loadTodo = async () => {
+      try {
+        const res = await apiService.getTodoById(id);
+        if (res.success && res.data) {
+          setTodo(res.data);
+        } else {
+          setError('Task not found');
+        }
+      } catch (err) {
+        setError('Error loading task');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTodo();
   }, [id]);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;

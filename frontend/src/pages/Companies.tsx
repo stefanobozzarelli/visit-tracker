@@ -226,7 +226,7 @@ export const Companies: React.FC = () => {
                 {filtered.map(company => {
                   const lastVisit = lastVisits.get(company.id);
                   return (
-                    <tr key={company.id} onDoubleClick={() => handleEdit(company)} style={{ cursor: 'pointer' }}>
+                    <tr key={company.id} onDoubleClick={() => navigate(`/companies/${company.id}`)} style={{ cursor: 'pointer' }}>
                       <td className="co-name">{company.name}</td>
                       <td>{company.country}</td>
                       <td>{company.industry || <span className="co-muted">-</span>}</td>

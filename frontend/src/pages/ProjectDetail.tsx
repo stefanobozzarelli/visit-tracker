@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiService } from '../services/api';
 import { Project } from '../types';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
@@ -14,14 +15,21 @@ export const ProjectDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    const projects = JSON.parse(localStorage.getItem('projects') || '[]') as Project[];
-    const found = projects.find(p => p.id === id);
-    if (found) {
-      setProject(found);
-    } else {
-      setError('Project not found');
-    }
-    setLoading(false);
+    const loadProject = async () => {
+      try {
+        const res = await apiService.getProject(id);
+        if (res.success && res.data) {
+          setProject(res.data);
+        } else {
+          setError('Project not found');
+        }
+      } catch (err) {
+        setError('Error loading project');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProject();
   }, [id]);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;

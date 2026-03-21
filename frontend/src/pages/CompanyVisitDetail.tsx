@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiService } from '../services/api';
 import { CompanyVisit } from '../types';
 import '../styles/CrudPages.css';
 
@@ -14,14 +15,21 @@ export const CompanyVisitDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    const visits = JSON.parse(localStorage.getItem('company_visits') || '[]') as CompanyVisit[];
-    const found = visits.find(v => v.id === id);
-    if (found) {
-      setVisit(found);
-    } else {
-      setError('Meeting not found');
-    }
-    setLoading(false);
+    const loadVisit = async () => {
+      try {
+        const res = await apiService.getCompanyVisitById(id);
+        if (res.success && res.data) {
+          setVisit(res.data);
+        } else {
+          setError('Meeting not found');
+        }
+      } catch (err) {
+        setError('Error loading meeting');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadVisit();
   }, [id]);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;

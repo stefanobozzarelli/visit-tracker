@@ -275,7 +275,7 @@ export const CompanyVisits: React.FC = () => {
               </thead>
               <tbody>
                 {visits.map(visit => (
-                  <tr key={visit.id} onDoubleClick={() => navigate(`/company-visits/${visit.id}/edit`)} style={{ cursor: 'pointer' }}>
+                  <tr key={visit.id} onDoubleClick={() => navigate(`/company-visits/${visit.id}`)} style={{ cursor: 'pointer' }}>
                     <td>
                       <div className="cv-company-name">
                         {visit.company?.name || getCompanyName(visit.company_id)}

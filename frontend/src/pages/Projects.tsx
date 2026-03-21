@@ -276,7 +276,7 @@ export const Projects: React.FC = () => {
             </thead>
             <tbody>
               {filteredProjects.map(p => (
-                <tr key={p.id} id={`project-${p.id}`} className={highlightId === p.id ? 'highlighted' : ''} onDoubleClick={() => navigate(`/projects/${p.id}/edit`)} style={{ cursor: 'pointer' }}>
+                <tr key={p.id} id={`project-${p.id}`} className={highlightId === p.id ? 'highlighted' : ''} onDoubleClick={() => navigate(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
                   <td>{p.project_number}</td>
                   <td>
                     <div className="project-name-cell">{p.project_name || '-'}</div>
