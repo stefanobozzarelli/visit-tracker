@@ -208,7 +208,7 @@ export const ClientDetail: React.FC = () => {
                   const visitor = v.visited_by_user?.name || '-';
                   const reportCount = (v.reports || []).filter(r => r.section !== METADATA_SECTION).length;
                   return (
-                    <div key={v.id} className="cd-list-item" onClick={() => navigate(`/visits/${v.id}`)}>
+                    <div key={v.id} className="cd-list-item" onClick={() => navigate(`/visits/${v.id}?highlight=${v.id}`)}>
                       <div className="cd-list-main">
                         <div className="cd-list-title">{formatDate(v.visit_date)}</div>
                         <div className="cd-list-sub">by {visitor}</div>
@@ -225,15 +225,15 @@ export const ClientDetail: React.FC = () => {
 
           <div className="cd-card">
             <div className="cd-card-header">
-              <h3>Open Follow-ups ({openTodos.length})</h3>
+              <h3>Tasks ({openTodos.length})</h3>
               <button className="cd-link" onClick={() => navigate('/tasks')}>View all</button>
             </div>
             {openTodos.length === 0 ? (
-              <div className="cd-empty">No open follow-ups</div>
+              <div className="cd-empty">No tasks</div>
             ) : (
               <div className="cd-list">
                 {openTodos.slice(0, 5).map(t => (
-                  <div key={t.id} className="cd-list-item" onClick={() => navigate('/tasks')}>
+                  <div key={t.id} className="cd-list-item" onClick={() => navigate(`/tasks?highlight=${t.id}`)}>
                     <div className="cd-list-main">
                       <div className="cd-list-title">{t.title}</div>
                       {t.due_date && <div className="cd-list-sub">Due: {formatDate(t.due_date)}</div>}
@@ -254,7 +254,7 @@ export const ClientDetail: React.FC = () => {
             ) : (
               <div className="cd-list">
                 {clientProjects.map(p => (
-                  <div key={p.id} className="cd-list-item" onClick={() => navigate('/projects')}>
+                  <div key={p.id} className="cd-list-item" onClick={() => navigate(`/projects?highlight=${p.id}`)}>
                     <div className="cd-list-main">
                       <div className="cd-list-title">{p.project_name || `Project #${p.project_number}`}</div>
                       <div className="cd-list-sub">{p.status}</div>
@@ -275,7 +275,7 @@ export const ClientDetail: React.FC = () => {
             ) : (
               <div className="cd-list">
                 {clientClaims.map(c => (
-                  <div key={c.id} className="cd-list-item" onClick={() => navigate('/claims')}>
+                  <div key={c.id} className="cd-list-item" onClick={() => navigate(`/claims?highlight=${c.id}`)}>
                     <div className="cd-list-main">
                       <div className="cd-list-title">{formatDate(c.date)}</div>
                       <div className="cd-list-sub">{c.status}</div>

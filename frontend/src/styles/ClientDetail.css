@@ -109,6 +109,16 @@
 .cd-modal-close { background: none; border: none; font-size: 1.5rem; color: var(--color-text-tertiary); cursor: pointer; padding: 0; transition: color 0.15s ease; }
 .cd-modal-close:hover { color: var(--color-text-primary); }
 
+/* Highlight animation */
+@keyframes highlight-fade {
+  0% { background-color: rgba(74, 96, 120, 0.2); }
+  100% { background-color: transparent; }
+}
+.cd-list-item.highlighted {
+  animation: highlight-fade 5s ease-out forwards;
+  border-color: var(--color-info);
+}
+
 /* Responsive */
 @media (max-width: 1024px) { .cd-info-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 768px) {
