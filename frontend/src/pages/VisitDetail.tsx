@@ -123,6 +123,9 @@ export const VisitDetail: React.FC = () => {
     }
   };
 
+  const visitMetadata = useMemo(() => visit ? decodeMetadata(visit.reports || []) : null, [visit]);
+  const displayReports = useMemo(() => visit ? filterDisplayReports(visit.reports || []) : [], [visit]);
+
   const getTasksForReport = (reportId: string) => allTasks.filter(t => t.visit_report_id === reportId);
   const visitLevelTasks = allTasks.filter(t => !t.visit_report_id);
   const getOrdersForReport = (companyId: string) => orders.filter(o => o.supplier_id === companyId);
@@ -131,9 +134,6 @@ export const VisitDetail: React.FC = () => {
   const handleTaskNavigate = (taskId: string) => {
     navigate(`/todos/${taskId}`);
   };
-
-  const visitMetadata = useMemo(() => visit ? decodeMetadata(visit.reports || []) : null, [visit]);
-  const displayReports = useMemo(() => visit ? filterDisplayReports(visit.reports || []) : [], [visit]);
 
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
   if (!visit) return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>Visit not found</div>;
