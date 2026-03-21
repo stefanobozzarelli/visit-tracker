@@ -297,10 +297,16 @@ export const CompanyVisits: React.FC = () => {
                         {STATUS_CONFIG[visit.status as VisitStatus]?.label || visit.status}
                       </span>
                     </td>
-                    <td>
+                    <td onClick={e => e.stopPropagation()}>
                       <div className="cv-actions">
                         <button
                           className="cv-action-btn primary"
+                          onClick={() => navigate(`/company-visits/${visit.id}/edit`)}
+                        >
+                          View
+                        </button>
+                        <button
+                          className="cv-action-btn"
                           onClick={() => navigate(`/company-visits/${visit.id}/edit`)}
                         >
                           Edit

@@ -659,6 +659,12 @@ export const Tasks: React.FC = () => {
                             className="task-action-btn primary"
                             onClick={() => navigate(`/todos/edit/${todo.id}`)}
                           >
+                            View
+                          </button>
+                          <button
+                            className="task-action-btn"
+                            onClick={() => navigate(`/todos/edit/${todo.id}`)}
+                          >
                             Edit
                           </button>
                           <button

@@ -226,7 +226,7 @@ export const Companies: React.FC = () => {
                 {filtered.map(company => {
                   const lastVisit = lastVisits.get(company.id);
                   return (
-                    <tr key={company.id}>
+                    <tr key={company.id} onDoubleClick={() => handleEdit(company)} style={{ cursor: 'pointer' }}>
                       <td className="co-name">{company.name}</td>
                       <td>{company.country}</td>
                       <td>{company.industry || <span className="co-muted">-</span>}</td>
@@ -238,8 +238,9 @@ export const Companies: React.FC = () => {
                         </td>
                       )}
                       <td className="co-last-visit">{lastVisit || <span className="co-muted">-</span>}</td>
-                      <td>
+                      <td onClick={e => e.stopPropagation()}>
                         <div className="co-actions">
+                          <button className="co-action-btn primary" onClick={() => handleEdit(company)}>View</button>
                           {isAdmin && (
                             <>
                               <button className="co-action-btn" onClick={() => handleEdit(company)}>Edit</button>

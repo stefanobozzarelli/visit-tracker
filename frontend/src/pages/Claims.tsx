@@ -349,10 +349,16 @@ export const Claims: React.FC = () => {
                           {movementCount}
                         </span>
                       </td>
-                      <td>
+                      <td onClick={e => e.stopPropagation()}>
                         <div className="claim-actions">
                           <button
                             className="claim-action-btn primary"
+                            onClick={() => navigate(`/claims/${claim.id}/edit`)}
+                          >
+                            View
+                          </button>
+                          <button
+                            className="claim-action-btn"
                             onClick={() => navigate(`/claims/${claim.id}/edit`)}
                           >
                             Edit
