@@ -184,10 +184,6 @@ export const OrderForm: React.FC = () => {
       setError(null);
 
       const activeVisitId = resolvedVisitId || urlVisitId;
-      if (!activeVisitId) {
-        setError('Visit not found');
-        return;
-      }
 
       if (!formData.order_date || !formData.company_id) {
         setError('Please fill required fields: Supplier and Date');
@@ -211,11 +207,15 @@ export const OrderForm: React.FC = () => {
         if (response.success) {
           setSuccess('Order updated successfully');
           setTimeout(() => {
-            navigate(`/visits/${activeVisitId}`);
+            navigate(activeVisitId ? `/visits/${activeVisitId}` : '/orders');
           }, 1500);
         }
       } else {
-        // Create new order
+        // Create new order - visitId required
+        if (!activeVisitId) {
+          setError('Visit not found');
+          return;
+        }
         const response = await apiService.createOrder({
           visit_id: activeVisitId,
           supplier_id: selectedCompany.id,
