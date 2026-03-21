@@ -323,31 +323,51 @@ export const Clients: React.FC = () => {
             {/* Company checkboxes (suppliers) */}
             <div className="clients-form-group">
               <label>Suppliers / Companies</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
-                {companies.map(company => (
-                  <label key={company.id} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                    padding: '0.3rem 0.625rem', borderRadius: '6px', fontSize: '0.813rem',
-                    border: selectedCompanyIds.includes(company.id) ? '1px solid rgba(74, 96, 120, 0.3)' : '1px solid var(--color-border)',
-                    background: selectedCompanyIds.includes(company.id) ? 'rgba(74, 96, 120, 0.06)' : 'var(--color-white)',
-                    cursor: 'pointer', userSelect: 'none', transition: 'all 0.15s ease',
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedCompanyIds.includes(company.id)}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          setSelectedCompanyIds(prev => [...prev, company.id]);
-                        } else {
-                          setSelectedCompanyIds(prev => prev.filter(id => id !== company.id));
-                        }
-                      }}
-                      style={{ margin: 0 }}
-                    />
-                    {company.name}
-                  </label>
-                ))}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: '0.5rem',
+                marginTop: '0.5rem',
+                padding: '0.75rem',
+                background: 'var(--color-bg-primary)',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+              }}>
+                {companies.map(company => {
+                  const isSelected = selectedCompanyIds.includes(company.id);
+                  return (
+                    <label key={company.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.875rem',
+                      fontWeight: isSelected ? 600 : 400,
+                      border: isSelected ? '1.5px solid rgba(74, 96, 120, 0.4)' : '1.5px solid transparent',
+                      background: isSelected ? 'rgba(74, 96, 120, 0.08)' : 'var(--color-white)',
+                      color: isSelected ? 'var(--color-info)' : 'var(--color-text-secondary)',
+                      cursor: 'pointer', userSelect: 'none', transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? '0 1px 3px rgba(74, 96, 120, 0.1)' : 'none',
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedCompanyIds(prev => [...prev, company.id]);
+                          } else {
+                            setSelectedCompanyIds(prev => prev.filter(id => id !== company.id));
+                          }
+                        }}
+                        style={{ margin: 0, width: '16px', height: '16px', accentColor: '#4A6078', flexShrink: 0 }}
+                      />
+                      {company.name}
+                    </label>
+                  );
+                })}
               </div>
+              {selectedCompanyIds.length > 0 && (
+                <div style={{ marginTop: '0.375rem', fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                  {selectedCompanyIds.length} supplier{selectedCompanyIds.length !== 1 ? 's' : ''} selected
+                </div>
+              )}
             </div>
             <div className="clients-form-actions">
               <button type="submit" className="clients-btn-save">{editingId ? 'Save Changes' : 'Create Client'}</button>
