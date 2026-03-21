@@ -6,12 +6,12 @@ import '../styles/Sidebar.css';
 
 const DEFAULT_MENU_ORDER = [
   'dashboard',
-  'visits',
-  'company-visits',
-  'companies',
   'contacts',
-  'projects',
+  'visits',
+  'companies',
+  'company-visits',
   'tasks',
+  'projects',
   'claims',
   'reports',
 ];
