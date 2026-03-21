@@ -664,6 +664,7 @@ class ApiService {
       visitId,
       companyVisitId,
     });
+    this.memoryCache.clear();
     return response.data;
   }
 
@@ -684,11 +685,13 @@ class ApiService {
 
   async updateTodo(id: string, data: { title?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string }) {
     const response = await this.api.put<ApiResponse<any>>(`/todos/${id}`, data);
+    this.memoryCache.clear();
     return response.data;
   }
 
   async deleteTodo(id: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/todos/${id}`);
+    this.memoryCache.clear();
     return response.data;
   }
 
