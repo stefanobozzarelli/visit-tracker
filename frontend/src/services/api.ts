@@ -853,6 +853,7 @@ class ApiService {
     items?: any[];
   }) {
     const response = await this.api.post<ApiResponse<any>>('/orders', data);
+    this.memoryCache.clear();
     return response.data;
   }
 
@@ -868,11 +869,13 @@ class ApiService {
 
   async updateOrder(id: string, data: { order_date?: string; payment_method?: string; notes?: string; status?: string }) {
     const response = await this.api.put<ApiResponse<any>>(`/orders/${id}`, data);
+    this.memoryCache.clear();
     return response.data;
   }
 
   async deleteOrder(id: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/orders/${id}`);
+    this.memoryCache.clear();
     return response.data;
   }
 
