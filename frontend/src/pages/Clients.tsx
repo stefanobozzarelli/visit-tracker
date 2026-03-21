@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
-import { Client, Visit, TodoItem, Company } from '../types';
+import { Client, ClientContact, Visit, TodoItem, Company } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
 import '../styles/Clients.css';
 
@@ -38,6 +38,13 @@ export const Clients: React.FC = () => {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [isAddingCountry, setIsAddingCountry] = useState(false);
   const [newCountryInput, setNewCountryInput] = useState('');
+
+  // Contact editing (only in edit mode)
+  const EMPTY_CONTACT = { name: '', role: '', email: '', phone: '', wechat: '', notes: '' };
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [contactForm, setContactForm] = useState(EMPTY_CONTACT);
+  const [editContacts, setEditContacts] = useState<ClientContact[]>([]);
 
   // Filters
   const [localSearch, setLocalSearch] = useState('');
@@ -229,6 +236,7 @@ export const Clients: React.FC = () => {
     setOpenMoreId(null);
     setFormData({ name: client.name, country: client.country, city: client.city || '', notes: client.notes || '', role: (client as any).role || 'cliente' });
     setSelectedCompanyIds((client as any).clientCompanies?.map((cc: any) => cc.company_id || cc.company?.id) || []);
+    setEditContacts(client.contacts || []);
     setEditingId(client.id);
     setShowForm(true);
   };
@@ -254,8 +262,54 @@ export const Clients: React.FC = () => {
   const resetForm = () => {
     setFormData({ name: '', country: '', city: '', notes: '', role: 'cliente' });
     setSelectedCompanyIds([]);
+    setEditContacts([]);
+    setShowContactForm(false);
+    setEditingContactId(null);
+    setContactForm(EMPTY_CONTACT);
     setEditingId(null);
     setShowForm(false);
+  };
+
+  // Contact handlers (edit mode only)
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !contactForm.name.trim()) return;
+    try {
+      if (editingContactId) {
+        await apiService.updateClientContact(editingContactId, contactForm);
+        setSuccess('Contact updated');
+      } else {
+        await apiService.addClientContact(editingId, contactForm);
+        setSuccess('Contact added');
+      }
+      setContactForm(EMPTY_CONTACT);
+      setEditingContactId(null);
+      setShowContactForm(false);
+      // Reload client data to get updated contacts
+      const r = await apiService.getClient(editingId);
+      if (r.success && r.data) setEditContacts(r.data.contacts || []);
+      loadData();
+    } catch (err) { setError((err as Error).message); }
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    if (!window.confirm('Delete this contact?')) return;
+    try {
+      await apiService.deleteClientContact(contactId);
+      setEditContacts(prev => prev.filter(c => c.id !== contactId));
+      setSuccess('Contact deleted');
+      loadData();
+    } catch (err) { setError((err as Error).message); }
+  };
+
+  const handleBusinessCardUpload = async (contactId: string, file: File) => {
+    if (!editingId) return;
+    try {
+      await apiService.uploadBusinessCard(editingId, contactId, file);
+      const r = await apiService.getClient(editingId);
+      if (r.success && r.data) setEditContacts(r.data.contacts || []);
+      setSuccess('Business card uploaded');
+    } catch { setError('Error uploading business card'); }
   };
 
   // ---- Render ----
@@ -399,6 +453,72 @@ export const Clients: React.FC = () => {
               <button type="button" className="clients-btn-cancel" onClick={resetForm}>Cancel</button>
             </div>
           </form>
+
+          {/* Contacts section (only in edit mode) */}
+          {editingId && (
+            <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h4 style={{ margin: 0, fontSize: '0.938rem' }}>Contacts ({editContacts.length})</h4>
+                <button type="button" className="clients-btn-new" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+                  onClick={() => { setContactForm(EMPTY_CONTACT); setEditingContactId(null); setShowContactForm(true); }}>
+                  + Add Contact
+                </button>
+              </div>
+
+              {showContactForm && (
+                <form onSubmit={handleContactSubmit} style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div className="clients-form-group"><label>Name *</label><input type="text" value={contactForm.name} onChange={e => setContactForm({...contactForm, name: e.target.value})} required /></div>
+                    <div className="clients-form-group"><label>Role / Title</label><input type="text" value={contactForm.role} onChange={e => setContactForm({...contactForm, role: e.target.value})} placeholder="e.g. Sales Manager" /></div>
+                    <div className="clients-form-group"><label>Email</label><input type="email" value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} /></div>
+                    <div className="clients-form-group"><label>Phone</label><input type="tel" value={contactForm.phone} onChange={e => setContactForm({...contactForm, phone: e.target.value})} /></div>
+                    <div className="clients-form-group"><label>WeChat</label><input type="text" value={contactForm.wechat} onChange={e => setContactForm({...contactForm, wechat: e.target.value})} /></div>
+                    <div className="clients-form-group"><label>Notes</label><input type="text" value={contactForm.notes} onChange={e => setContactForm({...contactForm, notes: e.target.value})} /></div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button type="submit" className="clients-btn-save" style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}>{editingContactId ? 'Save' : 'Add'}</button>
+                    <button type="button" className="clients-btn-cancel" style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                      onClick={() => { setShowContactForm(false); setEditingContactId(null); setContactForm(EMPTY_CONTACT); }}>Cancel</button>
+                  </div>
+                </form>
+              )}
+
+              {editContacts.map(contact => (
+                <div key={contact.id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.5rem 0.75rem', marginBottom: '0.375rem',
+                  background: 'var(--color-white)', border: '1px solid var(--color-border)', borderRadius: '6px',
+                }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{contact.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                      {[contact.role, contact.email, contact.phone].filter(Boolean).join(' · ') || 'No details'}
+                    </div>
+                    {(contact as any).business_card_filename && (
+                      <div style={{ fontSize: '0.688rem', color: 'var(--color-info)', marginTop: '0.125rem' }}>
+                        📎 {(contact as any).business_card_filename}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0, alignItems: 'center' }}>
+                    <label style={{ cursor: 'pointer', fontSize: '0.75rem', color: 'var(--color-info)', padding: '0.2rem 0.4rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+                      📎
+                      <input type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+                        onChange={e => { if (e.target.files?.[0]) handleBusinessCardUpload(contact.id, e.target.files[0]); e.target.value = ''; }} />
+                    </label>
+                    <button type="button" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', background: 'var(--color-white)', cursor: 'pointer' }}
+                      onClick={() => { setEditingContactId(contact.id); setContactForm({ name: contact.name || '', role: contact.role || '', email: contact.email || '', phone: contact.phone || '', wechat: contact.wechat || '', notes: contact.notes || '' }); setShowContactForm(true); }}>
+                      Edit
+                    </button>
+                    <button type="button" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', border: '1px solid rgba(158,90,82,0.2)', borderRadius: '4px', background: 'var(--color-white)', color: '#9E5A52', cursor: 'pointer' }}
+                      onClick={() => handleDeleteContact(contact.id)}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
