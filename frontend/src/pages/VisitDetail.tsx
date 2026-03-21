@@ -148,7 +148,7 @@ export const VisitDetail: React.FC = () => {
           <h1 style={{ margin: 0 }}>Client Meeting - {visit.client?.name}</h1>
         </div>
         <button
-          onClick={() => navigate(`/todos/new?visitId=${id}`)}
+          onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}`)}
           style={{ padding: '0.6rem 1.2rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
         >
           + Add Task
@@ -215,13 +215,13 @@ export const VisitDetail: React.FC = () => {
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
-                          onClick={() => navigate(`/todos/new?visitReportId=${report.id}`)}
+                          onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)}
                           style={{ padding: '0.4rem 0.8rem', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
                         >
                           + Task
                         </button>
                         <button
-                          onClick={() => navigate(`/orders/new?visitId=${id}&reportId=${report.id}`)}
+                          onClick={() => navigate(`/orders/new/${id}`)}
                           style={{ padding: '0.4rem 0.8rem', background: '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
                         >
                           + Order
