@@ -80,7 +80,7 @@ export class UserService {
    */
   async updateUser(
     id: string,
-    data: Partial<{ name: string; email: string; role: string; company_id: string }>
+    data: Partial<{ name: string; email: string; role: string; company_id: string; sidebar_menu_order: string[] | null }>
   ): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
