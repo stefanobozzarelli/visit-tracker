@@ -88,13 +88,13 @@ export const Settings: React.FC = () => {
           className={`settings-tab ${activeTab === 'companies' ? 'active' : ''}`}
           onClick={() => setActiveTab('companies')}
         >
-          Company Access
+          Suppliers
         </button>
         <button
           className={`settings-tab ${activeTab === 'clients' ? 'active' : ''}`}
           onClick={() => setActiveTab('clients')}
         >
-          Client Permissions
+          Countries & Access
         </button>
       </div>
 
@@ -362,13 +362,12 @@ const UsersTab: React.FC<{ isMasterAdmin: boolean }> = ({ isMasterAdmin }) => {
   );
 };
 
-// ─── Company Access Tab ──────────────────────────────
+// ─── Company Access Tab (NEW: uses area-based system) ──────
 const CompanyAccessTab: React.FC = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [companies, setCompanies] = useState<CompanyItem[]>([]);
-  const [clients, setClients] = useState<ClientItem[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [userCompanyIds, setUserCompanyIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -382,71 +381,46 @@ const CompanyAccessTab: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [usersRes, companiesRes, clientsRes, permsRes] = await Promise.all([
+      const [usersRes, companiesRes] = await Promise.all([
         apiService.getUsers(),
         apiService.getCompanies(),
-        apiService.getClients(),
-        apiService.getPermissions(),
       ]);
-      if (usersRes.success) setUsers((usersRes.data || []).filter((u: UserItem) => u.role === 'sales_rep'));
+      if (usersRes.success) setUsers((usersRes.data || []).filter((u: UserItem) => u.role === 'sales_rep' || u.role === 'manager'));
       if (companiesRes.success) setCompanies(companiesRes.data || []);
-      if (clientsRes.success) setClients(clientsRes.data || []);
-      if (permsRes.success) setPermissions(permsRes.data || []);
     } catch { setError('Error loading data'); } finally { setLoading(false); }
   };
 
-  // Derive which companies the selected user has access to
-  const userCompanyAccess = useMemo(() => {
-    if (!selectedUserId) return new Set<string>();
-    const userPerms = permissions.filter(p => p.user_id === selectedUserId);
-    return new Set(userPerms.map(p => p.company_id));
-  }, [selectedUserId, permissions]);
+  const loadUserAreas = async (userId: string) => {
+    if (!userId) { setUserCompanyIds([]); return; }
+    try {
+      const res = await apiService.getUserAreas(userId);
+      if (res.success && res.data) {
+        setUserCompanyIds(res.data.companies?.map((c: any) => c.id) || []);
+      }
+    } catch { setError('Error loading user areas'); }
+  };
 
-  // Count clients per company for selected user
-  const companyClientCount = useMemo(() => {
-    if (!selectedUserId) return new Map<string, number>();
-    const counts = new Map<string, number>();
-    const userPerms = permissions.filter(p => p.user_id === selectedUserId);
-    for (const p of userPerms) {
-      counts.set(p.company_id, (counts.get(p.company_id) || 0) + 1);
-    }
-    return counts;
-  }, [selectedUserId, permissions]);
+  const handleUserChange = (userId: string) => {
+    setSelectedUserId(userId);
+    loadUserAreas(userId);
+  };
 
-  const handleToggleCompany = async (companyId: string, currentlyOn: boolean) => {
+  const handleToggleCompany = (companyId: string) => {
+    setUserCompanyIds(prev =>
+      prev.includes(companyId) ? prev.filter(id => id !== companyId) : [...prev, companyId]
+    );
+  };
+
+  const handleSave = async () => {
     if (!selectedUserId) return;
     setSaving(true);
-    setError('');
-
     try {
-      if (currentlyOn) {
-        // Remove: delete all permissions for user × company
-        if (!window.confirm(`Remove access to this company? This will revoke all client permissions for this company.`)) {
-          setSaving(false);
-          return;
-        }
-        const toDelete = permissions.filter(p => p.user_id === selectedUserId && p.company_id === companyId);
-        await Promise.all(toDelete.map(p => apiService.revokePermission(p.id)));
-        setSuccess('Company access removed');
-      } else {
-        // Add: create permissions for all clients × this company
-        await Promise.all(
-          clients.map(client =>
-            apiService.assignPermission(selectedUserId, client.id, companyId, {
-              can_view: true, can_create: true, can_edit: true,
-            })
-          )
-        );
-        setSuccess(`Company access granted for ${clients.length} clients`);
-      }
-      // Reload permissions
-      const permsRes = await apiService.getPermissions();
-      if (permsRes.success) setPermissions(permsRes.data || []);
-    } catch {
-      setError('Error updating company access');
-    } finally {
-      setSaving(false);
-    }
+      // Get current countries (preserve them)
+      const areasRes = await apiService.getUserAreas(selectedUserId);
+      const currentCountries = areasRes.data?.countries || [];
+      await apiService.setUserAreas(selectedUserId, { companyIds: userCompanyIds, countries: currentCountries });
+      setSuccess('Company access saved');
+    } catch { setError('Error saving'); } finally { setSaving(false); }
   };
 
   if (loading) return <p className="settings-loading">Loading...</p>;
@@ -459,15 +433,9 @@ const CompanyAccessTab: React.FC = () => {
       <div className="ca-header">
         <div className="form-group">
           <label>Select User</label>
-          <select
-            value={selectedUserId}
-            onChange={e => setSelectedUserId(e.target.value)}
-            className="ca-user-select"
-          >
+          <select value={selectedUserId} onChange={e => handleUserChange(e.target.value)} className="ca-user-select">
             <option value="">Choose a user...</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-            ))}
+            {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
           </select>
         </div>
       </div>
@@ -477,23 +445,19 @@ const CompanyAccessTab: React.FC = () => {
       ) : (
         <>
           <p className="ca-hint">
-            Toggle which companies this user can represent. Enabling a company grants access across all existing clients.
+            Select which companies/suppliers this user represents. Access to clients is computed automatically based on companies + countries.
           </p>
           <div className="ca-grid">
             {companies.map(company => {
-              const hasAccess = userCompanyAccess.has(company.id);
-              const clientCount = companyClientCount.get(company.id) || 0;
+              const hasAccess = userCompanyIds.includes(company.id);
               return (
                 <div key={company.id} className={`ca-card${hasAccess ? ' active' : ''}`}>
                   <div className="ca-card-info">
                     <div className="ca-card-name">{company.name}</div>
-                    {hasAccess && (
-                      <div className="ca-card-count">{clientCount} client{clientCount !== 1 ? 's' : ''}</div>
-                    )}
                   </div>
                   <button
                     className={`ca-toggle${hasAccess ? ' on' : ''}`}
-                    onClick={() => handleToggleCompany(company.id, hasAccess)}
+                    onClick={() => handleToggleCompany(company.id)}
                     disabled={saving}
                   >
                     <span className="ca-toggle-track">
@@ -504,24 +468,31 @@ const CompanyAccessTab: React.FC = () => {
               );
             })}
           </div>
+          <div style={{ marginTop: '1rem' }}>
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Company Access'}
+            </button>
+            <span style={{ marginLeft: '0.75rem', fontSize: '0.813rem', color: 'var(--color-text-tertiary)' }}>
+              {userCompanyIds.length} company{userCompanyIds.length !== 1 ? 'ies' : 'y'} selected
+            </span>
+          </div>
         </>
       )}
     </>
   );
 };
 
-// ─── Client Permissions Tab (Country > Client hierarchy) ──────
+// ─── Country Access Tab (NEW: uses area-based system) ──────
 const ClientPermissionsTab: React.FC = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
-  const [companies, setCompanies] = useState<CompanyItem[]>([]);
-  const [clients, setClients] = useState<ClientItem[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [allCountries, setAllCountries] = useState<string[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [userCountries, setUserCountries] = useState<string[]>([]);
+  const [visibleClients, setVisibleClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => {
@@ -531,90 +502,55 @@ const ClientPermissionsTab: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [usersRes, companiesRes, clientsRes, permsRes] = await Promise.all([
+      const [usersRes, countriesRes] = await Promise.all([
         apiService.getUsers(),
-        apiService.getCompanies(),
-        apiService.getClients(),
-        apiService.getPermissions(),
+        apiService.getAdminCountries(),
       ]);
-      if (usersRes.success) setUsers((usersRes.data || []).filter((u: UserItem) => u.role === 'sales_rep'));
-      if (companiesRes.success) setCompanies(companiesRes.data || []);
-      if (clientsRes.success) setClients(clientsRes.data || []);
-      if (permsRes.success) setPermissions(permsRes.data || []);
+      if (usersRes.success) setUsers((usersRes.data || []).filter((u: UserItem) => u.role === 'sales_rep' || u.role === 'manager'));
+      if (countriesRes.success) setAllCountries(countriesRes.data || []);
     } catch { setError('Error loading data'); } finally { setLoading(false); }
   };
 
-  const reloadPerms = async () => {
-    const r = await apiService.getPermissions();
-    if (r.success) setPermissions(r.data || []);
-  };
-
-  const userCompanies = useMemo(() => {
-    if (!selectedUserId) return [];
-    const ids = new Set(permissions.filter(p => p.user_id === selectedUserId).map(p => p.company_id));
-    return companies.filter(c => ids.has(c.id));
-  }, [selectedUserId, permissions, companies]);
-
-  const permLookup = useMemo(() => {
-    const map = new Map<string, Permission>();
-    if (!selectedUserId) return map;
-    for (const p of permissions) {
-      if (p.user_id === selectedUserId) map.set(`${p.client_id}-${p.company_id}`, p);
-    }
-    return map;
-  }, [selectedUserId, permissions]);
-
-  // Group clients by country
-  const clientsByCountry = useMemo(() => {
-    const map = new Map<string, ClientItem[]>();
-    for (const c of clients) {
-      const country = c.country || 'Unknown';
-      if (!map.has(country)) map.set(country, []);
-      map.get(country)!.push(c);
-    }
-    const sorted = new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0])));
-    for (const [, list] of sorted) list.sort((a, b) => a.name.localeCompare(b.name));
-    return sorted;
-  }, [clients]);
-
-  const clientHasAll = useCallback((clientId: string) => userCompanies.every(c => permLookup.has(`${clientId}-${c.id}`)), [userCompanies, permLookup]);
-  const clientHasNone = useCallback((clientId: string) => userCompanies.every(c => !permLookup.has(`${clientId}-${c.id}`)), [userCompanies, permLookup]);
-
-  const toggleCountry = (country: string) => {
-    setExpandedCountries(prev => { const n = new Set(prev); if (n.has(country)) n.delete(country); else n.add(country); return n; });
-  };
-
-  const handleToggleCountry = async (countryClients: ClientItem[], grant: boolean) => {
-    if (!selectedUserId) return;
-    setSaving(true);
+  const loadUserData = async (userId: string) => {
+    if (!userId) { setUserCountries([]); setVisibleClients([]); return; }
     try {
-      const calls: Promise<any>[] = [];
-      for (const client of countryClients) {
-        for (const company of userCompanies) {
-          const key = `${client.id}-${company.id}`;
-          if (grant && !permLookup.has(key)) {
-            calls.push(apiService.assignPermission(selectedUserId, client.id, company.id, { can_view: true, can_create: true, can_edit: true }));
-          } else if (!grant && permLookup.has(key)) {
-            calls.push(apiService.revokePermission(permLookup.get(key)!.id));
-          }
-        }
+      const [areasRes, clientsRes] = await Promise.all([
+        apiService.getUserAreas(userId),
+        apiService.getUserVisibleClients(userId),
+      ]);
+      if (areasRes.success && areasRes.data) {
+        setUserCountries(areasRes.data.countries || []);
       }
-      await Promise.all(calls);
-      setSuccess(grant ? `Granted access for ${countryClients.length} clients` : `Revoked access for ${countryClients.length} clients`);
-      await reloadPerms();
-    } catch { setError('Error updating permissions'); } finally { setSaving(false); }
+      if (clientsRes.success) {
+        setVisibleClients(clientsRes.data || []);
+      }
+    } catch { setError('Error loading user data'); }
   };
 
-  const handleToggleClient = async (clientId: string, grant: boolean) => {
+  const handleUserChange = (userId: string) => {
+    setSelectedUserId(userId);
+    loadUserData(userId);
+  };
+
+  const handleToggleCountry = (country: string) => {
+    setUserCountries(prev =>
+      prev.includes(country) ? prev.filter(c => c !== country) : [...prev, country]
+    );
+  };
+
+  const handleSave = async () => {
     if (!selectedUserId) return;
     setSaving(true);
     try {
-      const calls = grant
-        ? userCompanies.filter(c => !permLookup.has(`${clientId}-${c.id}`)).map(c => apiService.assignPermission(selectedUserId, clientId, c.id, { can_view: true, can_create: true, can_edit: true }))
-        : userCompanies.map(c => permLookup.get(`${clientId}-${c.id}`)).filter(Boolean).map(p => apiService.revokePermission(p!.id));
-      await Promise.all(calls);
-      await reloadPerms();
-    } catch { setError('Error'); } finally { setSaving(false); }
+      // Get current companies (preserve them)
+      const areasRes = await apiService.getUserAreas(selectedUserId);
+      const currentCompanyIds = areasRes.data?.companies?.map((c: any) => c.id) || [];
+      await apiService.setUserAreas(selectedUserId, { companyIds: currentCompanyIds, countries: userCountries });
+      // Reload visible clients
+      const clientsRes = await apiService.getUserVisibleClients(selectedUserId);
+      if (clientsRes.success) setVisibleClients(clientsRes.data || []);
+      setSuccess('Country access saved');
+    } catch { setError('Error saving'); } finally { setSaving(false); }
   };
 
   if (loading) return <p className="settings-loading">Loading...</p>;
@@ -627,7 +563,7 @@ const ClientPermissionsTab: React.FC = () => {
       <div className="cp-header">
         <div className="form-group">
           <label>Select User</label>
-          <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)} className="cp-user-select">
+          <select value={selectedUserId} onChange={e => handleUserChange(e.target.value)} className="cp-user-select">
             <option value="">Choose a user...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
           </select>
@@ -635,60 +571,60 @@ const ClientPermissionsTab: React.FC = () => {
       </div>
 
       {!selectedUserId ? (
-        <p className="settings-empty">Select a user to manage their client permissions</p>
-      ) : userCompanies.length === 0 ? (
-        <p className="settings-empty">This user has no company access. Assign companies first in the "Company Access" tab.</p>
+        <p className="settings-empty">Select a user to manage their country access</p>
       ) : (
-        <div className="cp-country-list">
-          <p className="cp-hint">Select countries and clients this user can access. Permissions apply to all assigned companies.</p>
-          {[...clientsByCountry.entries()].map(([country, countryClients]) => {
-            const allGranted = countryClients.every(c => clientHasAll(c.id));
-            const noneGranted = countryClients.every(c => clientHasNone(c.id));
-            const isExpanded = expandedCountries.has(country);
-            const grantedCount = countryClients.filter(c => clientHasAll(c.id)).length;
+        <>
+          <p className="cp-hint">Select which countries this user covers. Combined with companies, this determines which clients they can see.</p>
 
-            return (
-              <div key={country} className="cp-country-group">
-                <div className="cp-country-header">
-                  <button className="cp-country-expand" onClick={() => toggleCountry(country)} type="button">
-                    {isExpanded ? '\u25BE' : '\u25B8'}
-                  </button>
-                  <label className="cp-country-check">
-                    <input
-                      type="checkbox"
-                      checked={allGranted}
-                      ref={el => { if (el) el.indeterminate = !allGranted && !noneGranted; }}
-                      onChange={() => handleToggleCountry(countryClients, !allGranted)}
-                      disabled={saving}
-                    />
-                    <span className="cp-country-name">{country}</span>
-                    <span className="cp-country-count">{grantedCount}/{countryClients.length} clients</span>
-                  </label>
-                </div>
-                {isExpanded && (
-                  <div className="cp-clients-list">
-                    {countryClients.map(client => {
-                      const hasAll = clientHasAll(client.id);
-                      const hasNone = clientHasNone(client.id);
-                      return (
-                        <label key={client.id} className="cp-client-check">
-                          <input
-                            type="checkbox"
-                            checked={hasAll}
-                            ref={el => { if (el) el.indeterminate = !hasAll && !hasNone; }}
-                            onChange={() => handleToggleClient(client.id, !hasAll)}
-                            disabled={saving}
-                          />
-                          <span className="cp-client-label">{client.name}</span>
-                        </label>
-                      );
-                    })}
+          <div className="ca-grid">
+            {allCountries.map(country => {
+              const isActive = userCountries.includes(country);
+              return (
+                <div key={country} className={`ca-card${isActive ? ' active' : ''}`}>
+                  <div className="ca-card-info">
+                    <div className="ca-card-name">{country}</div>
                   </div>
-                )}
+                  <button
+                    className={`ca-toggle${isActive ? ' on' : ''}`}
+                    onClick={() => handleToggleCountry(country)}
+                    disabled={saving}
+                  >
+                    <span className="ca-toggle-track">
+                      <span className="ca-toggle-thumb" />
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Country Access'}
+            </button>
+            <span style={{ fontSize: '0.813rem', color: 'var(--color-text-tertiary)' }}>
+              {userCountries.length} countr{userCountries.length !== 1 ? 'ies' : 'y'} selected
+            </span>
+          </div>
+
+          {visibleClients.length > 0 && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--color-text-secondary)' }}>
+                Computed Access: {visibleClients.length} client{visibleClients.length !== 1 ? 's' : ''} visible
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                {visibleClients.map((c: any) => (
+                  <span key={c.id} style={{
+                    padding: '0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem',
+                    background: 'rgba(74, 96, 120, 0.08)', color: '#4A6078', border: '1px solid rgba(74, 96, 120, 0.15)',
+                  }}>
+                    {c.name} ({c.country})
+                  </span>
+                ))}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+        </>
       )}
     </>
   );
