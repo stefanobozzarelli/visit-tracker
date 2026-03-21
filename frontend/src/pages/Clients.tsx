@@ -28,6 +28,8 @@ export const Clients: React.FC = () => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
+  const [userAreaCountries, setUserAreaCountries] = useState<string[]>([]);
 
   // Form
   const [showForm, setShowForm] = useState(false);
@@ -88,6 +90,16 @@ export const Clients: React.FC = () => {
         const r = await apiService.getCompanies();
         if (r.success && r.data) setCompanies(r.data);
       } catch {}
+      // Load user areas (for non-admin: filter companies and add countries)
+      if (!isAdmin) {
+        try {
+          const r = await apiService.getMyAreas();
+          if (r.success && r.data) {
+            setUserAreaCompanyIds(r.data.companies?.map((c: any) => c.id) || []);
+            setUserAreaCountries(r.data.countries || []);
+          }
+        } catch {}
+      }
     } catch {
       setError('Error loading data');
     } finally {
@@ -150,12 +162,21 @@ export const Clients: React.FC = () => {
   // ---- Countries for filter and form ----
   const countries = useMemo(() => {
     const countrySet = new Set(clients.map(c => c.country).filter(Boolean));
+    // Include user's area countries (so they can create clients in their assigned countries even if no clients exist yet)
+    for (const c of userAreaCountries) countrySet.add(c);
     // Also include formData.country if it's set but not in the list (for new countries being added)
     if (formData.country && !countrySet.has(formData.country)) {
       countrySet.add(formData.country);
     }
     return Array.from(countrySet).sort();
-  }, [clients, formData.country]);
+  }, [clients, userAreaCountries, formData.country]);
+
+  // ---- Companies filtered for form (non-admin sees only their area companies) ----
+  const formCompanies = useMemo(() => {
+    if (isAdmin) return companies;
+    if (userAreaCompanyIds.length === 0) return companies; // fallback
+    return companies.filter(c => userAreaCompanyIds.includes(c.id));
+  }, [companies, userAreaCompanyIds, isAdmin]);
 
   // ---- Visible clients ----
   const visibleClients = useMemo(() => {
@@ -333,7 +354,7 @@ export const Clients: React.FC = () => {
                 borderRadius: '8px',
                 border: '1px solid var(--color-border)',
               }}>
-                {companies.map(company => {
+                {formCompanies.map(company => {
                   const isSelected = selectedCompanyIds.includes(company.id);
                   return (
                     <label key={company.id} style={{
@@ -504,15 +525,19 @@ export const Clients: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Suppliers (from clientCompanies) */}
+                      {/* Suppliers (from clientCompanies, filtered for non-admin) */}
                       <td>
-                        {(client as any).clientCompanies?.length > 0 ? (
-                          <div className="client-companies">
-                            {(client as any).clientCompanies.map((cc: any) => cc.company?.name || getCompanyName(cc.company_id)).join(', ')}
-                          </div>
-                        ) : (
-                          <span className="client-muted">-</span>
-                        )}
+                        {(() => {
+                          const allCc = (client as any).clientCompanies || [];
+                          const filtered = isAdmin ? allCc : allCc.filter((cc: any) => userAreaCompanyIds.includes(cc.company_id));
+                          return filtered.length > 0 ? (
+                            <div className="client-companies">
+                              {filtered.map((cc: any) => cc.company?.name || getCompanyName(cc.company_id)).join(', ')}
+                            </div>
+                          ) : (
+                            <span className="client-muted">-</span>
+                          );
+                        })()}
                       </td>
 
                       {/* Last Visit */}

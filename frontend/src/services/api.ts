@@ -419,6 +419,11 @@ class ApiService {
     return response.data;
   }
 
+  async getMyAreas() {
+    const response = await this.api.get<ApiResponse<any>>('/auth/my-areas');
+    return response.data;
+  }
+
   // Clients
   async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[]) {
     const response = await this.api.post<ApiResponse<any>>('/clients', {

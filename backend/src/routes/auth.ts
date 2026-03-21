@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { AuthService } from '../services/AuthService';
 import { UserService } from '../services/UserService';
+import { PermissionService } from '../services/PermissionService';
 import { authMiddleware } from '../middleware/auth';
 import { LoginRequest, RegisterRequest, ApiResponse } from '../types';
 
 const router = Router();
 const authService = new AuthService();
 const userService = new UserService();
+const permissionService = new PermissionService();
 
 router.post('/register', async (req: Request, res: Response) => {
   try {
@@ -123,6 +125,20 @@ router.patch('/password', authMiddleware, async (req: Request, res: Response) =>
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/auth/my-areas
+ * Get the current user's assigned companies and countries
+ */
+router.get('/my-areas', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    const areas = await permissionService.getUserAreas(userId);
+    res.json({ success: true, data: areas });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 

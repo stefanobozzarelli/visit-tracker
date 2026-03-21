@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { ClaimService } from '../services/ClaimService';
 import { S3Service } from '../services/S3Service';
+import { PermissionService } from '../services/PermissionService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 
 const router = Router();
 const claimService = new ClaimService();
 const s3Service = new S3Service();
+const permissionService = new PermissionService();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(authMiddleware);
@@ -34,12 +36,20 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const userId = (req.user as any)?.id;
     const { client_id, company_id, status } = req.query;
-    const claims = await claimService.getClaims({
+    let claims = await claimService.getClaims({
       client_id: client_id as string,
       company_id: company_id as string,
       status: status as string,
     });
+
+    // Filter claims by user's visible clients (non-admin)
+    const visibleClientIds = await permissionService.getVisibleClients(userId);
+    if (!visibleClientIds.includes('*')) {
+      claims = claims.filter(c => visibleClientIds.includes(c.client_id));
+    }
+
     res.json({ success: true, data: claims });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
