@@ -66,6 +66,7 @@ export const NewVisit: React.FC = () => {
 
   // Tasks loaded for the visit (edit mode)
   const [allTasks, setAllTasks] = useState<any[]>([]);
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -308,7 +309,10 @@ export const NewVisit: React.FC = () => {
   const visitLevelTasks = allTasks.filter(t => !t.visit_report_id);
   const getOrdersForReport = (companyId: string) => existingOrders.filter(o => o.supplier_id === companyId);
   const getNewOrdersForReport = (companyId: string) => newOrders.filter(o => o.supplier_id === companyId);
-  const handleTaskNavigate = (taskId: string) => navigate(`/todos/${taskId}`);
+  const handleTaskNavigate = (taskId: string) => {
+    setHighlightedTaskId(taskId);
+    setTimeout(() => navigate(`/todos/${taskId}`), 5000);
+  };
 
   const handleCreateClient = async () => {
     if (!newClientData.name || !newClientData.country) {
@@ -1009,7 +1013,7 @@ export const NewVisit: React.FC = () => {
                       </thead>
                       <tbody>
                         {getTasksForReport(existingReports[index].id).map((task: any) => (
-                          <tr key={task.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }} onClick={() => handleTaskNavigate(task.id)}>
+                          <tr key={task.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer', backgroundColor: highlightedTaskId === task.id ? '#d0e8ff' : 'transparent', transition: 'background-color 0.3s' }} onDoubleClick={() => handleTaskNavigate(task.id)}>
                             <td style={{ padding: '0.5rem', color: 'var(--color-info)' }}>{task.title}</td>
                             <td style={{ padding: '0.5rem' }}>{task.assigned_to_user?.name || ''}</td>
                             <td style={{ padding: '0.5rem' }}>{task.due_date ? new Date(task.due_date).toLocaleDateString('it-IT') : ''}</td>
@@ -1294,7 +1298,7 @@ export const NewVisit: React.FC = () => {
                   </thead>
                   <tbody>
                     {visitLevelTasks.map((task: any) => (
-                      <tr key={task.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }} onClick={() => handleTaskNavigate(task.id)}>
+                      <tr key={task.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer', backgroundColor: highlightedTaskId === task.id ? '#d0e8ff' : 'transparent', transition: 'background-color 0.3s' }} onDoubleClick={() => handleTaskNavigate(task.id)}>
                         <td style={{ padding: '0.5rem', color: 'var(--color-info)' }}>{task.title}</td>
                         <td style={{ padding: '0.5rem' }}>{task.assigned_to_user?.name || ''}</td>
                         <td style={{ padding: '0.5rem' }}>{task.due_date ? new Date(task.due_date).toLocaleDateString('it-IT') : ''}</td>
