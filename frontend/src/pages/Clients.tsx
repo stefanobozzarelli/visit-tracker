@@ -34,7 +34,7 @@ export const Clients: React.FC = () => {
   // Form
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', country: '', notes: '', role: 'cliente' });
+  const [formData, setFormData] = useState({ name: '', country: '', city: '', notes: '', role: 'cliente' });
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [isAddingCountry, setIsAddingCountry] = useState(false);
   const [newCountryInput, setNewCountryInput] = useState('');
@@ -215,7 +215,7 @@ export const Clients: React.FC = () => {
         await apiService.updateClient(editingId, { ...formData, company_ids: selectedCompanyIds });
         setSuccess('Client updated');
       } else {
-        await apiService.createClient(formData.name, formData.country, formData.notes, formData.role, selectedCompanyIds);
+        await apiService.createClient(formData.name, formData.country, formData.notes, formData.role, selectedCompanyIds, formData.city);
         setSuccess('Client created');
       }
       resetForm();
@@ -227,7 +227,7 @@ export const Clients: React.FC = () => {
 
   const handleEdit = (client: Client) => {
     setOpenMoreId(null);
-    setFormData({ name: client.name, country: client.country, notes: client.notes || '', role: (client as any).role || 'cliente' });
+    setFormData({ name: client.name, country: client.country, city: client.city || '', notes: client.notes || '', role: (client as any).role || 'cliente' });
     setSelectedCompanyIds((client as any).clientCompanies?.map((cc: any) => cc.company_id || cc.company?.id) || []);
     setEditingId(client.id);
     setShowForm(true);
@@ -252,7 +252,7 @@ export const Clients: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', country: '', notes: '', role: 'cliente' });
+    setFormData({ name: '', country: '', city: '', notes: '', role: 'cliente' });
     setSelectedCompanyIds([]);
     setEditingId(null);
     setShowForm(false);
@@ -327,6 +327,10 @@ export const Clients: React.FC = () => {
                     <option value="__add_new__">+ Add new country...</option>
                   </select>
                 )}
+              </div>
+              <div className="clients-form-group">
+                <label>City</label>
+                <input type="text" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="City..." />
               </div>
               <div className="clients-form-group">
                 <label>Type</label>
@@ -492,6 +496,7 @@ export const Clients: React.FC = () => {
                 <tr>
                   <th>Client</th>
                   <th>Country</th>
+                  <th>City</th>
                   <th>Type</th>
                   <th>Companies</th>
                   <th>Last Visit</th>
@@ -517,6 +522,9 @@ export const Clients: React.FC = () => {
 
                       {/* Country */}
                       <td><span className="client-country">{client.country}</span></td>
+
+                      {/* City */}
+                      <td>{client.city || <span className="client-muted">-</span>}</td>
 
                       {/* Role badge */}
                       <td>

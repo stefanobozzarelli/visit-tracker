@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { ClientService } from '../services/ClientService';
 import { PermissionService } from '../services/PermissionService';
 import { CompanyService } from '../services/CompanyService';
+import { S3Service } from '../services/S3Service';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateClientRequest, CreateContactRequest } from '../types';
@@ -10,6 +12,8 @@ const router = Router();
 const clientService = new ClientService();
 const permissionService = new PermissionService();
 const companyService = new CompanyService();
+const s3Service = new S3Service();
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(authMiddleware);
 
@@ -168,6 +172,78 @@ router.delete('/contacts/:contactId', async (req: Request, res: Response) => {
   try {
     await clientService.deleteContact(req.params.contactId);
     const response: ApiResponse<any> = { success: true, message: 'Contact deleted' };
+    res.json(response);
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Business card upload
+router.post('/:clientId/contacts/:contactId/business-card', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { contactId } = req.params;
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      return res.status(400).json({ success: false, error: 'Only image files and PDFs are accepted' });
+    }
+
+    const s3Key = `business-cards/${contactId}/${Date.now()}-${file.originalname}`;
+    await s3Service.uploadFile(s3Key, file.buffer, file.mimetype);
+
+    const contact = await clientService.updateContact(contactId, {
+      business_card_filename: file.originalname,
+      business_card_s3_key: s3Key,
+      business_card_file_size: file.size,
+    } as any);
+
+    const response: ApiResponse<any> = { success: true, data: contact };
+    res.json(response);
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Business card download (presigned URL)
+router.get('/:clientId/contacts/:contactId/business-card/download', async (req: Request, res: Response) => {
+  try {
+    const { contactId } = req.params;
+    const contacts = await clientService.getClientContacts(req.params.clientId);
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact || !contact.business_card_s3_key) {
+      return res.status(404).json({ success: false, error: 'Business card not found' });
+    }
+
+    const presignedUrl = await s3Service.getDownloadUrl(contact.business_card_s3_key);
+    const response: ApiResponse<any> = { success: true, data: { url: presignedUrl } };
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Business card delete
+router.delete('/:clientId/contacts/:contactId/business-card', async (req: Request, res: Response) => {
+  try {
+    const { contactId, clientId } = req.params;
+    const contacts = await clientService.getClientContacts(clientId);
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact || !contact.business_card_s3_key) {
+      return res.status(404).json({ success: false, error: 'Business card not found' });
+    }
+
+    await s3Service.deleteFile(contact.business_card_s3_key);
+    await clientService.updateContact(contactId, {
+      business_card_filename: null,
+      business_card_s3_key: null,
+      business_card_file_size: null,
+    } as any);
+
+    const response: ApiResponse<any> = { success: true, message: 'Business card deleted' };
     res.json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });

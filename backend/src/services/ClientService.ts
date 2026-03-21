@@ -11,6 +11,7 @@ export class ClientService {
     const client = new Client();
     client.name = data.name;
     client.country = data.country;
+    client.city = data.city || null;
     client.notes = data.notes || null;
     client.role = (data.role as ClientRole) || ClientRole.CLIENTE;
     return await this.clientRepository.save(client);
@@ -37,6 +38,7 @@ export class ClientService {
     const updateData: any = {};
     if (data.name) updateData.name = data.name;
     if (data.country) updateData.country = data.country;
+    if (data.city !== undefined) updateData.city = data.city;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.role) updateData.role = data.role;
 

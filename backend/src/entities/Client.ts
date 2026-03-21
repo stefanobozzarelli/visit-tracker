@@ -21,6 +21,9 @@ export class Client {
   @Column()
   country: string;
 
+  @Column({ nullable: true })
+  city: string;
+
   @Column({ nullable: true, type: 'text' })
   notes: string;
 

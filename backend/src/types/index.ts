@@ -27,6 +27,7 @@ export interface ApiResponse<T> {
 export interface CreateClientRequest {
   name: string;
   country: string;
+  city?: string;
   notes?: string;
   role?: string; // 'cliente', 'developer', 'architetto-designer'
 }

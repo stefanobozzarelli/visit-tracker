@@ -425,10 +425,11 @@ class ApiService {
   }
 
   // Clients
-  async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[]) {
+  async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[], city?: string) {
     const response = await this.api.post<ApiResponse<any>>('/clients', {
       name,
       country,
+      city,
       notes,
       role,
       company_ids,
@@ -473,6 +474,27 @@ class ApiService {
 
   async deleteClientContact(contactId: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/clients/contacts/${contactId}`);
+    return response.data;
+  }
+
+  async uploadBusinessCard(clientId: string, contactId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post(`/clients/${clientId}/contacts/${contactId}/business-card`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    this.memoryCache.clear();
+    return response.data;
+  }
+
+  async downloadBusinessCard(clientId: string, contactId: string) {
+    const response = await this.api.get(`/clients/${clientId}/contacts/${contactId}/business-card/download`);
+    return response.data;
+  }
+
+  async deleteBusinessCard(clientId: string, contactId: string) {
+    const response = await this.api.delete(`/clients/${clientId}/contacts/${contactId}/business-card`);
+    this.memoryCache.clear();
     return response.data;
   }
 

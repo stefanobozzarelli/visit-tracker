@@ -55,6 +55,10 @@ export const ClientDetail: React.FC = () => {
   }, [todos, id]);
 
   const relatedCompanies = useMemo(() => {
+    const cc = (client as any)?.clientCompanies;
+    if (cc && cc.length > 0) {
+      return cc.map((c: any) => c.company?.name || getCompanyName(c.company_id)).filter((n: string) => n !== '-');
+    }
     const ids = new Set<string>();
     for (const v of visits.filter(v => v.client_id === id)) {
       for (const r of (v.reports || [])) {
@@ -62,7 +66,7 @@ export const ClientDetail: React.FC = () => {
       }
     }
     return [...ids].map(cid => getCompanyName(cid)).filter(n => n !== '-');
-  }, [visits, id, companies]);
+  }, [client, visits, id, companies]);
 
   // ---- Contact handlers ----
   const handleContactSubmit = async (e: React.FormEvent) => {
@@ -125,7 +129,7 @@ export const ClientDetail: React.FC = () => {
           </button>
           <h1>{client.name}</h1>
           <div className="cd-header-meta">
-            <span className="cd-header-country">{client.country}</span>
+            <span className="cd-header-country">{client.country}{client.city ? `, ${client.city}` : ''}</span>
             <span className={`cd-role-badge role-${role === 'architetto-designer' ? 'architect' : role === 'developer' ? 'developer' : 'client'}`}>
               {roleLabels[role] || 'Client'}
             </span>
@@ -169,30 +173,11 @@ export const ClientDetail: React.FC = () => {
         <div className="cd-card">
           <div className="cd-card-header">
             <h3>Contacts ({contacts.length})</h3>
-            <button className="cd-btn-add" onClick={() => { resetContactForm(); setShowContactForm(true); }}>+ Add Contact</button>
+            <button className="cd-btn-add" onClick={() => navigate(`/clients/${id}`, { state: { editContacts: true } })}>Edit Contacts</button>
           </div>
 
-          {showContactForm && (
-            <div className="cd-contact-form">
-              <form onSubmit={handleContactSubmit}>
-                <div className="cd-form-grid">
-                  <div className="cd-form-group"><label>Name *</label><input type="text" value={contactForm.name} onChange={e => setContactForm({ ...contactForm, name: e.target.value })} required /></div>
-                  <div className="cd-form-group"><label>Role / Title</label><input type="text" value={contactForm.role} onChange={e => setContactForm({ ...contactForm, role: e.target.value })} placeholder="e.g. Sales Manager" /></div>
-                  <div className="cd-form-group"><label>Email</label><input type="email" value={contactForm.email} onChange={e => setContactForm({ ...contactForm, email: e.target.value })} /></div>
-                  <div className="cd-form-group"><label>Phone</label><input type="tel" value={contactForm.phone} onChange={e => setContactForm({ ...contactForm, phone: e.target.value })} /></div>
-                  <div className="cd-form-group"><label>WeChat</label><input type="text" value={contactForm.wechat} onChange={e => setContactForm({ ...contactForm, wechat: e.target.value })} /></div>
-                  <div className="cd-form-group"><label>Notes</label><input type="text" value={contactForm.notes} onChange={e => setContactForm({ ...contactForm, notes: e.target.value })} /></div>
-                </div>
-                <div className="cd-form-actions">
-                  <button type="submit" className="cd-btn-save">{editingContactId ? 'Save' : 'Add Contact'}</button>
-                  <button type="button" className="cd-btn-cancel" onClick={resetContactForm}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {contacts.length === 0 && !showContactForm ? (
-            <div className="cd-empty">No contacts yet</div>
+          {contacts.length === 0 ? (
+            <div className="cd-empty">No contacts yet — use Edit to add contacts</div>
           ) : (
             <div className="cd-contacts-list">
               {contacts.map(contact => (
@@ -206,10 +191,23 @@ export const ClientDetail: React.FC = () => {
                     {contact.phone && <div className="cd-contact-field"><span className="cd-field-label">Phone</span> <a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
                     {contact.wechat && <div className="cd-contact-field"><span className="cd-field-label">WeChat</span> {contact.wechat}</div>}
                     {contact.notes && <div className="cd-contact-field"><span className="cd-field-label">Notes</span> {contact.notes}</div>}
-                  </div>
-                  <div className="cd-contact-actions">
-                    <button className="cd-contact-btn" onClick={() => handleEditContact(contact)}>Edit</button>
-                    <button className="cd-contact-btn danger" onClick={() => setDeleteContactConfirm(contact)}>Delete</button>
+                    {(contact as any).business_card_filename && (
+                      <div className="cd-contact-field">
+                        <span className="cd-field-label">Business Card</span>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await apiService.downloadBusinessCard(id!, contact.id);
+                              if (res.success && res.data?.url) window.open(res.data.url, '_blank');
+                            } catch {}
+                          }}
+                          style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline' }}
+                        >
+                          {(contact as any).business_card_filename}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -270,19 +268,7 @@ export const ClientDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Delete contact modal */}
-      {deleteContactConfirm && (
-        <div className="cd-modal-overlay" onClick={() => setDeleteContactConfirm(null)}>
-          <div className="cd-modal" onClick={e => e.stopPropagation()}>
-            <h2>Delete Contact</h2>
-            <p>Delete <strong>{deleteContactConfirm.name}</strong>?</p>
-            <div className="cd-modal-actions">
-              <button className="cd-btn-cancel" onClick={() => setDeleteContactConfirm(null)}>Cancel</button>
-              <button className="cd-btn-danger" onClick={handleDeleteContact}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Contact management is in the Edit page (Clients.tsx) */}
     </div>
   );
 };

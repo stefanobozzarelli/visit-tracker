@@ -22,6 +22,7 @@ export interface Client {
   id: string;
   name: string;
   country: string;
+  city?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -37,6 +38,9 @@ export interface ClientContact {
   phone?: string;
   wechat?: string;
   notes?: string;
+  business_card_filename?: string;
+  business_card_s3_key?: string;
+  business_card_file_size?: number;
   client_id: string;
 }
 

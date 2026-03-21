@@ -40,6 +40,20 @@ export class S3Service {
     }
   }
 
+  async uploadFile(s3Key: string, buffer: Buffer, contentType: string): Promise<void> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: s3Key,
+      Body: buffer,
+      ContentType: contentType,
+    });
+    try {
+      await this.s3Client.send(command);
+    } catch (error) {
+      throw new Error(`Failed to upload file to S3: ${(error as Error).message}`);
+    }
+  }
+
   async deleteFile(s3Key: string): Promise<void> {
     const command = new DeleteObjectCommand({
       Bucket: this.bucketName,
