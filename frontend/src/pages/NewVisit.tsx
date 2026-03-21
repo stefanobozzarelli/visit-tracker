@@ -886,7 +886,7 @@ export const NewVisit: React.FC = () => {
                     title={!isEditMode ? 'Save visit first to add orders' : undefined}
                     onClick={() => {
                       if (!isEditMode) return;
-                      setShowOrderForm(true);
+                      handleAddOrder();
                     }}
                     style={{
                       padding: '0.5rem 0.75rem',
