@@ -310,7 +310,7 @@ export const CompanyVisits: React.FC = () => {
                             className="cv-action-btn danger"
                             onClick={() => handleDelete(visit.id)}
                           >
-                            Del
+                            Delete
                           </button>
                         )}
                       </div>

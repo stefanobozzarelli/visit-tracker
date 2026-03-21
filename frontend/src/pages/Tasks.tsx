@@ -653,7 +653,7 @@ export const Tasks: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td>
+                      <td onClick={e => e.stopPropagation()}>
                         <div className="task-actions">
                           <button
                             className="task-action-btn primary"
@@ -661,27 +661,12 @@ export const Tasks: React.FC = () => {
                           >
                             Edit
                           </button>
-                          <div
-                            className="task-more-wrap"
-                            ref={openMoreId === todo.id ? moreRef : undefined}
+                          <button
+                            className="task-action-btn danger"
+                            onClick={() => handleDelete(todo.id)}
                           >
-                            <button
-                              className="task-more-btn"
-                              onClick={() => setOpenMoreId(openMoreId === todo.id ? null : todo.id)}
-                            >
-                              &#x22EE;
-                            </button>
-                            {openMoreId === todo.id && (
-                              <div className="task-more-menu">
-                                <button
-                                  className="task-more-item danger"
-                                  onClick={() => handleDelete(todo.id)}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>

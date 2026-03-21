@@ -276,7 +276,7 @@ export const Projects: React.FC = () => {
             </thead>
             <tbody>
               {filteredProjects.map(p => (
-                <tr key={p.id} id={`project-${p.id}`} className={highlightId === p.id ? 'highlighted' : ''} onClick={() => navigate(`/projects/${p.id}/edit`)}>
+                <tr key={p.id} id={`project-${p.id}`} className={highlightId === p.id ? 'highlighted' : ''} onDoubleClick={() => navigate(`/projects/${p.id}/edit`)} style={{ cursor: 'pointer' }}>
                   <td>{p.project_number}</td>
                   <td>
                     <div className="project-name-cell">{p.project_name || '-'}</div>
@@ -299,7 +299,7 @@ export const Projects: React.FC = () => {
                     <div className="projects-actions">
                       <button className="projects-btn" onClick={() => navigate(`/projects/${p.id}/edit`)}>Edit</button>
                       {(user?.role === 'admin' || user?.role === 'master_admin') && (
-                        <button className="projects-btn delete" onClick={() => { setDeleteConfirm(p); setDeleteChecked(false); }}>Del</button>
+                        <button className="projects-btn delete" onClick={() => { setDeleteConfirm(p); setDeleteChecked(false); }}>Delete</button>
                       )}
                     </div>
                   </td>

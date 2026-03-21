@@ -562,7 +562,7 @@ export const Clients: React.FC = () => {
                   const contactCount = client.contacts?.length || 0;
 
                   return (
-                    <tr key={client.id}>
+                    <tr key={client.id} onDoubleClick={() => navigate(`/clients/${client.id}`)} style={{ cursor: 'pointer' }}>
                       {/* Client name */}
                       <td className="client-name-cell">
                         <div className="client-name">{client.name}</div>
@@ -625,7 +625,7 @@ export const Clients: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td>
+                      <td onClick={e => e.stopPropagation()}>
                         <div className="client-actions">
                           <button
                             className="client-action-btn primary"
@@ -639,38 +639,14 @@ export const Clients: React.FC = () => {
                           >
                             Edit
                           </button>
-                          <div
-                            className="client-more-wrap"
-                            ref={openMoreId === client.id ? moreRef : undefined}
-                          >
+                          {isAdmin && (
                             <button
-                              className="client-more-btn"
-                              onClick={() => setOpenMoreId(openMoreId === client.id ? null : client.id)}
+                              className="client-action-btn danger"
+                              onClick={() => handleDelete(client)}
                             >
-                              &#x22EE;
+                              Delete
                             </button>
-                            {openMoreId === client.id && (
-                              <div className="client-more-menu">
-                                <button
-                                  className="client-more-item"
-                                  onClick={() => { setOpenMoreId(null); navigate(`/visits/new`); }}
-                                >
-                                  Register Visit
-                                </button>
-                                {isAdmin && (
-                                  <>
-                                    <div className="client-more-divider" />
-                                    <button
-                                      className="client-more-item danger"
-                                      onClick={() => handleDelete(client)}
-                                    >
-                                      Delete
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </td>
                     </tr>

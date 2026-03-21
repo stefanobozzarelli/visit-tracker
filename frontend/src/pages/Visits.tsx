@@ -695,6 +695,12 @@ export const Visits: React.FC = () => {
                           >
                             Edit
                           </button>
+                          <button
+                            className="visit-action-btn danger"
+                            onClick={() => handleDelete(visit.id)}
+                          >
+                            Delete
+                          </button>
                           <div
                             className="visit-more-wrap"
                             ref={openMoreId === visit.id ? moreRef : undefined}
@@ -709,22 +715,9 @@ export const Visits: React.FC = () => {
                               <div className="visit-more-menu">
                                 <button
                                   className="visit-more-item"
-                                  onClick={() => { setOpenMoreId(null); navigate(`/visits/${visit.id}`); }}
-                                >
-                                  Open Report
-                                </button>
-                                <button
-                                  className="visit-more-item"
                                   onClick={() => { setOpenMoreId(null); navigate('/todos/new'); }}
                                 >
                                   Create Follow-up
-                                </button>
-                                <div className="visit-more-divider" />
-                                <button
-                                  className="visit-more-item danger"
-                                  onClick={() => handleDelete(visit.id)}
-                                >
-                                  Delete
                                 </button>
                               </div>
                             )}

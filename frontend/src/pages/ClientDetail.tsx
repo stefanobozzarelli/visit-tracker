@@ -198,7 +198,10 @@ export const ClientDetail: React.FC = () => {
           <div className="cd-card">
             <div className="cd-card-header">
               <h3>Recent Visits</h3>
-              <button className="cd-link" onClick={() => navigate('/visits')}>View all</button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className="cd-link" onClick={() => navigate(`/visits/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate('/visits')}>View all</button>
+              </div>
             </div>
             {clientVisits.length === 0 ? (
               <div className="cd-empty">No visits recorded</div>
@@ -226,7 +229,10 @@ export const ClientDetail: React.FC = () => {
           <div className="cd-card">
             <div className="cd-card-header">
               <h3>Tasks ({openTodos.length})</h3>
-              <button className="cd-link" onClick={() => navigate('/tasks')}>View all</button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className="cd-link" onClick={() => navigate(`/tasks/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate('/tasks')}>View all</button>
+              </div>
             </div>
             {openTodos.length === 0 ? (
               <div className="cd-empty">No tasks</div>
@@ -247,7 +253,10 @@ export const ClientDetail: React.FC = () => {
           <div className="cd-card">
             <div className="cd-card-header">
               <h3>Projects ({clientProjects.length})</h3>
-              <button className="cd-link" onClick={() => navigate('/projects')}>View all</button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className="cd-link" onClick={() => navigate(`/projects/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate('/projects')}>View all</button>
+              </div>
             </div>
             {clientProjects.length === 0 ? (
               <div className="cd-empty">No projects yet</div>
@@ -268,7 +277,10 @@ export const ClientDetail: React.FC = () => {
           <div className="cd-card">
             <div className="cd-card-header">
               <h3>Claims ({clientClaims.length})</h3>
-              <button className="cd-link" onClick={() => navigate('/claims')}>View all</button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className="cd-link" onClick={() => navigate(`/claims/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate('/claims')}>View all</button>
+              </div>
             </div>
             {clientClaims.length === 0 ? (
               <div className="cd-empty">No claims yet</div>
