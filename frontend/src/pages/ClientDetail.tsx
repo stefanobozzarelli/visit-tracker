@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
-import { Client, ClientContact, Visit, TodoItem, Company } from '../types';
+import { Client, ClientContact, Visit, TodoItem, Company, Project, Claim } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
 import '../styles/ClientDetail.css';
 
@@ -19,6 +19,8 @@ export const ClientDetail: React.FC = () => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [claims, setClaims] = useState<Claim[]>([]);
   const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,7 @@ export const ClientDetail: React.FC = () => {
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState(EMPTY_CONTACT);
   const [deleteContactConfirm, setDeleteContactConfirm] = useState<ClientContact | null>(null);
+  const [showContactsModal, setShowContactsModal] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
   useEffect(() => {
@@ -44,6 +47,8 @@ export const ClientDetail: React.FC = () => {
       try { const r = await apiService.getVisits({ client_id: id }); if (r.success && r.data) setVisits(r.data); } catch {}
       try { const r = await apiService.getTodos({ clientId: id }); if (r.success) setTodos(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getCompanies(); if (r.success && r.data) setCompanies(r.data); } catch {}
+      try { const r = await apiService.getProjects({ client_id: id }); if (r.success) setProjects(Array.isArray(r.data) ? r.data : []); } catch {}
+      try { const r = await apiService.getClaims({ client_id: id }); if (r.success) setClaims(Array.isArray(r.data) ? r.data : []); } catch {}
       if (!isAdmin) {
         try { const r = await apiService.getMyAreas(); if (r.success && r.data) setUserAreaCompanyIds(r.data.companies?.map((c: any) => c.id) || []); } catch {}
       }
@@ -60,6 +65,16 @@ export const ClientDetail: React.FC = () => {
   const openTodos = useMemo(() => {
     return todos.filter(t => t.client_id === id && t.status !== 'done' && t.status !== 'completed');
   }, [todos, id]);
+
+  const clientProjects = useMemo(() => {
+    return projects.filter(p => p.client_id === id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+  }, [projects, id]);
+
+  const clientClaims = useMemo(() => {
+    return claims.filter(c => c.client_id === id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+  }, [claims, id]);
 
   const relatedCompanies = useMemo(() => {
     let cc = (client as any)?.clientCompanies || [];
@@ -165,10 +180,10 @@ export const ClientDetail: React.FC = () => {
           <div className="cd-info-label">Open Follow-ups</div>
           <div className={`cd-info-value${openTodos.length > 0 ? ' alert' : ''}`}>{openTodos.length}</div>
         </div>
-        <div className="cd-info-card">
+        <button className="cd-info-card cd-info-card-clickable" onClick={() => setShowContactsModal(true)} style={{ cursor: 'pointer', border: 'none', background: 'inherit', padding: 'inherit' }}>
           <div className="cd-info-label">Contacts</div>
           <div className="cd-info-value">{contacts.length}</div>
-        </div>
+        </button>
       </div>
 
       {client.notes && (
@@ -178,55 +193,8 @@ export const ClientDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Two columns: Contacts + Recent Visits */}
-      <div className="cd-columns">
-        {/* Contacts section */}
-        <div className="cd-card">
-          <div className="cd-card-header">
-            <h3>Contacts ({contacts.length})</h3>
-          </div>
-
-          {contacts.length === 0 ? (
-            <div className="cd-empty">No contacts yet — use Edit to add contacts</div>
-          ) : (
-            <div className="cd-contacts-list">
-              {contacts.map(contact => (
-                <div key={contact.id} className="cd-contact-card">
-                  <div className="cd-contact-main">
-                    <div className="cd-contact-name">{contact.name}</div>
-                    {contact.role && <div className="cd-contact-role">{contact.role}</div>}
-                  </div>
-                  <div className="cd-contact-details">
-                    {contact.email && <div className="cd-contact-field"><span className="cd-field-label">Email</span> <a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
-                    {contact.phone && <div className="cd-contact-field"><span className="cd-field-label">Phone</span> <a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
-                    {contact.wechat && <div className="cd-contact-field"><span className="cd-field-label">WeChat</span> {contact.wechat}</div>}
-                    {contact.notes && <div className="cd-contact-field"><span className="cd-field-label">Notes</span> {contact.notes}</div>}
-                    {(contact as any).business_card_filename && (
-                      <div className="cd-contact-field">
-                        <span className="cd-field-label">Business Card</span>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const res = await apiService.downloadBusinessCard(id!, contact.id);
-                              if (res.success && res.data?.url) window.open(res.data.url, '_blank');
-                            } catch {}
-                          }}
-                          style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline' }}
-                        >
-                          {(contact as any).business_card_filename}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right column */}
-        <div className="cd-right-col">
+      {/* Sections */}
+      <div className="cd-right-col">
           <div className="cd-card">
             <div className="cd-card-header">
               <h3>Recent Visits</h3>
@@ -275,10 +243,98 @@ export const ClientDetail: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Contact management is in the Edit page (Clients.tsx) */}
+          <div className="cd-card">
+            <div className="cd-card-header">
+              <h3>Projects ({clientProjects.length})</h3>
+              <button className="cd-link" onClick={() => navigate('/projects')}>View all</button>
+            </div>
+            {clientProjects.length === 0 ? (
+              <div className="cd-empty">No projects yet</div>
+            ) : (
+              <div className="cd-list">
+                {clientProjects.map(p => (
+                  <div key={p.id} className="cd-list-item" onClick={() => navigate('/projects')}>
+                    <div className="cd-list-main">
+                      <div className="cd-list-title">{p.project_name || `Project #${p.project_number}`}</div>
+                      <div className="cd-list-sub">{p.status}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="cd-card">
+            <div className="cd-card-header">
+              <h3>Claims ({clientClaims.length})</h3>
+              <button className="cd-link" onClick={() => navigate('/claims')}>View all</button>
+            </div>
+            {clientClaims.length === 0 ? (
+              <div className="cd-empty">No claims yet</div>
+            ) : (
+              <div className="cd-list">
+                {clientClaims.map(c => (
+                  <div key={c.id} className="cd-list-item" onClick={() => navigate('/claims')}>
+                    <div className="cd-list-main">
+                      <div className="cd-list-title">{formatDate(c.date)}</div>
+                      <div className="cd-list-sub">{c.status}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+      {/* Contacts Modal */}
+      {showContactsModal && (
+        <div className="cd-modal-overlay" onClick={() => setShowContactsModal(false)}>
+          <div className="cd-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="cd-modal-header">
+              <h3>Contacts ({contacts.length})</h3>
+              <button className="cd-modal-close" onClick={() => setShowContactsModal(false)}>×</button>
+            </div>
+            {contacts.length === 0 ? (
+              <div className="cd-empty">No contacts yet</div>
+            ) : (
+              <div className="cd-contacts-list">
+                {contacts.map(contact => (
+                  <div key={contact.id} className="cd-contact-card">
+                    <div className="cd-contact-main">
+                      <div className="cd-contact-name">{contact.name}</div>
+                      {contact.role && <div className="cd-contact-role">{contact.role}</div>}
+                    </div>
+                    <div className="cd-contact-details">
+                      {contact.email && <div className="cd-contact-field"><span className="cd-field-label">Email</span> <a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
+                      {contact.phone && <div className="cd-contact-field"><span className="cd-field-label">Phone</span> <a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
+                      {contact.wechat && <div className="cd-contact-field"><span className="cd-field-label">WeChat</span> {contact.wechat}</div>}
+                      {contact.notes && <div className="cd-contact-field"><span className="cd-field-label">Notes</span> {contact.notes}</div>}
+                      {(contact as any).business_card_filename && (
+                        <div className="cd-contact-field">
+                          <span className="cd-field-label">Business Card</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await apiService.downloadBusinessCard(id!, contact.id);
+                                if (res.success && res.data?.url) window.open(res.data.url, '_blank');
+                              } catch {}
+                            }}
+                            style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline' }}
+                          >
+                            {(contact as any).business_card_filename}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -24,6 +24,8 @@
 /* Info row */
 .cd-info-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
 .cd-info-card { background: var(--color-white); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 0.75rem 1rem; box-shadow: var(--shadow-xs); }
+.cd-info-card-clickable { transition: all 0.15s ease; }
+.cd-info-card-clickable:hover { border-color: var(--color-border-strong); box-shadow: var(--shadow-sm); }
 .cd-info-label { font-size: 0.688rem; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.25rem; }
 .cd-info-value { font-size: 0.875rem; font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
 .cd-info-value.alert { color: var(--color-error); }
@@ -99,6 +101,13 @@
 .cd-modal p { font-size: 0.813rem; color: var(--color-text-secondary); }
 .cd-modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
 .cd-btn-danger { padding: 0.4rem 0.625rem; background: var(--color-error); color: #fff; border: none; border-radius: var(--radius-md); font-size: 0.813rem; font-family: inherit; cursor: pointer; }
+
+/* Contacts Modal */
+.cd-modal-content { background: var(--color-white); border-radius: var(--radius-lg); padding: 1.25rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-xl); }
+.cd-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.75rem; }
+.cd-modal-header h3 { margin: 0; font-size: 1.125rem; font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.cd-modal-close { background: none; border: none; font-size: 1.5rem; color: var(--color-text-tertiary); cursor: pointer; padding: 0; transition: color 0.15s ease; }
+.cd-modal-close:hover { color: var(--color-text-primary); }
 
 /* Responsive */
 @media (max-width: 1024px) { .cd-info-row { grid-template-columns: repeat(2, 1fr); } }
