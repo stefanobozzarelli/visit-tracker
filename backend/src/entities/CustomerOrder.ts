@@ -7,7 +7,8 @@ import { CustomerOrderItem } from './CustomerOrderItem';
 export enum OrderStatus {
   DRAFT = 'draft',
   CONFIRMED = 'confirmed',
-  COMPLETED = 'completed'
+  COMPLETED = 'completed',
+  SHIPPED = 'shipped'
 }
 
 @Entity('customer_orders')
