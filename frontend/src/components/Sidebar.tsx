@@ -8,6 +8,7 @@ const DEFAULT_MENU_ORDER = [
   'dashboard',
   'contacts',
   'visits',
+  'orders',
   'companies',
   'company-visits',
   'tasks',
@@ -21,6 +22,7 @@ type MenuItemKey = typeof DEFAULT_MENU_ORDER[number];
 const MENU_ITEMS: Record<MenuItemKey, { path: string; label: string; icon: string }> = {
   dashboard: { path: '/dashboard', label: 'Dashboard', icon: '◊' },
   visits: { path: '/visits', label: 'Client Meetings', icon: '📅' },
+  orders: { path: '/orders', label: 'Orders', icon: '📦' },
   'company-visits': { path: '/company-visits', label: 'Supplier Meetings', icon: '🏢' },
   companies: { path: '/companies', label: 'Suppliers', icon: '🏠' },
   contacts: { path: '/contacts', label: 'Clients', icon: '👥' },

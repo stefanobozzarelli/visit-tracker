@@ -35,6 +35,7 @@ import { CompanyDetail } from './pages/CompanyDetail';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { TodoDetail } from './pages/TodoDetail';
 import { ClaimDetail } from './pages/ClaimDetail';
+import { Orders } from './pages/Orders';
 import './styles/App.css';
 
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -87,6 +88,7 @@ const AppContent: React.FC = () => {
           <Route path="/todos/new" element={<TodoForm />} />
           <Route path="/todos/:id" element={<TodoDetail />} />
           <Route path="/todos/edit/:id" element={<TodoForm />} />
+          <Route path="/orders" element={<Orders />} />
           <Route path="/orders/new/:visitId" element={<OrderForm />} />
           <Route path="/orders/:id/edit" element={<OrderForm />} />
         </Route>
