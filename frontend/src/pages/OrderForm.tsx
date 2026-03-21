@@ -7,8 +7,10 @@ import '../styles/OrderForm.css';
 
 export const OrderForm: React.FC = () => {
   const navigate = useNavigate();
-  const { visitId, id } = useParams<{ visitId?: string; id?: string }>();
+  const { visitId: urlVisitId, id } = useParams<{ visitId?: string; id?: string }>();
   const isEditMode = !!id;
+  // In edit mode, visitId comes from the loaded order; in create mode, from URL params
+  const [resolvedVisitId, setResolvedVisitId] = useState<string | undefined>(urlVisitId);
 
   const [visit, setVisit] = useState<Visit | null>(null);
   const [order, setOrder] = useState<CustomerOrder | null>(null);
@@ -60,8 +62,9 @@ export const OrderForm: React.FC = () => {
               status: existingOrder.status || 'draft',
             });
 
-            // Load visit data if available
+            // Set resolved visit ID from order data
             if (existingOrder.visit_id) {
+              setResolvedVisitId(existingOrder.visit_id);
               const visitResponse = await apiService.getVisit(existingOrder.visit_id);
               if (visitResponse.success && visitResponse.data) {
                 setVisit(visitResponse.data);
@@ -70,9 +73,9 @@ export const OrderForm: React.FC = () => {
           } else {
             setError('Ordine non trovato');
           }
-        } else if (visitId) {
+        } else if (urlVisitId) {
           // Create mode: load visit data
-          const visitResponse = await apiService.getVisit(visitId);
+          const visitResponse = await apiService.getVisit(urlVisitId);
           if (visitResponse.success && visitResponse.data) {
             setVisit(visitResponse.data);
             // Pre-fill order date with visit date
@@ -87,10 +90,10 @@ export const OrderForm: React.FC = () => {
       }
     };
 
-    if (visitId || id) {
+    if (urlVisitId || id) {
       loadData();
     }
-  }, [visitId, id, isEditMode]);
+  }, [urlVisitId, id, isEditMode]);
 
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -174,7 +177,8 @@ export const OrderForm: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      if (!visitId) {
+      const activeVisitId = resolvedVisitId || urlVisitId;
+      if (!activeVisitId) {
         setError('Visita non trovata');
         return;
       }
@@ -201,13 +205,13 @@ export const OrderForm: React.FC = () => {
         if (response.success) {
           setSuccess('Ordine aggiornato con successo');
           setTimeout(() => {
-            navigate(`/visits/${visitId}`);
+            navigate(`/visits/${activeVisitId}`);
           }, 1500);
         }
       } else {
         // Create new order
         const response = await apiService.createOrder({
-          visit_id: visitId,
+          visit_id: activeVisitId,
           supplier_id: selectedCompany.id,
           supplier_name: selectedCompany.name,
           client_id: visit!.client_id,
@@ -241,7 +245,7 @@ export const OrderForm: React.FC = () => {
         if (response.success) {
           setSuccess('Ordine eliminato');
           setTimeout(() => {
-            navigate(`/visits/${visitId}`);
+            navigate(resolvedVisitId ? `/visits/${resolvedVisitId}` : '/visits');
           }, 1500);
         }
       }
@@ -310,7 +314,7 @@ export const OrderForm: React.FC = () => {
       <div className="order-form-container">
         <div className="order-header">
           <h1>📦 {order ? 'Modifica' : 'Crea'} Ordine Cliente</h1>
-          <button onClick={() => navigate(`/visits/${visitId}`)} className="btn-back">← Indietro</button>
+          <button onClick={() => navigate(resolvedVisitId ? `/visits/${resolvedVisitId}` : '/visits')} className="btn-back">← Indietro</button>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -445,7 +449,7 @@ export const OrderForm: React.FC = () => {
           )}
 
           <button
-            onClick={() => navigate(`/visits/${visitId}`)}
+            onClick={() => navigate(resolvedVisitId ? `/visits/${resolvedVisitId}` : '/visits')}
             disabled={isLoading}
             className="btn-cancel"
           >

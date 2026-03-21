@@ -64,6 +64,9 @@ export const NewVisit: React.FC = () => {
   // Report-level attachments: map from report index to files
   const [reportAttachments, setReportAttachments] = useState<{ [reportIdx: number]: File[] }>({});
 
+  // Tasks loaded for the visit (edit mode)
+  const [allTasks, setAllTasks] = useState<any[]>([]);
+
   useEffect(() => {
     loadData();
     if (isEditMode && editId) {
@@ -181,6 +184,26 @@ export const NewVisit: React.FC = () => {
         } catch (orderErr) {
           console.warn('[NewVisit] Failed to load orders:', orderErr);
         }
+
+        // Load tasks for this visit
+        try {
+          const visit = res.data;
+          const todosRes = await apiService.getTodos({ clientId: visit.client_id });
+          if (todosRes.success && todosRes.data) {
+            const all = Array.isArray(todosRes.data) ? todosRes.data : [];
+            const reportIds = (visit.reports || []).map((r: any) => r.id);
+            const reportTasks = all.filter((t: any) => t.visit_report_id && reportIds.includes(t.visit_report_id));
+            const generalTasks = all.filter((t: any) =>
+              !t.visit_report_id && (
+                t.visit_id === visitId ||
+                (!t.visit_id && !t.claim_id)
+              )
+            );
+            setAllTasks([...reportTasks, ...generalTasks]);
+          }
+        } catch (taskErr) {
+          console.warn('[NewVisit] Failed to load tasks:', taskErr);
+        }
       }
     } catch (err) {
       setError('Error loading visit');
@@ -226,13 +249,14 @@ export const NewVisit: React.FC = () => {
   };
 
   // Order management functions
-  const handleAddOrder = () => {
+  const handleAddOrder = (companyId?: string) => {
+    const company = companyId ? companies.find(c => c.id === companyId) : undefined;
     const newOrderIdx = newOrders.length;
     setNewOrders([
       ...newOrders,
       {
-        supplier_id: '',
-        supplier_name: '',
+        supplier_id: companyId || '',
+        supplier_name: company?.name || '',
         order_date: new Date().toISOString().split('T')[0],
         payment_method: 'transfer',
         notes: '',
@@ -278,6 +302,13 @@ export const NewVisit: React.FC = () => {
       [reportIdx]: (prev[reportIdx] || []).filter((_, i) => i !== fileIdx),
     }));
   };
+
+  // Task and order helpers - match to reports
+  const getTasksForReport = (reportId: string) => allTasks.filter(t => t.visit_report_id === reportId);
+  const visitLevelTasks = allTasks.filter(t => !t.visit_report_id);
+  const getOrdersForReport = (companyId: string) => existingOrders.filter(o => o.supplier_id === companyId);
+  const getNewOrdersForReport = (companyId: string) => newOrders.filter(o => o.supplier_id === companyId);
+  const handleTaskNavigate = (taskId: string) => navigate(`/todos/${taskId}`);
 
   const handleCreateClient = async () => {
     if (!newClientData.name || !newClientData.country) {
@@ -896,7 +927,7 @@ export const NewVisit: React.FC = () => {
                     title={!isEditMode ? 'Save visit first to add orders' : undefined}
                     onClick={() => {
                       if (!isEditMode) return;
-                      handleAddOrder();
+                      handleAddOrder(report.companyId);
                     }}
                     style={{
                       padding: '0.5rem 0.75rem',
@@ -994,6 +1025,115 @@ export const NewVisit: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Tasks for this report (edit mode - read-only display) */}
+              {isEditMode && existingReports[index]?.id && (() => {
+                const reportTasks = getTasksForReport(existingReports[index].id);
+                return reportTasks.length > 0 ? (
+                  <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                    <strong style={{ fontSize: '0.875rem' }}>Tasks ({reportTasks.length})</strong>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e0e0e0', textAlign: 'left' }}>
+                          <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Task</th>
+                          <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Assigned To</th>
+                          <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Due Date</th>
+                          <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportTasks.map((task: any) => (
+                          <tr key={task.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }} onClick={() => handleTaskNavigate(task.id)}>
+                            <td style={{ padding: '0.5rem', color: 'var(--color-info)' }}>{task.title}</td>
+                            <td style={{ padding: '0.5rem' }}>{task.assigned_to_user?.name || ''}</td>
+                            <td style={{ padding: '0.5rem' }}>{task.due_date ? new Date(task.due_date).toLocaleDateString('it-IT') : ''}</td>
+                            <td style={{ padding: '0.5rem' }}>{task.status || 'todo'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Orders for this report's supplier (edit mode) */}
+              {isEditMode && report.companyId && (() => {
+                const reportOrders = getOrdersForReport(report.companyId);
+                const reportNewOrders = getNewOrdersForReport(report.companyId);
+                return (reportOrders.length > 0 || reportNewOrders.length > 0) ? (
+                  <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                    <strong style={{ fontSize: '0.875rem' }}>Orders ({reportOrders.length + reportNewOrders.length})</strong>
+                    <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.5rem' }}>
+                      {reportOrders.map((order: any) => (
+                        <div
+                          key={order.id}
+                          style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '6px', padding: '1rem', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+                          onClick={() => navigate(`/orders/${order.id}/edit`)}
+                          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: '600' }}>Order #{order.id.substring(0, 8)}</p>
+                              <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#666' }}>
+                                Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method} | Status: {order.status || 'draft'}
+                              </p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <span style={{ fontWeight: 'bold', color: 'var(--color-info)' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount || 0)).toFixed(2)}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleRemoveExistingOrder(order.id); }}
+                                style={{ background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem' }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {reportNewOrders.map((order, idx) => {
+                        const globalIdx = newOrders.indexOf(order);
+                        return (
+                          <div key={`new-${globalIdx}`} style={{ background: '#f9f9f9', border: '1px dashed #ddd', borderRadius: '6px', padding: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: '600', color: '#999' }}>New Order (unsaved)</span>
+                              <button type="button" onClick={() => handleRemoveNewOrder(globalIdx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: '1rem' }}>×</button>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label>Date *</label>
+                                <input type="date" value={order.order_date} onChange={(e) => handleOrderChange(true, globalIdx, 'order_date', e.target.value)} required />
+                              </div>
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label>Payment</label>
+                                <select value={order.payment_method} onChange={(e) => handleOrderChange(true, globalIdx, 'payment_method', e.target.value)}>
+                                  <option value="transfer">Bank Transfer</option>
+                                  <option value="cash">Cash</option>
+                                  <option value="check">Check</option>
+                                  <option value="card">Card</option>
+                                </select>
+                              </div>
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label>Status</label>
+                                <select value={order.status} onChange={(e) => handleOrderChange(true, globalIdx, 'status', e.target.value)}>
+                                  <option value="draft">Draft</option>
+                                  <option value="confirmed">Confirmed</option>
+                                  <option value="completed">Completed</option>
+                                </select>
+                              </div>
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label>Notes</label>
+                                <input type="text" value={order.notes} onChange={(e) => handleOrderChange(true, globalIdx, 'notes', e.target.value)} placeholder="Notes..." />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
 
               {formData.reports.length > 1 && (
                 <button
@@ -1177,152 +1317,32 @@ export const NewVisit: React.FC = () => {
             )}
           </div>
 
-          {/* Customer Orders Section - Edit Mode Only */}
-          {isEditMode && (existingOrders.length > 0 || newOrders.length > 0) && (
-            <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ margin: 0, marginTop: 0 }}>Customer Orders</h3>
-                <button
-                  type="button"
-                  onClick={handleAddOrder}
-                  className="btn-secondary"
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  + Add Order
-                </button>
+          {/* Visit-level Tasks (edit mode - tasks not linked to any report) */}
+          {isEditMode && visitLevelTasks.length > 0 && (
+            <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+              <h3>Visit Tasks</h3>
+              <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e0e0e0', textAlign: 'left' }}>
+                      <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Task</th>
+                      <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Assigned To</th>
+                      <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Due Date</th>
+                      <th style={{ padding: '0.5rem', color: '#666', fontWeight: '600', textTransform: 'uppercase', fontSize: '0.75rem' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visitLevelTasks.map((task: any) => (
+                      <tr key={task.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }} onClick={() => handleTaskNavigate(task.id)}>
+                        <td style={{ padding: '0.5rem', color: 'var(--color-info)' }}>{task.title}</td>
+                        <td style={{ padding: '0.5rem' }}>{task.assigned_to_user?.name || ''}</td>
+                        <td style={{ padding: '0.5rem' }}>{task.due_date ? new Date(task.due_date).toLocaleDateString('it-IT') : ''}</td>
+                        <td style={{ padding: '0.5rem' }}>{task.status || 'todo'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              {/* Existing Orders */}
-              {existingOrders.length > 0 && (
-                <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
-                  {existingOrders.map((order) => (
-                    <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem', cursor: 'pointer' }} onClick={() => navigate(`/orders/${order.id}/edit`)}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1.2rem', fontWeight: '700' }}>{order.supplier_name || 'Supplier'}</h4>
-                          <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: '#666' }}>
-                            Order #{order.id.substring(0, 8)} | Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}
-                          </p>
-                          {order.notes && <p style={{ margin: '0.25rem 0', fontSize: '0.875rem', color: '#999' }}>Notes: {order.notes}</p>}
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/edit`); }}
-                            style={{ background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleRemoveExistingOrder(order.id); }}
-                            style={{ background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                        <div>
-                          <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Lines</label>
-                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem' }}>{order.items?.length || 0}</p>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Total Amount</label>
-                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-info)' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Status</label>
-                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem' }}>{order.status || 'draft'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* New Orders Being Created */}
-              {newOrders.length > 0 && (
-                <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
-                  {newOrders.map((order, idx) => (
-                    <div key={`new-${idx}`} style={{ background: '#f9f9f9', border: '1px dashed #ddd', borderRadius: '8px', padding: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#999' }}>New Order (unsaved)</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveNewOrder(idx)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: '1.125rem' }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Supplier *</label>
-                          <select
-                            value={order.supplier_id}
-                            onChange={(e) => {
-                              const selectedCompany = companies.find(c => c.id === e.target.value);
-                              handleOrderChange(true, idx, 'supplier_id', e.target.value);
-                              const updatedOrders = [...newOrders];
-                              updatedOrders[idx].supplier_name = selectedCompany?.name || '';
-                              setNewOrders(updatedOrders);
-                            }}
-                            required
-                          >
-                            <option value="">Select supplier</option>
-                            {companies.map((co) => (
-                              <option key={co.id} value={co.id}>{co.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Order Date *</label>
-                          <input
-                            type="date"
-                            value={order.order_date}
-                            onChange={(e) => handleOrderChange(true, idx, 'order_date', e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Payment Method</label>
-                          <select
-                            value={order.payment_method}
-                            onChange={(e) => handleOrderChange(true, idx, 'payment_method', e.target.value)}
-                          >
-                            <option value="transfer">Bank Transfer</option>
-                            <option value="cash">Cash</option>
-                            <option value="check">Check</option>
-                            <option value="card">Card</option>
-                          </select>
-                        </div>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Status</label>
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleOrderChange(true, idx, 'status', e.target.value)}
-                          >
-                            <option value="draft">Draft</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="completed">Completed</option>
-                          </select>
-                        </div>
-                        <div className="form-group" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
-                          <label>Notes</label>
-                          <textarea
-                            value={order.notes}
-                            onChange={(e) => handleOrderChange(true, idx, 'notes', e.target.value)}
-                            rows={2}
-                            placeholder="Additional notes..."
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
             </div>
           )}
 

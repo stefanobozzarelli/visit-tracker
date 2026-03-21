@@ -125,6 +125,8 @@ export const VisitDetail: React.FC = () => {
 
   const getTasksForReport = (reportId: string) => allTasks.filter(t => t.visit_report_id === reportId);
   const visitLevelTasks = allTasks.filter(t => !t.visit_report_id);
+  const getOrdersForReport = (companyId: string) => orders.filter(o => o.supplier_id === companyId);
+  const unmatchedOrders = orders.filter(o => !displayReports.some(r => r.company_id === o.supplier_id));
 
   const handleTaskNavigate = (taskId: string) => {
     navigate(`/todos/${taskId}`);
@@ -246,6 +248,39 @@ export const VisitDetail: React.FC = () => {
                       <TaskTable tasks={reportTasks} onNavigate={handleTaskNavigate} />
                     </div>
                   )}
+                  {/* Orders for this supplier */}
+                  {(() => {
+                    const reportOrders = getOrdersForReport(report.company_id);
+                    return reportOrders.length > 0 ? (
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
+                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem' }}>Orders ({reportOrders.length})</h4>
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                          {reportOrders.map((order) => (
+                            <div
+                              key={order.id}
+                              style={{ background: '#fafafa', border: '1px solid #e8e8e8', borderRadius: '6px', padding: '1rem', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+                              onClick={() => navigate(`/orders/${order.id}/edit`)}
+                              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <p style={{ margin: 0, fontWeight: '600', fontSize: '0.9rem' }}>Order #{order.id.substring(0, 8)}</p>
+                                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#666' }}>
+                                    Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method} | Status: {order.status || 'draft'}
+                                  </p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount || 0)).toFixed(2)}</span>
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--color-info)', fontWeight: '600' }}>View →</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               );
             })}
@@ -262,30 +297,27 @@ export const VisitDetail: React.FC = () => {
         </div>
       )}
 
-      {orders && orders.length > 0 && (
+      {unmatchedOrders.length > 0 && (
         <div style={{ marginBottom: '2rem' }}>
-          <h2>Customer Orders</h2>
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            {orders.map((order) => (
+          <h2>Other Orders</h2>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {unmatchedOrders.map((order) => (
               <div
                 key={order.id}
-                style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+                style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
                 onClick={() => navigate(`/orders/${order.id}/edit`)}
                 onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
                 onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
               >
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.4rem', fontWeight: '700', color: '#2C2926' }}>{order.supplier_name || 'Supplier'}</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: '600' }}>{order.supplier_name || 'Supplier'} - Order #{order.id.substring(0, 8)}</p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#666' }}>Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontWeight: 'bold', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount || 0)).toFixed(2)}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--color-info)', fontWeight: '600' }}>View →</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>Order #{order.id.substring(0, 8)} | Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}</p>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                  <div><label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Lines</label><p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem' }}>{order.items?.length || 0}</p></div>
-                  <div><label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Total Amount</label><p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p></div>
                 </div>
               </div>
             ))}
