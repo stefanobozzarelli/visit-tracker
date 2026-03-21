@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Company } from '../types';
@@ -8,6 +9,7 @@ const SECTOR_OPTIONS = ['Tiles', 'Slabs', 'Bathroom Furniture'];
 const RAPPORTO_OPTIONS = ['AGENZIA', 'PROCACCERIA', 'OCCASIONALE', 'CHIUSO'];
 
 export const Companies: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
 

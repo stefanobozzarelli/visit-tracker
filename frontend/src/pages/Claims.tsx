@@ -304,7 +304,7 @@ export const Claims: React.FC = () => {
                   const movementCount = claim.movements?.length || 0;
 
                   return (
-                    <tr key={claim.id} id={`claim-${claim.id}`} className={highlightId === claim.id ? 'highlighted' : ''} onDoubleClick={() => navigate(`/claims/${claim.id}/edit`)} style={{ cursor: 'pointer' }}>
+                    <tr key={claim.id} id={`claim-${claim.id}`} className={highlightId === claim.id ? 'highlighted' : ''} onDoubleClick={() => navigate(`/claims/${claim.id}`)} style={{ cursor: 'pointer' }}>
                       <td>
                         <div className="claim-client-name">
                           {claim.client?.name || getClientName(claim.client_id)}

@@ -14,7 +14,7 @@ export const CompanyDetail: React.FC = () => {
     if (!id) return;
     const loadCompany = async () => {
       try {
-        const res = await apiService.getCompanyById(id);
+        const res = await apiService.getCompany(id);
         if (res.success && res.data) {
           setCompany(res.data);
         } else {
