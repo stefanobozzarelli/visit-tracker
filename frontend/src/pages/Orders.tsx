@@ -18,6 +18,7 @@ export const Orders: React.FC = () => {
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showShipped, setShowShipped] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -42,14 +43,18 @@ export const Orders: React.FC = () => {
   }, [statusFilter]);
 
   const filtered = orders.filter(o => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      (o.supplier_name || '').toLowerCase().includes(term) ||
-      (o.client_name || '').toLowerCase().includes(term) ||
-      (o.id || '').toLowerCase().includes(term) ||
-      (o.payment_method || '').toLowerCase().includes(term)
-    );
+    // Hide shipped by default unless toggle is on or filter is specifically "shipped"
+    if (!showShipped && statusFilter !== 'shipped' && o.status === 'shipped') return false;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      if (!(
+        (o.supplier_name || '').toLowerCase().includes(term) ||
+        (o.client_name || '').toLowerCase().includes(term) ||
+        (o.id || '').toLowerCase().includes(term) ||
+        (o.payment_method || '').toLowerCase().includes(term)
+      )) return false;
+    }
+    return true;
   });
 
   const totalAmount = filtered.reduce((sum, o) => {
@@ -86,6 +91,14 @@ export const Orders: React.FC = () => {
           <option value="confirmed">Confirmed</option>
           <option value="shipped">Shipped</option>
         </select>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#666', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={showShipped}
+            onChange={(e) => setShowShipped(e.target.checked)}
+          />
+          Show shipped
+        </label>
         <div style={{ fontSize: '0.9rem', color: '#666' }}>
           {filtered.length} orders | Total: <strong style={{ color: 'var(--color-info)' }}>€ {totalAmount.toFixed(2)}</strong>
         </div>
