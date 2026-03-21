@@ -883,8 +883,8 @@ export const NewVisit: React.FC = () => {
                 )}
               </div>
 
-              {/* Action buttons for this report */}
-              {report.companyId && (
+              {/* Action buttons - only in create mode (edit mode uses VisitDetail buttons) */}
+              {!isEditMode && report.companyId && (
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', marginTop: '0.5rem' }}>
                   <button
                     type="button"
@@ -909,27 +909,6 @@ export const NewVisit: React.FC = () => {
                     }}
                   >
                     + Task
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!isEditMode}
-                    title={!isEditMode ? 'Save visit first to add orders' : undefined}
-                    onClick={() => {
-                      if (!isEditMode) return;
-                      handleAddOrder(report.companyId);
-                    }}
-                    style={{
-                      padding: '0.5rem 0.75rem',
-                      background: isEditMode ? 'var(--color-warning)' : 'var(--color-border)',
-                      color: isEditMode ? '#333' : 'var(--color-text-tertiary)',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: isEditMode ? 'pointer' : 'not-allowed',
-                      fontSize: '0.875rem',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    + Order
                   </button>
                 </div>
               )}

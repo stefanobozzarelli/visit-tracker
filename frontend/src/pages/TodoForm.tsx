@@ -228,11 +228,13 @@ export const TodoForm = () => {
               }
             }
           }
+          const returnTo = searchParams.get('returnTo');
           setSuccess('Task created successfully');
-          setTimeout(() => navigate('/tasks'), 1000);
+          setTimeout(() => navigate(returnTo || '/tasks'), 1000);
         } else if (response.success) {
+          const returnTo = searchParams.get('returnTo');
           setSuccess('Task created successfully');
-          setTimeout(() => navigate('/tasks'), 1000);
+          setTimeout(() => navigate(returnTo || '/tasks'), 1000);
         }
       }
     } catch {
