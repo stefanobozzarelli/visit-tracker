@@ -33,13 +33,8 @@ const TaskStatusPill: React.FC<{ task: TodoItem }> = ({ task }) => {
 
 // Read-only task table
 const TaskTable: React.FC<{ tasks: TodoItem[]; onNavigate: (taskId: string) => void }> = ({ tasks, onNavigate }) => {
-  const [highlightedId, setHighlightedId] = React.useState<string | null>(null);
   if (tasks.length === 0) return null;
   const thStyle: React.CSSProperties = { textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border)' };
-  const handleDoubleClick = (taskId: string) => {
-    setHighlightedId(taskId);
-    setTimeout(() => onNavigate(taskId), 5000);
-  };
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
       <thead>
@@ -54,13 +49,8 @@ const TaskTable: React.FC<{ tasks: TodoItem[]; onNavigate: (taskId: string) => v
         {tasks.map(t => (
           <tr
             key={t.id}
-            style={{
-              borderBottom: '1px solid var(--color-border)',
-              backgroundColor: highlightedId === t.id ? '#d0e8ff' : 'transparent',
-              transition: 'background-color 0.3s',
-              cursor: 'pointer',
-            }}
-            onDoubleClick={() => handleDoubleClick(t.id)}
+            style={{ borderBottom: '1px solid var(--color-border)', cursor: 'pointer' }}
+            onDoubleClick={() => onNavigate(t.id)}
           >
             <td style={{ padding: '0.5rem 0.75rem', color: 'var(--color-info)' }}>
               {t.title}
@@ -147,7 +137,7 @@ export const VisitDetail: React.FC = () => {
   const unmatchedOrders = orders.filter(o => !displayReports.some(r => r.company_id === o.supplier_id));
 
   const handleTaskNavigate = (taskId: string) => {
-    navigate(`/todos/${taskId}`);
+    navigate(`/tasks?highlight=${taskId}`);
   };
 
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
