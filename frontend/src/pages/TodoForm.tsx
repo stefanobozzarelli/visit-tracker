@@ -190,6 +190,8 @@ export const TodoForm = () => {
 
     try {
       setLoading(true);
+      const returnTo = searchParams.get('returnTo');
+      const navigateAfterSave = () => navigate(returnTo || '/tasks');
 
       if (isEdit) {
         const response = await apiService.updateTodo(editId!, {
@@ -202,7 +204,7 @@ export const TodoForm = () => {
         });
         if (response.success) {
           setSuccess('Task updated successfully');
-          setTimeout(() => navigate('/tasks'), 1000);
+          setTimeout(navigateAfterSave, 1000);
         }
       } else {
         const response = await apiService.createTodo(
@@ -228,13 +230,11 @@ export const TodoForm = () => {
               }
             }
           }
-          const returnTo = searchParams.get('returnTo');
           setSuccess('Task created successfully');
-          setTimeout(() => navigate(returnTo || '/tasks'), 1000);
+          setTimeout(navigateAfterSave, 1000);
         } else if (response.success) {
-          const returnTo = searchParams.get('returnTo');
           setSuccess('Task created successfully');
-          setTimeout(() => navigate(returnTo || '/tasks'), 1000);
+          setTimeout(navigateAfterSave, 1000);
         }
       }
     } catch {
@@ -445,7 +445,7 @@ export const TodoForm = () => {
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Changes' : 'Create Task')}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => navigate('/tasks')} disabled={loading}>
+            <button type="button" className="btn btn-secondary" onClick={() => navigate(searchParams.get('returnTo') || '/tasks')} disabled={loading}>
               Cancel
             </button>
           </div>
