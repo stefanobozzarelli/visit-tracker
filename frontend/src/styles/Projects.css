@@ -285,3 +285,14 @@
 .projects-delete-actions .cancel { background: #f5f0ea; border: 1px solid #d5d0c8; }
 .projects-delete-actions .confirm { background: #c62828; color: white; border: none; }
 .projects-delete-actions .confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Highlight animation */
+@keyframes highlight-fade {
+  0% { background-color: rgba(74, 96, 120, 0.2); }
+  100% { background-color: transparent; }
+}
+
+tr.highlighted {
+  animation: highlight-fade 5s ease-out forwards;
+  border-color: var(--color-info);
+}

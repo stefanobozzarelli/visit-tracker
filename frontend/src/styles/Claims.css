@@ -1054,3 +1054,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Highlight animation */
+@keyframes highlight-fade {
+  0% { background-color: rgba(74, 96, 120, 0.2); }
+  100% { background-color: transparent; }
+}
+
+tr.highlighted {
+  animation: highlight-fade 5s ease-out forwards;
+  border-color: var(--color-info);
+}

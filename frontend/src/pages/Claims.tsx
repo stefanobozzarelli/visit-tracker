@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Claim, Client, Company } from '../types';
@@ -20,6 +20,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
 // ---- Component ----
 export const Claims: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
 
@@ -37,6 +38,7 @@ export const Claims: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   // Clear alerts
   useEffect(() => {
@@ -45,6 +47,22 @@ export const Claims: React.FC = () => {
       return () => clearTimeout(t);
     }
   }, [success]);
+
+  // Handle highlight from URL
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setHighlightId(highlight);
+      setTimeout(() => {
+        const element = document.getElementById(`claim-${highlight}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      const timer = setTimeout(() => setHighlightId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (error) {
@@ -286,7 +304,7 @@ export const Claims: React.FC = () => {
                   const movementCount = claim.movements?.length || 0;
 
                   return (
-                    <tr key={claim.id} onDoubleClick={() => navigate(`/claims/${claim.id}/edit`)} style={{ cursor: 'pointer' }}>
+                    <tr key={claim.id} id={`claim-${claim.id}`} className={highlightId === claim.id ? 'highlighted' : ''} onDoubleClick={() => navigate(`/claims/${claim.id}/edit`)} style={{ cursor: 'pointer' }}>
                       <td>
                         <div className="claim-client-name">
                           {claim.client?.name || getClientName(claim.client_id)}

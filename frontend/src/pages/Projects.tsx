@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -16,6 +16,7 @@ const STATUS_DOT: Record<string, string> = { ATTIVO: '#4caf50', COMPLETATO: '#15
 
 export const Projects: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'master_admin' || user?.role === 'manager';
 
@@ -42,6 +43,25 @@ export const Projects: React.FC = () => {
   // Delete
   const [deleteConfirm, setDeleteConfirm] = useState<Project | null>(null);
   const [deleteChecked, setDeleteChecked] = useState(false);
+
+  // Highlight
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // Handle highlight from URL
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setHighlightId(highlight);
+      setTimeout(() => {
+        const element = document.getElementById(`project-${highlight}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      const timer = setTimeout(() => setHighlightId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { if (success) { const t = setTimeout(() => setSuccess(''), 4000); return () => clearTimeout(t); } }, [success]);
@@ -256,7 +276,7 @@ export const Projects: React.FC = () => {
             </thead>
             <tbody>
               {filteredProjects.map(p => (
-                <tr key={p.id} onClick={() => navigate(`/projects/${p.id}/edit`)}>
+                <tr key={p.id} id={`project-${p.id}`} className={highlightId === p.id ? 'highlighted' : ''} onClick={() => navigate(`/projects/${p.id}/edit`)}>
                   <td>{p.project_number}</td>
                   <td>
                     <div className="project-name-cell">{p.project_name || '-'}</div>

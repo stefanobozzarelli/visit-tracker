@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Visit, Client, Company, User, TodoItem, VisitReport } from '../types';
@@ -62,6 +62,7 @@ const FOLLOWUP_CONFIG: Record<FollowUpStatus, { label: string; className: string
 // ---- Component ----
 export const Visits: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
 
@@ -96,6 +97,7 @@ export const Visits: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
 
   // Close menu on click outside
@@ -116,6 +118,20 @@ export const Visits: React.FC = () => {
       return () => clearTimeout(t);
     }
   }, [success]);
+
+  // Handle highlight from URL
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setHighlightId(highlight);
+      const element = document.getElementById(`visit-${highlight}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      const timer = setTimeout(() => setHighlightId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   // ---- Data loading ----
   useEffect(() => { loadData(); }, []);
@@ -589,8 +605,9 @@ export const Visits: React.FC = () => {
 
                   return (
                     <tr
+                      id={`visit-${visit.id}`}
                       key={visit.id}
-                      className={needsAttention ? 'row-needs-attention' : ''}
+                      className={`${needsAttention ? 'row-needs-attention' : ''}${highlightId === visit.id ? ' highlighted' : ''}`}
                       onDoubleClick={() => navigate(`/visits/${visit.id}`)}
                       style={{ cursor: 'pointer' }}
                     >
