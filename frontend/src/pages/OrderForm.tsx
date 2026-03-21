@@ -305,7 +305,7 @@ export const OrderForm: React.FC = () => {
 
   const totalAmount = items.reduce((sum, item) => sum + item.total_line, 0);
 
-  if (!visit && visitId) {
+  if (!visit && urlVisitId) {
     return <div className="loading">Caricamento...</div>;
   }
 
