@@ -561,8 +561,8 @@ export const NewVisit: React.FC = () => {
         }
       }
 
-      // Create inline tasks if any (only for new visits)
-      if (!isEditMode) {
+      // Create inline tasks if any (both create and edit modes)
+      if (tasks.length > 0) {
         for (const task of tasks) {
           if (task.title.trim()) {
             try {
@@ -889,24 +889,13 @@ export const NewVisit: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const clientId = formData.clientId;
-                      if (!clientId) {
-                        setError('Please select a client first');
-                        return;
-                      }
-                      const params = new URLSearchParams({
-                        clientId: clientId,
+                      setTasks([...tasks, {
+                        title: '',
                         companyId: report.companyId,
-                      });
-                      // Use real report ID if available (edit mode), otherwise just pass visitId
-                      const reportId = existingReports[index]?.id;
-                      if (reportId) {
-                        params.set('visitReportId', reportId);
-                      }
-                      if (editId) {
-                        params.set('visitId', editId);
-                      }
-                      navigate(`/todos/new?${params.toString()}`);
+                        dueDate: '',
+                        assignedToUserId: user?.id || '',
+                        files: [],
+                      }]);
                     }}
                     style={{
                       padding: '0.5rem 0.75rem',
@@ -1027,11 +1016,9 @@ export const NewVisit: React.FC = () => {
               </div>
 
               {/* Tasks for this report (edit mode - read-only display) */}
-              {isEditMode && existingReports[index]?.id && (() => {
-                const reportTasks = getTasksForReport(existingReports[index].id);
-                return reportTasks.length > 0 ? (
+              {isEditMode && existingReports[index]?.id && getTasksForReport(existingReports[index].id).length > 0 && (
                   <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-                    <strong style={{ fontSize: '0.875rem' }}>Tasks ({reportTasks.length})</strong>
+                    <strong style={{ fontSize: '0.875rem' }}>Tasks ({getTasksForReport(existingReports[index].id).length})</strong>
                     <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem', fontSize: '0.875rem' }}>
                       <thead>
                         <tr style={{ borderBottom: '1px solid #e0e0e0', textAlign: 'left' }}>
@@ -1042,7 +1029,7 @@ export const NewVisit: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {reportTasks.map((task: any) => (
+                        {getTasksForReport(existingReports[index].id).map((task: any) => (
                           <tr key={task.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }} onClick={() => handleTaskNavigate(task.id)}>
                             <td style={{ padding: '0.5rem', color: 'var(--color-info)' }}>{task.title}</td>
                             <td style={{ padding: '0.5rem' }}>{task.assigned_to_user?.name || ''}</td>
@@ -1053,18 +1040,14 @@ export const NewVisit: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
-                ) : null;
-              })()}
+              )}
 
-              {/* Orders for this report's supplier (edit mode) */}
-              {isEditMode && report.companyId && (() => {
-                const reportOrders = getOrdersForReport(report.companyId);
-                const reportNewOrders = getNewOrdersForReport(report.companyId);
-                return (reportOrders.length > 0 || reportNewOrders.length > 0) ? (
+              {/* Orders for this report's supplier */}
+              {report.companyId && (getOrdersForReport(report.companyId).length > 0 || getNewOrdersForReport(report.companyId).length > 0) && (
                   <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-                    <strong style={{ fontSize: '0.875rem' }}>Orders ({reportOrders.length + reportNewOrders.length})</strong>
+                    <strong style={{ fontSize: '0.875rem' }}>Orders ({getOrdersForReport(report.companyId).length + getNewOrdersForReport(report.companyId).length})</strong>
                     <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.5rem' }}>
-                      {reportOrders.map((order: any) => (
+                      {getOrdersForReport(report.companyId).map((order: any) => (
                         <div
                           key={order.id}
                           style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '6px', padding: '1rem', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
@@ -1092,7 +1075,7 @@ export const NewVisit: React.FC = () => {
                           </div>
                         </div>
                       ))}
-                      {reportNewOrders.map((order, idx) => {
+                      {getNewOrdersForReport(report.companyId).map((order, idx) => {
                         const globalIdx = newOrders.indexOf(order);
                         return (
                           <div key={`new-${globalIdx}`} style={{ background: '#f9f9f9', border: '1px dashed #ddd', borderRadius: '6px', padding: '1rem' }}>
@@ -1132,8 +1115,7 @@ export const NewVisit: React.FC = () => {
                       })}
                     </div>
                   </div>
-                ) : null;
-              })()}
+              )}
 
               {formData.reports.length > 1 && (
                 <button
@@ -1156,16 +1138,16 @@ export const NewVisit: React.FC = () => {
             + Add Another Company
           </button>
 
-          {/* Tasks section - only for new visits */}
-          {!isEditMode && (
+          {/* Inline tasks section */}
+          {tasks.length > 0 && (
             <>
-              <h3 style={{ marginTop: '1.5rem' }}>Tasks</h3>
+              <h3 style={{ marginTop: '1.5rem' }}>New Tasks</h3>
               <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', marginBottom: '0.75rem' }}>
-                Add follow-up tasks for this visit. They will be created when you register the visit.
+                {isEditMode ? 'Tasks will be created when you save.' : 'Tasks will be created when you register the visit.'}
               </p>
             </>
           )}
-          {!isEditMode && tasks.map((task, idx) => (
+          {tasks.map((task, idx) => (
             <div key={idx} style={{ padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-tertiary)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
