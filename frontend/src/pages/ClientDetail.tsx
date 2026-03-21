@@ -180,7 +180,7 @@ export const ClientDetail: React.FC = () => {
           <div className="cd-info-label">Open Follow-ups</div>
           <div className={`cd-info-value${openTodos.length > 0 ? ' alert' : ''}`}>{openTodos.length}</div>
         </div>
-        <button className="cd-info-card cd-info-card-clickable" onClick={() => setShowContactsModal(true)} style={{ cursor: 'pointer', border: 'none', background: 'inherit', padding: 'inherit' }}>
+        <button className="cd-info-card cd-info-card-clickable" onClick={() => setShowContactsModal(true)} style={{ cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-white)', padding: '1rem' }}>
           <div className="cd-info-label">Contacts</div>
           <div className="cd-info-value">{contacts.length}</div>
         </button>
