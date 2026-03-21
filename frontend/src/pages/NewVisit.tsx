@@ -435,16 +435,19 @@ export const NewVisit: React.FC = () => {
         setDeletedOrderIds(new Set());
 
         // 6. Create new orders
+        const selectedClient = clients.find(c => c.id === formData.clientId);
         for (const order of newOrders) {
           if (order.supplier_id) {
             try {
-              await apiService.createOrder(editId, {
+              await apiService.createOrder({
+                visit_id: editId,
                 supplier_id: order.supplier_id,
                 supplier_name: order.supplier_name,
+                client_id: formData.clientId,
+                client_name: selectedClient?.name || '',
                 order_date: order.order_date,
                 payment_method: order.payment_method,
                 notes: order.notes,
-                status: order.status,
               });
             } catch (err) {
               console.error('Failed to create order:', err);
@@ -861,10 +864,17 @@ export const NewVisit: React.FC = () => {
                         return;
                       }
                       const params = new URLSearchParams({
-                        visitReportId: `temp-${index}`,
                         clientId: clientId,
                         companyId: report.companyId,
                       });
+                      // Use real report ID if available (edit mode), otherwise just pass visitId
+                      const reportId = existingReports[index]?.id;
+                      if (reportId) {
+                        params.set('visitReportId', reportId);
+                      }
+                      if (editId) {
+                        params.set('visitId', editId);
+                      }
                       navigate(`/todos/new?${params.toString()}`);
                     }}
                     style={{
@@ -1186,7 +1196,7 @@ export const NewVisit: React.FC = () => {
               {existingOrders.length > 0 && (
                 <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
                   {existingOrders.map((order) => (
-                    <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem' }}>
+                    <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem', cursor: 'pointer' }} onClick={() => navigate(`/orders/${order.id}/edit`)}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
                           <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1.2rem', fontWeight: '700' }}>{order.supplier_name || 'Supplier'}</h4>
@@ -1195,13 +1205,22 @@ export const NewVisit: React.FC = () => {
                           </p>
                           {order.notes && <p style={{ margin: '0.25rem 0', fontSize: '0.875rem', color: '#999' }}>Notes: {order.notes}</p>}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveExistingOrder(order.id)}
-                          style={{ background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
-                        >
-                          Delete
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/edit`); }}
+                            style={{ background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveExistingOrder(order.id); }}
+                            style={{ background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                         <div>

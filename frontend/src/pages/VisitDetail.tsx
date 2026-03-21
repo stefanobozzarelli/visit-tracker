@@ -267,9 +267,18 @@ export const VisitDetail: React.FC = () => {
           <h2>Customer Orders</h2>
           <div style={{ display: 'grid', gap: '1rem' }}>
             {orders.map((order) => (
-              <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem' }}>
+              <div
+                key={order.id}
+                style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+                onClick={() => navigate(`/orders/${order.id}/edit`)}
+                onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
+                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+              >
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.4rem', fontWeight: '700', color: '#2C2926' }}>{order.supplier_name || 'Supplier'}</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.4rem', fontWeight: '700', color: '#2C2926' }}>{order.supplier_name || 'Supplier'}</h3>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-info)', fontWeight: '600' }}>View →</span>
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>Order #{order.id.substring(0, 8)} | Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}</p>
                   </div>
