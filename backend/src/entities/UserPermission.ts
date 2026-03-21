@@ -28,6 +28,9 @@ export class UserPermission {
   can_edit: boolean;
 
   @Column({ nullable: true })
+  override_type: 'grant' | 'deny';
+
+  @Column({ nullable: true })
   assigned_by_user_id: string;
 
   @CreateDateColumn()

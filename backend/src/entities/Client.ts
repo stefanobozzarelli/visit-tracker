@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { ClientContact } from './ClientContact';
 import { Visit } from './Visit';
 import { UserPermission } from './UserPermission';
+import { ClientCompany } from './ClientCompany';
 
 export enum ClientRole {
   CLIENTE = 'cliente',
@@ -44,4 +45,7 @@ export class Client {
 
   @OneToMany(() => UserPermission, permission => permission.client, { cascade: true })
   permissions: UserPermission[];
+
+  @OneToMany(() => ClientCompany, cc => cc.client, { cascade: true })
+  clientCompanies: ClientCompany[];
 }

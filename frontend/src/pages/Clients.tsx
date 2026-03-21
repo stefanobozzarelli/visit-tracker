@@ -33,6 +33,7 @@ export const Clients: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', country: '', notes: '', role: 'cliente' });
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [isAddingCountry, setIsAddingCountry] = useState(false);
   const [newCountryInput, setNewCountryInput] = useState('');
 
@@ -190,10 +191,10 @@ export const Clients: React.FC = () => {
     e.preventDefault();
     try {
       if (editingId) {
-        await apiService.updateClient(editingId, formData);
+        await apiService.updateClient(editingId, { ...formData, company_ids: selectedCompanyIds });
         setSuccess('Client updated');
       } else {
-        await apiService.createClient(formData.name, formData.country, formData.notes, formData.role);
+        await apiService.createClient(formData.name, formData.country, formData.notes, formData.role, selectedCompanyIds);
         setSuccess('Client created');
       }
       resetForm();
@@ -206,6 +207,7 @@ export const Clients: React.FC = () => {
   const handleEdit = (client: Client) => {
     setOpenMoreId(null);
     setFormData({ name: client.name, country: client.country, notes: client.notes || '', role: (client as any).role || 'cliente' });
+    setSelectedCompanyIds((client as any).clientCompanies?.map((cc: any) => cc.company_id || cc.company?.id) || []);
     setEditingId(client.id);
     setShowForm(true);
   };
@@ -230,6 +232,7 @@ export const Clients: React.FC = () => {
 
   const resetForm = () => {
     setFormData({ name: '', country: '', notes: '', role: 'cliente' });
+    setSelectedCompanyIds([]);
     setEditingId(null);
     setShowForm(false);
   };
@@ -316,6 +319,35 @@ export const Clients: React.FC = () => {
             <div className="clients-form-group">
               <label>Notes</label>
               <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} />
+            </div>
+            {/* Company checkboxes (suppliers) */}
+            <div className="clients-form-group">
+              <label>Suppliers / Companies</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+                {companies.map(company => (
+                  <label key={company.id} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                    padding: '0.3rem 0.625rem', borderRadius: '6px', fontSize: '0.813rem',
+                    border: selectedCompanyIds.includes(company.id) ? '1px solid rgba(74, 96, 120, 0.3)' : '1px solid var(--color-border)',
+                    background: selectedCompanyIds.includes(company.id) ? 'rgba(74, 96, 120, 0.06)' : 'var(--color-white)',
+                    cursor: 'pointer', userSelect: 'none', transition: 'all 0.15s ease',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCompanyIds.includes(company.id)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedCompanyIds(prev => [...prev, company.id]);
+                        } else {
+                          setSelectedCompanyIds(prev => prev.filter(id => id !== company.id));
+                        }
+                      }}
+                      style={{ margin: 0 }}
+                    />
+                    {company.name}
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="clients-form-actions">
               <button type="submit" className="clients-btn-save">{editingId ? 'Save Changes' : 'Create Client'}</button>
@@ -452,10 +484,12 @@ export const Clients: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Related Companies */}
+                      {/* Suppliers (from clientCompanies) */}
                       <td>
-                        {enrichment && enrichment.relatedCompanies.length > 0 ? (
-                          <div className="client-companies">{enrichment.relatedCompanies.join(', ')}</div>
+                        {(client as any).clientCompanies?.length > 0 ? (
+                          <div className="client-companies">
+                            {(client as any).clientCompanies.map((cc: any) => cc.company?.name || getCompanyName(cc.company_id)).join(', ')}
+                          </div>
                         ) : (
                           <span className="client-muted">-</span>
                         )}

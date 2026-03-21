@@ -2,6 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } f
 import { Visit } from './Visit';
 import { VisitAttachment } from './VisitAttachment';
 import { UserPermission } from './UserPermission';
+import { UserCompany } from './UserCompany';
+import { UserCountry } from './UserCountry';
 
 @Entity('users')
 export class User {
@@ -40,4 +42,10 @@ export class User {
 
   @OneToMany(() => UserPermission, permission => permission.assigned_by_user)
   assigned_permissions: UserPermission[];
+
+  @OneToMany(() => UserCompany, uc => uc.user, { cascade: true })
+  userCompanies: UserCompany[];
+
+  @OneToMany(() => UserCountry, uc => uc.user, { cascade: true })
+  userCountries: UserCountry[];
 }

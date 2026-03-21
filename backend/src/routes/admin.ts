@@ -319,6 +319,112 @@ router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, 
   }
 });
 
+// =============================================
+// USER AREAS (companies + countries)
+// =============================================
+
+/**
+ * GET /api/admin/users/:userId/areas
+ * Get a user's assigned companies and countries
+ */
+router.get('/users/:userId/areas', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const areas = await permissionService.getUserAreas(req.params.userId);
+    res.json({ success: true, data: areas });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:userId/areas
+ * Set a user's companies and countries
+ * Body: { companyIds: string[], countries: string[] }
+ */
+router.put('/users/:userId/areas', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { companyIds, countries } = req.body;
+    const assignedBy = (req.user as any).id;
+    await permissionService.setUserAreas(req.params.userId, companyIds || [], countries || [], assignedBy);
+    const areas = await permissionService.getUserAreas(req.params.userId);
+    res.json({ success: true, data: areas });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/admin/users/:userId/visible-clients
+ * Preview which clients a user can see (computed from areas + overrides)
+ */
+router.get('/users/:userId/visible-clients', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const clients = await permissionService.getVisibleClientsPreview(req.params.userId);
+    res.json({ success: true, data: clients });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// =============================================
+// ADMIN OVERRIDES (grant / deny)
+// =============================================
+
+/**
+ * GET /api/admin/users/:userId/overrides
+ */
+router.get('/users/:userId/overrides', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const overrides = await permissionService.getOverrides(req.params.userId);
+    res.json({ success: true, data: overrides });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/admin/users/:userId/overrides
+ * Body: { clientId, overrideType: 'grant' | 'deny' }
+ */
+router.post('/users/:userId/overrides', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { clientId, overrideType } = req.body;
+    if (!clientId || !overrideType) {
+      return res.status(400).json({ success: false, error: 'clientId and overrideType are required' });
+    }
+    const assignedBy = (req.user as any).id;
+    const override = await permissionService.addOverride(req.params.userId, clientId, overrideType, assignedBy);
+    res.status(201).json({ success: true, data: override });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * DELETE /api/admin/users/:userId/overrides/:clientId
+ */
+router.delete('/users/:userId/overrides/:clientId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    await permissionService.removeOverride(req.params.userId, req.params.clientId);
+    res.json({ success: true, message: 'Override removed' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/admin/countries
+ * Get all known countries
+ */
+router.get('/countries', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const countries = await permissionService.getAllCountries();
+    res.json({ success: true, data: countries });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
 /**
  * PUT /api/admin/users/:userId/revenue-access
  * Master admin only: toggle can_view_revenue for a user

@@ -20,6 +20,8 @@ export class ClientService {
     return await this.clientRepository
       .createQueryBuilder('client')
       .leftJoinAndSelect('client.contacts', 'contacts')
+      .leftJoinAndSelect('client.clientCompanies', 'clientCompanies')
+      .leftJoinAndSelect('clientCompanies.company', 'company')
       .orderBy('client.name', 'ASC')
       .getMany();
   }
@@ -27,7 +29,7 @@ export class ClientService {
   async getClientById(id: string): Promise<Client | null> {
     return await this.clientRepository.findOne({
       where: { id },
-      relations: ['contacts', 'visits'],
+      relations: ['contacts', 'visits', 'clientCompanies', 'clientCompanies.company'],
     });
   }
 

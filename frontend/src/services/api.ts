@@ -420,12 +420,13 @@ class ApiService {
   }
 
   // Clients
-  async createClient(name: string, country: string, notes?: string, role?: string) {
+  async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[]) {
     const response = await this.api.post<ApiResponse<any>>('/clients', {
       name,
       country,
       notes,
       role,
+      company_ids,
     });
     return response.data;
   }
@@ -1177,6 +1178,47 @@ class ApiService {
   }
   async getProjectStats() {
     const response = await this.cachedGet<ApiResponse<any>>('/projects/stats/summary');
+    return response.data;
+  }
+
+  // ---- User Areas ----
+  async getUserAreas(userId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/admin/users/${userId}/areas`);
+    return response.data;
+  }
+
+  async setUserAreas(userId: string, data: { companyIds: string[]; countries: string[] }) {
+    const response = await this.api.put<ApiResponse<any>>(`/admin/users/${userId}/areas`, data);
+    this.memoryCache.clear();
+    return response.data;
+  }
+
+  async getUserVisibleClients(userId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/admin/users/${userId}/visible-clients`);
+    return response.data;
+  }
+
+  // ---- Admin Overrides ----
+  async getUserOverrides(userId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/admin/users/${userId}/overrides`);
+    return response.data;
+  }
+
+  async addUserOverride(userId: string, clientId: string, overrideType: 'grant' | 'deny') {
+    const response = await this.api.post<ApiResponse<any>>(`/admin/users/${userId}/overrides`, { clientId, overrideType });
+    this.memoryCache.clear();
+    return response.data;
+  }
+
+  async removeUserOverride(userId: string, clientId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/admin/users/${userId}/overrides/${clientId}`);
+    this.memoryCache.clear();
+    return response.data;
+  }
+
+  // ---- Admin Countries ----
+  async getAdminCountries() {
+    const response = await this.api.get<ApiResponse<any>>('/admin/countries');
     return response.data;
   }
 }

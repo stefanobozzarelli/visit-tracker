@@ -26,6 +26,7 @@ export interface Client {
   created_at: string;
   updated_at: string;
   contacts?: ClientContact[];
+  clientCompanies?: ClientCompany[];
 }
 
 export interface ClientContact {
@@ -46,6 +47,29 @@ export interface Company {
   industry?: string;
   rapporto?: string;
   created_at: string;
+}
+
+export interface ClientCompany {
+  id: string;
+  client_id: string;
+  company_id: string;
+  created_at: string;
+  company?: Company;
+}
+
+export interface UserArea {
+  companies: Company[];
+  countries: string[];
+}
+
+export interface AdminOverride {
+  id: string;
+  user_id: string;
+  client_id: string;
+  override_type: 'grant' | 'deny';
+  assigned_by_user_id: string;
+  created_at: string;
+  client?: Client;
 }
 
 export interface VisitDirectAttachment {

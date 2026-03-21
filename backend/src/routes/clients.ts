@@ -17,44 +17,29 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const data: CreateClientRequest = req.body;
     const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
 
     // Create the client
     const client = await clientService.createClient(data);
 
-    // Assign permissions to the user who creates the client
-    // Admin/manager: all companies. Sales rep: only their companies.
-    if (userId) {
-      try {
-        const userRole = (req.user as any)?.role;
-        let companyIds: string[];
-
-        if (userRole === 'admin' || userRole === 'manager' || userRole === 'master_admin') {
-          // Admin/manager/master_admin get all companies
-          const companies = await companyService.getCompanies();
-          companyIds = companies.map(c => c.id);
-        } else {
-          // Sales rep: only companies they already have access to
-          const userPerms = await permissionService.getUserPermissions(userId);
-          companyIds = [...new Set(userPerms.map(p => p.company_id))];
+    // Set client-company associations if provided
+    const companyIds: string[] = (req.body as any).company_ids || [];
+    if (companyIds.length > 0) {
+      // Non-admin: validate they only flag their own companies
+      if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'master_admin') {
+        const userAreas = await permissionService.getUserAreas(userId);
+        const userCompanyIds = userAreas.companies.map(c => c.id);
+        const invalid = companyIds.filter(id => !userCompanyIds.includes(id));
+        if (invalid.length > 0) {
+          return res.status(403).json({ success: false, error: 'You can only assign companies from your areas' });
         }
-
-        for (const companyId of companyIds) {
-          await permissionService.assignPermission(
-            userId,
-            client.id,
-            companyId,
-            true,  // can_view
-            true,  // can_create
-            true,  // can_edit
-            userId // assignedByUserId
-          );
-        }
-      } catch (permissionError) {
-        console.error('Error assigning permissions:', permissionError);
       }
+      await permissionService.setClientCompanies(client.id, companyIds);
     }
 
-    const response: ApiResponse<any> = { success: true, data: client };
+    // Reload client with associations
+    const fullClient = await clientService.getClientById(client.id);
+    const response: ApiResponse<any> = { success: true, data: fullClient };
     res.status(201).json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
@@ -99,8 +84,28 @@ router.get('/:id', checkVisitPermission, async (req: Request, res: Response) => 
 router.put('/:id', checkVisitPermission, async (req: Request, res: Response) => {
   try {
     const data: Partial<CreateClientRequest> = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+
     const client = await clientService.updateClient(req.params.id, data);
-    const response: ApiResponse<any> = { success: true, data: client };
+
+    // Update client-company associations if provided
+    const companyIds: string[] | undefined = (req.body as any).company_ids;
+    if (companyIds !== undefined) {
+      // Non-admin: validate they only flag their own companies
+      if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'master_admin') {
+        const userAreas = await permissionService.getUserAreas(userId);
+        const userCompanyIds = userAreas.companies.map(c => c.id);
+        const invalid = companyIds.filter(id => !userCompanyIds.includes(id));
+        if (invalid.length > 0) {
+          return res.status(403).json({ success: false, error: 'You can only assign companies from your areas' });
+        }
+      }
+      await permissionService.setClientCompanies(req.params.id, companyIds);
+    }
+
+    const fullClient = await clientService.getClientById(req.params.id);
+    const response: ApiResponse<any> = { success: true, data: fullClient };
     res.json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
