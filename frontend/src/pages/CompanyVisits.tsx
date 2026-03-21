@@ -301,7 +301,7 @@ export const CompanyVisits: React.FC = () => {
                       <div className="cv-actions">
                         <button
                           className="cv-action-btn primary"
-                          onClick={() => navigate(`/company-visits/${visit.id}/edit`)}
+                          onClick={() => navigate(`/company-visits/${visit.id}`)}
                         >
                           View
                         </button>

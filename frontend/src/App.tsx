@@ -30,6 +30,11 @@ import { Claims } from './pages/Claims';
 import { ClaimForm } from './pages/ClaimForm';
 import { CompanyVisits } from './pages/CompanyVisits';
 import { CompanyVisitForm } from './pages/CompanyVisitForm';
+import { CompanyVisitDetail } from './pages/CompanyVisitDetail';
+import { CompanyDetail } from './pages/CompanyDetail';
+import { ProjectDetail } from './pages/ProjectDetail';
+import { TodoDetail } from './pages/TodoDetail';
+import { ClaimDetail } from './pages/ClaimDetail';
 import './styles/App.css';
 
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -55,17 +60,21 @@ const AppContent: React.FC = () => {
           <Route path="/visits/:id" element={<VisitDetail />} />
           <Route path="/visits/:visitId/reports/:reportId" element={<ReportDetail />} />
           <Route path="/companies" element={<Companies />} />
+          <Route path="/companies/:id" element={<CompanyDetail />} />
           <Route path="/contacts" element={<Clients />} />
           <Route path="/contacts/:id/edit" element={<ClientForm />} />
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/new" element={<ProjectForm />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/projects/:id/edit" element={<ProjectForm />} />
           <Route path="/company-visits" element={<CompanyVisits />} />
           <Route path="/company-visits/new" element={<CompanyVisitForm />} />
+          <Route path="/company-visits/:id" element={<CompanyVisitDetail />} />
           <Route path="/company-visits/:id/edit" element={<CompanyVisitForm />} />
           <Route path="/claims" element={<Claims />} />
           <Route path="/claims/new" element={<ClaimForm />} />
+          <Route path="/claims/:id" element={<ClaimDetail />} />
           <Route path="/claims/:id/edit" element={<ClaimForm />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/reports" element={<ExportPdf />} />
@@ -75,6 +84,7 @@ const AppContent: React.FC = () => {
           <Route path="/amministrazione" element={<Navigate to="/amministrazione/fatturato" replace />} />
           <Route path="/amministrazione/*" element={<Amministrazione />} />
           <Route path="/todos/new" element={<TodoForm />} />
+          <Route path="/todos/:id" element={<TodoDetail />} />
           <Route path="/todos/edit/:id" element={<TodoForm />} />
           <Route path="/orders/new/:visitId" element={<OrderForm />} />
           <Route path="/orders/:id/edit" element={<OrderForm />} />

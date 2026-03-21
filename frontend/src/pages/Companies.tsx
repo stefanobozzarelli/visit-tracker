@@ -240,7 +240,7 @@ export const Companies: React.FC = () => {
                       <td className="co-last-visit">{lastVisit || <span className="co-muted">-</span>}</td>
                       <td onClick={e => e.stopPropagation()}>
                         <div className="co-actions">
-                          <button className="co-action-btn primary" onClick={() => handleEdit(company)}>View</button>
+                          <button className="co-action-btn primary" onClick={() => window.location.href = `/companies/${company.id}`}>View</button>
                           {isAdmin && (
                             <>
                               <button className="co-action-btn" onClick={() => handleEdit(company)}>Edit</button>

@@ -353,7 +353,7 @@ export const Claims: React.FC = () => {
                         <div className="claim-actions">
                           <button
                             className="claim-action-btn primary"
-                            onClick={() => navigate(`/claims/${claim.id}/edit`)}
+                            onClick={() => navigate(`/claims/${claim.id}`)}
                           >
                             View
                           </button>

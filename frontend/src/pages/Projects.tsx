@@ -297,7 +297,7 @@ export const Projects: React.FC = () => {
                   <td><span className="project-value shipped">{formatCurrency(p.total_value_shipped)}</span></td>
                   <td onClick={e => e.stopPropagation()}>
                     <div className="projects-actions">
-                      <button className="projects-btn primary" onClick={() => navigate(`/projects/${p.id}/edit`)}>View</button>
+                      <button className="projects-btn primary" onClick={() => navigate(`/projects/${p.id}`)}>View</button>
                       <button className="projects-btn" onClick={() => navigate(`/projects/${p.id}/edit`)}>Edit</button>
                       {(user?.role === 'admin' || user?.role === 'master_admin') && (
                         <button className="projects-btn delete" onClick={() => { setDeleteConfirm(p); setDeleteChecked(false); }}>Delete</button>
