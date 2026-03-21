@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, ClientContact, Visit, TodoItem, Company } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
@@ -11,11 +12,14 @@ const EMPTY_CONTACT = { name: '', role: '', email: '', phone: '', wechat: '', no
 export const ClientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
 
   const [client, setClient] = useState<Client | null>(null);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,6 +44,9 @@ export const ClientDetail: React.FC = () => {
       try { const r = await apiService.getVisits({ client_id: id }); if (r.success && r.data) setVisits(r.data); } catch {}
       try { const r = await apiService.getTodos({ clientId: id }); if (r.success) setTodos(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getCompanies(); if (r.success && r.data) setCompanies(r.data); } catch {}
+      if (!isAdmin) {
+        try { const r = await apiService.getMyAreas(); if (r.success && r.data) setUserAreaCompanyIds(r.data.companies?.map((c: any) => c.id) || []); } catch {}
+      }
     } finally { setLoading(false); }
   };
 
@@ -55,8 +62,12 @@ export const ClientDetail: React.FC = () => {
   }, [todos, id]);
 
   const relatedCompanies = useMemo(() => {
-    const cc = (client as any)?.clientCompanies;
-    if (cc && cc.length > 0) {
+    let cc = (client as any)?.clientCompanies || [];
+    // Non-admin: filter to only their area companies
+    if (!isAdmin && userAreaCompanyIds.length > 0) {
+      cc = cc.filter((c: any) => userAreaCompanyIds.includes(c.company_id));
+    }
+    if (cc.length > 0) {
       return cc.map((c: any) => c.company?.name || getCompanyName(c.company_id)).filter((n: string) => n !== '-');
     }
     const ids = new Set<string>();
@@ -66,7 +77,7 @@ export const ClientDetail: React.FC = () => {
       }
     }
     return [...ids].map(cid => getCompanyName(cid)).filter(n => n !== '-');
-  }, [client, visits, id, companies]);
+  }, [client, visits, id, companies, isAdmin, userAreaCompanyIds]);
 
   // ---- Contact handlers ----
   const handleContactSubmit = async (e: React.FormEvent) => {
