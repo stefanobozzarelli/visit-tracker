@@ -149,7 +149,7 @@ export const VisitDetail: React.FC = () => {
         </div>
         <button
           onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}`)}
-          style={{ padding: '0.6rem 1.2rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+          style={{ padding: '0.6rem 1.2rem', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
         >
           + Add Task
         </button>
@@ -216,13 +216,13 @@ export const VisitDetail: React.FC = () => {
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
                           onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)}
-                          style={{ padding: '0.4rem 0.8rem', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          style={{ padding: '0.4rem 0.8rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
                         >
                           + Task
                         </button>
                         <button
                           onClick={() => navigate(`/orders/new/${id}`)}
-                          style={{ padding: '0.4rem 0.8rem', background: '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          style={{ padding: '0.4rem 0.8rem', background: 'var(--color-warning)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
                         >
                           + Order
                         </button>
@@ -268,9 +268,11 @@ export const VisitDetail: React.FC = () => {
           <div style={{ display: 'grid', gap: '1rem' }}>
             {orders.map((order) => (
               <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem' }}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <h3 style={{ margin: '0 0 0.5rem 0' }}>Order #{order.id.substring(0, 8)}</h3>
-                  <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}</p>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.4rem', fontWeight: '700', color: '#2C2926' }}>{order.supplier_name || 'Supplier'}</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>Order #{order.id.substring(0, 8)} | Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}</p>
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                   <div><label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Lines</label><p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.2rem' }}>{order.items?.length || 0}</p></div>
@@ -285,7 +287,7 @@ export const VisitDetail: React.FC = () => {
       <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e0e0e0' }}>
         <button
           onClick={() => navigate(`/visits/${id}/edit`)}
-          style={{ padding: '0.6rem 1.2rem', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1rem' }}
+          style={{ padding: '0.6rem 1.2rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1rem' }}
         >
           Edit
         </button>
