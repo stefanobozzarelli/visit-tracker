@@ -489,6 +489,7 @@ const ClientPermissionsTab: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [userCountries, setUserCountries] = useState<string[]>([]);
   const [visibleClients, setVisibleClients] = useState<any[]>([]);
+  const [deniedClients, setDeniedClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -512,17 +513,21 @@ const ClientPermissionsTab: React.FC = () => {
   };
 
   const loadUserData = async (userId: string) => {
-    if (!userId) { setUserCountries([]); setVisibleClients([]); return; }
+    if (!userId) { setUserCountries([]); setVisibleClients([]); setDeniedClients([]); return; }
     try {
-      const [areasRes, clientsRes] = await Promise.all([
+      const [areasRes, clientsRes, overridesRes] = await Promise.all([
         apiService.getUserAreas(userId),
         apiService.getUserVisibleClients(userId),
+        apiService.getUserOverrides(userId),
       ]);
       if (areasRes.success && areasRes.data) {
         setUserCountries(areasRes.data.countries || []);
       }
       if (clientsRes.success) {
         setVisibleClients(clientsRes.data || []);
+      }
+      if (overridesRes.success) {
+        setDeniedClients((overridesRes.data || []).filter((o: any) => o.override_type === 'deny'));
       }
     } catch { setError('Error loading user data'); }
   };
@@ -546,9 +551,13 @@ const ClientPermissionsTab: React.FC = () => {
       const areasRes = await apiService.getUserAreas(selectedUserId);
       const currentCompanyIds = areasRes.data?.companies?.map((c: any) => c.id) || [];
       await apiService.setUserAreas(selectedUserId, { companyIds: currentCompanyIds, countries: userCountries });
-      // Reload visible clients
-      const clientsRes = await apiService.getUserVisibleClients(selectedUserId);
+      // Reload visible clients and overrides
+      const [clientsRes, overridesRes] = await Promise.all([
+        apiService.getUserVisibleClients(selectedUserId),
+        apiService.getUserOverrides(selectedUserId),
+      ]);
       if (clientsRes.success) setVisibleClients(clientsRes.data || []);
+      if (overridesRes.success) setDeniedClients((overridesRes.data || []).filter((o: any) => o.override_type === 'deny'));
       setSuccess('Country access saved');
     } catch { setError('Error saving'); } finally { setSaving(false); }
   };
@@ -629,9 +638,12 @@ const ClientPermissionsTab: React.FC = () => {
                         if (!window.confirm(`Remove ${c.name} from this user's access?`)) return;
                         try {
                           await apiService.addUserOverride(selectedUserId, c.id, 'deny');
-                          // Reload visible clients
-                          const res = await apiService.getUserVisibleClients(selectedUserId);
-                          if (res.success) setVisibleClients(res.data || []);
+                          const [vRes, oRes] = await Promise.all([
+                            apiService.getUserVisibleClients(selectedUserId),
+                            apiService.getUserOverrides(selectedUserId),
+                          ]);
+                          if (vRes.success) setVisibleClients(vRes.data || []);
+                          if (oRes.success) setDeniedClients((oRes.data || []).filter((o: any) => o.override_type === 'deny'));
                           setSuccess(`${c.name} removed from access`);
                         } catch { setError('Error removing client'); }
                       }}
@@ -647,6 +659,55 @@ const ClientPermissionsTab: React.FC = () => {
                       title={`Deny access to ${c.name}`}
                     >
                       ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {deniedClients.length > 0 && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <h4 style={{ fontSize: '0.875rem', marginBottom: '0.5rem', color: '#9E5A52' }}>
+                Denied Clients: {deniedClients.length}
+                <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-text-tertiary)', marginLeft: '0.5rem' }}>
+                  (click + to restore access)
+                </span>
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                {deniedClients.map((o: any) => (
+                  <span key={o.id} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                    padding: '0.25rem 0.375rem 0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem',
+                    background: 'rgba(158, 90, 82, 0.08)', color: '#9E5A52', border: '1px solid rgba(158, 90, 82, 0.15)',
+                    textDecoration: 'line-through',
+                  }}>
+                    {o.client?.name || o.client_id?.substring(0, 8)}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await apiService.removeUserOverride(selectedUserId, o.client_id);
+                          const [vRes, oRes] = await Promise.all([
+                            apiService.getUserVisibleClients(selectedUserId),
+                            apiService.getUserOverrides(selectedUserId),
+                          ]);
+                          if (vRes.success) setVisibleClients(vRes.data || []);
+                          if (oRes.success) setDeniedClients((oRes.data || []).filter((x: any) => x.override_type === 'deny'));
+                          setSuccess(`${o.client?.name || 'Client'} restored`);
+                        } catch { setError('Error restoring client'); }
+                      }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: '16px', height: '16px', borderRadius: '50%', border: 'none',
+                        background: 'rgba(91, 138, 101, 0.15)', color: '#4A7653', fontSize: '0.75rem',
+                        cursor: 'pointer', padding: 0, lineHeight: 1, fontWeight: 700,
+                      }}
+                      onMouseEnter={e => { (e.target as HTMLElement).style.background = 'rgba(91, 138, 101, 0.3)'; }}
+                      onMouseLeave={e => { (e.target as HTMLElement).style.background = 'rgba(91, 138, 101, 0.15)'; }}
+                      title="Restore access"
+                    >
+                      +
                     </button>
                   </span>
                 ))}
