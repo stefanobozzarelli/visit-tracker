@@ -760,8 +760,6 @@ export const NewVisit: React.FC = () => {
               + Add Task
             </button>
           )}
-            </>
-          )}
 
           {/* Direct File Attachments */}
           <div className="cv-attachments-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
