@@ -556,7 +556,7 @@ export const Tasks: React.FC = () => {
                       key={todo.id}
                       id={`task-row-${todo.id}`}
                       className={`${overdueRow ? 'row-overdue' : ''}${status === 'completed' ? ' row-completed' : ''}${highlightId === todo.id ? ' row-highlighted' : ''}`}
-                      onDoubleClick={() => navigate(`/todos/edit/${todo.id}`)}
+                      onDoubleClick={() => navigate(`/todos/${todo.id}`)}
                       style={{ cursor: 'pointer' }}
                     >
                       {/* Task title */}
