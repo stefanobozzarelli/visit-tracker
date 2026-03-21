@@ -72,7 +72,7 @@
 .clients-table th:nth-child(5) { width: 15%; }
 .clients-table th:nth-child(6) { width: 12%; }
 .clients-table th:nth-child(7) { width: 12%; }
-.clients-table tbody tr { transition: background 0.1s ease; }
+.clients-table tbody tr { transition: background 0.1s ease; min-height: 50px; }
 .clients-table tbody tr:hover { background: var(--color-bg-tertiary); }
 .clients-table tbody tr:last-child td { border-bottom: none; }
 

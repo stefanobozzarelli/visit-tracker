@@ -142,4 +142,45 @@ router.get('/my-areas', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/auth/sidebar-menu-order
+ * Get current user's sidebar menu order
+ */
+router.get('/sidebar-menu-order', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    const user = await userService.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    res.json({
+      success: true,
+      data: (user as any).sidebar_menu_order || null,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/auth/sidebar-menu-order
+ * Save current user's sidebar menu order
+ */
+router.post('/sidebar-menu-order', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    const { menuOrder } = req.body;
+    if (!Array.isArray(menuOrder)) {
+      return res.status(400).json({ success: false, error: 'Menu order must be an array' });
+    }
+    const user = await userService.updateUser(userId, { sidebar_menu_order: menuOrder as any });
+    res.json({
+      success: true,
+      data: (user as any).sidebar_menu_order || null,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
 export default router;

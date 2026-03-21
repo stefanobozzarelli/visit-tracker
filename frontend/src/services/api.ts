@@ -424,6 +424,16 @@ class ApiService {
     return response.data;
   }
 
+  async getSidebarMenuOrder() {
+    const response = await this.api.get<ApiResponse<string[]>>('/auth/sidebar-menu-order');
+    return response.data;
+  }
+
+  async saveSidebarMenuOrder(menuOrder: string[]) {
+    const response = await this.api.post<ApiResponse<string[]>>('/auth/sidebar-menu-order', { menuOrder });
+    return response.data;
+  }
+
   // Clients
   async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[], city?: string) {
     const response = await this.api.post<ApiResponse<any>>('/clients', {

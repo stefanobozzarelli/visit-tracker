@@ -28,6 +28,9 @@ export class User {
   @Column({ nullable: true })
   company_id: string;
 
+  @Column({ type: 'simple-json', nullable: true })
+  sidebar_menu_order: string[] | null;
+
   @CreateDateColumn()
   created_at: Date;
 
