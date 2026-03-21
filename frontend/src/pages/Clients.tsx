@@ -44,6 +44,7 @@ export const Clients: React.FC = () => {
   const [showContactForm, setShowContactForm] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState(EMPTY_CONTACT);
+  const [pendingBusinessCard, setPendingBusinessCard] = useState<File | null>(null);
   const [editContacts, setEditContacts] = useState<ClientContact[]>([]);
 
   // Filters
@@ -282,10 +283,22 @@ export const Clients: React.FC = () => {
         await apiService.addClientContact(editingId, contactForm);
         setSuccess('Contact added');
       }
+      // If new contact and has pending business card, upload it
+      if (!editingContactId && pendingBusinessCard) {
+        // Reload to get the new contact ID
+        const reloadRes = await apiService.getClient(editingId);
+        if (reloadRes.success && reloadRes.data) {
+          const newContacts = reloadRes.data.contacts || [];
+          const newContact = newContacts.find((c: any) => c.name === contactForm.name.trim());
+          if (newContact) {
+            await apiService.uploadBusinessCard(editingId, newContact.id, pendingBusinessCard);
+          }
+        }
+      }
       setContactForm(EMPTY_CONTACT);
+      setPendingBusinessCard(null);
       setEditingContactId(null);
       setShowContactForm(false);
-      // Reload client data to get updated contacts
       const r = await apiService.getClient(editingId);
       if (r.success && r.data) setEditContacts(r.data.contacts || []);
       loadData();
@@ -444,7 +457,7 @@ export const Clients: React.FC = () => {
               </div>
               {selectedCompanyIds.length > 0 && (
                 <div style={{ marginTop: '0.375rem', fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
-                  {selectedCompanyIds.length} supplier{selectedCompanyIds.length !== 1 ? 's' : ''} selected
+                  {formCompanies.filter(c => selectedCompanyIds.includes(c.id)).length} supplier{formCompanies.filter(c => selectedCompanyIds.includes(c.id)).length !== 1 ? 's' : ''} selected
                 </div>
               )}
             </div>
@@ -475,6 +488,20 @@ export const Clients: React.FC = () => {
                     <div className="clients-form-group"><label>WeChat</label><input type="text" value={contactForm.wechat} onChange={e => setContactForm({...contactForm, wechat: e.target.value})} /></div>
                     <div className="clients-form-group"><label>Notes</label><input type="text" value={contactForm.notes} onChange={e => setContactForm({...contactForm, notes: e.target.value})} /></div>
                   </div>
+                  {!editingContactId && (
+                    <div className="clients-form-group" style={{ marginTop: '0.5rem' }}>
+                      <label>Business Card (PDF or image)</label>
+                      <input type="file" accept="image/*,.pdf"
+                        onChange={e => setPendingBusinessCard(e.target.files?.[0] || null)}
+                        style={{ fontSize: '0.813rem' }}
+                      />
+                      {pendingBusinessCard && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-info)', marginTop: '0.25rem' }}>
+                          📎 {pendingBusinessCard.name}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <button type="submit" className="clients-btn-save" style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}>{editingContactId ? 'Save' : 'Add'}</button>
                     <button type="button" className="clients-btn-cancel" style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
@@ -501,8 +528,8 @@ export const Clients: React.FC = () => {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0, alignItems: 'center' }}>
-                    <label style={{ cursor: 'pointer', fontSize: '0.75rem', color: 'var(--color-info)', padding: '0.2rem 0.4rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
-                      📎
+                    <label style={{ cursor: 'pointer', fontSize: '0.75rem', color: 'var(--color-info)', padding: '0.2rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      📎 Business Card
                       <input type="file" accept="image/*,.pdf" style={{ display: 'none' }}
                         onChange={e => { if (e.target.files?.[0]) handleBusinessCardUpload(contact.id, e.target.files[0]); e.target.value = ''; }} />
                     </label>

@@ -173,7 +173,6 @@ export const ClientDetail: React.FC = () => {
         <div className="cd-card">
           <div className="cd-card-header">
             <h3>Contacts ({contacts.length})</h3>
-            <button className="cd-btn-add" onClick={() => navigate(`/clients/${id}`, { state: { editContacts: true } })}>Edit Contacts</button>
           </div>
 
           {contacts.length === 0 ? (
