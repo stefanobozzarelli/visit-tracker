@@ -328,7 +328,7 @@ export const CompanyVisitForm: React.FC = () => {
     <div className="cv-form-page">
       {/* Header */}
       <div className="cv-form-header">
-        <h1>{isEdit ? 'Edit Company Meeting' : 'New Company Meeting'}</h1>
+        <h1>{isEdit ? 'Edit Supplier Meeting' : 'New Supplier Meeting'}</h1>
         <button className="cv-form-back" onClick={() => navigate(-1)}>
           &larr; Back
         </button>

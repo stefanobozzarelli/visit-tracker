@@ -70,9 +70,9 @@
 .clients-table tbody tr:last-child td { border-bottom: none; }
 
 /* Client name cell */
-.client-name-cell { max-width: 250px; }
-.client-name { font-weight: var(--font-weight-semibold); color: var(--color-text-primary); font-size: 1.0625rem; }
-.client-notes { font-size: 0.688rem; color: var(--color-text-tertiary); margin-top: 0.0625rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.client-name-cell { max-width: 200px; min-width: 150px; overflow: hidden; }
+.client-name { font-weight: var(--font-weight-semibold); color: var(--color-text-primary); font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-notes { font-size: 0.688rem; color: var(--color-text-tertiary); margin-top: 0.0625rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 .client-country { font-size: 0.813rem; color: var(--color-text-secondary); }
 

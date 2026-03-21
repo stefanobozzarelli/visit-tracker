@@ -154,8 +154,8 @@ export const CompanyVisits: React.FC = () => {
       {/* Header */}
       <div className="cv-header">
         <div className="cv-header-left">
-          <h1>Company Meetings</h1>
-          <p className="cv-header-subtitle">Manage internal company meetings</p>
+          <h1>Supplier Meetings</h1>
+          <p className="cv-header-subtitle">Manage supplier meetings</p>
         </div>
         <button className="cv-btn-new" onClick={() => navigate('/company-visits/new')}>
           + New Meeting

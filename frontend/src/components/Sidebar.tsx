@@ -88,7 +88,7 @@ export const Sidebar: React.FC = () => {
               onClick={closeSidebar}
             >
               <span className="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg></span>
-              Company Meetings
+              Supplier Meetings
             </NavLink>
             <NavLink
               to="/companies"
@@ -96,7 +96,7 @@ export const Sidebar: React.FC = () => {
               onClick={closeSidebar}
             >
               <span className="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-              Companies
+              Suppliers
             </NavLink>
             <NavLink
               to="/contacts"

@@ -1,0 +1,65 @@
+.cf-page { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
+.cf-loading { padding: 3rem; text-align: center; color: var(--color-text-tertiary); }
+
+.cf-header { margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+.cf-back { display: inline-flex; align-items: center; gap: 0.25rem; background: none; border: none; color: var(--color-info); font-size: 0.875rem; font-family: inherit; cursor: pointer; padding: 0; }
+.cf-back:hover { text-decoration: underline; }
+.cf-header h1 { margin: 0; font-size: 1.75rem; font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+
+.cf-alert { padding: 0.75rem 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.813rem; font-weight: var(--font-weight-medium); }
+.cf-alert-error { background: #F5EDEB; color: var(--color-error); border: 1px solid rgba(158,90,82,0.2); }
+.cf-alert-success { background: #ECF2ED; color: var(--color-success); border: 1px solid rgba(91,138,101,0.2); }
+
+.cf-card { background: var(--color-white); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-xs); }
+
+.cf-form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.cf-form-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.75rem; }
+.cf-form-group label { font-size: 0.813rem; font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.cf-form-group input, .cf-form-group select, .cf-form-group textarea { padding: 0.5rem 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.875rem; font-family: inherit; }
+.cf-form-group input:focus, .cf-form-group select:focus, .cf-form-group textarea:focus { outline: none; border-color: var(--color-info); box-shadow: 0 0 0 2px rgba(74,96,120,0.08); }
+.cf-form-group textarea { resize: vertical; }
+
+.cf-country-add { display: flex; gap: 0.5rem; align-items: center; }
+.cf-country-add input { flex: 1; }
+.cf-country-btn { padding: 0.4rem 0.75rem; font-size: 0.75rem; border: 1px solid var(--color-border); background: var(--color-white); border-radius: var(--radius-md); cursor: pointer; }
+.cf-country-btn.cancel { background: #F5EDEB; color: var(--color-error); border-color: rgba(158,90,82,0.2); }
+
+.cf-suppliers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; margin-top: 0.5rem; padding: 0.75rem; background: var(--color-bg-primary); border-radius: 8px; border: 1px solid var(--color-border); }
+.cf-supplier-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem; border: 1.5px solid transparent; background: var(--color-white); cursor: pointer; user-select: none; transition: all 0.15s ease; }
+.cf-supplier-item:hover { border-color: var(--color-border-strong); }
+.cf-supplier-item.selected { background: rgba(74, 96, 120, 0.08); border-color: rgba(74, 96, 120, 0.4); color: var(--color-info); font-weight: 600; }
+.cf-supplier-item input { margin: 0; width: 16px; height: 16px; accentColor: #4A6078; flex-shrink: 0; }
+
+.cf-supplier-count { margin-top: 0.375rem; font-size: 0.75rem; color: var(--color-text-tertiary); }
+
+.cf-form-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+.cf-btn-save { padding: 0.5rem 1rem; background: var(--color-info); color: #fff; border: none; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: var(--font-weight-medium); font-family: inherit; cursor: pointer; transition: background 0.15s ease; }
+.cf-btn-save:hover:not(:disabled) { background: #3D5068; }
+.cf-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.cf-btn-cancel { padding: 0.5rem 1rem; background: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.875rem; font-family: inherit; cursor: pointer; }
+.cf-btn-cancel:hover:not(:disabled) { background: var(--color-bg-tertiary); }
+.cf-btn-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.cf-contacts-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border); }
+.cf-contacts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.cf-contacts-header h3 { margin: 0; font-size: 1rem; font-weight: var(--font-weight-semibold); }
+.cf-btn-new { padding: 0.4rem 0.75rem; background: var(--color-info); color: #fff; border: none; border-radius: var(--radius-md); font-size: 0.75rem; font-weight: var(--font-weight-medium); font-family: inherit; cursor: pointer; }
+.cf-btn-new:hover { background: #3D5068; }
+
+.cf-contact-form { background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem; }
+.cf-contact-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+
+.cf-contacts-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.cf-contact-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.75rem; background: var(--color-white); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.cf-contact-info { flex: 1; min-width: 0; }
+.cf-contact-name { font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary); margin-bottom: 0.25rem; }
+.cf-contact-details { font-size: 0.75rem; color: var(--color-text-secondary); }
+.cf-contact-card { font-size: 0.688rem; color: var(--color-info); margin-top: 0.25rem; }
+
+.cf-contact-actions { display: flex; gap: 0.375rem; flex-shrink: 0; }
+.cf-contact-action-btn { padding: 0.3rem 0.6rem; font-size: 0.7rem; border: 1px solid var(--color-border); background: var(--color-white); color: var(--color-text-secondary); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s ease; font-family: inherit; }
+.cf-contact-action-btn:hover { background: var(--color-bg-secondary); border-color: var(--color-border-strong); }
+.cf-contact-action-btn.delete { color: var(--color-error); border-color: rgba(158,90,82,0.2); }
+.cf-contact-action-btn.delete:hover { background: rgba(158,90,82,0.04); }
+
+.cf-file-attached { font-size: 0.75rem; color: var(--color-info); margin-top: 0.25rem; }
