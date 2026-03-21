@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, Company } from '../types';
-import { encodeMetadata, VisitMetadata } from '../utils/visitMetadata';
+import { encodeMetadata, VisitMetadata, decodeMetadata } from '../utils/visitMetadata';
 import '../styles/CrudPages.css';
 
 export const NewVisit: React.FC = () => {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const isEditMode = !!editId;
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -50,7 +52,10 @@ export const NewVisit: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+    if (isEditMode && editId) {
+      loadVisitForEdit(editId);
+    }
+  }, [editId, isEditMode]);
 
   // Derive unique countries from existing clients + newly added countries in form
   const countries = useMemo(() => {
@@ -104,6 +109,37 @@ export const NewVisit: React.FC = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadVisitForEdit = async (visitId: string) => {
+    try {
+      const res = await apiService.getVisit(visitId);
+      if (res.success && res.data) {
+        const visit = res.data;
+        const metadata = decodeMetadata(visit.reports || []);
+        setFormData({
+          clientId: visit.client_id,
+          visitDate: visit.visit_date ? visit.visit_date.split('T')[0] : '',
+          status: visit.status || 'scheduled',
+          preparation: visit.preparation || '',
+          reports: (visit.reports || []).map((r: any) => ({
+            companyId: r.company_id,
+            section: r.section,
+            content: r.content,
+          })),
+        });
+        setMetadata({
+          location: metadata?.location || '',
+          purpose: metadata?.purpose || '',
+          outcome: metadata?.outcome || '',
+          followUpRequired: metadata?.followUpRequired || false,
+          nextAction: metadata?.nextAction || '',
+        });
+      }
+    } catch (err) {
+      setError('Error loading visit');
+      console.warn('[NewVisit] Failed to load visit:', err);
     }
   };
 
@@ -213,22 +249,53 @@ export const NewVisit: React.FC = () => {
         });
       }
 
-      const response = await apiService.createVisit(formData.clientId, formData.visitDate, reports, {
-        status: formData.status,
-        preparation: formData.preparation || undefined,
-      });
-      if (response.success) {
-        // Upload pending direct files
-        if (pendingDirectFiles.length > 0 && response.data?.id) {
-          for (const file of pendingDirectFiles) {
+      let visitId = editId;
+
+      if (isEditMode && editId) {
+        // Update existing visit
+        const updateRes = await apiService.updateVisit(editId, {
+          status: formData.status,
+          preparation: formData.preparation || undefined,
+        });
+        if (!updateRes.success) {
+          throw new Error('Error updating visit');
+        }
+
+        // Create new reports if any
+        if (reports.length > 0) {
+          for (const report of reports) {
             try {
-              await apiService.uploadVisitDirectAttachment(response.data.id, file);
-            } catch {
-              console.error('Failed to upload direct attachment:', file.name);
+              await apiService.createVisitReport(editId, report.company_id, report.section, report.content);
+            } catch (err) {
+              console.error('Failed to create report:', err);
             }
           }
         }
-        // Create inline tasks if any
+      } else {
+        // Create new visit
+        const response = await apiService.createVisit(formData.clientId, formData.visitDate, reports, {
+          status: formData.status,
+          preparation: formData.preparation || undefined,
+        });
+        if (!response.success) {
+          throw new Error('Error creating visit');
+        }
+        visitId = response.data?.id;
+      }
+
+      // Upload pending direct files (works for both create and edit)
+      if (pendingDirectFiles.length > 0 && visitId) {
+        for (const file of pendingDirectFiles) {
+          try {
+            await apiService.uploadVisitDirectAttachment(visitId, file);
+          } catch {
+            console.error('Failed to upload direct attachment:', file.name);
+          }
+        }
+      }
+
+      // Create inline tasks if any (only for new visits)
+      if (!isEditMode) {
         for (const task of tasks) {
           if (task.title.trim()) {
             try {
@@ -250,8 +317,9 @@ export const NewVisit: React.FC = () => {
             } catch { /* non-blocking */ }
           }
         }
-        navigate(`/visits/${response.data.id}`);
       }
+
+      navigate(`/visits/${visitId}`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -264,7 +332,7 @@ export const NewVisit: React.FC = () => {
   return (
     <div className="crud-page">
       <div className="page-header">
-        <h1>Register Visit</h1>
+        <h1>{isEditMode ? 'Edit Meeting' : 'Register Visit'}</h1>
         <button onClick={() => navigate('/visits')} className="btn-secondary">
           ← Back to Client Meetings
         </button>
@@ -281,6 +349,7 @@ export const NewVisit: React.FC = () => {
               <select
                 value={formData.clientId}
                 onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                disabled={isEditMode}
                 required
                 style={{ flex: '1 1 auto', minWidth: 0, width: 'auto' }}
               >
@@ -294,6 +363,7 @@ export const NewVisit: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowNewClientForm(!showNewClientForm)}
+                disabled={isEditMode}
                 className="btn-secondary"
                 style={{ whiteSpace: 'nowrap' }}
               >
@@ -389,6 +459,7 @@ export const NewVisit: React.FC = () => {
                 type="date"
                 value={formData.visitDate}
                 onChange={(e) => setFormData({ ...formData, visitDate: e.target.value })}
+                disabled={isEditMode}
                 required
               />
             </div>
@@ -581,12 +652,16 @@ export const NewVisit: React.FC = () => {
             + Add Another Company
           </button>
 
-          {/* Tasks section */}
-          <h3 style={{ marginTop: '1.5rem' }}>Tasks</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', marginBottom: '0.75rem' }}>
-            Add follow-up tasks for this visit. They will be created when you register the visit.
-          </p>
-          {tasks.map((task, idx) => (
+          {/* Tasks section - only for new visits */}
+          {!isEditMode && (
+            <>
+              <h3 style={{ marginTop: '1.5rem' }}>Tasks</h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', marginBottom: '0.75rem' }}>
+                Add follow-up tasks for this visit. They will be created when you register the visit.
+              </p>
+            </>
+          )}
+          {!isEditMode && tasks.map((task, idx) => (
             <div key={idx} style={{ padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-tertiary)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -675,14 +750,18 @@ export const NewVisit: React.FC = () => {
               </div>
             </div>
           ))}
-          <button
-            type="button"
-            onClick={() => setTasks([...tasks, { title: '', companyId: formData.reports[0]?.companyId || '', dueDate: '', assignedToUserId: '', files: [] }])}
-            className="btn-secondary"
-            style={{ marginBottom: '1rem' }}
-          >
-            + Add Task
-          </button>
+          {!isEditMode && (
+            <button
+              type="button"
+              onClick={() => setTasks([...tasks, { title: '', companyId: formData.reports[0]?.companyId || '', dueDate: '', assignedToUserId: '', files: [] }])}
+              className="btn-secondary"
+              style={{ marginBottom: '1rem' }}
+            >
+              + Add Task
+            </button>
+          )}
+            </>
+          )}
 
           {/* Direct File Attachments */}
           <div className="cv-attachments-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
