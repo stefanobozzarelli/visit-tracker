@@ -56,6 +56,14 @@ export const NewVisit: React.FC = () => {
   const [deletedReportIds, setDeletedReportIds] = useState<Set<string>>(new Set());
   const [originalVisitData, setOriginalVisitData] = useState<any>(null);
 
+  // Order management state
+  const [newOrders, setNewOrders] = useState<{ supplier_id: string; supplier_name: string; order_date: string; payment_method: string; notes: string; status: 'draft' | 'confirmed' | 'completed' }[]>([]);
+  const [deletedOrderIds, setDeletedOrderIds] = useState<Set<string>>(new Set());
+  const [editingOrderIdx, setEditingOrderIdx] = useState<number | null>(null);
+
+  // Report-level attachments: map from report index to files
+  const [reportAttachments, setReportAttachments] = useState<{ [reportIdx: number]: File[] }>({});
+
   useEffect(() => {
     loadData();
     if (isEditMode && editId) {
@@ -217,6 +225,60 @@ export const NewVisit: React.FC = () => {
     }
   };
 
+  // Order management functions
+  const handleAddOrder = () => {
+    const newOrderIdx = newOrders.length;
+    setNewOrders([
+      ...newOrders,
+      {
+        supplier_id: '',
+        supplier_name: '',
+        order_date: new Date().toISOString().split('T')[0],
+        payment_method: 'transfer',
+        notes: '',
+        status: 'draft' as const,
+      },
+    ]);
+    setEditingOrderIdx(newOrderIdx);
+  };
+
+  const handleRemoveNewOrder = (index: number) => {
+    setNewOrders(prev => prev.filter((_, i) => i !== index));
+    if (editingOrderIdx === index) {
+      setEditingOrderIdx(null);
+    }
+  };
+
+  const handleRemoveExistingOrder = (orderId: string) => {
+    setDeletedOrderIds(prev => new Set([...prev, orderId]));
+    setExistingOrders(prev => prev.filter(o => o.id !== orderId));
+  };
+
+  const handleOrderChange = (isNew: boolean, index: number, field: string, value: string) => {
+    if (isNew) {
+      const updatedOrders = [...newOrders];
+      updatedOrders[index] = { ...updatedOrders[index], [field]: value };
+      setNewOrders(updatedOrders);
+    }
+  };
+
+  // Report attachment functions
+  const handleReportAttachmentSelect = (reportIdx: number, files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files);
+    setReportAttachments(prev => ({
+      ...prev,
+      [reportIdx]: [...(prev[reportIdx] || []), ...newFiles],
+    }));
+  };
+
+  const handleRemoveReportAttachment = (reportIdx: number, fileIdx: number) => {
+    setReportAttachments(prev => ({
+      ...prev,
+      [reportIdx]: (prev[reportIdx] || []).filter((_, i) => i !== fileIdx),
+    }));
+  };
+
   const handleCreateClient = async () => {
     if (!newClientData.name || !newClientData.country) {
       setError('Fill in client name and country');
@@ -312,7 +374,7 @@ export const NewVisit: React.FC = () => {
         if (metaReport && formData.reports[0]?.companyId) {
           try {
             // Find and update metadata report, or create if doesn't exist
-            await apiService.createVisitReport(editId, formData.reports[0].companyId, metaReport.section, metaReport.content);
+            await apiService.addVisitReport(editId, formData.reports[0].companyId, metaReport.section, metaReport.content);
           } catch (err) {
             console.error('Failed to update metadata:', err);
           }
@@ -343,16 +405,87 @@ export const NewVisit: React.FC = () => {
           }
         }
 
-        // 4. Create new reports (ones without ID)
+        // 4. Create new reports (ones without ID) and track their IDs for file uploads
+        const newReportIds: { [formIdx: number]: string } = {};
         const newReportsToCreate = formData.reports.filter((r, idx) => !existingReports[idx]?.id && r.companyId && r.section);
-        for (const report of newReportsToCreate) {
-          try {
-            await apiService.createVisitReport(editId, report.companyId, report.section, report.content);
-          } catch (err) {
-            console.error('Failed to create report:', err);
-            errors.push('Failed to create new report');
+        for (let idx = 0; idx < formData.reports.length; idx++) {
+          if (!existingReports[idx]?.id && formData.reports[idx].companyId && formData.reports[idx].section) {
+            const report = formData.reports[idx];
+            try {
+              const res = await apiService.addVisitReport(editId, report.companyId, report.section, report.content);
+              if (res.success && res.data?.id) {
+                newReportIds[idx] = res.data.id;
+              }
+            } catch (err) {
+              console.error('Failed to create report:', err);
+              errors.push('Failed to create new report');
+            }
           }
         }
+
+        // 5. Delete orders marked for deletion
+        for (const orderId of deletedOrderIds) {
+          try {
+            await apiService.deleteOrder(orderId);
+          } catch (err) {
+            console.error('Failed to delete order:', err);
+            errors.push('Failed to delete one or more orders');
+          }
+        }
+        setDeletedOrderIds(new Set());
+
+        // 6. Create new orders
+        for (const order of newOrders) {
+          if (order.supplier_id) {
+            try {
+              await apiService.createOrder(editId, {
+                supplier_id: order.supplier_id,
+                supplier_name: order.supplier_name,
+                order_date: order.order_date,
+                payment_method: order.payment_method,
+                notes: order.notes,
+                status: order.status,
+              });
+            } catch (err) {
+              console.error('Failed to create order:', err);
+              errors.push('Failed to create one or more orders');
+            }
+          }
+        }
+        setNewOrders([]);
+
+        // 7. Upload report attachments for all reports (both existing and newly created)
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+        for (let idx = 0; idx < formData.reports.length; idx++) {
+          const reportId = newReportIds[idx] || existingReports[idx]?.id;
+          const files = reportAttachments[idx] || [];
+
+          if (reportId && files.length > 0) {
+            for (const file of files) {
+              try {
+                const formDataObj = new FormData();
+                formDataObj.append('file', file);
+                const uploadUrl = `${baseUrl}/visits/${editId}/reports/${reportId}/upload`;
+                const uploadResponse = await fetch(uploadUrl, {
+                  method: 'POST',
+                  body: formDataObj,
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+                  },
+                });
+
+                if (!uploadResponse.ok) {
+                  const errorData = await uploadResponse.json();
+                  errors.push(`Failed to upload file: ${file.name}`);
+                }
+              } catch (err) {
+                console.error('Failed to upload report attachment:', err);
+                errors.push(`Failed to upload file: ${file.name}`);
+              }
+            }
+          }
+        }
+        setReportAttachments({});
       } else {
         // CREATE NEW VISIT MODE
 
@@ -716,6 +849,61 @@ export const NewVisit: React.FC = () => {
                 )}
               </div>
 
+              {/* Action buttons for this report */}
+              {report.companyId && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const clientId = formData.clientId;
+                      if (!clientId) {
+                        setError('Please select a client first');
+                        return;
+                      }
+                      const params = new URLSearchParams({
+                        visitReportId: `temp-${index}`,
+                        clientId: clientId,
+                        companyId: report.companyId,
+                      });
+                      navigate(`/todos/new?${params.toString()}`);
+                    }}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      background: 'var(--color-info)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    + Task
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!isEditMode}
+                    title={!isEditMode ? 'Save visit first to add orders' : undefined}
+                    onClick={() => {
+                      if (!isEditMode) return;
+                      setShowOrderForm(true);
+                    }}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      background: isEditMode ? 'var(--color-warning)' : 'var(--color-border)',
+                      color: isEditMode ? '#333' : 'var(--color-text-tertiary)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: isEditMode ? 'pointer' : 'not-allowed',
+                      fontSize: '0.875rem',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    + Order
+                  </button>
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Report Section *</label>
                 <input
@@ -736,6 +924,65 @@ export const NewVisit: React.FC = () => {
                   rows={5}
                   required
                 />
+              </div>
+
+              {/* Report-level attachments */}
+              <div className="cv-attachments-section" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Attachments for this section</label>
+                <div
+                  className="cv-attachment-dropzone"
+                  style={{
+                    border: '2px dashed var(--color-border)',
+                    borderRadius: '4px',
+                    padding: '1.5rem',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: 'var(--color-bg-tertiary)',
+                    marginBottom: '0.5rem',
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleReportAttachmentSelect(index, e.dataTransfer.files);
+                  }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = true;
+                    input.onchange = (e) => {
+                      const fileInput = e.target as HTMLInputElement;
+                      handleReportAttachmentSelect(index, fileInput.files);
+                    };
+                    input.click();
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  Drag files here or click to upload
+                </div>
+                {(reportAttachments[index] || []).length > 0 && (
+                  <div className="cv-attachment-list">
+                    {(reportAttachments[index] || []).map((file, fIdx) => (
+                      <div key={fIdx} className="cv-attachment-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', backgroundColor: 'var(--color-bg-secondary)', borderRadius: '4px', marginBottom: '0.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                          </svg>
+                          <span style={{ fontSize: '0.875rem' }}>{file.name}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{formatFileSize(file.size)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveReportAttachment(index, fIdx)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: '1rem' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {formData.reports.length > 1 && (
@@ -921,31 +1168,142 @@ export const NewVisit: React.FC = () => {
           </div>
 
           {/* Customer Orders Section - Edit Mode Only */}
-          {isEditMode && existingOrders.length > 0 && (
+          {isEditMode && (existingOrders.length > 0 || newOrders.length > 0) && (
             <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-              <h3 style={{ marginBottom: '1rem', marginTop: 0 }}>Customer Orders</h3>
-              <div style={{ display: 'grid', gap: '1rem' }}>
-                {existingOrders.map((order) => (
-                  <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem' }}>
-                    <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1.2rem', fontWeight: '700' }}>{order.supplier_name || 'Supplier'}</h4>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>
-                        Order #{order.id.substring(0, 8)} | Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}
-                      </p>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
-                      <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Lines</label>
-                        <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem' }}>{order.items?.length || 0}</p>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Total Amount</label>
-                        <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-info)' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ margin: 0, marginTop: 0 }}>Customer Orders</h3>
+                <button
+                  type="button"
+                  onClick={handleAddOrder}
+                  className="btn-secondary"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  + Add Order
+                </button>
               </div>
+
+              {/* Existing Orders */}
+              {existingOrders.length > 0 && (
+                <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
+                  {existingOrders.map((order) => (
+                    <div key={order.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1.2rem', fontWeight: '700' }}>{order.supplier_name || 'Supplier'}</h4>
+                          <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: '#666' }}>
+                            Order #{order.id.substring(0, 8)} | Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}
+                          </p>
+                          {order.notes && <p style={{ margin: '0.25rem 0', fontSize: '0.875rem', color: '#999' }}>Notes: {order.notes}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExistingOrder(order.id)}
+                          style={{ background: 'var(--color-error)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Lines</label>
+                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem' }}>{order.items?.length || 0}</p>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Total Amount</label>
+                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-info)' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount)).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#666', display: 'block', marginBottom: '0.5rem' }}>Status</label>
+                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem' }}>{order.status || 'draft'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* New Orders Being Created */}
+              {newOrders.length > 0 && (
+                <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
+                  {newOrders.map((order, idx) => (
+                    <div key={`new-${idx}`} style={{ background: '#f9f9f9', border: '1px dashed #ddd', borderRadius: '8px', padding: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#999' }}>New Order (unsaved)</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveNewOrder(idx)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: '1.125rem' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Supplier *</label>
+                          <select
+                            value={order.supplier_id}
+                            onChange={(e) => {
+                              const selectedCompany = companies.find(c => c.id === e.target.value);
+                              handleOrderChange(true, idx, 'supplier_id', e.target.value);
+                              const updatedOrders = [...newOrders];
+                              updatedOrders[idx].supplier_name = selectedCompany?.name || '';
+                              setNewOrders(updatedOrders);
+                            }}
+                            required
+                          >
+                            <option value="">Select supplier</option>
+                            {companies.map((co) => (
+                              <option key={co.id} value={co.id}>{co.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Order Date *</label>
+                          <input
+                            type="date"
+                            value={order.order_date}
+                            onChange={(e) => handleOrderChange(true, idx, 'order_date', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Payment Method</label>
+                          <select
+                            value={order.payment_method}
+                            onChange={(e) => handleOrderChange(true, idx, 'payment_method', e.target.value)}
+                          >
+                            <option value="transfer">Bank Transfer</option>
+                            <option value="cash">Cash</option>
+                            <option value="check">Check</option>
+                            <option value="card">Card</option>
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Status</label>
+                          <select
+                            value={order.status}
+                            onChange={(e) => handleOrderChange(true, idx, 'status', e.target.value)}
+                          >
+                            <option value="draft">Draft</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+                          <label>Notes</label>
+                          <textarea
+                            value={order.notes}
+                            onChange={(e) => handleOrderChange(true, idx, 'notes', e.target.value)}
+                            rows={2}
+                            placeholder="Additional notes..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
             </div>
           )}
 
