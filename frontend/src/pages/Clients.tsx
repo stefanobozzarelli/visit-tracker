@@ -33,7 +33,7 @@ export const Clients: React.FC = () => {
 
   // Form for new client
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', country: '', city: '', notes: '', role: 'cliente' });
+  const [formData, setFormData] = useState({ name: '', country: '', city: '', notes: '', role: 'cliente', has_showroom: false });
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [isAddingCountry, setIsAddingCountry] = useState(false);
   const [newCountryInput, setNewCountryInput] = useState('');
@@ -210,7 +210,7 @@ export const Clients: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiService.createClient(formData.name, formData.country, formData.notes, formData.role, selectedCompanyIds, formData.city);
+      await apiService.createClient(formData.name, formData.country, formData.notes, formData.role, selectedCompanyIds, formData.city, formData.has_showroom);
       setSuccess('Client created');
       resetForm();
       loadData();
@@ -243,7 +243,7 @@ export const Clients: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', country: '', city: '', notes: '', role: 'cliente' });
+    setFormData({ name: '', country: '', city: '', notes: '', role: 'cliente', has_showroom: false });
     setSelectedCompanyIds([]);
     setEditContacts([]);
     setShowContactForm(false);
@@ -393,6 +393,18 @@ export const Clients: React.FC = () => {
             <div className="clients-form-group">
               <label>Notes</label>
               <textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} />
+            </div>
+            {/* Showroom toggle */}
+            <div className="clients-form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.has_showroom}
+                  onChange={e => setFormData({ ...formData, has_showroom: e.target.checked })}
+                  style={{ width: '18px', height: '18px', accentColor: '#4A6078' }}
+                />
+                <span>Has Showroom</span>
+              </label>
             </div>
             {/* Suppliers checkboxes */}
             <div className="clients-form-group">

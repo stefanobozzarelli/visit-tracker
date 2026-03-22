@@ -172,9 +172,15 @@ export const Showrooms: React.FC = () => {
           <h1>Showrooms</h1>
           <p className="sr-header-subtitle">Manage showrooms</p>
         </div>
-        <button className="sr-btn-new" onClick={() => navigate('/showrooms/new')}>
-          + New Showroom
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="sr-btn-new" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)' }} onClick={() => navigate('/showrooms/map')}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '0.25rem', verticalAlign: 'middle' }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Map View
+          </button>
+          <button className="sr-btn-new" onClick={() => navigate('/showrooms/new')}>
+            + New Showroom
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}

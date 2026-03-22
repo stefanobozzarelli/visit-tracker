@@ -435,7 +435,7 @@ class ApiService {
   }
 
   // Clients
-  async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[], city?: string) {
+  async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[], city?: string, has_showroom?: boolean) {
     const response = await this.api.post<ApiResponse<any>>('/clients', {
       name,
       country,
@@ -443,6 +443,7 @@ class ApiService {
       notes,
       role,
       company_ids,
+      has_showroom,
     });
     return response.data;
   }

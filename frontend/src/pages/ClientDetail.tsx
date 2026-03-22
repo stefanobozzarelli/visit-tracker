@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
-import { Client, ClientContact, Visit, TodoItem, Company, Project, Claim } from '../types';
+import { Client, ClientContact, Visit, TodoItem, Company, Project, Claim, Showroom } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
 import '../styles/ClientDetail.css';
 
@@ -21,6 +21,7 @@ export const ClientDetail: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,7 @@ export const ClientDetail: React.FC = () => {
       try { const r = await apiService.getCompanies(); if (r.success && r.data) setCompanies(r.data); } catch {}
       try { const r = await apiService.getProjects({ client_id: id }); if (r.success) setProjects(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getClaims({ client_id: id }); if (r.success) setClaims(Array.isArray(r.data) ? r.data : []); } catch {}
+      try { const r = await apiService.getShowrooms({ clientId: id }); if (r.success) setShowrooms(Array.isArray(r.data) ? r.data : []); } catch {}
       if (!isAdmin) {
         try { const r = await apiService.getMyAreas(); if (r.success && r.data) setUserAreaCompanyIds(r.data.companies?.map((c: any) => c.id) || []); } catch {}
       }
@@ -75,6 +77,10 @@ export const ClientDetail: React.FC = () => {
     return claims.filter(c => c.client_id === id)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
   }, [claims, id]);
+
+  const clientShowrooms = useMemo(() => {
+    return showrooms.filter(s => s.client_id === id);
+  }, [showrooms, id]);
 
   const relatedCompanies = useMemo(() => {
     let cc = (client as any)?.clientCompanies || [];
@@ -294,6 +300,40 @@ export const ClientDetail: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          <div className="cd-card">
+            <div className="cd-card-header">
+              <h3>Showrooms ({clientShowrooms.length})</h3>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className="cd-link" onClick={() => navigate(`/showrooms/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate(`/showrooms?clientId=${id}`)}>View all</button>
+              </div>
+            </div>
+            {clientShowrooms.length === 0 ? (
+              <div className="cd-empty">No showrooms yet</div>
+            ) : (
+              <div className="cd-list">
+                {clientShowrooms.map(s => {
+                  const statusLabels: Record<string, string> = { open: 'Open', closed: 'Closed', opening: 'Opening', none: 'None' };
+                  return (
+                    <div key={s.id} className="cd-list-item" onClick={() => navigate(`/showrooms/${s.id}`)}>
+                      <div className="cd-list-main">
+                        <div className="cd-list-title">{s.name}</div>
+                        <div className="cd-list-sub">
+                          {statusLabels[s.status] || s.status}
+                          {s.city && ` · ${s.city}`}
+                          {s.sqm && ` · ${s.sqm} sqm`}
+                        </div>
+                      </div>
+                      <span className={`cd-report-badge ${s.status === 'open' ? 'ready' : s.status === 'opening' ? 'ready' : 'missing'}`}>
+                        {statusLabels[s.status] || s.status}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
