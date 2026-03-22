@@ -199,23 +199,16 @@ export const OfferForm: React.FC = () => {
 
         <div className="ofrf-form-row">
           <div className="ofrf-form-group">
-            <label>Project</label>
-            <select name="project_id" value={formData.project_id} onChange={handleChange} disabled={isLoading}>
-              <option value="">-- Select Project --</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.project_name || `Project #${p.project_number}`}</option>)}
-            </select>
-          </div>
-          <div className="ofrf-form-group">
             <label>Offer Date *</label>
             <input type="date" name="offer_date" value={formData.offer_date} onChange={handleChange} disabled={isLoading} />
           </div>
-        </div>
-
-        <div className="ofrf-form-row">
           <div className="ofrf-form-group">
             <label>Valid Until</label>
             <input type="date" name="valid_until" value={formData.valid_until} onChange={handleChange} disabled={isLoading} />
           </div>
+        </div>
+
+        <div className="ofrf-form-row">
           <div className="ofrf-form-group">
             <label>Status</label>
             <select name="status" value={formData.status} onChange={handleChange} disabled={isLoading}>
@@ -226,39 +219,58 @@ export const OfferForm: React.FC = () => {
               <option value="expired">Expired</option>
             </select>
           </div>
-        </div>
-
-        <div className="ofrf-form-row">
           <div className="ofrf-form-group">
             <label>Currency</label>
             <input type="text" name="currency" value={formData.currency} onChange={handleChange} placeholder="EUR" disabled={isLoading} />
           </div>
-          <div className="ofrf-form-group">
-            <label>Link to Visit (optional)</label>
-            <select name="visit_id" value={formData.visit_id} onChange={handleChange} disabled={isLoading}>
-              <option value="">-- None --</option>
-              {visits.map(v => (
-                <option key={v.id} value={v.id}>
-                  {new Date(v.visit_date).toLocaleDateString('it-IT')} - {v.client?.name || v.client_id}
+        </div>
+
+        <h3 style={{ margin: '1.5rem 0 0.75rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>Links</h3>
+
+        <div className="ofrf-form-group">
+          <label>Project (optional)</label>
+          <select name="project_id" value={formData.project_id} onChange={handleChange} disabled={isLoading}>
+            <option value="">-- No Project --</option>
+            {projects
+              .filter(p => !formData.client_id || p.client_id === formData.client_id || !p.client_id)
+              .map(p => (
+                <option key={p.id} value={p.id}>
+                  #{p.project_number} - {p.project_name || 'Untitled'} | {p.client?.name || '-'} | {p.supplier?.name || '-'} | {p.registration_date ? new Date(p.registration_date).toLocaleDateString('it-IT') : '-'}
                 </option>
               ))}
-            </select>
-          </div>
+          </select>
+          {formData.client_id && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>
+              Showing projects for selected client. Clear client to see all.
+            </div>
+          )}
         </div>
 
         <div className="ofrf-form-row">
+          <div className="ofrf-form-group">
+            <label>Link to Client Visit (optional)</label>
+            <select name="visit_id" value={formData.visit_id} onChange={handleChange} disabled={isLoading}>
+              <option value="">-- None --</option>
+              {visits
+                .filter(v => !formData.client_id || v.client_id === formData.client_id)
+                .map(v => (
+                  <option key={v.id} value={v.id}>
+                    {new Date(v.visit_date).toLocaleDateString('it-IT')} - {v.client?.name || '-'}
+                  </option>
+                ))}
+            </select>
+          </div>
           <div className="ofrf-form-group">
             <label>Link to Company Visit (optional)</label>
             <select name="company_visit_id" value={formData.company_visit_id} onChange={handleChange} disabled={isLoading}>
               <option value="">-- None --</option>
               {companyVisits.map(cv => (
                 <option key={cv.id} value={cv.id}>
-                  {new Date(cv.visit_date).toLocaleDateString('it-IT')} - {cv.company?.name || cv.company_id}
+                  {cv.date ? new Date(cv.date).toLocaleDateString('it-IT') : '-'} - {cv.company?.name || '-'}
                 </option>
               ))}
             </select>
           </div>
-          <div className="ofrf-form-group" />
         </div>
 
         <div className="ofrf-form-group" style={{ marginTop: '0.5rem' }}>
