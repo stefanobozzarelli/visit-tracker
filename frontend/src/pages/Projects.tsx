@@ -17,7 +17,7 @@ const STATUS_DOT: Record<string, string> = { ATTIVO: '#4caf50', COMPLETATO: '#15
 
 export const Projects: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'master_admin' || user?.role === 'manager';
 
@@ -28,13 +28,13 @@ export const Projects: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Filters
-  const [search, setSearch] = useState('');
-  const [supplierFilter, setSupplierFilter] = useState('');
-  const [clientFilter, setClientFilter] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  // Filters (initialized from URL params for back-navigation persistence)
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [supplierFilter, setSupplierFilter] = useState(searchParams.get('supplier') || '');
+  const [clientFilter, setClientFilter] = useState(searchParams.get('client') || '');
+  const [countryFilter, setCountryFilter] = useState(searchParams.get('country') || '');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || '');
 
   // AI Search
   const [nlpQuery, setNlpQuery] = useState('');
@@ -66,6 +66,21 @@ export const Projects: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [searchParams]);
+
+  // Sync filters to URL for back-navigation persistence
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (supplierFilter) params.set('supplier', supplierFilter);
+    if (clientFilter) params.set('client', clientFilter);
+    if (countryFilter) params.set('country', countryFilter);
+    if (statusFilter) params.set('status', statusFilter);
+    if (typeFilter) params.set('type', typeFilter);
+    // Preserve highlight param if present
+    const highlight = searchParams.get('highlight');
+    if (highlight) params.set('highlight', highlight);
+    setSearchParams(params, { replace: true });
+  }, [search, supplierFilter, clientFilter, countryFilter, statusFilter, typeFilter]);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { if (success) { const t = setTimeout(() => setSuccess(''), 4000); return () => clearTimeout(t); } }, [success]);
@@ -114,14 +129,14 @@ export const Projects: React.FC = () => {
     });
   }, [projects, nlpResults, search, supplierFilter, clientFilter, countryFilter, statusFilter, typeFilter]);
 
-  // KPIs
+  // KPIs (based on filtered data)
   const kpis = useMemo(() => {
-    const active = projects.filter(p => p.status === 'ATTIVO').length;
-    const completed = projects.filter(p => p.status === 'COMPLETATO').length;
-    const totalValue = projects.filter(p => p.status === 'ATTIVO').reduce((s, p) => s + (Number(p.project_value) || 0), 0);
-    const totalShipped = projects.reduce((s, p) => s + (Number(p.total_value_shipped) || 0), 0);
-    return { total: projects.length, active, completed, totalValue, totalShipped };
-  }, [projects]);
+    const active = filteredProjects.filter(p => p.status === 'ATTIVO').length;
+    const completed = filteredProjects.filter(p => p.status === 'COMPLETATO').length;
+    const totalValue = filteredProjects.filter(p => p.status === 'ATTIVO').reduce((s, p) => s + (Number(p.project_value) || 0), 0);
+    const totalShipped = filteredProjects.reduce((s, p) => s + (Number(p.total_value_shipped) || 0), 0);
+    return { total: filteredProjects.length, active, completed, totalValue, totalShipped };
+  }, [filteredProjects]);
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
