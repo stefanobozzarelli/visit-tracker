@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
-import { Offer, OfferItem, OfferAttachment, OfferItemAttachment, OfferStatus } from '../types';
+import { Offer, OfferItem, OfferAttachment, OfferStatus } from '../types';
 import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Offers.css';
 
@@ -36,8 +36,6 @@ export const OfferDetail: React.FC = () => {
   // Attachment upload
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
-  const itemFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     if (success) {
@@ -84,6 +82,19 @@ export const OfferDetail: React.FC = () => {
     }
   };
 
+  // Delete item
+  const handleDeleteItem = async (itemId: string) => {
+    if (!id) return;
+    if (!window.confirm('Delete this item?')) return;
+    try {
+      await apiService.deleteOfferItem(id, itemId);
+      setSuccess('Item deleted');
+      await loadOffer();
+    } catch {
+      setError('Error deleting item');
+    }
+  };
+
   // Offer-level attachments
   const handleUploadAttachment = async (files: FileList | null) => {
     if (!id || !files || files.length === 0) return;
@@ -120,49 +131,6 @@ export const OfferDetail: React.FC = () => {
     try {
       await apiService.deleteOfferAttachment(id, attachmentId);
       setSuccess('Attachment deleted');
-      await loadOffer();
-    } catch {
-      setError('Error deleting attachment');
-    }
-  };
-
-  // Item-level attachments
-  const handleUploadItemAttachment = async (itemId: string, files: FileList | null) => {
-    if (!id || !files || files.length === 0) return;
-    setUploadingItemId(itemId);
-    try {
-      for (let i = 0; i < files.length; i++) {
-        await apiService.uploadOfferItemAttachment(id, itemId, files[i]);
-      }
-      setSuccess(`File uploaded to item`);
-      await loadOffer();
-    } catch {
-      setError('Error uploading item file');
-    } finally {
-      setUploadingItemId(null);
-      const input = itemFileInputRefs.current[itemId];
-      if (input) input.value = '';
-    }
-  };
-
-  const handleDownloadItemAttachment = async (itemId: string, attachmentId: string) => {
-    if (!id) return;
-    try {
-      const res = await apiService.downloadOfferItemAttachment(id, itemId, attachmentId);
-      if (res.success && res.data?.url) {
-        window.open(res.data.url, '_blank');
-      }
-    } catch {
-      setError('Error downloading file');
-    }
-  };
-
-  const handleDeleteItemAttachment = async (itemId: string, attachmentId: string) => {
-    if (!id) return;
-    if (!window.confirm('Delete this attachment?')) return;
-    try {
-      await apiService.deleteOfferItemAttachment(id, itemId, attachmentId);
-      setSuccess('Item attachment deleted');
       await loadOffer();
     } catch {
       setError('Error deleting attachment');
@@ -247,6 +215,16 @@ export const OfferDetail: React.FC = () => {
             <span className="off-detail-value">{offer.company?.name || '-'}</span>
           </div>
           <div className="off-detail-item">
+            <span className="off-detail-label">Project</span>
+            <span className="off-detail-value">
+              {offer.project_id ? (
+                <button type="button" className="off-link" onClick={() => navigate(`/projects/${offer.project_id}`)}>
+                  {offer.project?.project_name || `Project #${offer.project_id.substring(0, 8)}`}
+                </button>
+              ) : '-'}
+            </span>
+          </div>
+          <div className="off-detail-item">
             <span className="off-detail-label">Offer Date</span>
             <span className="off-detail-value">{formatDate(offer.offer_date)}</span>
           </div>
@@ -309,99 +287,111 @@ export const OfferDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Items table */}
+      {/* Items section - card layout */}
       <div className="off-detail-card">
-        <h3 style={{ margin: '0 0 1rem', fontSize: '1.125rem' }}>Line Items ({items.length})</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.125rem' }}>Line Items ({items.length})</h3>
+          <button
+            type="button"
+            className="off-btn-new"
+            style={{ fontSize: '0.8125rem', padding: '0.4rem 0.875rem' }}
+            onClick={() => navigate(`/offers/${id}/items/new`)}
+          >
+            + Add Item
+          </button>
+        </div>
+
         {items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>
-            No items in this offer
+            No items in this offer. Click "+ Add Item" to add line items.
           </div>
         ) : (
-          <div className="off-table-scroll">
-            <table className="off-table off-detail-items-table">
-              <thead>
-                <tr>
-                  <th>Serie</th>
-                  <th>Articolo</th>
-                  <th>Finitura</th>
-                  <th>Formato</th>
-                  <th>Sp.MM</th>
-                  <th>Prezzo</th>
-                  <th>U.M.</th>
-                  <th>Qty</th>
-                  <th>Total</th>
-                  <th>Data</th>
-                  <th>Tipo</th>
-                  <th>Promo</th>
-                  <th>Project</th>
-                  <th>Fase</th>
-                  <th>Consegna</th>
-                  <th>Note</th>
-                  <th>Files</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(item => {
-                  const itemAttachments = item.attachments || [];
-                  return (
-                    <tr key={item.id}>
-                      <td>{item.serie || '-'}</td>
-                      <td>{item.articolo || '-'}</td>
-                      <td>{item.finitura || '-'}</td>
-                      <td>{item.formato || '-'}</td>
-                      <td>{item.spessore_mm ?? '-'}</td>
-                      <td>{Number(item.prezzo_unitario || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</td>
-                      <td>{item.unita_misura || '-'}</td>
-                      <td>{item.quantita}</td>
-                      <td style={{ fontWeight: 600 }}>{Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</td>
-                      <td>{item.data ? formatDate(item.data) : '-'}</td>
-                      <td>
-                        <span style={{ textTransform: 'capitalize', fontSize: '0.75rem' }}>{item.tipo_offerta}</span>
-                      </td>
-                      <td>{item.promozionale ? 'Yes' : 'No'}</td>
-                      <td>
-                        {item.tipo_offerta === 'progetto' && item.project_id ? (
-                          <button type="button" className="off-link" onClick={() => navigate(`/projects/${item.project_id}`)}>
-                            {item.project?.project_name || item.progetto_nome || 'View Project'}
-                          </button>
-                        ) : (
-                          item.progetto_nome || '-'
-                        )}
-                      </td>
-                      <td>{item.fase_progetto || '-'}</td>
-                      <td>{item.consegna_prevista ? formatDate(item.consegna_prevista) : '-'}</td>
-                      <td style={{ maxWidth: '150px', fontSize: '0.75rem' }}>{item.note || '-'}</td>
-                      <td>
-                        <div className="off-item-attachments">
-                          {itemAttachments.map(att => (
-                            <span key={att.id} className="off-item-attachment-badge">
-                              <button type="button" className="off-link" onClick={() => handleDownloadItemAttachment(item.id, att.id)}>
-                                {att.filename}
-                              </button>
-                              <button type="button" className="off-att-delete-sm" onClick={() => handleDeleteItemAttachment(item.id, att.id)}>&times;</button>
-                            </span>
-                          ))}
-                          <button
-                            type="button"
-                            className="off-att-upload-sm"
-                            onClick={() => itemFileInputRefs.current[item.id]?.click()}
-                            disabled={uploadingItemId === item.id}
-                          >
-                            {uploadingItemId === item.id ? '...' : '+'}
-                          </button>
-                          <input
-                            ref={el => { itemFileInputRefs.current[item.id] = el; }}
-                            type="file"
-                            style={{ display: 'none' }}
-                            onChange={e => handleUploadItemAttachment(item.id, e.target.files)}
-                          />
+          <div className="off-items-grid">
+            {items.map(item => (
+              <div key={item.id} className="off-item-card">
+                <div className="off-item-card-header">
+                  <div className="off-item-card-title">
+                    {[item.serie, item.articolo, item.finitura].filter(Boolean).join(' / ') || 'Untitled Item'}
+                  </div>
+                  {item.promozionale && (
+                    <span
+                      className="off-status-badge"
+                      style={{ background: 'rgba(176, 152, 64, 0.1)', color: '#B09840', borderColor: 'rgba(176, 152, 64, 0.25)', fontSize: '0.625rem' }}
+                    >
+                      PROMO
+                    </span>
+                  )}
+                </div>
+
+                {item.formato && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>
+                    Formato: {item.formato}
+                  </div>
+                )}
+
+                <div className="off-item-card-details">
+                  <div>
+                    <span className="off-item-card-label">Prezzo</span>
+                    <div>{Number(item.prezzo_unitario || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <span className="off-item-card-label">Qty</span>
+                    <div>{item.quantita}</div>
+                  </div>
+                  <div>
+                    <span className="off-item-card-label">Total</span>
+                    <div style={{ fontWeight: 600 }}>{Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <span className="off-item-card-label">Tipo</span>
+                    <div style={{ textTransform: 'capitalize' }}>{item.tipo_offerta}</div>
+                  </div>
+                  {item.tipo_offerta === 'progetto' && (item.progetto_nome || item.numero_progetto) && (
+                    <>
+                      {item.numero_progetto && (
+                        <div>
+                          <span className="off-item-card-label">N. Progetto</span>
+                          <div>{item.numero_progetto}</div>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      )}
+                      {item.progetto_nome && (
+                        <div>
+                          <span className="off-item-card-label">Progetto</span>
+                          <div>{item.progetto_nome}</div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {item.consegna_prevista && (
+                    <div>
+                      <span className="off-item-card-label">Consegna</span>
+                      <div>{formatDate(item.consegna_prevista)}</div>
+                    </div>
+                  )}
+                  {item.spessore_mm != null && (
+                    <div>
+                      <span className="off-item-card-label">Sp. MM</span>
+                      <div>{item.spessore_mm}</div>
+                    </div>
+                  )}
+                </div>
+
+                {item.note && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.5rem', lineHeight: 1.4 }}>
+                    {item.note}
+                  </div>
+                )}
+
+                <div className="off-item-card-actions">
+                  <button type="button" className="off-action-btn primary" onClick={() => navigate(`/offers/${id}/items/${item.id}/edit`)}>
+                    Edit
+                  </button>
+                  <button type="button" className="off-action-btn danger" onClick={() => handleDeleteItem(item.id)}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

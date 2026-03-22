@@ -1,31 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { Offer, OfferItem, Client, Company, Visit, Project } from '../types';
+import { Offer, Client, Company, Visit, Project } from '../types';
 import '../styles/OfferForm.css';
-
-const EMPTY_ITEM = (): Partial<OfferItem> & { _key: string } => ({
-  _key: crypto.randomUUID(),
-  serie: '',
-  articolo: '',
-  finitura: '',
-  formato: '',
-  spessore_mm: undefined,
-  prezzo_unitario: 0,
-  unita_misura: '',
-  quantita: 1,
-  total_amount: 0,
-  data: '',
-  tipo_offerta: 'retail',
-  promozionale: false,
-  numero_progetto: '',
-  progetto_nome: '',
-  fase_progetto: '',
-  sviluppo_progetto: '',
-  project_id: '',
-  consegna_prevista: '',
-  note: '',
-});
 
 export const OfferForm: React.FC = () => {
   const navigate = useNavigate();
@@ -44,6 +21,7 @@ export const OfferForm: React.FC = () => {
   const [formData, setFormData] = useState({
     client_id: '',
     company_id: '',
+    project_id: '',
     offer_date: new Date().toISOString().split('T')[0],
     valid_until: '',
     status: 'draft',
@@ -53,7 +31,6 @@ export const OfferForm: React.FC = () => {
     notes: '',
   });
 
-  const [items, setItems] = useState<(Partial<OfferItem> & { _key: string })[]>([]);
   const [offer, setOffer] = useState<Offer | null>(null);
 
   // UI
@@ -111,6 +88,7 @@ export const OfferForm: React.FC = () => {
             setFormData({
               client_id: existing.client_id || '',
               company_id: existing.company_id || '',
+              project_id: existing.project_id || '',
               offer_date: existing.offer_date ? new Date(existing.offer_date).toISOString().split('T')[0] : '',
               valid_until: existing.valid_until ? new Date(existing.valid_until).toISOString().split('T')[0] : '',
               status: existing.status || 'draft',
@@ -119,14 +97,6 @@ export const OfferForm: React.FC = () => {
               company_visit_id: existing.company_visit_id || '',
               notes: existing.notes || '',
             });
-            if (existing.items && existing.items.length > 0) {
-              setItems(existing.items.map((item: OfferItem) => ({
-                ...item,
-                _key: item.id || crypto.randomUUID(),
-                data: item.data ? new Date(item.data).toISOString().split('T')[0] : '',
-                consegna_prevista: item.consegna_prevista ? new Date(item.consegna_prevista).toISOString().split('T')[0] : '',
-              })));
-            }
           } else {
             setError('Offer not found');
           }
@@ -147,30 +117,6 @@ export const OfferForm: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Item management
-  const handleAddItem = () => {
-    setItems(prev => [...prev, EMPTY_ITEM()]);
-  };
-
-  const handleItemChange = (index: number, field: string, value: any) => {
-    setItems(prev => {
-      const updated = [...prev];
-      const item = { ...updated[index], [field]: value };
-      // Auto-calculate total
-      if (field === 'prezzo_unitario' || field === 'quantita') {
-        const price = field === 'prezzo_unitario' ? Number(value) : Number(item.prezzo_unitario || 0);
-        const qty = field === 'quantita' ? Number(value) : Number(item.quantita || 0);
-        item.total_amount = price * qty;
-      }
-      updated[index] = item;
-      return updated;
-    });
-  };
-
-  const handleRemoveItem = (index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index));
-  };
-
   // Save
   const handleSave = async () => {
     try {
@@ -185,6 +131,7 @@ export const OfferForm: React.FC = () => {
       const offerData: any = {
         client_id: formData.client_id || undefined,
         company_id: formData.company_id || undefined,
+        project_id: formData.project_id || undefined,
         offer_date: formData.offer_date,
         valid_until: formData.valid_until || undefined,
         status: formData.status,
@@ -195,83 +142,16 @@ export const OfferForm: React.FC = () => {
       };
 
       if (isEditMode && offer) {
-        // Update existing offer
         const response = await apiService.updateOffer(offer.id, offerData);
         if (response.success) {
-          // Update items: delete removed, update existing, add new
-          const existingItemIds = new Set((offer.items || []).map(i => i.id));
-          const currentItemIds = new Set(items.filter(i => i.id).map(i => i.id!));
-
-          // Delete removed items
-          for (const existingId of existingItemIds) {
-            if (!currentItemIds.has(existingId)) {
-              await apiService.deleteOfferItem(offer.id, existingId);
-            }
-          }
-
-          // Update or add items
-          for (const item of items) {
-            const itemData = {
-              serie: item.serie || undefined,
-              articolo: item.articolo || undefined,
-              finitura: item.finitura || undefined,
-              formato: item.formato || undefined,
-              spessore_mm: item.spessore_mm ? Number(item.spessore_mm) : undefined,
-              prezzo_unitario: Number(item.prezzo_unitario || 0),
-              unita_misura: item.unita_misura || undefined,
-              quantita: Number(item.quantita || 0),
-              data: item.data || undefined,
-              tipo_offerta: item.tipo_offerta || 'retail',
-              promozionale: !!item.promozionale,
-              numero_progetto: item.numero_progetto || undefined,
-              progetto_nome: item.progetto_nome || undefined,
-              fase_progetto: item.fase_progetto || undefined,
-              sviluppo_progetto: item.sviluppo_progetto || undefined,
-              project_id: item.project_id || undefined,
-              consegna_prevista: item.consegna_prevista || undefined,
-              note: item.note || undefined,
-            };
-            if (item.id) {
-              await apiService.updateOfferItem(offer.id, item.id, itemData);
-            } else {
-              await apiService.addOfferItem(offer.id, itemData);
-            }
-          }
-
-          setSuccess('Offer updated successfully');
-          setTimeout(() => navigate(`/offers/${offer.id}`), 1500);
+          navigate(`/offers/${offer.id}`);
+        } else {
+          setError(response.error || 'Error updating offer');
         }
       } else {
-        // Create new offer
         const response = await apiService.createOffer(offerData);
         if (response.success && response.data) {
-          const newOffer = response.data;
-          // Add items one by one
-          for (const item of items) {
-            const itemData = {
-              serie: item.serie || undefined,
-              articolo: item.articolo || undefined,
-              finitura: item.finitura || undefined,
-              formato: item.formato || undefined,
-              spessore_mm: item.spessore_mm ? Number(item.spessore_mm) : undefined,
-              prezzo_unitario: Number(item.prezzo_unitario || 0),
-              unita_misura: item.unita_misura || undefined,
-              quantita: Number(item.quantita || 0),
-              data: item.data || undefined,
-              tipo_offerta: item.tipo_offerta || 'retail',
-              promozionale: !!item.promozionale,
-              numero_progetto: item.numero_progetto || undefined,
-              progetto_nome: item.progetto_nome || undefined,
-              fase_progetto: item.fase_progetto || undefined,
-              sviluppo_progetto: item.sviluppo_progetto || undefined,
-              project_id: item.project_id || undefined,
-              consegna_prevista: item.consegna_prevista || undefined,
-              note: item.note || undefined,
-            };
-            await apiService.addOfferItem(newOffer.id, itemData);
-          }
-          setSuccess('Offer created successfully');
-          setTimeout(() => navigate(`/offers/${newOffer.id}`), 1500);
+          navigate(`/offers/${response.data.id}`);
         } else {
           setError(response.error || 'Error creating offer');
         }
@@ -319,16 +199,23 @@ export const OfferForm: React.FC = () => {
 
         <div className="ofrf-form-row">
           <div className="ofrf-form-group">
-            <label>Offer Date *</label>
-            <input type="date" name="offer_date" value={formData.offer_date} onChange={handleChange} disabled={isLoading} />
+            <label>Project</label>
+            <select name="project_id" value={formData.project_id} onChange={handleChange} disabled={isLoading}>
+              <option value="">-- Select Project --</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.project_name || `Project #${p.project_number}`}</option>)}
+            </select>
           </div>
           <div className="ofrf-form-group">
-            <label>Valid Until</label>
-            <input type="date" name="valid_until" value={formData.valid_until} onChange={handleChange} disabled={isLoading} />
+            <label>Offer Date *</label>
+            <input type="date" name="offer_date" value={formData.offer_date} onChange={handleChange} disabled={isLoading} />
           </div>
         </div>
 
         <div className="ofrf-form-row">
+          <div className="ofrf-form-group">
+            <label>Valid Until</label>
+            <input type="date" name="valid_until" value={formData.valid_until} onChange={handleChange} disabled={isLoading} />
+          </div>
           <div className="ofrf-form-group">
             <label>Status</label>
             <select name="status" value={formData.status} onChange={handleChange} disabled={isLoading}>
@@ -339,13 +226,13 @@ export const OfferForm: React.FC = () => {
               <option value="expired">Expired</option>
             </select>
           </div>
+        </div>
+
+        <div className="ofrf-form-row">
           <div className="ofrf-form-group">
             <label>Currency</label>
             <input type="text" name="currency" value={formData.currency} onChange={handleChange} placeholder="EUR" disabled={isLoading} />
           </div>
-        </div>
-
-        <div className="ofrf-form-row">
           <div className="ofrf-form-group">
             <label>Link to Visit (optional)</label>
             <select name="visit_id" value={formData.visit_id} onChange={handleChange} disabled={isLoading}>
@@ -357,6 +244,9 @@ export const OfferForm: React.FC = () => {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="ofrf-form-row">
           <div className="ofrf-form-group">
             <label>Link to Company Visit (optional)</label>
             <select name="company_visit_id" value={formData.company_visit_id} onChange={handleChange} disabled={isLoading}>
@@ -368,101 +258,13 @@ export const OfferForm: React.FC = () => {
               ))}
             </select>
           </div>
+          <div className="ofrf-form-group" />
         </div>
 
         <div className="ofrf-form-group" style={{ marginTop: '0.5rem' }}>
           <label>Notes</label>
           <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="Additional notes..." disabled={isLoading} rows={3} />
         </div>
-      </div>
-
-      {/* Line Items */}
-      <div className="ofrf-card ofrf-items-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>Line Items ({items.length})</h2>
-          <button type="button" className="ofrf-btn-add-row" onClick={handleAddItem} disabled={isLoading}>
-            + Add Row
-          </button>
-        </div>
-
-        {items.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>
-            No items yet. Click "+ Add Row" to add line items.
-          </div>
-        ) : (
-          <div className="ofrf-items-table-wrap">
-            <table className="ofrf-items-table">
-              <thead>
-                <tr>
-                  <th>Serie</th>
-                  <th>Articolo</th>
-                  <th>Finitura</th>
-                  <th>Formato</th>
-                  <th>Sp. MM</th>
-                  <th>Prezzo</th>
-                  <th>U.M.</th>
-                  <th>Qty</th>
-                  <th>Total</th>
-                  <th>Data</th>
-                  <th>Tipo</th>
-                  <th>Promo</th>
-                  <th>N. Prog.</th>
-                  <th>Progetto</th>
-                  <th>Fase</th>
-                  <th>Sviluppo</th>
-                  <th>Consegna</th>
-                  <th>Note</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, idx) => (
-                  <tr key={item._key}>
-                    <td><input type="text" value={item.serie || ''} onChange={e => handleItemChange(idx, 'serie', e.target.value)} /></td>
-                    <td><input type="text" value={item.articolo || ''} onChange={e => handleItemChange(idx, 'articolo', e.target.value)} /></td>
-                    <td><input type="text" value={item.finitura || ''} onChange={e => handleItemChange(idx, 'finitura', e.target.value)} /></td>
-                    <td><input type="text" value={item.formato || ''} onChange={e => handleItemChange(idx, 'formato', e.target.value)} /></td>
-                    <td><input type="number" value={item.spessore_mm ?? ''} onChange={e => handleItemChange(idx, 'spessore_mm', e.target.value)} /></td>
-                    <td><input type="number" step="0.01" value={item.prezzo_unitario ?? ''} onChange={e => handleItemChange(idx, 'prezzo_unitario', e.target.value)} /></td>
-                    <td><input type="text" value={item.unita_misura || ''} onChange={e => handleItemChange(idx, 'unita_misura', e.target.value)} /></td>
-                    <td><input type="number" value={item.quantita ?? ''} onChange={e => handleItemChange(idx, 'quantita', e.target.value)} /></td>
-                    <td className="ofrf-item-total">{Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</td>
-                    <td><input type="date" value={item.data || ''} onChange={e => handleItemChange(idx, 'data', e.target.value)} /></td>
-                    <td>
-                      <select value={item.tipo_offerta || 'retail'} onChange={e => handleItemChange(idx, 'tipo_offerta', e.target.value)}>
-                        <option value="retail">Retail</option>
-                        <option value="progetto">Progetto</option>
-                      </select>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <input type="checkbox" checked={!!item.promozionale} onChange={e => handleItemChange(idx, 'promozionale', e.target.checked)} />
-                    </td>
-                    <td><input type="text" value={item.numero_progetto || ''} onChange={e => handleItemChange(idx, 'numero_progetto', e.target.value)} /></td>
-                    <td>
-                      {item.tipo_offerta === 'progetto' ? (
-                        <select value={item.project_id || ''} onChange={e => handleItemChange(idx, 'project_id', e.target.value)}>
-                          <option value="">-- None --</option>
-                          {projects.map(p => <option key={p.id} value={p.id}>{p.project_name || `Project #${p.project_number}`}</option>)}
-                        </select>
-                      ) : (
-                        <input type="text" value={item.progetto_nome || ''} onChange={e => handleItemChange(idx, 'progetto_nome', e.target.value)} />
-                      )}
-                    </td>
-                    <td><input type="text" value={item.fase_progetto || ''} onChange={e => handleItemChange(idx, 'fase_progetto', e.target.value)} /></td>
-                    <td><input type="text" value={item.sviluppo_progetto || ''} onChange={e => handleItemChange(idx, 'sviluppo_progetto', e.target.value)} /></td>
-                    <td><input type="date" value={item.consegna_prevista || ''} onChange={e => handleItemChange(idx, 'consegna_prevista', e.target.value)} /></td>
-                    <td><input type="text" value={item.note || ''} onChange={e => handleItemChange(idx, 'note', e.target.value)} /></td>
-                    <td>
-                      <button type="button" className="ofrf-btn-remove-row" onClick={() => handleRemoveItem(idx)} title="Remove row">
-                        &times;
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       {/* Actions */}

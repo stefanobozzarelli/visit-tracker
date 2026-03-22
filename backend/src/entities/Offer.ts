@@ -4,6 +4,7 @@ import { Company } from './Company';
 import { Visit } from './Visit';
 import { CompanyVisit } from './CompanyVisit';
 import { User } from './User';
+import { Project } from './Project';
 import { OfferItem } from './OfferItem';
 import { OfferAttachment } from './OfferAttachment';
 
@@ -31,6 +32,9 @@ export class Offer {
 
   @Column({ nullable: true })
   company_visit_id: string; // link to company visit
+
+  @Column({ nullable: true })
+  project_id: string; // link to project
 
   @Column({ type: 'date' })
   offer_date: Date;
@@ -74,6 +78,10 @@ export class Offer {
   @ManyToOne(() => CompanyVisit, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'company_visit_id' })
   company_visit: CompanyVisit;
+
+  @ManyToOne(() => Project, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'project_id' })
+  project: Project;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'created_by_user_id' })

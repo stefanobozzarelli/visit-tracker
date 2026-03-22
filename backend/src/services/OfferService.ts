@@ -21,6 +21,7 @@ export class OfferService {
       .leftJoinAndSelect('o.company', 'company')
       .leftJoinAndSelect('o.visit', 'visit')
       .leftJoinAndSelect('o.company_visit', 'company_visit')
+      .leftJoinAndSelect('o.project', 'project')
       .leftJoinAndSelect('o.created_by_user', 'user')
       .leftJoinAndSelect('o.items', 'items')
       .orderBy('o.created_at', 'DESC');
@@ -40,6 +41,7 @@ export class OfferService {
       .leftJoinAndSelect('o.visit.client', 'visit_client')
       .leftJoinAndSelect('o.company_visit', 'company_visit')
       .leftJoinAndSelect('o.company_visit.company', 'cv_company')
+      .leftJoinAndSelect('o.project', 'project')
       .leftJoinAndSelect('o.created_by_user', 'user')
       .leftJoinAndSelect('o.items', 'items')
       .leftJoinAndSelect('items.project', 'project')

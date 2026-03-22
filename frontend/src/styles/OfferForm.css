@@ -294,9 +294,36 @@
   border-color: rgba(158, 90, 82, 0.3);
 }
 
+/* ---- Grid layouts for item form ---- */
+.ofrf-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.ofrf-form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.ofrf-form-full {
+  grid-column: 1 / -1;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
   .ofrf-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ofrf-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ofrf-form-grid-2 {
     grid-template-columns: 1fr;
   }
 

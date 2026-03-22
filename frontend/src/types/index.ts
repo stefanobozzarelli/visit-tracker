@@ -464,6 +464,7 @@ export interface Offer {
   id: string;
   client_id?: string;
   company_id?: string;
+  project_id?: string;
   visit_id?: string;
   company_visit_id?: string;
   offer_date: string;
@@ -477,6 +478,7 @@ export interface Offer {
   updated_at: string;
   client?: Client;
   company?: Company;
+  project?: Project;
   visit?: Visit;
   company_visit?: any;
   created_by_user?: User;

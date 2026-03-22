@@ -39,6 +39,7 @@ import { ShowroomMap } from './pages/ShowroomMap';
 import { Offers } from './pages/Offers';
 import { OfferForm } from './pages/OfferForm';
 import { OfferDetail } from './pages/OfferDetail';
+import { OfferItemForm } from './pages/OfferItemForm';
 import { CompanyDetail } from './pages/CompanyDetail';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { TodoDetail } from './pages/TodoDetail';
@@ -91,6 +92,8 @@ const AppContent: React.FC = () => {
           <Route path="/offers/new" element={<OfferForm />} />
           <Route path="/offers/:id" element={<OfferDetail />} />
           <Route path="/offers/:id/edit" element={<OfferForm />} />
+          <Route path="/offers/:offerId/items/new" element={<OfferItemForm />} />
+          <Route path="/offers/:offerId/items/:itemId/edit" element={<OfferItemForm />} />
           <Route path="/claims" element={<Claims />} />
           <Route path="/claims/new" element={<ClaimForm />} />
           <Route path="/claims/:id" element={<ClaimDetail />} />
