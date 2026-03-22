@@ -15,7 +15,7 @@ router.use(authMiddleware);
 // SHOWROOM CRUD
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     const showroom = await showroomService.createShowroom({
       ...req.body,
       created_by_user_id: userId,
@@ -74,7 +74,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 // ALBUM CRUD
 router.post('/:id/albums', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     const album = await showroomService.createAlbum({
       showroom_id: req.params.id,
       ...req.body,
@@ -123,7 +123,7 @@ router.delete('/:id/albums/:albumId', async (req: Request, res: Response) => {
 // PHOTO CRUD
 router.post('/:id/albums/:albumId/photos', upload.single('file'), async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     const file = req.file;
     if (!file) return res.status(400).json({ success: false, error: 'No file uploaded' });
 
