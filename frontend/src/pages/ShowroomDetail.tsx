@@ -52,6 +52,9 @@ export const ShowroomDetail: React.FC = () => {
   const [uploadingAlbumId, setUploadingAlbumId] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
+  // Thumbnail URLs cache
+  const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
+
   // UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -242,11 +245,33 @@ export const ShowroomDetail: React.FC = () => {
     }
   };
 
+  const loadThumbnails = async (albumId: string, photos: ShowroomPhoto[]) => {
+    if (!id) return;
+    const imagePhotos = photos.filter(p => !thumbnailUrls[p.id] && /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(p.filename));
+    if (imagePhotos.length === 0) return;
+    const newUrls: Record<string, string> = {};
+    await Promise.all(imagePhotos.map(async (photo) => {
+      try {
+        const res = await apiService.downloadShowroomPhoto(id!, albumId, photo.id);
+        if (res.success && res.data?.url) newUrls[photo.id] = res.data.url;
+      } catch {}
+    }));
+    if (Object.keys(newUrls).length > 0) {
+      setThumbnailUrls(prev => ({ ...prev, ...newUrls }));
+    }
+  };
+
   const toggleAlbum = (albumId: string) => {
     setExpandedAlbums(prev => {
       const next = new Set(prev);
-      if (next.has(albumId)) next.delete(albumId);
-      else next.add(albumId);
+      if (next.has(albumId)) {
+        next.delete(albumId);
+      } else {
+        next.add(albumId);
+        // Load thumbnails for this album
+        const album = albums.find(a => a.id === albumId);
+        if (album?.photos?.length) loadThumbnails(albumId, album.photos);
+      }
       return next;
     });
   };
@@ -504,27 +529,37 @@ export const ShowroomDetail: React.FC = () => {
                   {/* Photo grid */}
                   {photos.length > 0 ? (
                     <div className="srd-photo-grid">
-                      {photos.map(photo => (
-                        <div key={photo.id} className="srd-photo-card">
-                          <div className="srd-photo-info">
-                            <span
-                              className="srd-photo-name"
+                      {photos.map(photo => {
+                        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(photo.filename);
+                        const thumbUrl = thumbnailUrls[photo.id];
+                        return (
+                          <div key={photo.id} className="srd-photo-card srd-photo-card-thumb">
+                            <div
+                              className="srd-photo-thumb"
                               onClick={() => handleDownloadPhoto(album.id, photo.id)}
-                              title="Click to download"
+                              title="Click to open full size"
                             >
-                              {photo.filename}
-                            </span>
-                            <span className="srd-photo-size">{formatFileSize(photo.file_size)}</span>
+                              {isImage && thumbUrl ? (
+                                <img src={thumbUrl} alt={photo.filename} />
+                              ) : isImage ? (
+                                <div className="srd-photo-loading">Loading...</div>
+                              ) : (
+                                <div className="srd-photo-file-icon">📄</div>
+                              )}
+                            </div>
+                            <div className="srd-photo-bottom">
+                              <span className="srd-photo-name-small" title={photo.filename}>{photo.filename}</span>
+                              <button
+                                className="srd-photo-delete"
+                                onClick={() => handleDeletePhoto(album.id, photo.id)}
+                                title="Delete photo"
+                              >
+                                &times;
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            className="srd-photo-delete"
-                            onClick={() => handleDeletePhoto(album.id, photo.id)}
-                            title="Delete photo"
-                          >
-                            &times;
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="srd-empty-photos">No photos in this album</div>
