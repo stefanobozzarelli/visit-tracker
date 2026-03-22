@@ -15,6 +15,7 @@ import commissionRoutes from './routes/commissions';
 import projectRoutes from './routes/projects';
 import claimRoutes from './routes/claims';
 import companyVisitRoutes from './routes/company-visits';
+import showroomRoutes from './routes/showrooms';
 
 require('dotenv').config();
 
@@ -39,6 +40,7 @@ app.use('/api/commissions', commissionRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/claims', claimRoutes);
 app.use('/api/company-visits', companyVisitRoutes);
+app.use('/api/showrooms', showroomRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -31,6 +31,10 @@ import { ClaimForm } from './pages/ClaimForm';
 import { CompanyVisits } from './pages/CompanyVisits';
 import { CompanyVisitForm } from './pages/CompanyVisitForm';
 import { CompanyVisitDetail } from './pages/CompanyVisitDetail';
+import { Showrooms } from './pages/Showrooms';
+import { ShowroomForm } from './pages/ShowroomForm';
+import { ShowroomDetail } from './pages/ShowroomDetail';
+import { ShowroomMap } from './pages/ShowroomMap';
 import { CompanyDetail } from './pages/CompanyDetail';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { TodoDetail } from './pages/TodoDetail';
@@ -74,6 +78,11 @@ const AppContent: React.FC = () => {
           <Route path="/company-visits/new" element={<CompanyVisitForm />} />
           <Route path="/company-visits/:id" element={<CompanyVisitDetail />} />
           <Route path="/company-visits/:id/edit" element={<CompanyVisitForm />} />
+          <Route path="/showrooms" element={<Showrooms />} />
+          <Route path="/showrooms/map" element={<ShowroomMap />} />
+          <Route path="/showrooms/new" element={<ShowroomForm />} />
+          <Route path="/showrooms/:id" element={<ShowroomDetail />} />
+          <Route path="/showrooms/:id/edit" element={<ShowroomForm />} />
           <Route path="/claims" element={<Claims />} />
           <Route path="/claims/new" element={<ClaimForm />} />
           <Route path="/claims/:id" element={<ClaimDetail />} />

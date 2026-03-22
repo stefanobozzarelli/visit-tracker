@@ -628,6 +628,65 @@ class ApiService {
     return response.data;
   }
 
+  // Showrooms
+  async getShowrooms(filters?: { clientId?: string; companyId?: string; status?: string; area?: string; city?: string }) {
+    const response = await this.cachedGet<ApiResponse<any>>('/showrooms', { params: filters });
+    return response.data;
+  }
+  async getShowroom(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/showrooms/${id}`);
+    return response.data;
+  }
+  async createShowroom(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/showrooms', data);
+    this.memoryCache.clear();
+    return response.data;
+  }
+  async updateShowroom(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/showrooms/${id}`, data);
+    this.memoryCache.clear();
+    return response.data;
+  }
+  async deleteShowroom(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/showrooms/${id}`);
+    this.memoryCache.clear();
+    return response.data;
+  }
+  // Showroom Albums
+  async createShowroomAlbum(showroomId: string, data: { date: string; title?: string; description?: string }) {
+    const response = await this.api.post<ApiResponse<any>>(`/showrooms/${showroomId}/albums`, data);
+    return response.data;
+  }
+  async getShowroomAlbums(showroomId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/showrooms/${showroomId}/albums`);
+    return response.data;
+  }
+  async updateShowroomAlbum(showroomId: string, albumId: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/showrooms/${showroomId}/albums/${albumId}`, data);
+    return response.data;
+  }
+  async deleteShowroomAlbum(showroomId: string, albumId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/showrooms/${showroomId}/albums/${albumId}`);
+    return response.data;
+  }
+  // Showroom Photos
+  async uploadShowroomPhoto(showroomId: string, albumId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/showrooms/${showroomId}/albums/${albumId}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+  async downloadShowroomPhoto(showroomId: string, albumId: string, photoId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/showrooms/${showroomId}/albums/${albumId}/photos/${photoId}/download`);
+    return response.data;
+  }
+  async deleteShowroomPhoto(showroomId: string, albumId: string, photoId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/showrooms/${showroomId}/albums/${albumId}/photos/${photoId}`);
+    return response.data;
+  }
+
   // Report File Upload
   async getPresignedUrl(visitId: string, reportId: string, filename: string, fileSize: number, contentType: string = 'application/octet-stream') {
     const response = await this.api.post<ApiResponse<any>>(

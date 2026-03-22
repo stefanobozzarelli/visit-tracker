@@ -14,6 +14,8 @@ export class ClientService {
     client.city = data.city || null;
     client.notes = data.notes || null;
     client.role = (data.role as ClientRole) || ClientRole.CLIENTE;
+    client.has_showroom = data.has_showroom || false;
+    client.showroom_count = data.showroom_count || 0;
     return await this.clientRepository.save(client);
   }
 
@@ -41,6 +43,8 @@ export class ClientService {
     if (data.city !== undefined) updateData.city = data.city;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.role) updateData.role = data.role;
+    if (data.has_showroom !== undefined) updateData.has_showroom = data.has_showroom;
+    if (data.showroom_count !== undefined) updateData.showroom_count = data.showroom_count;
 
     await this.clientRepository.update(id, updateData);
     const updated = await this.getClientById(id);

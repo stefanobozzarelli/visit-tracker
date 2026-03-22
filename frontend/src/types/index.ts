@@ -28,6 +28,8 @@ export interface Client {
   updated_at: string;
   contacts?: ClientContact[];
   clientCompanies?: ClientCompany[];
+  has_showroom?: boolean;
+  showroom_count?: number;
 }
 
 export interface ClientContact {
@@ -79,6 +81,56 @@ export interface AdminOverride {
 export interface VisitDirectAttachment {
   id: string;
   visit_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
+export type ShowroomStatus = 'open' | 'closed' | 'opening' | 'none';
+export type ShowroomType = 'shop_in_shop' | 'dedicated';
+
+export interface Showroom {
+  id: string;
+  name: string;
+  client_id: string;
+  company_id?: string;
+  status: ShowroomStatus;
+  type?: ShowroomType | null;
+  sqm?: number;
+  address?: string;
+  city?: string;
+  province?: string;
+  area?: string;
+  notes?: string;
+  latitude?: number;
+  longitude?: number;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  client?: Client;
+  company?: Company;
+  created_by_user?: User;
+  albums?: ShowroomPhotoAlbum[];
+}
+
+export interface ShowroomPhotoAlbum {
+  id: string;
+  showroom_id: string;
+  date: string;
+  title?: string;
+  description?: string;
+  created_by_user_id: string;
+  created_at: string;
+  photos?: ShowroomPhoto[];
+  created_by_user?: User;
+}
+
+export interface ShowroomPhoto {
+  id: string;
+  album_id: string;
   filename: string;
   file_size: number;
   s3_key: string;

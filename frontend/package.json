@@ -4,10 +4,13 @@
   "description": "Frontend for visit tracking and reporting system",
   "private": true,
   "dependencies": {
+    "@types/leaflet": "^1.9.21",
+    "axios": "^1.5.0",
+    "leaflet": "^1.9.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^6.16.0",
-    "axios": "^1.5.0",
     "typescript": "^5.1.3"
   },
   "devDependencies": {

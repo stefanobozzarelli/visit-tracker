@@ -30,6 +30,8 @@ export interface CreateClientRequest {
   city?: string;
   notes?: string;
   role?: string; // 'cliente', 'developer', 'architetto-designer'
+  has_showroom?: boolean;
+  showroom_count?: number;
 }
 
 export interface CreateCompanyRequest {

@@ -29,6 +29,9 @@ import { VisitDirectAttachment } from '../entities/VisitDirectAttachment';
 import { UserCompany } from '../entities/UserCompany';
 import { UserCountry } from '../entities/UserCountry';
 import { ClientCompany } from '../entities/ClientCompany';
+import { Showroom } from '../entities/Showroom';
+import { ShowroomPhotoAlbum } from '../entities/ShowroomPhotoAlbum';
+import { ShowroomPhoto } from '../entities/ShowroomPhoto';
 
 require('dotenv').config();
 
@@ -43,7 +46,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'visit_tracker',
   synchronize: true,
   logging: isDevelopment,
-  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany],
+  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany, Showroom, ShowroomPhotoAlbum, ShowroomPhoto],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: ['src/subscribers/**/*.ts'],
 });

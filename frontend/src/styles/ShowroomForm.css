@@ -1,0 +1,214 @@
+/* ========================================
+   Showroom Form Page
+   ======================================== */
+
+.srf-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.srf-loading {
+  padding: 3rem;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+}
+
+.srf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.srf-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.srf-back {
+  padding: 0.4rem 0.75rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.813rem;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.srf-back:hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+}
+
+/* Alerts */
+.srf-alert {
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.75rem;
+  font-size: 0.813rem;
+  font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.srf-alert-error {
+  background: #F5EDEB;
+  color: var(--color-error);
+  border: 1px solid rgba(158, 90, 82, 0.2);
+}
+
+.srf-alert-success {
+  background: #ECF2ED;
+  color: var(--color-success);
+  border: 1px solid rgba(91, 138, 101, 0.2);
+}
+
+/* Form card */
+.srf-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
+}
+
+.srf-card .form-group {
+  margin-bottom: 1rem;
+}
+
+.srf-card .form-group label {
+  display: block;
+  font-size: 0.813rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: 0.375rem;
+}
+
+.srf-card .form-group select,
+.srf-card .form-group input,
+.srf-card .form-group textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.srf-card .form-group select:focus,
+.srf-card .form-group input:focus,
+.srf-card .form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 2px rgba(74, 96, 120, 0.08);
+}
+
+.srf-card .form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.srf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.srf-row-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.srf-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.srf-actions .btn-primary {
+  padding: 0.5rem 1.25rem;
+  background: var(--color-info);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.srf-actions .btn-primary:hover {
+  background: #3D5068;
+}
+
+.srf-actions .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.srf-actions .btn-secondary {
+  padding: 0.5rem 1.25rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.srf-actions .btn-secondary:hover {
+  background: var(--color-bg-secondary);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .srf-row {
+    grid-template-columns: 1fr;
+  }
+
+  .srf-row-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .srf-header {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .srf-card {
+    padding: 1rem;
+  }
+
+  .srf-card .form-group input,
+  .srf-card .form-group select,
+  .srf-card .form-group textarea {
+    font-size: 16px;
+  }
+
+  .srf-actions {
+    flex-direction: column;
+  }
+
+  .srf-actions .btn-primary,
+  .srf-actions .btn-secondary {
+    width: 100%;
+    text-align: center;
+  }
+}

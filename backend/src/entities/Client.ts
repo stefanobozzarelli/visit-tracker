@@ -3,6 +3,7 @@ import { ClientContact } from './ClientContact';
 import { Visit } from './Visit';
 import { UserPermission } from './UserPermission';
 import { ClientCompany } from './ClientCompany';
+import { Showroom } from './Showroom';
 
 export enum ClientRole {
   CLIENTE = 'cliente',
@@ -34,6 +35,12 @@ export class Client {
   })
   role: ClientRole;
 
+  @Column({ type: 'boolean', default: false })
+  has_showroom: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  showroom_count: number;
+
   @CreateDateColumn()
   created_at: Date;
 
@@ -51,4 +58,7 @@ export class Client {
 
   @OneToMany(() => ClientCompany, cc => cc.client, { cascade: true })
   clientCompanies: ClientCompany[];
+
+  @OneToMany(() => Showroom, showroom => showroom.client, { cascade: true })
+  showrooms: Showroom[];
 }
