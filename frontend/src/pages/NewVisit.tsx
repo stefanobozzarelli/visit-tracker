@@ -219,7 +219,6 @@ export const NewVisit: React.FC = () => {
   };
 
   const handleRemoveReport = (index: number) => {
-    const reportToRemove = formData.reports[index];
     const existingReport = existingReports[index];
 
     // If this is an existing report, mark it for deletion
@@ -413,28 +412,28 @@ export const NewVisit: React.FC = () => {
           }
         }
 
-        // 3. Update existing reports
+        // 3a. Delete removed reports
+        for (const reportId of deletedReportIds) {
+          try {
+            await apiService.deleteVisitReport(editId, reportId);
+          } catch (err) {
+            console.error('Failed to delete report:', err);
+            errors.push(`Failed to delete report ${reportId}`);
+          }
+        }
+
+        // 3b. Update remaining existing reports
         for (const report of existingReports) {
-          if (deletedReportIds.has(report.id)) {
-            // Delete report
-            try {
-              await apiService.deleteVisitReport(editId, report.id);
-            } catch (err) {
-              console.error('Failed to delete report:', err);
-              errors.push(`Failed to delete report for ${report.companyId}`);
-            }
-          } else {
-            // Update report if changed
-            try {
-              await apiService.updateVisitReport(editId, report.id, {
-                company_id: report.companyId,
-                section: report.section,
-                content: report.content,
-              });
-            } catch (err) {
-              console.error('Failed to update report:', err);
-              errors.push(`Failed to update report for ${report.companyId}`);
-            }
+          if (!report.id) continue;
+          try {
+            await apiService.updateVisitReport(editId, report.id, {
+              company_id: report.companyId,
+              section: report.section,
+              content: report.content,
+            });
+          } catch (err) {
+            console.error('Failed to update report:', err);
+            errors.push(`Failed to update report for ${report.companyId}`);
           }
         }
 
