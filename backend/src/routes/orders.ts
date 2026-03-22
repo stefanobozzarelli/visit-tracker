@@ -29,6 +29,50 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/orders/export-pdf
+ * Export filtered orders list to PDF
+ */
+router.post('/export-pdf', async (req: Request, res: Response) => {
+  try {
+    const { client_id, status, startDate, endDate } = req.body;
+    const filters: any = {};
+    if (client_id) filters.client_id = client_id;
+    if (status) filters.status = status;
+    let orders = await orderService.getOrders(filters);
+    if (startDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) >= new Date(startDate));
+    if (endDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) <= new Date(endDate));
+    const buffer = await pdfService.generateFilteredOrdersPdf(orders, { title: 'Orders Report', generatedAt: new Date() });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=orders-report.pdf');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/orders/export-excel
+ * Export filtered orders list to Excel
+ */
+router.post('/export-excel', async (req: Request, res: Response) => {
+  try {
+    const { client_id, status, startDate, endDate } = req.body;
+    const filters: any = {};
+    if (client_id) filters.client_id = client_id;
+    if (status) filters.status = status;
+    let orders = await orderService.getOrders(filters);
+    if (startDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) >= new Date(startDate));
+    if (endDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) <= new Date(endDate));
+    const buffer = excelService.generateFilteredOrdersExcel(orders);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=orders-report.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
  * GET /api/orders
  * Recupera ordini con filtri opzionali (visit_id, client_id, status)
  */

@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import { TodoItem, Client, Company, User } from '../types';
 import axios from 'axios';
 import { config } from '../config';
+import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Tasks.css';
 
 const API_BASE_URL = config.API_BASE_URL;
@@ -89,6 +90,7 @@ export const Tasks: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);
 
@@ -322,6 +324,29 @@ export const Tasks: React.FC = () => {
     return list;
   }, [todos, nlpResults, statusFilter, showCompleted, localSearch, getClientName, getCompanyName, getUserName]);
 
+  // ---- Export ----
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const filters: any = {};
+      if (clientId) filters.clientId = clientId;
+      if (companyId) filters.companyId = companyId;
+      if (assignedToUserId) filters.assignedToUserId = assignedToUserId;
+      if (statusFilter) filters.status = statusFilter;
+      if (overdue) filters.overdue = true;
+      if (thisWeek) filters.thisWeek = true;
+      if (next7Days) filters.next7Days = true;
+      const blob = format === 'pdf'
+        ? await apiService.exportTasksPdf(filters)
+        : await apiService.exportTasksExcel(filters);
+      downloadBlob(blob, `tasks-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ---- Render ----
   if (loading) {
     return <div className="tasks-page"><div className="tasks-loading">Loading tasks...</div></div>;
@@ -335,9 +360,25 @@ export const Tasks: React.FC = () => {
           <h1>{isAdmin ? 'Tasks' : 'My Tasks'}</h1>
           <p className="tasks-header-subtitle">Track follow-ups, reminders and team actions</p>
         </div>
-        <button className="tasks-btn-new" onClick={() => navigate('/todos/new')}>
-          + New Task
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            PDF
+          </button>
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Excel
+          </button>
+          <button className="tasks-btn-new" onClick={() => navigate('/todos/new')}>
+            + New Task
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Claim, Client, Company } from '../types';
+import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Claims.css';
 
 // ---- Status helpers ----
@@ -39,6 +40,7 @@ export const Claims: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   // Clear alerts
   useEffect(() => {
@@ -158,6 +160,25 @@ export const Claims: React.FC = () => {
     return { open, inProgress, resolved, closed };
   }, [claims]);
 
+  // ---- Export ----
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const filters: any = {};
+      if (clientId) filters.client_id = clientId;
+      if (companyId) filters.company_id = companyId;
+      if (statusFilter) filters.status = statusFilter;
+      const blob = format === 'pdf'
+        ? await apiService.exportClaimsPdf(filters)
+        : await apiService.exportClaimsExcel(filters);
+      downloadBlob(blob, `claims-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ---- Render ----
   if (loading) {
     return <div className="claims-page"><div className="claims-loading">Loading claims...</div></div>;
@@ -171,9 +192,25 @@ export const Claims: React.FC = () => {
           <h1>Claims</h1>
           <p className="claims-header-subtitle">Track and manage client claims and resolutions</p>
         </div>
-        <button className="claims-btn-new" onClick={() => navigate('/claims/new')}>
-          + New Claim
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            PDF
+          </button>
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Excel
+          </button>
+          <button className="claims-btn-new" onClick={() => navigate('/claims/new')}>
+            + New Claim
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}

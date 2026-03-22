@@ -1001,6 +1001,88 @@ class ApiService {
     return response.data;
   }
 
+  // ---- Report Exports ----
+
+  async exportVisitsPdf(filters: any = {}) {
+    const response = await this.api.post('/visits/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportVisitsExcel(filters: any = {}) {
+    const response = await this.api.post('/visits/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportClientsPdf(filters: any = {}) {
+    const response = await this.api.post('/clients/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportClientsExcel(filters: any = {}) {
+    const response = await this.api.post('/clients/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportShowroomsPdf(filters: any = {}) {
+    const response = await this.api.post('/showrooms/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportShowroomsExcel(filters: any = {}) {
+    const response = await this.api.post('/showrooms/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportProjectsPdf(filters: any = {}) {
+    const response = await this.api.post('/projects/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportProjectsExcel(filters: any = {}) {
+    const response = await this.api.post('/projects/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportClaimsPdf(filters: any = {}) {
+    const response = await this.api.post('/claims/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportClaimsExcel(filters: any = {}) {
+    const response = await this.api.post('/claims/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportFilteredOrdersPdf(filters: any = {}) {
+    const response = await this.api.post('/orders/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportFilteredOrdersExcel(filters: any = {}) {
+    const response = await this.api.post('/orders/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportCompanyVisitsPdf(filters: any = {}) {
+    const response = await this.api.post('/company-visits/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportCompanyVisitsExcel(filters: any = {}) {
+    const response = await this.api.post('/company-visits/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportTasksPdf(filters: any = {}) {
+    const response = await this.api.post('/todos/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportTasksExcel(filters: any = {}) {
+    const response = await this.api.post('/todos/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
   // Users Management
   async createUser(email: string, name: string, password: string, role: string = 'sales_rep', company_id?: string) {
     const response = await this.api.post<ApiResponse<any>>('/admin/users', {

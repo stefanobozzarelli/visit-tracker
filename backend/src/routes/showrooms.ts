@@ -4,13 +4,53 @@ import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware } from '../middleware/auth';
 import { ShowroomService } from '../services/ShowroomService';
 import { S3Service } from '../services/S3Service';
+import { PdfService } from '../services/PdfService';
+import { ExcelService } from '../services/ExcelService';
 
 const router = Router();
 const showroomService = new ShowroomService();
 const s3Service = new S3Service();
+const pdfService = new PdfService();
+const excelService = new ExcelService();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(authMiddleware);
+
+router.post('/export-pdf', async (req: Request, res: Response) => {
+  try {
+    const { clientId, companyId, status, area } = req.body;
+    const filters: any = {};
+    if (clientId) filters.client_id = clientId;
+    if (companyId) filters.company_id = companyId;
+    if (status) filters.status = status;
+    if (area) filters.area = area;
+    const showrooms = await showroomService.getShowrooms(filters);
+    const buffer = await pdfService.generateShowroomsPdf(showrooms, { title: 'Showrooms Report', generatedAt: new Date() });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=showrooms-report.pdf');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-excel', async (req: Request, res: Response) => {
+  try {
+    const { clientId, companyId, status, area } = req.body;
+    const filters: any = {};
+    if (clientId) filters.client_id = clientId;
+    if (companyId) filters.company_id = companyId;
+    if (status) filters.status = status;
+    if (area) filters.area = area;
+    const showrooms = await showroomService.getShowrooms(filters);
+    const buffer = excelService.generateShowroomsExcel(showrooms);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=showrooms-report.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
 
 // SHOWROOM CRUD
 router.post('/', async (req: Request, res: Response) => {

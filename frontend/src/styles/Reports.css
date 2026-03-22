@@ -1,0 +1,48 @@
+.rpt-page { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+.rpt-header h1 { margin: 0; font-size: 1.5rem; }
+.rpt-subtitle { color: var(--color-text-secondary); margin: 0.25rem 0 0; font-size: 0.875rem; }
+.rpt-alert { padding: 0.75rem 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.875rem; }
+.rpt-alert-error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+.rpt-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--color-border); margin: 1.25rem 0 0; overflow-x: auto; }
+.rpt-tab { padding: 0.625rem 1rem; background: none; border: none; font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.15s; }
+.rpt-tab:hover { color: var(--color-text-primary); background: var(--color-bg-secondary); }
+.rpt-tab.active { color: var(--color-info); border-bottom-color: var(--color-info); font-weight: 600; }
+
+.rpt-filters { display: flex; flex-wrap: wrap; gap: 0.75rem; padding: 1rem; margin: 1rem 0; background: var(--color-white); border: 1px solid var(--color-border); border-radius: 10px; align-items: flex-end; }
+.rpt-filter-group { display: flex; flex-direction: column; gap: 0.25rem; min-width: 140px; }
+.rpt-filter-group label { font-size: 0.75rem; font-weight: 600; color: var(--color-text-secondary); }
+.rpt-filter-group input, .rpt-filter-group select { padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.8125rem; }
+.rpt-filter-actions { margin-left: auto; }
+
+.rpt-btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.rpt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.rpt-btn-apply { background: var(--color-info); color: white; }
+.rpt-btn-apply:hover:not(:disabled) { opacity: 0.9; }
+.rpt-btn-pdf { background: #dc2626; color: white; }
+.rpt-btn-pdf:hover:not(:disabled) { background: #b91c1c; }
+.rpt-btn-excel { background: #16a34a; color: white; }
+.rpt-btn-excel:hover:not(:disabled) { background: #15803d; }
+
+.rpt-summary { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; font-size: 0.875rem; color: var(--color-text-secondary); }
+.rpt-export-btns { display: flex; gap: 0.5rem; }
+
+.rpt-table-wrap { overflow-x: auto; background: var(--color-white); border: 1px solid var(--color-border); border-radius: 10px; }
+.rpt-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.rpt-table thead th { padding: 0.625rem 0.75rem; text-align: left; font-weight: 600; font-size: 0.75rem; color: var(--color-text-secondary); border-bottom: 2px solid var(--color-border); background: var(--color-bg-secondary); white-space: nowrap; }
+.rpt-table tbody td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--color-border); }
+.rpt-table tbody tr:last-child td { border-bottom: none; }
+.rpt-table tbody tr:hover { background: var(--color-bg-primary); }
+.rpt-truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rpt-empty { padding: 3rem; text-align: center; color: var(--color-text-tertiary); }
+.rpt-loading { padding: 3rem; text-align: center; color: var(--color-text-secondary); }
+
+@media (max-width: 768px) {
+  .rpt-tabs { gap: 0; }
+  .rpt-tab { padding: 0.5rem 0.625rem; font-size: 0.75rem; }
+  .rpt-filters { flex-direction: column; }
+  .rpt-filter-group { min-width: 100%; }
+  .rpt-filter-actions { margin-left: 0; }
+  .rpt-summary { flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+}

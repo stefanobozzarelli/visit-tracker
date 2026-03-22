@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { ClaimService } from '../services/ClaimService';
 import { S3Service } from '../services/S3Service';
 import { PermissionService } from '../services/PermissionService';
+import { PdfService } from '../services/PdfService';
+import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 
@@ -9,6 +11,8 @@ const router = Router();
 const claimService = new ClaimService();
 const s3Service = new S3Service();
 const permissionService = new PermissionService();
+const pdfService = new PdfService();
+const excelService = new ExcelService();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(authMiddleware);
@@ -29,6 +33,44 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     res.status(201).json({ success: true, data: claim });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-pdf', async (req: Request, res: Response) => {
+  try {
+    const { client_id, company_id, status, startDate, endDate } = req.body;
+    const filters: any = {};
+    if (client_id) filters.client_id = client_id;
+    if (company_id) filters.company_id = company_id;
+    if (status) filters.status = status;
+    let claims = await claimService.getClaims(filters);
+    if (startDate) claims = claims.filter((c: any) => new Date(c.date) >= new Date(startDate));
+    if (endDate) claims = claims.filter((c: any) => new Date(c.date) <= new Date(endDate));
+    const buffer = await pdfService.generateClaimsPdf(claims, { title: 'Claims Report', generatedAt: new Date() });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=claims-report.pdf');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-excel', async (req: Request, res: Response) => {
+  try {
+    const { client_id, company_id, status, startDate, endDate } = req.body;
+    const filters: any = {};
+    if (client_id) filters.client_id = client_id;
+    if (company_id) filters.company_id = company_id;
+    if (status) filters.status = status;
+    let claims = await claimService.getClaims(filters);
+    if (startDate) claims = claims.filter((c: any) => new Date(c.date) >= new Date(startDate));
+    if (endDate) claims = claims.filter((c: any) => new Date(c.date) <= new Date(endDate));
+    const buffer = excelService.generateClaimsExcel(claims);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=claims-report.xlsx');
+    res.send(buffer);
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
   }

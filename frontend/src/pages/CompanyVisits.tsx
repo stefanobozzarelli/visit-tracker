@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Company, CompanyVisit, User } from '../types';
+import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/CompanyVisits.css';
 
 // ---- Status helpers ----
@@ -35,6 +36,7 @@ export const CompanyVisits: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Clear alerts
   useEffect(() => {
@@ -144,6 +146,24 @@ export const CompanyVisits: React.FC = () => {
     return { scheduled, completed, cancelled, total: visits.length };
   }, [visits]);
 
+  // ---- Export ----
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const filters: any = {};
+      if (companyId) filters.companyId = companyId;
+      if (statusFilter) filters.status = statusFilter;
+      const blob = format === 'pdf'
+        ? await apiService.exportCompanyVisitsPdf(filters)
+        : await apiService.exportCompanyVisitsExcel(filters);
+      downloadBlob(blob, `company-visits-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ---- Render ----
   if (loading) {
     return <div className="cv-page"><div className="cv-loading">Loading company meetings...</div></div>;
@@ -157,9 +177,25 @@ export const CompanyVisits: React.FC = () => {
           <h1>Supplier Meetings</h1>
           <p className="cv-header-subtitle">Manage supplier meetings</p>
         </div>
-        <button className="cv-btn-new" onClick={() => navigate('/company-visits/new')}>
-          + New Meeting
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            PDF
+          </button>
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Excel
+          </button>
+          <button className="cv-btn-new" onClick={() => navigate('/company-visits/new')}>
+            + New Meeting
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}

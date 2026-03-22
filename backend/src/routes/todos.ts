@@ -1,13 +1,61 @@
 import { Router, Request, Response } from 'express';
 import { TodoService } from '../services/TodoService';
 import { S3Service } from '../services/S3Service';
+import { PdfService } from '../services/PdfService';
+import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 
 const router = Router();
 const todoService = new TodoService();
 const s3Service = new S3Service();
+const pdfService = new PdfService();
+const excelService = new ExcelService();
 const upload = multer({ storage: multer.memoryStorage() });
+
+/**
+ * POST /api/todos/export-pdf
+ * Export filtered todos to PDF
+ */
+router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { status, clientId, companyId, assignedToUserId } = req.body;
+    const filters: any = {};
+    if (status) filters.status = status;
+    if (clientId) filters.clientId = clientId;
+    if (companyId) filters.companyId = companyId;
+    if (assignedToUserId) filters.assignedToUserId = assignedToUserId;
+    const todos = await todoService.getTodos(filters);
+    const buffer = await pdfService.generateTasksPdf(todos, { title: 'Tasks Report', generatedAt: new Date() });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=tasks-report.pdf');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/todos/export-excel
+ * Export filtered todos to Excel
+ */
+router.post('/export-excel', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { status, clientId, companyId, assignedToUserId } = req.body;
+    const filters: any = {};
+    if (status) filters.status = status;
+    if (clientId) filters.clientId = clientId;
+    if (companyId) filters.companyId = companyId;
+    if (assignedToUserId) filters.assignedToUserId = assignedToUserId;
+    const todos = await todoService.getTodos(filters);
+    const buffer = excelService.generateTasksExcel(todos);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=tasks-report.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
 
 /**
  * POST /api/todos

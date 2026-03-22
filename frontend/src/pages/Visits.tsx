@@ -6,6 +6,7 @@ import { Visit, Client, Company, User, TodoItem, VisitReport } from '../types';
 import { decodeMetadata, filterDisplayReports, METADATA_SECTION } from '../utils/visitMetadata';
 import axios from 'axios';
 import { config } from '../config';
+import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Visits.css';
 
 const API_BASE_URL = config.API_BASE_URL;
@@ -98,6 +99,7 @@ export const Visits: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
   // Close menu on click outside
@@ -337,6 +339,22 @@ export const Visits: React.FC = () => {
     setNlpResults(null);
   };
 
+  // ---- Export ----
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const filters = { clientId, companyId, visitedBy, status: statusFilter };
+      const blob = format === 'pdf'
+        ? await apiService.exportVisitsPdf(filters)
+        : await apiService.exportVisitsExcel(filters);
+      downloadBlob(blob, `visits-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ---- Delete ----
   const handleDelete = async (visitId: string) => {
     setOpenMoreId(null);
@@ -363,9 +381,25 @@ export const Visits: React.FC = () => {
           <h1>Client Meetings</h1>
           <p className="visits-header-subtitle">Track client meetings, reports, and follow-up activity</p>
         </div>
-        <button className="visits-btn-new" onClick={() => navigate('/visits/new')}>
-          + Register New Visit
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            PDF
+          </button>
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Excel
+          </button>
+          <button className="visits-btn-new" onClick={() => navigate('/visits/new')}>
+            + Register New Visit
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}

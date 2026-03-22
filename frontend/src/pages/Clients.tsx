@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, ClientContact, Visit, TodoItem, Company } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
+import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Clients.css';
 
 // ---- Helpers ----
@@ -50,6 +51,7 @@ export const Clients: React.FC = () => {
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
   const [deleteChecked, setDeleteChecked] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
   // Close menu on click outside
@@ -307,6 +309,22 @@ export const Clients: React.FC = () => {
     } catch { setError('Error uploading business card'); }
   };
 
+  // ---- Export ----
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const filters = { country: countryFilter, role: roleFilter };
+      const blob = format === 'pdf'
+        ? await apiService.exportClientsPdf(filters)
+        : await apiService.exportClientsExcel(filters);
+      downloadBlob(blob, `clients-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ---- Render ----
   if (loading) {
     return <div className="clients-page"><div className="clients-loading">Loading clients...</div></div>;
@@ -320,9 +338,25 @@ export const Clients: React.FC = () => {
           <h1>Clients</h1>
           <p className="clients-header-subtitle">Manage your client portfolio and contacts</p>
         </div>
-        <button className="clients-btn-new" onClick={() => { resetForm(); setShowForm(true); }}>
-          + Add Client
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            PDF
+          </button>
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Excel
+          </button>
+          <button className="clients-btn-new" onClick={() => { resetForm(); setShowForm(true); }}>
+            + Add Client
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}

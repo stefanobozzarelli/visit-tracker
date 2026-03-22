@@ -4,12 +4,16 @@ import { AppDataSource } from '../config/database';
 import { Project } from '../entities/Project';
 import { ApiResponse } from '../types';
 import { PermissionService } from '../services/PermissionService';
+import { PdfService } from '../services/PdfService';
+import { ExcelService } from '../services/ExcelService';
 
 const router = Router();
 router.use(authMiddleware);
 
 const repo = () => AppDataSource.getRepository(Project);
 const permissionService = new PermissionService();
+const pdfService = new PdfService();
+const excelService = new ExcelService();
 
 // GET project stats (MUST be before /:id to avoid conflict)
 router.get('/stats/summary', async (req: Request, res: Response) => {
@@ -52,6 +56,48 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
       }
     };
     res.json(response);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-pdf', async (req: Request, res: Response) => {
+  try {
+    const { supplier_id, client_id, country, status } = req.body;
+    let qb = repo().createQueryBuilder('p')
+      .leftJoinAndSelect('p.supplier', 'supplier')
+      .leftJoinAndSelect('p.client', 'client')
+      .orderBy('p.project_number', 'DESC');
+    if (supplier_id) qb = qb.andWhere('p.supplier_id = :supplier_id', { supplier_id });
+    if (client_id) qb = qb.andWhere('p.client_id = :client_id', { client_id });
+    if (country) qb = qb.andWhere('p.country = :country', { country });
+    if (status) qb = qb.andWhere('p.status = :status', { status });
+    const projects = await qb.getMany();
+    const buffer = await pdfService.generateProjectsPdf(projects, { title: 'Projects Report', generatedAt: new Date() });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=projects-report.pdf');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-excel', async (req: Request, res: Response) => {
+  try {
+    const { supplier_id, client_id, country, status } = req.body;
+    let qb = repo().createQueryBuilder('p')
+      .leftJoinAndSelect('p.supplier', 'supplier')
+      .leftJoinAndSelect('p.client', 'client')
+      .orderBy('p.project_number', 'DESC');
+    if (supplier_id) qb = qb.andWhere('p.supplier_id = :supplier_id', { supplier_id });
+    if (client_id) qb = qb.andWhere('p.client_id = :client_id', { client_id });
+    if (country) qb = qb.andWhere('p.country = :country', { country });
+    if (status) qb = qb.andWhere('p.status = :status', { status });
+    const projects = await qb.getMany();
+    const buffer = excelService.generateProjectsExcel(projects);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=projects-report.xlsx');
+    res.send(buffer);
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
   }

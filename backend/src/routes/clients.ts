@@ -4,6 +4,8 @@ import { ClientService } from '../services/ClientService';
 import { PermissionService } from '../services/PermissionService';
 import { CompanyService } from '../services/CompanyService';
 import { S3Service } from '../services/S3Service';
+import { PdfService } from '../services/PdfService';
+import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateClientRequest, CreateContactRequest } from '../types';
@@ -13,6 +15,8 @@ const clientService = new ClientService();
 const permissionService = new PermissionService();
 const companyService = new CompanyService();
 const s3Service = new S3Service();
+const pdfService = new PdfService();
+const excelService = new ExcelService();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(authMiddleware);
@@ -47,6 +51,36 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(201).json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-pdf', async (req: Request, res: Response) => {
+  try {
+    const { country, role } = req.body;
+    let clients = await clientService.getClients();
+    if (country) clients = clients.filter((c: any) => c.country === country);
+    if (role) clients = clients.filter((c: any) => c.role === role);
+    const buffer = await pdfService.generateClientsPdf(clients, { title: 'Clients Report', generatedAt: new Date() });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=clients-report.pdf');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-excel', async (req: Request, res: Response) => {
+  try {
+    const { country, role } = req.body;
+    let clients = await clientService.getClients();
+    if (country) clients = clients.filter((c: any) => c.country === country);
+    if (role) clients = clients.filter((c: any) => c.role === role);
+    const buffer = excelService.generateClientsExcel(clients);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=clients-report.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { config } from '../config';
 import { Project, Company, Client } from '../types';
+import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Projects.css';
 
 const API_BASE_URL = config.API_BASE_URL;
@@ -39,6 +40,9 @@ export const Projects: React.FC = () => {
   const [nlpQuery, setNlpQuery] = useState('');
   const [nlpResults, setNlpResults] = useState<Project[] | null>(null);
   const [nlpSearching, setNlpSearching] = useState(false);
+
+  // Export
+  const [exporting, setExporting] = useState(false);
 
   // Delete
   const [deleteConfirm, setDeleteConfirm] = useState<Project | null>(null);
@@ -160,6 +164,21 @@ export const Projects: React.FC = () => {
     setNlpResults(null);
   };
 
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const filters = { supplier_id: supplierFilter, client_id: clientFilter, country: countryFilter, status: statusFilter, project_type: typeFilter };
+      const blob = format === 'pdf'
+        ? await apiService.exportProjectsPdf(filters)
+        : await apiService.exportProjectsExcel(filters);
+      downloadBlob(blob, `projects-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading projects...</div>;
 
   return (
@@ -170,11 +189,27 @@ export const Projects: React.FC = () => {
           <h1>Projects</h1>
           <p>Manage and track project registrations</p>
         </div>
-        {isAdmin && (
-          <button className="projects-new-btn" onClick={() => navigate('/projects/new')}>
-            + New Project
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            PDF
           </button>
-        )}
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Excel
+          </button>
+          {isAdmin && (
+            <button className="projects-new-btn" onClick={() => navigate('/projects/new')}>
+              + New Project
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div style={{ background: '#fce4ec', color: '#c62828', padding: '0.75rem 1rem', borderRadius: 8, marginBottom: '1rem' }}>{error}</div>}

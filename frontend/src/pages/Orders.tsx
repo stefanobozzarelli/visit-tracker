@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/CrudPages.css';
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
@@ -19,6 +20,7 @@ export const Orders: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showShipped, setShowShipped] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -62,12 +64,44 @@ export const Orders: React.FC = () => {
     return sum + (isNaN(amt) ? 0 : amt);
   }, 0);
 
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const filters: any = {};
+      if (statusFilter) filters.status = statusFilter;
+      const blob = format === 'pdf'
+        ? await apiService.exportFilteredOrdersPdf(filters)
+        : await apiService.exportFilteredOrdersExcel(filters);
+      downloadBlob(blob, `orders-report-${Date.now()}.${format === 'pdf' ? 'pdf' : 'xlsx'}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
 
   return (
     <div className="crud-page">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Orders</h1>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            PDF
+          </button>
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting}
+            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Excel
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}

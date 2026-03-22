@@ -1,13 +1,61 @@
 import { Router, Request, Response } from 'express';
 import { CompanyVisitService } from '../services/CompanyVisitService';
 import { S3Service } from '../services/S3Service';
+import { PdfService } from '../services/PdfService';
+import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 
 const router = Router();
 const visitService = new CompanyVisitService();
 const s3Service = new S3Service();
+const pdfService = new PdfService();
+const excelService = new ExcelService();
 const upload = multer({ storage: multer.memoryStorage() });
+
+/**
+ * POST /api/company-visits/export-pdf
+ * Export filtered company visits to PDF
+ */
+router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { company_id, status, startDate, endDate } = req.body;
+    const filters: any = {};
+    if (company_id) filters.company_id = company_id;
+    if (status) filters.status = status;
+    let visits = await visitService.getVisits(filters);
+    if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
+    if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
+    const buffer = await pdfService.generateCompanyVisitsPdf(visits, { title: 'Company Visits Report', generatedAt: new Date() });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=company-visits-report.pdf');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/company-visits/export-excel
+ * Export filtered company visits to Excel
+ */
+router.post('/export-excel', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { company_id, status, startDate, endDate } = req.body;
+    const filters: any = {};
+    if (company_id) filters.company_id = company_id;
+    if (status) filters.status = status;
+    let visits = await visitService.getVisits(filters);
+    if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
+    if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
+    const buffer = excelService.generateCompanyVisitsExcel(visits);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=company-visits-report.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
 
 /**
  * POST /api/company-visits

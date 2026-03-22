@@ -18,6 +18,7 @@ import { NewVisit } from './pages/NewVisit';
 import { VisitDetail } from './pages/VisitDetail';
 import { ReportDetail } from './pages/ReportDetail';
 import { ExportPdf } from './pages/ExportPdf';
+import { Reports } from './pages/Reports';
 import { Tasks } from './pages/Tasks';
 import { Settings } from './pages/Settings';
 import { Revenue } from './pages/Revenue';
@@ -88,7 +89,8 @@ const AppContent: React.FC = () => {
           <Route path="/claims/:id" element={<ClaimDetail />} />
           <Route path="/claims/:id/edit" element={<ClaimForm />} />
           <Route path="/tasks" element={<Tasks />} />
-          <Route path="/reports" element={<ExportPdf />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports/legacy" element={<ExportPdf />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/revenue" element={<Navigate to="/amministrazione/fatturato" replace />} />

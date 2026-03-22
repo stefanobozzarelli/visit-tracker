@@ -4,6 +4,7 @@ import { VisitService } from '../services/VisitService';
 import { PermissionService } from '../services/PermissionService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
+import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateVisitRequest, CreateVisitReportRequest } from '../types';
@@ -13,6 +14,7 @@ const visitService = new VisitService();
 const permissionService = new PermissionService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
+const excelService = new ExcelService();
 
 // Helper function to generate S3 presigned URL
 async function generateS3Url(s3Key: string, filename: string, forceDownload: boolean = false) {
@@ -76,6 +78,25 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(201).json(response);
   } catch (error) {
     res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/export-excel', async (req: Request, res: Response) => {
+  try {
+    const { clientId, userId, startDate, endDate, status } = req.body;
+    const filters: any = {};
+    if (clientId) filters.client_id = clientId;
+    if (userId) filters.user_id = userId;
+    if (status) filters.status = status;
+    let visits = await visitService.getVisits(filters);
+    if (startDate) visits = visits.filter((v: any) => new Date(v.visit_date) >= new Date(startDate));
+    if (endDate) visits = visits.filter((v: any) => new Date(v.visit_date) <= new Date(endDate));
+    const buffer = excelService.generateVisitsExcel(visits);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=visits-report.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 
