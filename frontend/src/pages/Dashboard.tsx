@@ -156,10 +156,13 @@ export const Dashboard: React.FC = () => {
       .slice(0, 3);
 
     for (const t of overdueTasks) {
+      const parts = [getClientName(t.client_id)];
+      if (t.created_by_user?.name) parts.push(`by ${t.created_by_user.name}`);
+      if (t.assigned_to_user?.name) parts.push(`→ ${t.assigned_to_user.name}`);
       items.push({
         type: 'overdue_task',
         title: t.title,
-        subtitle: getClientName(t.client_id),
+        subtitle: parts.filter(p => p !== '-').join(' · '),
         date: formatDate(t.due_date),
         onClick: () => navigate('/tasks'),
       });
