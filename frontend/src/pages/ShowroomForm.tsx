@@ -113,8 +113,8 @@ export const ShowroomForm: React.FC = () => {
 
     try {
       const payload: any = {
-        clientId,
-        companyId: companyId || undefined,
+        client_id: clientId,
+        company_id: companyId || undefined,
         name,
         status,
         type: type || undefined,
