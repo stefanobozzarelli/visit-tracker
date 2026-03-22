@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -21,21 +21,26 @@ const SUPPLIER_COLORS = [
   '#8BC34A', '#FF5722', '#607D8B', '#795548', '#CDDC39',
 ];
 
-const createColoredIcon = (color: string) => {
+const createColoredIcon = (color: string, isGeocoded = false) => {
+  const size = isGeocoded ? 18 : 24;
+  const innerSize = isGeocoded ? 7 : 10;
+  const innerOffset = isGeocoded ? 4 : 5;
+  const border = isGeocoded ? '2px dashed white' : '2px solid white';
   return L.divIcon({
     className: 'sr-map-marker',
     html: `<div style="
-      width: 24px; height: 24px; border-radius: 50% 50% 50% 0;
+      width: ${size}px; height: ${size}px; border-radius: 50% 50% 50% 0;
       background: ${color}; transform: rotate(-45deg);
-      border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border: ${border}; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      opacity: ${isGeocoded ? 0.8 : 1};
     "><div style="
-      width: 10px; height: 10px; border-radius: 50%;
+      width: ${innerSize}px; height: ${innerSize}px; border-radius: 50%;
       background: white; position: absolute;
-      top: 5px; left: 5px; transform: rotate(45deg);
+      top: ${innerOffset}px; left: ${innerOffset}px; transform: rotate(45deg);
     "></div></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 24],
-    popupAnchor: [0, -24],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
   });
 };
 
@@ -43,11 +48,40 @@ const STATUS_LABELS: Record<string, string> = {
   open: 'Open', closed: 'Closed', opening: 'Opening', none: 'None',
 };
 
+// Geocoding cache: city name -> [lat, lng] or null
+const geocodeCache = new Map<string, [number, number] | null>();
+
+async function geocodeCity(city: string): Promise<[number, number] | null> {
+  const key = city.toLowerCase().trim();
+  if (geocodeCache.has(key)) return geocodeCache.get(key)!;
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    const data = await response.json();
+    if (data && data.length > 0) {
+      const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      geocodeCache.set(key, coords);
+      return coords;
+    }
+  } catch {}
+  geocodeCache.set(key, null);
+  return null;
+}
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export const ShowroomMap: React.FC = () => {
   const navigate = useNavigate();
   const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodedCoords, setGeocodedCoords] = useState<Map<string, [number, number]>>(new Map());
   const [filterCompany, setFilterCompany] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterArea, setFilterArea] = useState('');
@@ -66,6 +100,61 @@ export const ShowroomMap: React.FC = () => {
     load();
   }, []);
 
+  // Geocode showrooms without coordinates but with city
+  const geocodeShowrooms = useCallback(async (srs: Showroom[]) => {
+    const needsGeocoding = srs.filter(s => (!s.latitude || !s.longitude) && s.city);
+    if (needsGeocoding.length === 0) return;
+
+    setGeocoding(true);
+    const newCoords = new Map<string, [number, number]>();
+
+    // Group by city to avoid duplicate requests
+    const cityGroups = new Map<string, string[]>();
+    for (const s of needsGeocoding) {
+      const cityKey = s.city!.toLowerCase().trim();
+      if (!cityGroups.has(cityKey)) cityGroups.set(cityKey, []);
+      cityGroups.get(cityKey)!.push(s.id);
+    }
+
+    for (const [cityKey, ids] of cityGroups) {
+      // Find original city name (not lowercased)
+      const originalCity = needsGeocoding.find(s => s.city!.toLowerCase().trim() === cityKey)!.city!;
+      const coords = await geocodeCity(originalCity);
+      if (coords) {
+        for (const id of ids) {
+          newCoords.set(id, coords);
+        }
+      }
+      // Respect Nominatim rate limit: 1 request per second
+      if (!geocodeCache.has(cityKey)) {
+        await delay(1100);
+      }
+    }
+
+    setGeocodedCoords(prev => {
+      const merged = new Map(prev);
+      newCoords.forEach((v, k) => merged.set(k, v));
+      return merged;
+    });
+    setGeocoding(false);
+  }, []);
+
+  useEffect(() => {
+    if (showrooms.length > 0) {
+      geocodeShowrooms(showrooms);
+    }
+  }, [showrooms, geocodeShowrooms]);
+
+  // Get coordinates for a showroom: GPS first, then geocoded
+  const getCoords = useCallback((s: Showroom): [number, number] | null => {
+    if (s.latitude && s.longitude) return [Number(s.latitude), Number(s.longitude)];
+    return geocodedCoords.get(s.id) || null;
+  }, [geocodedCoords]);
+
+  const isGeocoded = useCallback((s: Showroom): boolean => {
+    return (!s.latitude || !s.longitude) && geocodedCoords.has(s.id);
+  }, [geocodedCoords]);
+
   const companyColorMap = useMemo(() => {
     const map = new Map<string, string>();
     const uniqueCompanyIds = [...new Set(showrooms.map(s => s.company_id).filter(Boolean))];
@@ -77,13 +166,13 @@ export const ShowroomMap: React.FC = () => {
 
   const filtered = useMemo(() => {
     return showrooms.filter(s => {
-      if (!s.latitude || !s.longitude) return false;
+      if (!getCoords(s)) return false;
       if (filterCompany && s.company_id !== filterCompany) return false;
       if (filterStatus && s.status !== filterStatus) return false;
       if (filterArea && s.area !== filterArea) return false;
       return true;
     });
-  }, [showrooms, filterCompany, filterStatus, filterArea]);
+  }, [showrooms, filterCompany, filterStatus, filterArea, getCoords]);
 
   const areas = useMemo(() => {
     return [...new Set(showrooms.map(s => s.area).filter(Boolean))].sort();
@@ -101,8 +190,7 @@ export const ShowroomMap: React.FC = () => {
     return items;
   }, [companyColorMap, companies, filtered, filterCompany]);
 
-  const totalWithCoords = showrooms.filter(s => s.latitude && s.longitude).length;
-  const totalWithoutCoords = showrooms.filter(s => !s.latitude || !s.longitude).length;
+  const unmappable = showrooms.filter(s => !getCoords(s)).length;
 
   if (loading) return <div className="sr-map-loading">Loading map...</div>;
 
@@ -113,7 +201,8 @@ export const ShowroomMap: React.FC = () => {
           <h1>Showroom Map</h1>
           <p className="sr-map-subtitle">
             {filtered.length} showroom{filtered.length !== 1 ? 's' : ''} on map
-            {totalWithoutCoords > 0 && ` · ${totalWithoutCoords} without coordinates`}
+            {geocoding && ' · Geocoding cities...'}
+            {!geocoding && unmappable > 0 && ` · ${unmappable} without location`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -149,8 +238,8 @@ export const ShowroomMap: React.FC = () => {
 
       <div className="sr-map-container">
         <MapContainer
-          center={[31.2, 121.5]}
-          zoom={4}
+          center={[25, 105]}
+          zoom={3}
           style={{ width: '100%', height: '100%' }}
           scrollWheelZoom={true}
         >
@@ -158,33 +247,42 @@ export const ShowroomMap: React.FC = () => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {filtered.map(s => (
-            <Marker
-              key={s.id}
-              position={[Number(s.latitude), Number(s.longitude)]}
-              icon={createColoredIcon(companyColorMap.get(s.company_id || '') || '#999')}
-            >
-              <Popup>
-                <div className="sr-map-popup">
-                  <strong>{s.name}</strong>
-                  <div className="sr-map-popup-info">
-                    <span>Client: {s.client?.name}</span>
-                    <span>Supplier: {s.company?.name || '-'}</span>
-                    <span>Status: {STATUS_LABELS[s.status] || s.status}</span>
-                    {s.sqm && <span>SQM: {s.sqm}</span>}
-                    {s.city && <span>City: {s.city}</span>}
-                    {s.type && <span>Type: {s.type === 'shop_in_shop' ? 'Shop in Shop' : 'Dedicated'}</span>}
+          {filtered.map(s => {
+            const coords = getCoords(s)!;
+            const geocoded = isGeocoded(s);
+            return (
+              <Marker
+                key={s.id}
+                position={coords}
+                icon={createColoredIcon(companyColorMap.get(s.company_id || '') || '#999', geocoded)}
+              >
+                <Popup>
+                  <div className="sr-map-popup">
+                    <strong>{s.name}</strong>
+                    {geocoded && (
+                      <div style={{ fontSize: '0.7rem', color: '#888', fontStyle: 'italic', marginTop: '2px' }}>
+                        Approximate location (city)
+                      </div>
+                    )}
+                    <div className="sr-map-popup-info">
+                      <span>Client: {s.client?.name}</span>
+                      <span>Supplier: {s.company?.name || '-'}</span>
+                      <span>Status: {STATUS_LABELS[s.status] || s.status}</span>
+                      {s.sqm && <span>SQM: {s.sqm}</span>}
+                      {s.city && <span>City: {s.city}</span>}
+                      {s.type && <span>Type: {s.type === 'shop_in_shop' ? 'Shop in Shop' : 'Dedicated'}</span>}
+                    </div>
+                    <button
+                      className="sr-map-popup-link"
+                      onClick={() => navigate(`/showrooms/${s.id}`)}
+                    >
+                      View Details →
+                    </button>
                   </div>
-                  <button
-                    className="sr-map-popup-link"
-                    onClick={() => navigate(`/showrooms/${s.id}`)}
-                  >
-                    View Details →
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+                </Popup>
+              </Marker>
+            );
+          })}
         </MapContainer>
 
         {legendItems.length > 0 && (
