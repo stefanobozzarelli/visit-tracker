@@ -44,7 +44,7 @@ app.use('/api/showrooms', showroomRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.1.0' });
+  res.json({ status: 'ok', version: '1.2.0' });
 });
 
 // Initialize database and start server

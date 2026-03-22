@@ -57,11 +57,11 @@ export class Showroom {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @ManyToOne(() => Client, { eager: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => Client, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
-  @ManyToOne(() => Company, { eager: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Company, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'company_id' })
   company: Company;
 
