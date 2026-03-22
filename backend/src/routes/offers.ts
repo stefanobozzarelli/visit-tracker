@@ -70,14 +70,15 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { client_id, company_id, visit_id, company_visit_id, offer_date, valid_until, status, currency, notes } = req.body;
+    const { client_id, company_id, project_id, visit_id, company_visit_id, offer_date, valid_until, status, currency, notes } = req.body;
     const created_by_user_id = (req.user as any).id;
 
     const offer = await offerService.createOffer({
-      client_id,
-      company_id,
-      visit_id,
-      company_visit_id,
+      client_id: client_id || undefined,
+      company_id: company_id || undefined,
+      project_id: project_id || undefined,
+      visit_id: visit_id || undefined,
+      company_visit_id: company_visit_id || undefined,
       offer_date: offer_date ? new Date(offer_date) : new Date(),
       valid_until: valid_until ? new Date(valid_until) : undefined,
       status,
@@ -138,7 +139,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     }
 
     const updateData: any = {};
-    const fields = ['client_id', 'company_id', 'visit_id', 'company_visit_id', 'status', 'currency', 'notes'];
+    const fields = ['client_id', 'company_id', 'project_id', 'visit_id', 'company_visit_id', 'status', 'currency', 'notes'];
     fields.forEach(f => {
       if (req.body[f] !== undefined) updateData[f] = req.body[f];
     });
