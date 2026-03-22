@@ -36,6 +36,9 @@ import { Showrooms } from './pages/Showrooms';
 import { ShowroomForm } from './pages/ShowroomForm';
 import { ShowroomDetail } from './pages/ShowroomDetail';
 import { ShowroomMap } from './pages/ShowroomMap';
+import { Offers } from './pages/Offers';
+import { OfferForm } from './pages/OfferForm';
+import { OfferDetail } from './pages/OfferDetail';
 import { CompanyDetail } from './pages/CompanyDetail';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { TodoDetail } from './pages/TodoDetail';
@@ -84,6 +87,10 @@ const AppContent: React.FC = () => {
           <Route path="/showrooms/new" element={<ShowroomForm />} />
           <Route path="/showrooms/:id" element={<ShowroomDetail />} />
           <Route path="/showrooms/:id/edit" element={<ShowroomForm />} />
+          <Route path="/offers" element={<Offers />} />
+          <Route path="/offers/new" element={<OfferForm />} />
+          <Route path="/offers/:id" element={<OfferDetail />} />
+          <Route path="/offers/:id/edit" element={<OfferForm />} />
           <Route path="/claims" element={<Claims />} />
           <Route path="/claims/new" element={<ClaimForm />} />
           <Route path="/claims/:id" element={<ClaimDetail />} />

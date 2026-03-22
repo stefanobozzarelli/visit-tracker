@@ -53,9 +53,9 @@ export class PdfService {
         doc.text(`Visited by: ${visit.visited_by_user?.name || 'N/A'}`);
         doc.moveDown(0.5);
 
-        // Report per company
+        // Report per company (skip __metadata__ section)
         if (visit.reports && visit.reports.length > 0) {
-          visit.reports.forEach(report => {
+          visit.reports.filter(report => report.section !== '__metadata__').forEach(report => {
             doc.fontSize(10)
               .font('Helvetica-Bold')
               .fillColor('#0066CC')
@@ -404,14 +404,14 @@ export class PdfService {
       { label: 'Value', width: 70 },
     ];
     const rows = projects.map((p) => [
-      p.project_number || p.id?.toString() || '',
-      p.name || '',
-      p.supplier?.name || p.supplier_name || '',
-      p.client?.name || p.client_name || '',
+      p.project_number != null ? String(p.project_number) : '',
+      p.project_name || '',
+      p.supplier?.name || '',
+      p.client?.name || '',
       p.status || '',
       p.country || '',
-      p.type || '',
-      p.value != null ? String(p.value) : '',
+      p.project_type || '',
+      p.project_value != null ? Number(p.project_value).toLocaleString() : '',
     ]);
     return this._generateTablePdf(options.title || 'Projects Report', headers, rows, {
       generatedAt: options.generatedAt || new Date(),

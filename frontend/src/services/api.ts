@@ -1083,6 +1083,104 @@ class ApiService {
     return response.data;
   }
 
+  // ---- Offers ----
+  async getOffers(filters?: any) {
+    const params = new URLSearchParams();
+    if (filters?.client_id) params.append('client_id', filters.client_id);
+    if (filters?.company_id) params.append('company_id', filters.company_id);
+    if (filters?.status) params.append('status', filters.status);
+    const qs = params.toString();
+    const response = await this.api.get<ApiResponse<any>>(`/offers${qs ? `?${qs}` : ''}`);
+    return response.data;
+  }
+
+  async getOffer(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/offers/${id}`);
+    return response.data;
+  }
+
+  async createOffer(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/offers', data);
+    return response.data;
+  }
+
+  async updateOffer(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/offers/${id}`, data);
+    return response.data;
+  }
+
+  async deleteOffer(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/offers/${id}`);
+    return response.data;
+  }
+
+  // Offer Items
+  async addOfferItem(offerId: string, data: any) {
+    const response = await this.api.post<ApiResponse<any>>(`/offers/${offerId}/items`, data);
+    return response.data;
+  }
+
+  async updateOfferItem(offerId: string, itemId: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/offers/${offerId}/items/${itemId}`, data);
+    return response.data;
+  }
+
+  async deleteOfferItem(offerId: string, itemId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/offers/${offerId}/items/${itemId}`);
+    return response.data;
+  }
+
+  // Offer Attachments
+  async uploadOfferAttachment(offerId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/offers/${offerId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async downloadOfferAttachment(offerId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/offers/${offerId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteOfferAttachment(offerId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/offers/${offerId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  // Offer Item Attachments
+  async uploadOfferItemAttachment(offerId: string, itemId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/offers/${offerId}/items/${itemId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async downloadOfferItemAttachment(offerId: string, itemId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/offers/${offerId}/items/${itemId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteOfferItemAttachment(offerId: string, itemId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/offers/${offerId}/items/${itemId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  // Offer Exports
+  async exportOffersPdf(filters: any = {}) {
+    const response = await this.api.post('/offers/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportOffersExcel(filters: any = {}) {
+    const response = await this.api.post('/offers/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
   // Users Management
   async createUser(email: string, name: string, password: string, role: string = 'sales_rep', company_id?: string) {
     const response = await this.api.post<ApiResponse<any>>('/admin/users', {

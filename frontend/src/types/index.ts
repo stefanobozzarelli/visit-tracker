@@ -407,3 +407,79 @@ export interface Project {
   supplier?: Company;
   client?: Client;
 }
+
+// ---- Offers ----
+export type OfferStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+
+export interface OfferItem {
+  id: string;
+  offer_id: string;
+  serie?: string;
+  articolo?: string;
+  finitura?: string;
+  formato?: string;
+  spessore_mm?: number;
+  prezzo_unitario: number;
+  unita_misura?: string;
+  quantita: number;
+  total_amount: number;
+  data?: string;
+  tipo_offerta: 'progetto' | 'retail';
+  promozionale: boolean;
+  numero_progetto?: string;
+  progetto_nome?: string;
+  fase_progetto?: string;
+  sviluppo_progetto?: string;
+  project_id?: string;
+  consegna_prevista?: string;
+  note?: string;
+  created_at: string;
+  project?: Project;
+  attachments?: OfferItemAttachment[];
+}
+
+export interface OfferAttachment {
+  id: string;
+  offer_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
+export interface OfferItemAttachment {
+  id: string;
+  offer_item_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
+export interface Offer {
+  id: string;
+  client_id?: string;
+  company_id?: string;
+  visit_id?: string;
+  company_visit_id?: string;
+  offer_date: string;
+  valid_until?: string;
+  status: OfferStatus;
+  currency?: string;
+  notes?: string;
+  total_amount: number;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  client?: Client;
+  company?: Company;
+  visit?: Visit;
+  company_visit?: any;
+  created_by_user?: User;
+  items?: OfferItem[];
+  attachments?: OfferAttachment[];
+}
