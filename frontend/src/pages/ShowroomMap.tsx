@@ -85,6 +85,7 @@ export const ShowroomMap: React.FC = () => {
   const [filterCompany, setFilterCompany] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterArea, setFilterArea] = useState('');
+  const [mapLang, setMapLang] = useState<'local' | 'en'>('local');
 
   useEffect(() => {
     const load = async () => {
@@ -234,6 +235,14 @@ export const ShowroomMap: React.FC = () => {
           <button onClick={() => { setFilterCompany(''); setFilterStatus(''); setFilterArea(''); }}
             className="sr-map-filter-clear">Clear</button>
         )}
+        <button
+          onClick={() => setMapLang(mapLang === 'local' ? 'en' : 'local')}
+          className="sr-map-filter"
+          style={{ marginLeft: 'auto', fontWeight: 600, minWidth: '90px' }}
+          title={mapLang === 'local' ? 'Switch to English map labels' : 'Switch to local language labels'}
+        >
+          {mapLang === 'local' ? '🌐 English' : '🌐 Local'}
+        </button>
       </div>
 
       <div className="sr-map-container">
@@ -244,8 +253,15 @@ export const ShowroomMap: React.FC = () => {
           scrollWheelZoom={true}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            key={mapLang}
+            attribution={mapLang === 'en'
+              ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+              : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }
+            url={mapLang === 'en'
+              ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+              : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            }
           />
           {filtered.map(s => {
             const coords = getCoords(s)!;
