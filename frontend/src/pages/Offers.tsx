@@ -30,6 +30,7 @@ export const Offers: React.FC = () => {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
 
   // Filters
   const [clientId, setClientId] = useState('');
@@ -93,6 +94,12 @@ export const Offers: React.FC = () => {
         const r = await apiService.getCompanies();
         if (r.success && r.data) setCompanies(r.data);
       } catch {}
+      if (!isAdmin) {
+        try {
+          const r = await apiService.getMyAreas();
+          if (r.success && r.data) setUserAreaCompanyIds(r.data.companies?.map((c: any) => c.id) || []);
+        } catch {}
+      }
       await loadOffers();
     } catch {
       setError('Error loading data');
@@ -285,7 +292,7 @@ export const Offers: React.FC = () => {
             onChange={e => setCompanyId(e.target.value)}
           >
             <option value="">All Suppliers</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {(isAdmin || userAreaCompanyIds.length === 0 ? companies : companies.filter(c => userAreaCompanyIds.includes(c.id))).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
           <select
