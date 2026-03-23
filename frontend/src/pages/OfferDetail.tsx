@@ -306,89 +306,47 @@ export const OfferDetail: React.FC = () => {
             No items in this offer. Click "+ Add Item" to add line items.
           </div>
         ) : (
-          <div className="off-items-grid">
+          <div className="off-items-list">
             {items.map(item => (
-              <div key={item.id} className="off-item-card">
-                <div className="off-item-card-header">
-                  <div className="off-item-card-title">
-                    {[item.serie, item.articolo, item.finitura].filter(Boolean).join(' / ') || 'Untitled Item'}
+              <div key={item.id} className="off-item-row">
+                {/* Row 1: Product info + pricing */}
+                <div className="off-item-row-top">
+                  <div className="off-item-product">
+                    <strong>{[item.serie, item.articolo].filter(Boolean).join(' / ') || 'Untitled'}</strong>
+                    {item.finitura && <span className="off-item-tag">{item.finitura}</span>}
+                    {item.formato && <span className="off-item-tag">{item.formato}</span>}
+                    {item.spessore_mm != null && <span className="off-item-tag">{item.spessore_mm}mm</span>}
+                    {item.unita_misura && <span className="off-item-tag">{item.unita_misura}</span>}
+                    {item.promozionale && <span className="off-item-tag promo">PROMO</span>}
                   </div>
-                  {item.promozionale && (
-                    <span
-                      className="off-status-badge"
-                      style={{ background: 'rgba(176, 152, 64, 0.1)', color: '#B09840', borderColor: 'rgba(176, 152, 64, 0.25)', fontSize: '0.625rem' }}
-                    >
-                      PROMO
-                    </span>
-                  )}
+                  <div className="off-item-pricing">
+                    <span>€ {Number(item.prezzo_unitario || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>×</span>
+                    <span>{Number(item.quantita || 0).toLocaleString('it-IT')}</span>
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>=</span>
+                    <strong>€ {Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong>
+                  </div>
                 </div>
-
-                {item.formato && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>
-                    Formato: {item.formato}
+                {/* Row 2: Tipo, progetto, consegna, note, allegati, actions */}
+                <div className="off-item-row-bottom">
+                  <div className="off-item-meta">
+                    <span className={`off-item-tipo ${item.tipo_offerta}`}>{item.tipo_offerta === 'progetto' ? 'Progetto' : 'Retail'}</span>
+                    {item.tipo_offerta === 'progetto' && item.numero_progetto && <span>#{item.numero_progetto}</span>}
+                    {item.tipo_offerta === 'progetto' && item.progetto_nome && <span>{item.progetto_nome}</span>}
+                    {item.fase_progetto && <span>Fase: {item.fase_progetto}</span>}
+                    {item.consegna_prevista && <span>Consegna: {formatDate(item.consegna_prevista)}</span>}
+                    {item.data && <span>Data: {formatDate(item.data)}</span>}
+                    {item.note && <span className="off-item-note">{item.note}</span>}
+                    {item.attachments && item.attachments.length > 0 && (
+                      <span className="off-item-att-badge" title={item.attachments.map(a => a.filename).join(', ')}>
+                        📎 {item.attachments.length} file{item.attachments.length > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
-                )}
-
-                <div className="off-item-card-details">
-                  <div>
-                    <span className="off-item-card-label">Prezzo</span>
-                    <div>{Number(item.prezzo_unitario || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                  <div className="off-item-actions">
+                    <button type="button" className="off-action-btn primary" onClick={() => navigate(`/offers/${id}/items/${item.id}/edit`)}>Edit</button>
+                    <button type="button" className="off-action-btn danger" onClick={() => handleDeleteItem(item.id)}>Delete</button>
                   </div>
-                  <div>
-                    <span className="off-item-card-label">Qty</span>
-                    <div>{item.quantita}</div>
-                  </div>
-                  <div>
-                    <span className="off-item-card-label">Total</span>
-                    <div style={{ fontWeight: 600 }}>{Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div>
-                    <span className="off-item-card-label">Tipo</span>
-                    <div style={{ textTransform: 'capitalize' }}>{item.tipo_offerta}</div>
-                  </div>
-                  {item.tipo_offerta === 'progetto' && (item.progetto_nome || item.numero_progetto) && (
-                    <>
-                      {item.numero_progetto && (
-                        <div>
-                          <span className="off-item-card-label">N. Progetto</span>
-                          <div>{item.numero_progetto}</div>
-                        </div>
-                      )}
-                      {item.progetto_nome && (
-                        <div>
-                          <span className="off-item-card-label">Progetto</span>
-                          <div>{item.progetto_nome}</div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {item.consegna_prevista && (
-                    <div>
-                      <span className="off-item-card-label">Consegna</span>
-                      <div>{formatDate(item.consegna_prevista)}</div>
-                    </div>
-                  )}
-                  {item.spessore_mm != null && (
-                    <div>
-                      <span className="off-item-card-label">Sp. MM</span>
-                      <div>{item.spessore_mm}</div>
-                    </div>
-                  )}
-                </div>
-
-                {item.note && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.5rem', lineHeight: 1.4 }}>
-                    {item.note}
-                  </div>
-                )}
-
-                <div className="off-item-card-actions">
-                  <button type="button" className="off-action-btn primary" onClick={() => navigate(`/offers/${id}/items/${item.id}/edit`)}>
-                    Edit
-                  </button>
-                  <button type="button" className="off-action-btn danger" onClick={() => handleDeleteItem(item.id)}>
-                    Delete
-                  </button>
                 </div>
               </div>
             ))}
