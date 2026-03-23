@@ -76,8 +76,14 @@ export const OfferForm: React.FC = () => {
         // Pre-fill from URL params
         const clientIdFromUrl = searchParams.get('clientId');
         const companyIdFromUrl = searchParams.get('companyId');
+        const visitIdFromUrl = searchParams.get('visitId');
+        const projectIdFromUrl = searchParams.get('projectId');
+        const companyVisitIdFromUrl = searchParams.get('companyVisitId');
         if (clientIdFromUrl) setFormData(prev => ({ ...prev, client_id: clientIdFromUrl }));
         if (companyIdFromUrl) setFormData(prev => ({ ...prev, company_id: companyIdFromUrl }));
+        if (visitIdFromUrl) setFormData(prev => ({ ...prev, visit_id: visitIdFromUrl }));
+        if (projectIdFromUrl) setFormData(prev => ({ ...prev, project_id: projectIdFromUrl }));
+        if (companyVisitIdFromUrl) setFormData(prev => ({ ...prev, company_visit_id: companyVisitIdFromUrl }));
 
         // Edit mode: load existing offer
         if (isEditMode && id) {

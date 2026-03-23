@@ -101,4 +101,34 @@ router.post('/projects', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/search/offers
+ * Semantic search in offers
+ */
+router.post('/offers', async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body;
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required',
+      });
+    }
+
+    const offers = await searchService.searchOffers(query);
+    const response: ApiResponse<any> = {
+      success: true,
+      data: offers,
+      message: `Found ${offers.length} offers`,
+    };
+    res.json(response);
+  } catch (error) {
+    console.error('Search offers error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Search error: ' + (error as Error).message,
+    });
+  }
+});
+
 export default router;

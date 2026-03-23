@@ -24,6 +24,7 @@ export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
+  const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -34,6 +35,12 @@ export const ProjectDetail: React.FC = () => {
         const res = await apiService.getProject(id);
         if (res.success && res.data) {
           setProject(res.data);
+          try {
+            const offersRes = await apiService.getOffers({ project_id: id });
+            if (offersRes.success && offersRes.data) {
+              setOffers(Array.isArray(offersRes.data) ? offersRes.data : []);
+            }
+          } catch {}
         } else {
           setError('Project not found');
         }
@@ -139,6 +146,51 @@ export const ProjectDetail: React.FC = () => {
             Edit
           </button>
         </div>
+      </div>
+
+      {/* Offers section */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2 style={{ margin: 0 }}>Offers ({offers.length})</h2>
+          <button
+            onClick={() => navigate(`/offers/new?projectId=${id}&clientId=${project.client_id}`)}
+            style={{ padding: '0.4rem 0.8rem', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+          >
+            + New Offer
+          </button>
+        </div>
+        {offers.length > 0 ? (
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {offers.map((offer: any) => (
+              <div
+                key={offer.id}
+                style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1rem', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+                onClick={() => navigate(`/offers/${offer.id}`)}
+                onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
+                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: '600', fontSize: '0.9rem' }}>
+                      {offer.company?.name || 'Supplier'} - {new Date(offer.offer_date).toLocaleDateString('it-IT')}
+                    </p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#666' }}>
+                      Status: {offer.status || 'draft'} | Items: {offer.items?.length || 0}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontWeight: 'bold', color: '#007aff' }}>
+                      {offer.total_amount != null ? `${offer.currency || '\u20AC'} ${Number(offer.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', color: '#007bff', fontWeight: '600' }}>View →</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: '#888', fontSize: '0.875rem' }}>No offers linked to this project.</p>
+        )}
       </div>
     </div>
   );

@@ -1089,6 +1089,9 @@ class ApiService {
     if (filters?.client_id) params.append('client_id', filters.client_id);
     if (filters?.company_id) params.append('company_id', filters.company_id);
     if (filters?.status) params.append('status', filters.status);
+    if (filters?.visit_id) params.append('visit_id', filters.visit_id);
+    if (filters?.project_id) params.append('project_id', filters.project_id);
+    if (filters?.company_visit_id) params.append('company_visit_id', filters.company_visit_id);
     const qs = params.toString();
     const response = await this.api.get<ApiResponse<any>>(`/offers${qs ? `?${qs}` : ''}`);
     return response.data;

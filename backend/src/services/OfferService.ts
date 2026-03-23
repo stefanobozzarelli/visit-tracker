@@ -15,7 +15,7 @@ export class OfferService {
     return this.offerRepo.save(offer) as unknown as Promise<Offer>;
   }
 
-  async getOffers(filters?: { client_id?: string; company_id?: string; status?: string; tipo_offerta?: string }): Promise<Offer[]> {
+  async getOffers(filters?: { client_id?: string; company_id?: string; status?: string; tipo_offerta?: string; visit_id?: string; project_id?: string; company_visit_id?: string }): Promise<Offer[]> {
     const qb = this.offerRepo.createQueryBuilder('o')
       .leftJoinAndSelect('o.client', 'client')
       .leftJoinAndSelect('o.company', 'company')
@@ -30,6 +30,9 @@ export class OfferService {
     if (filters?.client_id) qb.andWhere('o.client_id = :clientId', { clientId: filters.client_id });
     if (filters?.company_id) qb.andWhere('o.company_id = :companyId', { companyId: filters.company_id });
     if (filters?.status) qb.andWhere('o.status = :status', { status: filters.status });
+    if (filters?.visit_id) qb.andWhere('o.visit_id = :visitId', { visitId: filters.visit_id });
+    if (filters?.project_id) qb.andWhere('o.project_id = :projectId', { projectId: filters.project_id });
+    if (filters?.company_visit_id) qb.andWhere('o.company_visit_id = :cvId', { cvId: filters.company_visit_id });
 
     return qb.getMany();
   }

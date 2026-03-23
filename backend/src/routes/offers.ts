@@ -121,12 +121,15 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
-    const { client_id, company_id, status } = req.query;
+    const { client_id, company_id, status, visit_id, project_id, company_visit_id } = req.query;
 
     let offers = await offerService.getOffers({
       client_id: client_id as string,
       company_id: company_id as string,
       status: status as string,
+      visit_id: visit_id as string,
+      project_id: project_id as string,
+      company_visit_id: company_visit_id as string,
     });
 
     // Non-admin users see only offers for their visible clients

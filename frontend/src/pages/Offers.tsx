@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { config } from '../config';
 import { Offer, Client, Company } from '../types';
 import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Offers.css';
+
+const API_BASE_URL = config.API_BASE_URL;
 
 // ---- Status helpers ----
 type OfferStatusKey = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
@@ -37,6 +41,11 @@ export const Offers: React.FC = () => {
   const [companyId, setCompanyId] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [localSearch, setLocalSearch] = useState('');
+
+  // AI Search
+  const [nlpQuery, setNlpQuery] = useState('');
+  const [nlpResults, setNlpResults] = useState<Offer[] | null>(null);
+  const [nlpSearching, setNlpSearching] = useState(false);
 
   // UI
   const [loading, setLoading] = useState(true);
@@ -155,16 +164,17 @@ export const Offers: React.FC = () => {
 
   // Local search filter
   const filteredOffers = useMemo(() => {
-    if (!localSearch.trim()) return offers;
+    const baseList = nlpResults !== null ? nlpResults : offers;
+    if (!localSearch.trim()) return baseList;
     const q = localSearch.toLowerCase();
-    return offers.filter(o => {
+    return baseList.filter(o => {
       const clientName = (o.client?.name || getClientName(o.client_id || '')).toLowerCase();
       const companyName = (o.company?.name || getCompanyName(o.company_id || '')).toLowerCase();
       const status = o.status.toLowerCase();
       const notes = (o.notes || '').toLowerCase();
       return clientName.includes(q) || companyName.includes(q) || status.includes(q) || notes.includes(q);
     });
-  }, [offers, localSearch, getClientName, getCompanyName]);
+  }, [offers, nlpResults, localSearch, getClientName, getCompanyName]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -194,6 +204,33 @@ export const Offers: React.FC = () => {
     } finally {
       setExporting(false);
     }
+  };
+
+  // ---- NLP Search ----
+  const handleNlpSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nlpQuery.trim()) return;
+    try {
+      setNlpSearching(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${API_BASE_URL}/search/offers`,
+        { query: nlpQuery },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        setNlpResults(res.data.data || []);
+      }
+    } catch {
+      setError('AI search failed');
+    } finally {
+      setNlpSearching(false);
+    }
+  };
+
+  const clearNlpSearch = () => {
+    setNlpQuery('');
+    setNlpResults(null);
   };
 
   // ---- Render ----
@@ -333,11 +370,38 @@ export const Offers: React.FC = () => {
         </div>
       </div>
 
+      {/* AI Search */}
+      <form className="off-toolbar" style={{ marginTop: '0.5rem' }} onSubmit={handleNlpSearch}>
+        <div className="off-filters-row">
+          <input
+            type="text"
+            className="off-search-input"
+            style={{ flex: 1 }}
+            placeholder='AI Search... e.g. "offers for client X" or "accepted offers over 10k"'
+            value={nlpQuery}
+            onChange={e => setNlpQuery(e.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={nlpSearching || !nlpQuery.trim()}
+            className="off-btn-new"
+            style={{ opacity: nlpSearching || !nlpQuery.trim() ? 0.5 : 1 }}
+          >
+            {nlpSearching ? 'Searching...' : 'AI Search'}
+          </button>
+          {nlpResults !== null && (
+            <button type="button" className="off-reset-btn" onClick={clearNlpSearch}>
+              Clear
+            </button>
+          )}
+        </div>
+      </form>
+
       {/* Table */}
       <div className="off-table-wrap">
         {filteredOffers.length > 0 && (
           <div className="off-result-count">
-            {filteredOffers.length} offer{filteredOffers.length !== 1 ? 's' : ''}
+            {filteredOffers.length} offer{filteredOffers.length !== 1 ? 's' : ''}{nlpResults !== null ? ' (AI search results)' : ''}
           </div>
         )}
 

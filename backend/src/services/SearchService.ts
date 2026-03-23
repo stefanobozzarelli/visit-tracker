@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/database';
 import { Visit } from '../entities/Visit';
 import { TodoItem } from '../entities/TodoItem';
 import { Project } from '../entities/Project';
+import { Offer } from '../entities/Offer';
 
 const getClient = () => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -583,6 +584,88 @@ RESPONSE ONLY JSON, no text!`,
 
     const results = await queryBuilder.getMany();
     console.log(`✅ Found ${results.length} projects`);
+    return results;
+  }
+
+  /**
+   * Search offers with semantic filters
+   */
+  async searchOffers(query: string): Promise<Offer[]> {
+    console.log('🔍 Search offers - Query:', query);
+    const filters = await this.interpretSearchQuery(query, 'visits'); // reuse same interpreter
+
+    const offerRepository = AppDataSource.getRepository(Offer);
+    let queryBuilder = offerRepository
+      .createQueryBuilder('offer')
+      .leftJoinAndSelect('offer.client', 'client')
+      .leftJoinAndSelect('offer.company', 'company')
+      .leftJoinAndSelect('offer.project', 'project')
+      .leftJoinAndSelect('offer.items', 'items')
+      .leftJoinAndSelect('offer.visit', 'visit')
+      .leftJoinAndSelect('offer.company_visit', 'company_visit')
+      .leftJoinAndSelect('offer.created_by_user', 'created_user')
+      .leftJoinAndSelect('offer.attachments', 'attachments')
+      .distinct(true);
+
+    // Date filters on offer_date
+    if (filters.startDate) {
+      queryBuilder = queryBuilder.andWhere('offer.offer_date >= :startDate', {
+        startDate: filters.startDate,
+      });
+    }
+    if (filters.endDate) {
+      queryBuilder = queryBuilder.andWhere('offer.offer_date <= :endDate', {
+        endDate: filters.endDate,
+      });
+    }
+
+    // Status filter
+    if (filters.status) {
+      queryBuilder = queryBuilder.andWhere('offer.status = :status', {
+        status: filters.status.toLowerCase(),
+      });
+    }
+
+    // Keyword search across offer fields
+    if (filters.keywords && filters.keywords.length > 0) {
+      const conditions: string[] = [];
+      const params: any = {};
+
+      filters.keywords.forEach((kw, idx) => {
+        const key = `kw${idx}`;
+        const likeValue = `%${kw}%`;
+
+        // Client
+        conditions.push(`client.name ILIKE :${key}_client`);
+        // Company
+        conditions.push(`company.name ILIKE :${key}_company`);
+        // Project
+        conditions.push(`project.project_name ILIKE :${key}_project`);
+        // Offer fields
+        conditions.push(`offer.notes ILIKE :${key}_notes`);
+        conditions.push(`offer.status::text ILIKE :${key}_status`);
+        conditions.push(`offer.currency ILIKE :${key}_currency`);
+        // Dates as text
+        conditions.push(`offer.offer_date::text ILIKE :${key}_offer_date`);
+
+        params[`${key}_client`] = likeValue;
+        params[`${key}_company`] = likeValue;
+        params[`${key}_project`] = likeValue;
+        params[`${key}_notes`] = likeValue;
+        params[`${key}_status`] = likeValue;
+        params[`${key}_currency`] = likeValue;
+        params[`${key}_offer_date`] = likeValue;
+      });
+
+      if (conditions.length > 0) {
+        queryBuilder = queryBuilder.andWhere(`(${conditions.join(' OR ')})`, params);
+      }
+    }
+
+    queryBuilder = queryBuilder.orderBy('offer.created_at', 'DESC');
+
+    const results = await queryBuilder.getMany();
+    console.log(`✅ Found ${results.length} offers`);
     return results;
   }
 }
