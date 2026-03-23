@@ -303,53 +303,77 @@ export const OfferDetail: React.FC = () => {
 
         {items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-tertiary)', fontSize: '0.875rem' }}>
-            No items in this offer. Click "+ Add Item" to add line items.
+            No items yet. Click "+ Add Item" to add line items.
           </div>
         ) : (
-          <div className="off-items-list">
-            {items.map(item => (
-              <div key={item.id} className="off-item-row">
-                {/* Row 1: Product info + pricing */}
-                <div className="off-item-row-top">
-                  <div className="off-item-product">
-                    <strong>{[item.serie, item.articolo].filter(Boolean).join(' / ') || 'Untitled'}</strong>
-                    {item.finitura && <span className="off-item-tag">{item.finitura}</span>}
-                    {item.formato && <span className="off-item-tag">{item.formato}</span>}
-                    {item.spessore_mm != null && <span className="off-item-tag">{item.spessore_mm}mm</span>}
-                    {item.unita_misura && <span className="off-item-tag">{item.unita_misura}</span>}
-                    {item.promozionale && <span className="off-item-tag promo">PROMO</span>}
-                  </div>
-                  <div className="off-item-pricing">
-                    <span>€ {Number(item.prezzo_unitario || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
-                    <span style={{ color: 'var(--color-text-tertiary)' }}>×</span>
-                    <span>{Number(item.quantita || 0).toLocaleString('it-IT')}</span>
-                    <span style={{ color: 'var(--color-text-tertiary)' }}>=</span>
-                    <strong>€ {Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong>
-                  </div>
-                </div>
-                {/* Row 2: Tipo, progetto, consegna, note, allegati, actions */}
-                <div className="off-item-row-bottom">
-                  <div className="off-item-meta">
-                    <span className={`off-item-tipo ${item.tipo_offerta}`}>{item.tipo_offerta === 'progetto' ? 'Progetto' : 'Retail'}</span>
-                    {item.tipo_offerta === 'progetto' && item.numero_progetto && <span>#{item.numero_progetto}</span>}
-                    {item.tipo_offerta === 'progetto' && item.progetto_nome && <span>{item.progetto_nome}</span>}
-                    {item.fase_progetto && <span>Fase: {item.fase_progetto}</span>}
-                    {item.consegna_prevista && <span>Consegna: {formatDate(item.consegna_prevista)}</span>}
-                    {item.data && <span>Data: {formatDate(item.data)}</span>}
-                    {item.note && <span className="off-item-note">{item.note}</span>}
-                    {item.attachments && item.attachments.length > 0 && (
-                      <span className="off-item-att-badge" title={item.attachments.map(a => a.filename).join(', ')}>
-                        📎 {item.attachments.length} file{item.attachments.length > 1 ? 's' : ''}
+          <div className="off-table-wrap">
+            <table className="off-table" style={{ fontSize: '0.8125rem' }}>
+              <thead>
+                <tr>
+                  <th>Serie</th>
+                  <th>Articolo</th>
+                  <th>Finitura</th>
+                  <th>Formato</th>
+                  <th>Sp. MM</th>
+                  <th>€ Unit.</th>
+                  <th>U.M.</th>
+                  <th>Qty</th>
+                  <th>Totale</th>
+                  <th>Tipo</th>
+                  <th>Consegna</th>
+                  <th>Note</th>
+                  <th>Allegati</th>
+                  <th>Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id}>
+                    <td>{item.serie || '-'}</td>
+                    <td>{item.articolo || '-'}</td>
+                    <td>{item.finitura || '-'}</td>
+                    <td>{item.formato || '-'}</td>
+                    <td>{item.spessore_mm != null ? item.spessore_mm : '-'}</td>
+                    <td>{Number(item.prezzo_unitario || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</td>
+                    <td>{item.unita_misura || '-'}</td>
+                    <td>{Number(item.quantita || 0).toLocaleString('it-IT')}</td>
+                    <td style={{ fontWeight: 600 }}>€ {Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</td>
+                    <td>
+                      <span className={`off-item-tipo ${item.tipo_offerta}`}>
+                        {item.tipo_offerta === 'progetto' ? 'Prog.' : 'Retail'}
                       </span>
-                    )}
-                  </div>
-                  <div className="off-item-actions">
-                    <button type="button" className="off-action-btn primary" onClick={() => navigate(`/offers/${id}/items/${item.id}/edit`)}>Edit</button>
-                    <button type="button" className="off-action-btn danger" onClick={() => handleDeleteItem(item.id)}>Delete</button>
-                  </div>
-                </div>
-              </div>
-            ))}
+                      {item.promozionale && <span className="off-item-tag promo" style={{ marginLeft: '0.25rem' }}>P</span>}
+                    </td>
+                    <td>{item.consegna_prevista ? formatDate(item.consegna_prevista) : '-'}</td>
+                    <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.note || ''}>{item.note || '-'}</td>
+                    <td>
+                      {item.attachments && item.attachments.length > 0 ? (
+                        <span
+                          className="off-item-att-badge"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            item.attachments!.forEach(async (att) => {
+                              try {
+                                const res = await apiService.downloadOfferItemAttachment(id!, item.id, att.id);
+                                if (res.success && res.data?.url) window.open(res.data.url, '_blank');
+                              } catch {}
+                            });
+                          }}
+                        >
+                          📎 {item.attachments.length}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <button type="button" className="off-action-btn primary" onClick={() => navigate(`/offers/${id}/items/${item.id}/edit`)}>Edit</button>
+                        <button type="button" className="off-action-btn danger" onClick={() => handleDeleteItem(item.id)}>Del</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

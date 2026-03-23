@@ -24,6 +24,7 @@ export class OfferService {
       .leftJoinAndSelect('o.project', 'project')
       .leftJoinAndSelect('o.created_by_user', 'user')
       .leftJoinAndSelect('o.items', 'items')
+      .leftJoinAndSelect('o.attachments', 'attachments')
       .orderBy('o.created_at', 'DESC');
 
     if (filters?.client_id) qb.andWhere('o.client_id = :clientId', { clientId: filters.client_id });

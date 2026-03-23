@@ -358,8 +358,9 @@ export const Offers: React.FC = () => {
                   <th style={{ width: '14%' }}>Client</th>
                   <th style={{ width: '14%' }}>Supplier</th>
                   <th style={{ width: '9%' }}>Status</th>
-                  <th style={{ width: '6%' }}>Items</th>
+                  <th style={{ width: '5%' }}>Items</th>
                   <th style={{ width: '10%' }}>Total</th>
+                  <th style={{ width: '4%' }}>Files</th>
                   <th style={{ width: '9%' }}>Valid Until</th>
                   <th style={{ width: '1%' }}>Actions</th>
                 </tr>
@@ -398,6 +399,20 @@ export const Offers: React.FC = () => {
                       <td style={{ textAlign: 'center' }}>{itemCount}</td>
                       <td style={{ fontWeight: 600 }}>
                         {offer.total_amount != null ? `${offer.currency || '\u20AC'} ${Number(offer.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {(offer.attachments?.length || 0) > 0 ? (
+                          <span
+                            style={{ cursor: 'pointer', color: 'var(--color-info)', fontSize: '0.8125rem' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/offers/${offer.id}`);
+                            }}
+                            title={(offer.attachments || []).map((a: any) => a.filename).join(', ')}
+                          >
+                            📎 {offer.attachments!.length}
+                          </span>
+                        ) : '-'}
                       </td>
                       <td>{offer.valid_until ? formatDate(offer.valid_until) : '-'}</td>
                       <td onClick={e => e.stopPropagation()}>

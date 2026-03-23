@@ -262,32 +262,14 @@ export const OfferItemForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 5: Numero Progetto, Progetto Nome, Fase Progetto */}
+        {/* Row 5: Consegna Prevista */}
         <div className="ofrf-form-grid">
-          <div className="ofrf-form-group">
-            <label>Numero Progetto</label>
-            <input type="text" name="numero_progetto" value={formData.numero_progetto} onChange={handleChange} disabled={isLoading} />
-          </div>
-          <div className="ofrf-form-group">
-            <label>Progetto Nome</label>
-            <input type="text" name="progetto_nome" value={formData.progetto_nome} onChange={handleChange} disabled={isLoading} />
-          </div>
-          <div className="ofrf-form-group">
-            <label>Fase Progetto</label>
-            <input type="text" name="fase_progetto" value={formData.fase_progetto} onChange={handleChange} disabled={isLoading} />
-          </div>
-        </div>
-
-        {/* Row 6: Sviluppo Progetto, Consegna Prevista */}
-        <div className="ofrf-form-grid-2">
-          <div className="ofrf-form-group">
-            <label>Sviluppo Progetto</label>
-            <input type="text" name="sviluppo_progetto" value={formData.sviluppo_progetto} onChange={handleChange} disabled={isLoading} />
-          </div>
           <div className="ofrf-form-group">
             <label>Consegna Prevista</label>
             <input type="date" name="consegna_prevista" value={formData.consegna_prevista} onChange={handleChange} disabled={isLoading} />
           </div>
+          <div className="ofrf-form-group" />
+          <div className="ofrf-form-group" />
         </div>
 
         {/* Row 7: Note */}
