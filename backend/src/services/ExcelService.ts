@@ -434,4 +434,28 @@ export class ExcelService {
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
     return excelBuffer as Buffer;
   }
+
+  generateOffersExcel(offers: any[]): Buffer {
+    const workbook = XLSX.utils.book_new();
+    const data = offers.map((o: any) => ({
+      'Date': o.offer_date ? new Date(o.offer_date).toLocaleDateString('it-IT') : '',
+      'Client': o.client?.name || '',
+      'Supplier': o.company?.name || '',
+      'Project': o.project?.project_name || '',
+      'Status': o.status || '',
+      'Items': o.items?.length || 0,
+      'Total': Number(o.total_amount || 0),
+      'Currency': o.currency || '',
+      'Valid Until': o.valid_until ? new Date(o.valid_until).toLocaleDateString('it-IT') : '',
+      'Notes': o.notes || '',
+    }));
+    const sheet = XLSX.utils.json_to_sheet(data);
+    sheet['!cols'] = [
+      { wch: 12 }, { wch: 25 }, { wch: 20 }, { wch: 25 },
+      { wch: 10 }, { wch: 6 }, { wch: 12 }, { wch: 6 },
+      { wch: 12 }, { wch: 30 },
+    ];
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Offers');
+    return XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' }) as Buffer;
+  }
 }

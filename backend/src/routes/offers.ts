@@ -3,6 +3,7 @@ import { OfferService } from '../services/OfferService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
+import { PermissionService } from '../services/PermissionService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +12,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const router = Router();
 const offerService = new OfferService();
+const permissionService = new PermissionService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
@@ -99,12 +101,24 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  */
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const { client_id, company_id, status } = req.query;
-    const offers = await offerService.getOffers({
+
+    let offers = await offerService.getOffers({
       client_id: client_id as string,
       company_id: company_id as string,
       status: status as string,
     });
+
+    // Non-admin users see only offers for their visible clients
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        offers = offers.filter(o => o.client_id && visibleClientIds.includes(o.client_id));
+      }
+    }
+
     res.json({ success: true, data: offers });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });

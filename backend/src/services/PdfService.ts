@@ -545,6 +545,38 @@ export class PdfService {
   }
 
   /**
+   * Generate PDF for offers list
+   */
+  generateOffersPdf(
+    offers: any[],
+    options: { title?: string; generatedAt?: Date } = {},
+  ): Promise<Buffer> {
+    const headers = [
+      { label: 'Date', width: 70 },
+      { label: 'Client', width: 120 },
+      { label: 'Supplier', width: 110 },
+      { label: 'Project', width: 120 },
+      { label: 'Status', width: 70 },
+      { label: 'Items', width: 45 },
+      { label: 'Total', width: 80 },
+      { label: 'Valid Until', width: 75 },
+    ];
+    const rows = offers.map((o) => [
+      o.offer_date ? new Date(o.offer_date).toLocaleDateString('en-US') : '',
+      o.client?.name || '',
+      o.company?.name || '',
+      o.project?.project_name || '',
+      o.status || '',
+      String(o.items?.length || 0),
+      o.total_amount != null ? Number(o.total_amount).toLocaleString() : '0',
+      o.valid_until ? new Date(o.valid_until).toLocaleDateString('en-US') : '',
+    ]);
+    return this._generateTablePdf(options.title || 'Offers Report', headers, rows, {
+      generatedAt: options.generatedAt || new Date(),
+    });
+  }
+
+  /**
    * Converte il buffer in uno stream leggibile
    */
   bufferToStream(buffer: Buffer): Readable {
