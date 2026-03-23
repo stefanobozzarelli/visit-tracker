@@ -57,9 +57,18 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const { country, role } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     let clients = await clientService.getClients();
     if (country) clients = clients.filter((c: any) => c.country === country);
     if (role) clients = clients.filter((c: any) => c.role === role);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        clients = clients.filter(c => visibleClientIds.includes(c.id));
+      }
+    }
     const buffer = await pdfService.generateClientsPdf(clients, { title: 'Clients Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=clients-report.pdf');
@@ -72,9 +81,18 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
 router.post('/export-excel', async (req: Request, res: Response) => {
   try {
     const { country, role } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     let clients = await clientService.getClients();
     if (country) clients = clients.filter((c: any) => c.country === country);
     if (role) clients = clients.filter((c: any) => c.role === role);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        clients = clients.filter(c => visibleClientIds.includes(c.id));
+      }
+    }
     const buffer = excelService.generateClientsExcel(clients);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=clients-report.xlsx');

@@ -20,12 +20,18 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { company_id, status, startDate, endDate } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (company_id) filters.company_id = company_id;
     if (status) filters.status = status;
     let visits = await visitService.getVisits(filters);
     if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
     if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      visits = visits.filter((cv: any) => cv.created_by_user_id === userId);
+    }
     const buffer = await pdfService.generateCompanyVisitsPdf(visits, { title: 'Company Visits Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=company-visits-report.pdf');
@@ -42,12 +48,18 @@ router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) =
 router.post('/export-excel', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { company_id, status, startDate, endDate } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (company_id) filters.company_id = company_id;
     if (status) filters.status = status;
     let visits = await visitService.getVisits(filters);
     if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
     if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      visits = visits.filter((cv: any) => cv.created_by_user_id === userId);
+    }
     const buffer = excelService.generateCompanyVisitsExcel(visits);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=company-visits-report.xlsx');

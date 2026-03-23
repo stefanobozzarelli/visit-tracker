@@ -27,12 +27,21 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { client_id, company_id, status } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (client_id) filters.client_id = client_id;
     if (company_id) filters.company_id = company_id;
     if (status) filters.status = status;
 
-    const offers = await offerService.getOffers(filters);
+    let offers = await offerService.getOffers(filters);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        offers = offers.filter(o => o.client_id && visibleClientIds.includes(o.client_id));
+      }
+    }
     const buffer = await (pdfService as any).generateOffersPdf(offers, { title: 'Offers Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=offers-report.pdf');
@@ -49,12 +58,21 @@ router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) =
 router.post('/export-excel', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { client_id, company_id, status } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (client_id) filters.client_id = client_id;
     if (company_id) filters.company_id = company_id;
     if (status) filters.status = status;
 
-    const offers = await offerService.getOffers(filters);
+    let offers = await offerService.getOffers(filters);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        offers = offers.filter(o => o.client_id && visibleClientIds.includes(o.client_id));
+      }
+    }
     const buffer = (excelService as any).generateOffersExcel(offers);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=offers-report.xlsx');

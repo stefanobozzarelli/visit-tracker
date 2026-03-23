@@ -6,9 +6,11 @@ import { ShowroomService } from '../services/ShowroomService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
+import { PermissionService } from '../services/PermissionService';
 
 const router = Router();
 const showroomService = new ShowroomService();
+const permissionService = new PermissionService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
@@ -19,12 +21,21 @@ router.use(authMiddleware);
 router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const { clientId, companyId, status, area } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (clientId) filters.client_id = clientId;
     if (companyId) filters.company_id = companyId;
     if (status) filters.status = status;
     if (area) filters.area = area;
-    const showrooms = await showroomService.getShowrooms(filters);
+    let showrooms = await showroomService.getShowrooms(filters);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        showrooms = showrooms.filter((s: any) => s.client_id && visibleClientIds.includes(s.client_id));
+      }
+    }
     const buffer = await pdfService.generateShowroomsPdf(showrooms, { title: 'Showrooms Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=showrooms-report.pdf');
@@ -37,12 +48,21 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
 router.post('/export-excel', async (req: Request, res: Response) => {
   try {
     const { clientId, companyId, status, area } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (clientId) filters.client_id = clientId;
     if (companyId) filters.company_id = companyId;
     if (status) filters.status = status;
     if (area) filters.area = area;
-    const showrooms = await showroomService.getShowrooms(filters);
+    let showrooms = await showroomService.getShowrooms(filters);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        showrooms = showrooms.filter((s: any) => s.client_id && visibleClientIds.includes(s.client_id));
+      }
+    }
     const buffer = excelService.generateShowroomsExcel(showrooms);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=showrooms-report.xlsx');

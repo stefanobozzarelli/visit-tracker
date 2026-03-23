@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import { OrderService, CreateOrderRequest, UpdateOrderRequest, CreateOrderItemRequest, UpdateOrderItemRequest } from '../services/OrderService';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
+import { PermissionService } from '../services/PermissionService';
 import { authMiddleware } from '../middleware/auth';
 import { ApiResponse } from '../types';
 
 const router = Router();
 const orderService = new OrderService();
+const permissionService = new PermissionService();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
 
@@ -35,12 +37,21 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const { client_id, status, startDate, endDate } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (client_id) filters.client_id = client_id;
     if (status) filters.status = status;
     let orders = await orderService.getOrders(filters);
     if (startDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) >= new Date(startDate));
     if (endDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) <= new Date(endDate));
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        orders = orders.filter((o: any) => o.client_id && visibleClientIds.includes(o.client_id));
+      }
+    }
     const buffer = await pdfService.generateFilteredOrdersPdf(orders, { title: 'Orders Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=orders-report.pdf');
@@ -57,12 +68,21 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
 router.post('/export-excel', async (req: Request, res: Response) => {
   try {
     const { client_id, status, startDate, endDate } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (client_id) filters.client_id = client_id;
     if (status) filters.status = status;
     let orders = await orderService.getOrders(filters);
     if (startDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) >= new Date(startDate));
     if (endDate) orders = orders.filter((o: any) => new Date(o.order_date || o.created_at) <= new Date(endDate));
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        orders = orders.filter((o: any) => o.client_id && visibleClientIds.includes(o.client_id));
+      }
+    }
     const buffer = excelService.generateFilteredOrdersExcel(orders);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=orders-report.xlsx');

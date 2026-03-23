@@ -64,6 +64,8 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
 router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const { supplier_id, client_id, country, status } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     let qb = repo().createQueryBuilder('p')
       .leftJoinAndSelect('p.supplier', 'supplier')
       .leftJoinAndSelect('p.client', 'client')
@@ -72,6 +74,20 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
     if (client_id) qb = qb.andWhere('p.client_id = :client_id', { client_id });
     if (country) qb = qb.andWhere('p.country = :country', { country });
     if (status) qb = qb.andWhere('p.status = :status', { status });
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        if (visibleClientIds.length > 0) {
+          qb = qb.andWhere('p.client_id IN (:...visibleClientIds)', { visibleClientIds });
+        } else {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'attachment; filename=projects-report.pdf');
+          const buffer = await pdfService.generateProjectsPdf([], { title: 'Projects Report', generatedAt: new Date() });
+          return res.send(buffer);
+        }
+      }
+    }
     const projects = await qb.getMany();
     const buffer = await pdfService.generateProjectsPdf(projects, { title: 'Projects Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
@@ -85,6 +101,8 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
 router.post('/export-excel', async (req: Request, res: Response) => {
   try {
     const { supplier_id, client_id, country, status } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     let qb = repo().createQueryBuilder('p')
       .leftJoinAndSelect('p.supplier', 'supplier')
       .leftJoinAndSelect('p.client', 'client')
@@ -93,6 +111,20 @@ router.post('/export-excel', async (req: Request, res: Response) => {
     if (client_id) qb = qb.andWhere('p.client_id = :client_id', { client_id });
     if (country) qb = qb.andWhere('p.country = :country', { country });
     if (status) qb = qb.andWhere('p.status = :status', { status });
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        if (visibleClientIds.length > 0) {
+          qb = qb.andWhere('p.client_id IN (:...visibleClientIds)', { visibleClientIds });
+        } else {
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', 'attachment; filename=projects-report.xlsx');
+          const buffer = excelService.generateProjectsExcel([]);
+          return res.send(buffer);
+        }
+      }
+    }
     const projects = await qb.getMany();
     const buffer = excelService.generateProjectsExcel(projects);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

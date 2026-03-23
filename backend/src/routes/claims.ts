@@ -41,6 +41,8 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const { client_id, company_id, status, startDate, endDate } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (client_id) filters.client_id = client_id;
     if (company_id) filters.company_id = company_id;
@@ -48,6 +50,13 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
     let claims = await claimService.getClaims(filters);
     if (startDate) claims = claims.filter((c: any) => new Date(c.date) >= new Date(startDate));
     if (endDate) claims = claims.filter((c: any) => new Date(c.date) <= new Date(endDate));
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        claims = claims.filter(c => c.client_id && visibleClientIds.includes(c.client_id));
+      }
+    }
     const buffer = await pdfService.generateClaimsPdf(claims, { title: 'Claims Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=claims-report.pdf');
@@ -60,6 +69,8 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
 router.post('/export-excel', async (req: Request, res: Response) => {
   try {
     const { client_id, company_id, status, startDate, endDate } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (client_id) filters.client_id = client_id;
     if (company_id) filters.company_id = company_id;
@@ -67,6 +78,13 @@ router.post('/export-excel', async (req: Request, res: Response) => {
     let claims = await claimService.getClaims(filters);
     if (startDate) claims = claims.filter((c: any) => new Date(c.date) >= new Date(startDate));
     if (endDate) claims = claims.filter((c: any) => new Date(c.date) <= new Date(endDate));
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        claims = claims.filter(c => c.client_id && visibleClientIds.includes(c.client_id));
+      }
+    }
     const buffer = excelService.generateClaimsExcel(claims);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=claims-report.xlsx');

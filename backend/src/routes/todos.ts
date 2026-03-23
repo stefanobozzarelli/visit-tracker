@@ -20,12 +20,18 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { status, clientId, companyId, assignedToUserId } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (status) filters.status = status;
     if (clientId) filters.clientId = clientId;
     if (companyId) filters.companyId = companyId;
     if (assignedToUserId) filters.assignedToUserId = assignedToUserId;
-    const todos = await todoService.getTodos(filters);
+    let todos = await todoService.getTodos(filters);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      todos = todos.filter((t: any) => t.assigned_to_user_id === userId || t.created_by_user_id === userId);
+    }
     const buffer = await pdfService.generateTasksPdf(todos, { title: 'Tasks Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=tasks-report.pdf');
@@ -42,12 +48,18 @@ router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) =
 router.post('/export-excel', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { status, clientId, companyId, assignedToUserId } = req.body;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters: any = {};
     if (status) filters.status = status;
     if (clientId) filters.clientId = clientId;
     if (companyId) filters.companyId = companyId;
     if (assignedToUserId) filters.assignedToUserId = assignedToUserId;
-    const todos = await todoService.getTodos(filters);
+    let todos = await todoService.getTodos(filters);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      todos = todos.filter((t: any) => t.assigned_to_user_id === userId || t.created_by_user_id === userId);
+    }
     const buffer = excelService.generateTasksExcel(todos);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=tasks-report.xlsx');
