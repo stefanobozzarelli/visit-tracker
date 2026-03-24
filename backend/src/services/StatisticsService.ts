@@ -94,7 +94,8 @@ export class StatisticsService {
       LEFT JOIN (
         SELECT vis.visited_by_user_id uid, COUNT(*) cnt, SUM(COALESCE(co.total_amount, 0)) total_val
         FROM customer_orders co
-        JOIN visits vis ON vis.id = co.visit_id ${dateFilterOrders}
+        JOIN visits vis ON vis.id = co.visit_id
+        ${dateFilterOrders}
         GROUP BY 1
       ) ord ON ord.uid = u.id
       LEFT JOIN (
@@ -130,7 +131,46 @@ export class StatisticsService {
       return results;
     } catch (error) {
       console.error('Statistics query error:', (error as Error).message);
-      throw error;
+      // Fallback: try without file uploads and login tracking (tables may not exist yet)
+      try {
+        const fallbackSql = `
+          SELECT
+            u.id, u.name, u.email, u.role,
+            COALESCE(v.cnt, 0) as visits_count,
+            COALESCE(r.cnt, 0) as reports_count,
+            COALESCE(tc.cnt, 0) as tasks_created,
+            COALESCE(ta.cnt, 0) as tasks_assigned,
+            COALESCE(td.cnt, 0) as tasks_completed,
+            COALESCE(o.cnt, 0) as offers_count,
+            COALESCE(o.total_val, 0) as offers_total_value,
+            COALESCE(ord.cnt, 0) as orders_count,
+            COALESCE(ord.total_val, 0) as orders_total_value,
+            COALESCE(cl.cnt, 0) as claims_count,
+            COALESCE(cv.cnt, 0) as company_visits_count,
+            COALESCE(sh.cnt, 0) as showrooms_count,
+            0 as files_uploaded,
+            0 as login_count,
+            NULL as last_login
+          FROM users u
+          LEFT JOIN (SELECT visited_by_user_id uid, COUNT(*) cnt FROM visits ${dateFilterVisits} GROUP BY 1) v ON v.uid = u.id
+          LEFT JOIN (SELECT vis.visited_by_user_id uid, COUNT(*) cnt FROM visit_reports vr JOIN visits vis ON vis.id = vr.visit_id WHERE vr.section != '__metadata__' ${dateFilterReports} GROUP BY 1) r ON r.uid = u.id
+          LEFT JOIN (SELECT created_by_user_id uid, COUNT(*) cnt FROM todo_items ${dateFilterTodosCreated} GROUP BY 1) tc ON tc.uid = u.id
+          LEFT JOIN (SELECT assigned_to_user_id uid, COUNT(*) cnt FROM todo_items ${dateFilterTodosAssigned} GROUP BY 1) ta ON ta.uid = u.id
+          LEFT JOIN (SELECT assigned_to_user_id uid, COUNT(*) cnt FROM todo_items WHERE status IN ('done', 'completed') ${dateFilterTodosDone} GROUP BY 1) td ON td.uid = u.id
+          LEFT JOIN (SELECT created_by_user_id uid, COUNT(*) cnt, SUM(COALESCE(total_amount, 0)) total_val FROM offers ${dateFilterOffers} GROUP BY 1) o ON o.uid = u.id
+          LEFT JOIN (SELECT vis.visited_by_user_id uid, COUNT(*) cnt, SUM(COALESCE(co.total_amount, 0)) total_val FROM customer_orders co JOIN visits vis ON vis.id = co.visit_id ${dateFilterOrders} GROUP BY 1) ord ON ord.uid = u.id
+          LEFT JOIN (SELECT created_by_user_id uid, COUNT(*) cnt FROM claims ${dateFilterClaims} GROUP BY 1) cl ON cl.uid = u.id
+          LEFT JOIN (SELECT created_by_user_id uid, COUNT(*) cnt FROM company_visits ${dateFilterCv} GROUP BY 1) cv ON cv.uid = u.id
+          LEFT JOIN (SELECT created_by_user_id uid, COUNT(*) cnt FROM showrooms ${dateFilterSh} GROUP BY 1) sh ON sh.uid = u.id
+          ${whereClause}
+          ORDER BY u.name
+        `;
+        const fallbackResults = await AppDataSource.query(fallbackSql, params);
+        return fallbackResults;
+      } catch (fallbackError) {
+        console.error('Statistics fallback query error:', (fallbackError as Error).message);
+        throw fallbackError;
+      }
     }
   }
 }
