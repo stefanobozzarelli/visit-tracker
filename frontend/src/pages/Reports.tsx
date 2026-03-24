@@ -7,7 +7,7 @@ import '../styles/Reports.css';
 type TabKey = 'visits' | 'clients' | 'showrooms' | 'projects' | 'claims' | 'orders' | 'company-visits' | 'tasks';
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'visits', label: 'Visits' },
+  { key: 'visits', label: 'Company Meetings' },
   { key: 'clients', label: 'Clients' },
   { key: 'showrooms', label: 'Showrooms' },
   { key: 'projects', label: 'Projects' },
@@ -71,6 +71,7 @@ export const Reports: React.FC = () => {
         case 'visits':
           res = await apiService.getVisits({
             client_id: filters.clientId || undefined,
+            company_id: filters.companyId || undefined,
             user_id: filters.userId || undefined,
             status: filters.status || undefined,
           });
@@ -293,6 +294,7 @@ export const Reports: React.FC = () => {
           <>
             {dateFilters}
             {clientFilter}
+            {companyFilter}
             <div className="rpt-filter-group">
               <label>Status</label>
               <select value={filters.status || ''} onChange={e => setF('status', e.target.value)}>
