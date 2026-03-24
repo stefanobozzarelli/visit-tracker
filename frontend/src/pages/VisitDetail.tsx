@@ -288,15 +288,24 @@ export const VisitDetail: React.FC = () => {
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                             </svg>
+                            <span style={{ flex: 1 }}>{att.filename}</span>
+                            {att.file_size && <span style={{ fontSize: '0.75rem', color: '#999' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>}
+                            <a
+                              href={`${config.API_BASE_URL}/visits/${visit?.id}/reports/${report.id}/attachments/${att.id}/preview`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ fontSize: '0.8rem', color: 'var(--color-info)', textDecoration: 'none', padding: '2px 8px', border: '1px solid var(--color-info)', borderRadius: '4px' }}
+                            >
+                              View
+                            </a>
                             <a
                               href={`${config.API_BASE_URL}/visits/${visit?.id}/reports/${report.id}/attachments/${att.id}/download`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ color: 'var(--color-info)', textDecoration: 'underline', cursor: 'pointer' }}
+                              style={{ fontSize: '0.8rem', color: '#fff', textDecoration: 'none', padding: '2px 8px', backgroundColor: 'var(--color-info)', borderRadius: '4px' }}
                             >
-                              {att.filename}
+                              Download
                             </a>
-                            {att.file_size && <span style={{ fontSize: '0.75rem', color: '#999' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>}
                           </li>
                         ))}
                       </ul>
