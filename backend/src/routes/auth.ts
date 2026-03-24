@@ -4,6 +4,8 @@ import { UserService } from '../services/UserService';
 import { PermissionService } from '../services/PermissionService';
 import { authMiddleware } from '../middleware/auth';
 import { LoginRequest, RegisterRequest, ApiResponse } from '../types';
+import { AppDataSource } from '../config/database';
+import { UserLoginLog } from '../entities/UserLoginLog';
 
 const router = Router();
 const authService = new AuthService();
@@ -57,11 +59,12 @@ router.post('/login', async (req: Request, res: Response) => {
     };
     // Fire-and-forget login log
     try {
-      const { AppDataSource } = require('../config/database');
-      const { UserLoginLog } = require('../entities/UserLoginLog');
       const repo = AppDataSource.getRepository(UserLoginLog);
       await repo.save(repo.create({ user_id: result.user.id, ip_address: req.ip || req.headers['x-forwarded-for']?.toString() || null }));
-    } catch (e) { /* non-blocking */ }
+      console.log('[AUTH] Login logged for user:', result.user.id);
+    } catch (e: any) {
+      console.error('[AUTH] Failed to log login:', e.message);
+    }
 
     res.json(response);
   } catch (error) {

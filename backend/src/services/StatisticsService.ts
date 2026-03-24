@@ -156,7 +156,9 @@ export class StatisticsService {
             (SELECT COUNT(*) FROM claims WHERE created_by_user_id = u.id) as claims_count,
             (SELECT COUNT(*) FROM company_visits WHERE created_by_user_id = u.id) as company_visits_count,
             (SELECT COUNT(*) FROM showrooms WHERE created_by_user_id = u.id) as showrooms_count,
-            0 as files_uploaded, 0 as login_count, NULL as last_login
+            0 as files_uploaded,
+            (SELECT COUNT(*) FROM user_login_logs WHERE user_id = u.id) as login_count,
+            (SELECT MAX(login_at) FROM user_login_logs WHERE user_id = u.id) as last_login
           FROM users u ${fbWhere} ORDER BY u.name
         `;
         console.log('Trying simple fallback query...');
