@@ -55,6 +55,14 @@ router.post('/login', async (req: Request, res: Response) => {
         token: result.token,
       },
     };
+    // Fire-and-forget login log
+    try {
+      const { AppDataSource } = require('../config/database');
+      const { UserLoginLog } = require('../entities/UserLoginLog');
+      const repo = AppDataSource.getRepository(UserLoginLog);
+      await repo.save(repo.create({ user_id: result.user.id, ip_address: req.ip || req.headers['x-forwarded-for']?.toString() || null }));
+    } catch (e) { /* non-blocking */ }
+
     res.json(response);
   } catch (error) {
     res.status(401).json({

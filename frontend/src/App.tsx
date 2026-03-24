@@ -45,6 +45,7 @@ import { ProjectDetail } from './pages/ProjectDetail';
 import { TodoDetail } from './pages/TodoDetail';
 import { ClaimDetail } from './pages/ClaimDetail';
 import { Orders } from './pages/Orders';
+import { Statistics } from './pages/Statistics';
 import './styles/App.css';
 
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -100,6 +101,7 @@ const AppContent: React.FC = () => {
           <Route path="/claims/:id/edit" element={<ClaimForm />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/statistics" element={<Statistics />} />
           <Route path="/reports/legacy" element={<ExportPdf />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />

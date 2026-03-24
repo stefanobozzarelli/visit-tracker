@@ -17,6 +17,7 @@ import claimRoutes from './routes/claims';
 import companyVisitRoutes from './routes/company-visits';
 import showroomRoutes from './routes/showrooms';
 import offerRoutes from './routes/offers';
+import statisticsRoutes from './routes/statistics';
 
 require('dotenv').config();
 
@@ -43,6 +44,7 @@ app.use('/api/claims', claimRoutes);
 app.use('/api/company-visits', companyVisitRoutes);
 app.use('/api/showrooms', showroomRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/statistics', statisticsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

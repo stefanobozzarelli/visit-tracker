@@ -1507,6 +1507,12 @@ class ApiService {
     const response = await this.api.get<ApiResponse<any>>('/admin/countries');
     return response.data;
   }
+
+  // ---- Statistics ----
+  async getStatistics(filters?: { startDate?: string; endDate?: string }) {
+    const response = await this.api.get<ApiResponse<any[]>>('/statistics', { params: filters });
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();
