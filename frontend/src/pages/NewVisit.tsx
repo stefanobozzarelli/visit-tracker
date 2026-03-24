@@ -505,7 +505,7 @@ export const NewVisit: React.FC = () => {
                   method: 'POST',
                   body: formDataObj,
                   headers: {
-                    Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
                   },
                 });
 
