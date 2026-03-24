@@ -22,8 +22,9 @@ export const Statistics: React.FC = () => {
       const res = await apiService.getStatistics({ startDate, endDate });
       if (res.success) setData(res.data || []);
       else setError(res.error || 'Error loading statistics');
-    } catch (e) {
-      setError('Error loading statistics');
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.message || 'Error loading statistics';
+      setError(msg);
     }
     setLoading(false);
   };
