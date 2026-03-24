@@ -459,7 +459,7 @@ export const Reports: React.FC = () => {
                   <td>{v.client?.name || '-'}</td>
                   <td>{v.visited_by_user?.name || '-'}</td>
                   <td>{v.status}</td>
-                  <td>{v.reports?.length || 0}</td>
+                  <td>{v.reports?.filter((r: any) => r.section !== '__metadata__').length || 0}</td>
                 </tr>
               ))}
             </tbody>
