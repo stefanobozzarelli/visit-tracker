@@ -50,78 +50,33 @@ export class StatisticsService {
       whereClause = `WHERE u.id IN (${placeholders})`;
     }
 
+    // Build date conditions for correlated subqueries
+    const vDateCond = hasDateFilter ? `AND visit_date BETWEEN $1 AND $2` : '';
+    const tDateCond = hasDateFilter ? `AND created_at BETWEEN $1 AND $2` : '';
+    const oDateCond = hasDateFilter ? `AND offer_date BETWEEN $1 AND $2` : '';
+    const clDateCond = hasDateFilter ? `AND date BETWEEN $1 AND $2` : '';
+    const cvDateCond = hasDateFilter ? `AND date BETWEEN $1 AND $2` : '';
+    const ordDateCond = hasDateFilter ? `AND co.order_date BETWEEN $1 AND $2` : '';
+    const lgDateCond = hasDateFilter ? `AND login_at BETWEEN $1 AND $2` : '';
+
     const sql = `
-      SELECT
-        u.id, u.name, u.email, u.role,
-        COALESCE(v.cnt, 0) as visits_count,
-        COALESCE(r.cnt, 0) as reports_count,
-        COALESCE(tc.cnt, 0) as tasks_created,
-        COALESCE(ta.cnt, 0) as tasks_assigned,
-        COALESCE(td.cnt, 0) as tasks_completed,
-        COALESCE(o.cnt, 0) as offers_count,
-        COALESCE(o.total_val, 0) as offers_total_value,
-        COALESCE(ord.cnt, 0) as orders_count,
-        COALESCE(ord.total_val, 0) as orders_total_value,
-        COALESCE(cl.cnt, 0) as claims_count,
-        COALESCE(cv.cnt, 0) as company_visits_count,
-        COALESCE(sh.cnt, 0) as showrooms_count,
-        COALESCE(f.cnt, 0) as files_uploaded,
-        COALESCE(lg.cnt, 0) as login_count,
-        lg.last_login
+      SELECT u.id, u.name, u.email, u.role,
+        (SELECT COUNT(*) FROM visits WHERE visited_by_user_id = u.id ${vDateCond}) as visits_count,
+        (SELECT COUNT(*) FROM visit_reports vr JOIN visits vis ON vis.id = vr.visit_id WHERE vis.visited_by_user_id = u.id AND vr.section != '__metadata__' ${vDateCond ? vDateCond.replace('visit_date', 'vis.visit_date') : ''}) as reports_count,
+        (SELECT COUNT(*) FROM todo_items WHERE created_by_user_id = u.id ${tDateCond}) as tasks_created,
+        (SELECT COUNT(*) FROM todo_items WHERE assigned_to_user_id = u.id ${tDateCond}) as tasks_assigned,
+        (SELECT COUNT(*) FROM todo_items WHERE assigned_to_user_id = u.id AND status = 'done' ${tDateCond}) as tasks_completed,
+        (SELECT COUNT(*) FROM offers WHERE created_by_user_id = u.id ${oDateCond}) as offers_count,
+        (SELECT COALESCE(SUM(total_amount), 0) FROM offers WHERE created_by_user_id = u.id ${oDateCond}) as offers_total_value,
+        (SELECT COUNT(*) FROM customer_orders co JOIN visits vis ON vis.id = co.visit_id WHERE vis.visited_by_user_id = u.id ${ordDateCond}) as orders_count,
+        (SELECT COALESCE(SUM(co.total_amount), 0) FROM customer_orders co JOIN visits vis ON vis.id = co.visit_id WHERE vis.visited_by_user_id = u.id ${ordDateCond}) as orders_total_value,
+        (SELECT COUNT(*) FROM claims WHERE created_by_user_id = u.id ${clDateCond}) as claims_count,
+        (SELECT COUNT(*) FROM company_visits WHERE created_by_user_id = u.id ${cvDateCond}) as company_visits_count,
+        (SELECT COUNT(*) FROM showrooms WHERE created_by_user_id = u.id) as showrooms_count,
+        0 as files_uploaded,
+        (SELECT COUNT(*) FROM user_login_logs WHERE user_id = u.id ${lgDateCond}) as login_count,
+        (SELECT MAX(login_at) FROM user_login_logs WHERE user_id = u.id) as last_login
       FROM users u
-      LEFT JOIN (
-        SELECT visited_by_user_id uid, COUNT(*) cnt FROM visits ${dateFilterVisits} GROUP BY 1
-      ) v ON v.uid = u.id
-      LEFT JOIN (
-        SELECT vis.visited_by_user_id uid, COUNT(*) cnt
-        FROM visit_reports vr
-        JOIN visits vis ON vis.id = vr.visit_id
-        WHERE vr.section != '__metadata__' ${dateFilterReports}
-        GROUP BY 1
-      ) r ON r.uid = u.id
-      LEFT JOIN (
-        SELECT created_by_user_id uid, COUNT(*) cnt FROM todo_items ${dateFilterTodosCreated} GROUP BY 1
-      ) tc ON tc.uid = u.id
-      LEFT JOIN (
-        SELECT assigned_to_user_id uid, COUNT(*) cnt FROM todo_items ${dateFilterTodosAssigned} GROUP BY 1
-      ) ta ON ta.uid = u.id
-      LEFT JOIN (
-        SELECT assigned_to_user_id uid, COUNT(*) cnt FROM todo_items WHERE status = 'done' ${dateFilterTodosDone} GROUP BY 1
-      ) td ON td.uid = u.id
-      LEFT JOIN (
-        SELECT created_by_user_id uid, COUNT(*) cnt, SUM(COALESCE(total_amount, 0)) total_val FROM offers ${dateFilterOffers} GROUP BY 1
-      ) o ON o.uid = u.id
-      LEFT JOIN (
-        SELECT vis.visited_by_user_id uid, COUNT(*) cnt, SUM(COALESCE(co.total_amount, 0)) total_val
-        FROM customer_orders co
-        JOIN visits vis ON vis.id = co.visit_id
-        ${dateFilterOrders}
-        GROUP BY 1
-      ) ord ON ord.uid = u.id
-      LEFT JOIN (
-        SELECT created_by_user_id uid, COUNT(*) cnt FROM claims ${dateFilterClaims} GROUP BY 1
-      ) cl ON cl.uid = u.id
-      LEFT JOIN (
-        SELECT created_by_user_id uid, COUNT(*) cnt FROM company_visits ${dateFilterCv} GROUP BY 1
-      ) cv ON cv.uid = u.id
-      LEFT JOIN (
-        SELECT created_by_user_id uid, COUNT(*) cnt FROM showrooms ${dateFilterSh} GROUP BY 1
-      ) sh ON sh.uid = u.id
-      LEFT JOIN (
-        SELECT uid, SUM(cnt) cnt FROM (
-          SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM visit_attachments GROUP BY 1
-          UNION ALL SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM visit_direct_attachments GROUP BY 1
-          UNION ALL SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM todo_attachments GROUP BY 1
-          UNION ALL SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM company_visit_attachments GROUP BY 1
-          UNION ALL SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM offer_attachments GROUP BY 1
-          UNION ALL SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM offer_item_attachments GROUP BY 1
-          UNION ALL SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM claim_movement_attachments GROUP BY 1
-          UNION ALL SELECT uploaded_by_user_id uid, COUNT(*) cnt FROM showroom_photos GROUP BY 1
-        ) sub GROUP BY uid
-      ) f ON f.uid = u.id
-      LEFT JOIN (
-        SELECT user_id uid, COUNT(*) cnt, MAX(login_at) last_login FROM user_login_logs ${dateFilterLogin} GROUP BY 1
-      ) lg ON lg.uid = u.id
       ${whereClause}
       ORDER BY u.name
     `;
@@ -156,9 +111,7 @@ export class StatisticsService {
             (SELECT COUNT(*) FROM claims WHERE created_by_user_id = u.id) as claims_count,
             (SELECT COUNT(*) FROM company_visits WHERE created_by_user_id = u.id) as company_visits_count,
             (SELECT COUNT(*) FROM showrooms WHERE created_by_user_id = u.id) as showrooms_count,
-            0 as files_uploaded,
-            (SELECT COUNT(*) FROM user_login_logs WHERE user_id = u.id) as login_count,
-            (SELECT MAX(login_at) FROM user_login_logs WHERE user_id = u.id) as last_login
+            0 as files_uploaded, 0 as login_count, NULL as last_login
           FROM users u ${fbWhere} ORDER BY u.name
         `;
         console.log('Trying simple fallback query...');
