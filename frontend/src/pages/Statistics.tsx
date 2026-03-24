@@ -78,7 +78,7 @@ export const Statistics: React.FC = () => {
             <thead>
               <tr>
                 <th className="stats-col-name">User</th>
-                <th className="stats-col-num">Visits</th>
+                <th className="stats-col-num">Client Meetings</th>
                 <th className="stats-col-num">Reports</th>
                 <th className="stats-col-num">Tasks Created</th>
                 <th className="stats-col-num">Tasks Assigned</th>
