@@ -18,55 +18,80 @@ export class PdfService {
       });
       doc.on('error', reject);
 
-      // Header
-      doc.fontSize(24).font('Helvetica-Bold').text(options.title || 'Visit Report', { align: 'center' });
-      doc.moveDown(0.5);
+      // Group all reports by supplier (company name)
+      const supplierGroups: Map<string, { visit: Visit; report: any }[]> = new Map();
 
-      doc.moveDown(1);
-
-      // Sezione visite
-      visits.forEach((visit, index) => {
-        if (index > 0) {
-          doc.addPage();
-        }
-
-        // Client name in large
-        doc.fontSize(13)
-          .font('Helvetica-Bold')
-          .fillColor('#000000')
-          .text(`${visit.client?.name || 'N/A'}`);
-        doc.moveDown(0.3);
-
-        // Visit info
-        doc.fontSize(11).font('Helvetica');
-        const visitDate = typeof visit.visit_date === 'string'
-          ? new Date(visit.visit_date).toLocaleDateString('en-US')
-          : visit.visit_date.toLocaleDateString('en-US');
-        doc.text(`Visit date: ${visitDate}`);
-        doc.text(`Visited by: ${visit.visited_by_user?.name || 'N/A'}`);
-        doc.moveDown(0.5);
-
-        // Report per company (skip __metadata__ section)
+      visits.forEach((visit) => {
         if (visit.reports && visit.reports.length > 0) {
-          visit.reports.filter(report => report.section !== '__metadata__').forEach(report => {
-            doc.fontSize(10)
-              .font('Helvetica-Bold')
-              .fillColor('#0066CC')
-              .text(`${report.company?.name || 'N/A'} - ${report.section}:`);
-
-            doc.fontSize(10)
-              .font('Helvetica')
-              .fillColor('#000000')
-              .text(report.content || '(Nessun contenuto)', {
-                width: 450,
-              });
-
-            doc.moveDown(0.3);
+          visit.reports.filter(r => r.section !== '__metadata__').forEach(report => {
+            const supplierName = report.company?.name || 'N/A';
+            if (!supplierGroups.has(supplierName)) supplierGroups.set(supplierName, []);
+            supplierGroups.get(supplierName)!.push({ visit, report });
           });
+        } else {
+          // Visit without reports
+          const key = 'N/A';
+          if (!supplierGroups.has(key)) supplierGroups.set(key, []);
+          supplierGroups.get(key)!.push({ visit, report: null });
         }
-
-        doc.moveDown(1);
       });
+
+      let isFirstPage = true;
+
+      supplierGroups.forEach((entries, supplierName) => {
+        if (!isFirstPage) doc.addPage();
+        isFirstPage = false;
+
+        // Supplier page header
+        doc.fontSize(20).font('Helvetica-Bold').fillColor('#000000')
+          .text(`${options.title || 'Report Visite'} — ${supplierName}`, { align: 'center' });
+        doc.moveDown(1);
+
+        entries.forEach((entry, idx) => {
+          const { visit, report } = entry;
+
+          // Check page space
+          if (doc.y > 650) {
+            doc.addPage();
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#333333')
+              .text(`${supplierName} (cont.)`, { align: 'center' });
+            doc.moveDown(0.5);
+          }
+
+          // Client name
+          doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000')
+            .text(visit.client?.name || 'N/A');
+
+          // Visit info
+          doc.fontSize(10).font('Helvetica').fillColor('#333333');
+          const visitDate = typeof visit.visit_date === 'string'
+            ? new Date(visit.visit_date).toLocaleDateString('en-US')
+            : visit.visit_date.toLocaleDateString('en-US');
+          doc.text(`${visitDate} — ${visit.visited_by_user?.name || 'N/A'}`);
+          doc.moveDown(0.2);
+
+          if (report) {
+            doc.fontSize(10).font('Helvetica-Bold').fillColor('#0066CC')
+              .text(`${report.section}:`);
+            doc.fontSize(10).font('Helvetica').fillColor('#000000')
+              .text(report.content || '(Nessun contenuto)', { width: 480 });
+          }
+
+          doc.moveDown(0.5);
+
+          // Separator between entries
+          if (idx < entries.length - 1) {
+            doc.moveTo(50, doc.y).lineTo(545, doc.y).lineWidth(0.3).strokeColor('#cccccc').stroke();
+            doc.moveDown(0.4);
+          }
+        });
+      });
+
+      if (visits.length === 0) {
+        doc.fontSize(14).font('Helvetica-Bold').text(options.title || 'Report Visite', { align: 'center' });
+        doc.moveDown(1);
+        doc.fontSize(11).font('Helvetica').text('Nessun dato trovato.', { align: 'center' });
+      }
 
       doc.end();
     });

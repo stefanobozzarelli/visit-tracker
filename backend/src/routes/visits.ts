@@ -448,7 +448,8 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const authUserId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
-    const { startDate, endDate, clientId, companyIds, userId } = req.body;
+    const { startDate, endDate, clientId, companyIds, companyId, userId } = req.body;
+    const effectiveCompanyIds = companyIds || (companyId ? [companyId] : null);
 
     // Get visits based on filters
     let visits = await visitService.getVisits({
@@ -475,8 +476,8 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
     }
 
     // Filter by companies if provided (accepts array or single value for backward compatibility)
-    if (companyIds && (Array.isArray(companyIds) ? companyIds.length > 0 : companyIds)) {
-      const companyIdArray = Array.isArray(companyIds) ? companyIds : [companyIds];
+    if (effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds)) {
+      const companyIdArray = Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds : [effectiveCompanyIds];
       visits = visits.map(v => ({
         ...v,
         reports: v.reports?.filter(r => companyIdArray.includes(r.company_id)) || [],

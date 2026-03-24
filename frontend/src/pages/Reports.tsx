@@ -230,6 +230,7 @@ export const Reports: React.FC = () => {
       startDate: f.startDate || null,
       endDate: f.endDate || null,
       clientId: f.clientId || null,
+      companyId: f.companyId || null,
       userId: f.userId || null,
     }, {
       headers: { Authorization: `Bearer ${token}` },
