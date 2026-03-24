@@ -22,13 +22,6 @@ export class PdfService {
       doc.fontSize(24).font('Helvetica-Bold').text(options.title || 'Visit Report', { align: 'center' });
       doc.moveDown(0.5);
 
-      // Generation date
-      if (options.generatedAt) {
-        doc.fontSize(10)
-          .font('Helvetica')
-          .text(`Generated on: ${options.generatedAt.toLocaleDateString('en-US')}`, { align: 'right' });
-      }
-
       doc.moveDown(1);
 
       // Sezione visite
@@ -248,7 +241,7 @@ export class PdfService {
     title: string,
     headers: { label: string; width: number }[],
     rows: string[][],
-    options: { generatedAt?: Date; landscape?: boolean } = {},
+    options: { generatedAt?: Date; landscape?: boolean; groupByIndex?: number } = {},
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const buffers: Buffer[] = [];
@@ -265,22 +258,15 @@ export class PdfService {
 
       const tableLeft = 30;
       const totalWidth = headers.reduce((sum, h) => sum + h.width, 0);
-      const pageBottom = isLandscape ? 540 : 780; // safe area before page break
-      const ROW_HEIGHT = 14; // fixed row height
+      const pageBottom = isLandscape ? 540 : 780;
+      const ROW_HEIGHT = 14;
       const FONT_SIZE = 7;
 
-      // --- Header ---
-      doc.fontSize(14).font('Helvetica-Bold').text(title, { align: 'center' });
-      doc.moveDown(0.2);
+      const drawPageTitle = (pageTitle: string) => {
+        doc.fontSize(14).font('Helvetica-Bold').text(pageTitle, { align: 'center' });
+        doc.moveDown(0.5);
+      };
 
-      if (options.generatedAt) {
-        doc.fontSize(8)
-          .font('Helvetica')
-          .text(`Generated on: ${options.generatedAt.toLocaleDateString('en-US')}`, { align: 'right' });
-      }
-      doc.moveDown(0.5);
-
-      // --- Draw column headers ---
       const drawHeaders = () => {
         const headerY = doc.y;
         let xPos = tableLeft;
@@ -294,47 +280,66 @@ export class PdfService {
         doc.y = lineY + 4;
       };
 
-      drawHeaders();
+      const drawRows = (dataRows: string[][]) => {
+        let rowIndex = 0;
+        dataRows.forEach((row) => {
+          if (doc.y + ROW_HEIGHT > pageBottom) {
+            doc.addPage();
+            drawHeaders();
+          }
+          const rowY = doc.y;
+          if (rowIndex % 2 === 0) {
+            doc.save();
+            doc.rect(tableLeft, rowY - 1, totalWidth, ROW_HEIGHT).fill('#f8f8f8');
+            doc.restore();
+          }
+          let xPos = tableLeft;
+          doc.fontSize(FONT_SIZE).font('Helvetica').fillColor('#000000');
+          headers.forEach((h, i) => {
+            const cellText = (row[i] || '').substring(0, 50);
+            doc.text(cellText, xPos, rowY, { width: h.width - 4, height: ROW_HEIGHT, align: 'left', ellipsis: true });
+            xPos += h.width;
+          });
+          doc.y = rowY + ROW_HEIGHT;
+          rowIndex++;
+        });
+        // Footer line
+        doc.moveDown(0.3);
+        doc.moveTo(tableLeft, doc.y).lineTo(tableLeft + totalWidth, doc.y).lineWidth(0.5).stroke();
+        doc.moveDown(0.2);
+        doc.fontSize(7).font('Helvetica').fillColor('#666666')
+          .text(`${dataRows.length} records`, { align: 'right' });
+        doc.fillColor('#000000');
+      };
 
-      // --- Draw data rows ---
-      let rowIndex = 0;
-      rows.forEach((row) => {
-        // Page break check
-        if (doc.y + ROW_HEIGHT > pageBottom) {
-          doc.addPage();
-          drawHeaders();
-        }
-
-        const rowY = doc.y;
-
-        // Alternate row background
-        if (rowIndex % 2 === 0) {
-          doc.save();
-          doc.rect(tableLeft, rowY - 1, totalWidth, ROW_HEIGHT).fill('#f8f8f8');
-          doc.restore();
-        }
-
-        let xPos = tableLeft;
-        doc.fontSize(FONT_SIZE).font('Helvetica').fillColor('#000000');
-        headers.forEach((h, i) => {
-          const cellText = (row[i] || '').substring(0, 50);
-          doc.text(cellText, xPos, rowY, { width: h.width - 4, height: ROW_HEIGHT, align: 'left', ellipsis: true });
-          xPos += h.width;
+      // Group by supplier (or other column) — one page per group
+      if (options.groupByIndex !== undefined && options.groupByIndex >= 0) {
+        const gi = options.groupByIndex;
+        const groups: Map<string, string[][]> = new Map();
+        rows.forEach((row) => {
+          const key = row[gi] || 'N/A';
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(row);
         });
 
-        doc.y = rowY + ROW_HEIGHT;
-        rowIndex++;
-      });
+        let isFirst = true;
+        groups.forEach((groupRows, groupName) => {
+          if (!isFirst) doc.addPage();
+          isFirst = false;
+          drawPageTitle(`${title} — ${groupName}`);
+          drawHeaders();
+          drawRows(groupRows);
+        });
 
-      // --- Footer ---
-      doc.moveDown(0.5);
-      doc.moveTo(tableLeft, doc.y).lineTo(tableLeft + totalWidth, doc.y).lineWidth(0.5).stroke();
-      doc.moveDown(0.5);
-      doc.fontSize(7)
-        .font('Helvetica')
-        .fillColor('#999999')
-        .text(`${rows.length} records · Generated by Visit Tracker`, { align: 'center' });
-      doc.fillColor('#000000');
+        if (rows.length === 0) {
+          drawPageTitle(title);
+          doc.fontSize(10).font('Helvetica').text('No data', { align: 'center' });
+        }
+      } else {
+        drawPageTitle(title);
+        drawHeaders();
+        drawRows(rows);
+      }
 
       doc.end();
     });
@@ -365,9 +370,7 @@ export class PdfService {
       String(c.contacts?.length ?? 0),
       c.showroom ? 'Yes' : 'No',
     ]);
-    return this._generateTablePdf(options.title || 'Clients Report', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
-    });
+    return this._generateTablePdf(options.title || 'Clients Report', headers, rows, {});
   }
 
   /**
@@ -398,7 +401,7 @@ export class PdfService {
       s.area || '',
     ]);
     return this._generateTablePdf(options.title || 'Showrooms Report', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
+      groupByIndex: 2, // group by Supplier column
     });
   }
 
@@ -430,7 +433,7 @@ export class PdfService {
       p.project_value != null ? Number(p.project_value).toLocaleString() : '',
     ]);
     return this._generateTablePdf(options.title || 'Projects Report', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
+      groupByIndex: 2, // group by Supplier column
     });
   }
 
@@ -456,7 +459,7 @@ export class PdfService {
       c.comments || c.description || '',
     ]);
     return this._generateTablePdf(options.title || 'Claims Report', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
+      groupByIndex: 2, // group by Company column
     });
   }
 
@@ -484,7 +487,7 @@ export class PdfService {
       o.total != null ? `€ ${Number(o.total).toFixed(2)}` : '',
     ]);
     return this._generateTablePdf(options.title || 'Orders Summary', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
+      groupByIndex: 1, // group by Supplier column
     });
   }
 
@@ -512,7 +515,7 @@ export class PdfService {
         : (v.participants || ''),
     ]);
     return this._generateTablePdf(options.title || 'Company Visits Report', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
+      groupByIndex: 1, // group by Company column
     });
   }
 
@@ -540,7 +543,7 @@ export class PdfService {
       t.company?.name || t.company_name || '',
     ]);
     return this._generateTablePdf(options.title || 'Tasks Report', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
+      groupByIndex: 5, // group by Company column
     });
   }
 
@@ -572,7 +575,7 @@ export class PdfService {
       o.valid_until ? new Date(o.valid_until).toLocaleDateString('en-US') : '',
     ]);
     return this._generateTablePdf(options.title || 'Offers Report', headers, rows, {
-      generatedAt: options.generatedAt || new Date(),
+      groupByIndex: 2, // group by Supplier column
     });
   }
 
