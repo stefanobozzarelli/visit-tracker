@@ -68,17 +68,6 @@ export class PdfService {
         doc.moveDown(1);
       });
 
-      // Footer
-      doc.fontSize(9)
-        .font('Helvetica')
-        .text('---', { align: 'center' });
-      doc.moveDown(0.2);
-      doc.fillColor('#999999')
-        .text('Questo documento è stato generato automaticamente dal sistema Visit Tracker', {
-          align: 'center',
-        });
-      doc.fillColor('#000000');
-
       doc.end();
     });
   }
