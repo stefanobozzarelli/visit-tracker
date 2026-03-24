@@ -86,7 +86,7 @@ export class StatisticsService {
         SELECT assigned_to_user_id uid, COUNT(*) cnt FROM todo_items ${dateFilterTodosAssigned} GROUP BY 1
       ) ta ON ta.uid = u.id
       LEFT JOIN (
-        SELECT assigned_to_user_id uid, COUNT(*) cnt FROM todo_items WHERE status IN ('done', 'completed') ${dateFilterTodosDone} GROUP BY 1
+        SELECT assigned_to_user_id uid, COUNT(*) cnt FROM todo_items WHERE status = 'done' ${dateFilterTodosDone} GROUP BY 1
       ) td ON td.uid = u.id
       LEFT JOIN (
         SELECT created_by_user_id uid, COUNT(*) cnt, SUM(COALESCE(total_amount, 0)) total_val FROM offers ${dateFilterOffers} GROUP BY 1
@@ -148,7 +148,7 @@ export class StatisticsService {
             (SELECT COUNT(*) FROM visit_reports vr JOIN visits vis ON vis.id = vr.visit_id WHERE vis.visited_by_user_id = u.id AND vr.section != '__metadata__') as reports_count,
             (SELECT COUNT(*) FROM todo_items WHERE created_by_user_id = u.id) as tasks_created,
             (SELECT COUNT(*) FROM todo_items WHERE assigned_to_user_id = u.id) as tasks_assigned,
-            (SELECT COUNT(*) FROM todo_items WHERE assigned_to_user_id = u.id AND status IN ('done', 'completed')) as tasks_completed,
+            (SELECT COUNT(*) FROM todo_items WHERE assigned_to_user_id = u.id AND status = 'done') as tasks_completed,
             (SELECT COUNT(*) FROM offers WHERE created_by_user_id = u.id) as offers_count,
             (SELECT COALESCE(SUM(total_amount), 0) FROM offers WHERE created_by_user_id = u.id) as offers_total_value,
             (SELECT COUNT(*) FROM customer_orders co JOIN visits vis ON vis.id = co.visit_id WHERE vis.visited_by_user_id = u.id) as orders_count,
