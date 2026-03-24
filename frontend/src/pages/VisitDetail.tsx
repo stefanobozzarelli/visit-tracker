@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { config } from '../config';
 import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
 import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
 import '../styles/CrudPages.css';
@@ -245,16 +246,62 @@ export const VisitDetail: React.FC = () => {
                     </div>
                   </div>
                   <p style={{ whiteSpace: 'pre-wrap', color: '#555', margin: '1rem 0 0 0' }}>{report.content}</p>
-                  {report.attachments && report.attachments.length > 0 && (
-                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
-                      <h4 style={{ margin: '0 0 0.5rem 0' }}>Attachments ({report.attachments.length})</h4>
+                  {/* Attachments section - always show for upload capability */}
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <h4 style={{ margin: 0 }}>Attachments ({report.attachments?.length || 0})</h4>
+                      <label
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--color-info)', padding: '4px 10px', border: '1px dashed var(--color-border)', borderRadius: '4px' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        + Add File
+                        <input type="file" multiple style={{ display: 'none' }} onChange={async (e) => {
+                          const files = e.target.files;
+                          if (!files || !visit) return;
+                          const baseUrl = config.API_BASE_URL;
+                          const token = localStorage.getItem('token');
+                          for (const file of Array.from(files)) {
+                            try {
+                              const fd = new FormData();
+                              fd.append('file', file);
+                              await fetch(`${baseUrl}/visits/${visit.id}/reports/${report.id}/upload`, {
+                                method: 'POST',
+                                body: fd,
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                            } catch (err) {
+                              console.error('Upload failed:', err);
+                            }
+                          }
+                          // Reload visit to show new attachments
+                          const updated = await apiService.getVisit(visit.id);
+                          if (updated.success && updated.data) setVisit(updated.data);
+                        }} />
+                      </label>
+                    </div>
+                    {report.attachments && report.attachments.length > 0 && (
                       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        {report.attachments.map((att) => (
-                          <li key={att.id} style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>📄 {att.filename}</li>
+                        {report.attachments.map((att: any) => (
+                          <li key={att.id} style={{ marginBottom: '0.5rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                            <a
+                              href={`${config.API_BASE_URL}/visits/${visit?.id}/reports/${report.id}/attachments/${att.id}/download`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: 'var(--color-info)', textDecoration: 'underline', cursor: 'pointer' }}
+                            >
+                              {att.filename}
+                            </a>
+                            {att.file_size && <span style={{ fontSize: '0.75rem', color: '#999' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>}
+                          </li>
                         ))}
                       </ul>
-                    </div>
-                  )}
+                    )}
+                  </div>
                   {reportTasks.length > 0 && (
                     <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
                       <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem' }}>Tasks ({reportTasks.length})</h4>
