@@ -95,7 +95,16 @@ router.get('/', async (req: Request, res: Response) => {
     if (req.query.status) filters.status = req.query.status;
     if (req.query.area) filters.area = req.query.area;
     if (req.query.city) filters.city = req.query.city;
-    const showrooms = await showroomService.getShowrooms(filters);
+    let showrooms = await showroomService.getShowrooms(filters);
+    // Permission-based filtering for non-admin users
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        showrooms = showrooms.filter((s: any) => s.client_id && visibleClientIds.includes(s.client_id));
+      }
+    }
     res.json({ success: true, data: showrooms });
   } catch (err: any) {
     console.error('Error getting showrooms:', err);
