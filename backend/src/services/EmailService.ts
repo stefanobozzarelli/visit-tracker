@@ -1,24 +1,30 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private resend: Resend;
   private fromAddress: string;
 
   constructor() {
-    this.fromAddress = process.env.SMTP_FROM || 'TradeFlow <noreply@tradeflow.com>';
-    const port = parseInt(process.env.SMTP_PORT || '465');
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port,
-      secure: port === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      // Force IPv4 to avoid Railway IPv6 connectivity issues
-      family: 4,
-      connectionTimeout: 10000,
-    } as any);
+    this.fromAddress = process.env.EMAIL_FROM || 'TradeFlow <onboarding@resend.dev>';
+    this.resend = new Resend(process.env.RESEND_API_KEY || '');
+  }
+
+  private async sendEmail(to: string, subject: string, html: string): Promise<void> {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[EmailService] RESEND_API_KEY not set, skipping email');
+      return;
+    }
+    const { error } = await this.resend.emails.send({
+      from: this.fromAddress,
+      to,
+      subject,
+      html,
+    });
+    if (error) {
+      console.error(`[EmailService] Resend error:`, error);
+    } else {
+      console.log(`[EmailService] Email sent to ${to}: ${subject}`);
+    }
   }
 
   /**
@@ -87,14 +93,7 @@ export class EmailService {
 </body>
 </html>`;
 
-      await this.transporter.sendMail({
-        from: this.fromAddress,
-        to: assigneeEmail,
-        subject: `New Task Assigned: ${task.title}`,
-        html,
-      });
-
-      console.log(`[EmailService] Task assignment email sent to ${assigneeEmail}`);
+      await this.sendEmail(assigneeEmail, `New Task Assigned: ${task.title}`, html);
     } catch (error) {
       console.error(`[EmailService] Failed to send task assignment email to ${assigneeEmail}:`, (error as Error).message);
     }
@@ -226,14 +225,7 @@ export class EmailService {
 </body>
 </html>`;
 
-      await this.transporter.sendMail({
-        from: this.fromAddress,
-        to: userEmail,
-        subject: `Weekly Task Summary - ${dateStr}`,
-        html,
-      });
-
-      console.log(`[EmailService] Weekly summary email sent to ${userEmail}`);
+      await this.sendEmail(userEmail, `Weekly Task Summary - ${dateStr}`, html);
     } catch (error) {
       console.error(`[EmailService] Failed to send weekly summary email to ${userEmail}:`, (error as Error).message);
     }
@@ -341,14 +333,7 @@ export class EmailService {
 </body>
 </html>`;
 
-      await this.transporter.sendMail({
-        from: this.fromAddress,
-        to: adminEmail,
-        subject: `Team Weekly Summary - ${dateStr}`,
-        html,
-      });
-
-      console.log(`[EmailService] Team weekly summary sent to ${adminEmail}`);
+      await this.sendEmail(adminEmail, `Team Weekly Summary - ${dateStr}`, html);
     } catch (error) {
       console.error(`[EmailService] Failed to send team summary to ${adminEmail}:`, (error as Error).message);
     }
