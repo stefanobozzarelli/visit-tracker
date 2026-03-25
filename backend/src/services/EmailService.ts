@@ -1,30 +1,62 @@
-import { Resend } from 'resend';
+import https from 'https';
 
 export class EmailService {
-  private resend: Resend;
-  private fromAddress: string;
+  private apiKey: string;
+  private fromEmail: string;
+  private fromName: string;
 
   constructor() {
-    this.fromAddress = process.env.EMAIL_FROM || 'TradeFlow <onboarding@resend.dev>';
-    this.resend = new Resend(process.env.RESEND_API_KEY || '');
+    this.apiKey = process.env.BREVO_API_KEY || '';
+    this.fromEmail = process.env.EMAIL_FROM_ADDRESS || 'tradeflow@notifications.com';
+    this.fromName = process.env.EMAIL_FROM_NAME || 'TradeFlow';
   }
 
   private async sendEmail(to: string, subject: string, html: string): Promise<void> {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('[EmailService] RESEND_API_KEY not set, skipping email');
+    if (!this.apiKey) {
+      console.warn('[EmailService] BREVO_API_KEY not set, skipping email');
       return;
     }
-    const { error } = await this.resend.emails.send({
-      from: this.fromAddress,
-      to,
+
+    const body = JSON.stringify({
+      sender: { name: this.fromName, email: this.fromEmail },
+      to: [{ email: to }],
       subject,
-      html,
+      htmlContent: html,
     });
-    if (error) {
-      console.error(`[EmailService] Resend error:`, error);
-    } else {
-      console.log(`[EmailService] Email sent to ${to}: ${subject}`);
-    }
+
+    return new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: 'api.brevo.com',
+        path: '/v3/smtp/email',
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': this.apiKey,
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(body),
+        },
+      }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[EmailService] Email sent to ${to}: ${subject}`);
+            resolve();
+          } else {
+            console.error(`[EmailService] Brevo API error (${res.statusCode}): ${data}`);
+            resolve(); // Don't throw, just log
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        console.error(`[EmailService] HTTP request error: ${err.message}`);
+        resolve(); // Don't throw
+      });
+
+      req.write(body);
+      req.end();
+    });
   }
 
   /**
@@ -154,10 +186,6 @@ export class EmailService {
     .section-title { font-size: 18px; font-weight: 600; color: #1a237e; margin: 24px 0 12px; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th { background: #e8eaf6; color: #333; padding: 10px 12px; text-align: left; font-weight: 600; }
-    .stats { display: flex; gap: 16px; margin: 16px 0; }
-    .stat-box { background: #f8f9fa; border-radius: 6px; padding: 16px; flex: 1; text-align: center; }
-    .stat-number { font-size: 28px; font-weight: 700; color: #1a73e8; }
-    .stat-label { font-size: 12px; color: #777; margin-top: 4px; }
     .btn { display: inline-block; background: #1a73e8; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600; margin-top: 20px; }
     .footer { background: #f4f6f9; padding: 16px 32px; font-size: 12px; color: #999; text-align: center; }
   </style>
