@@ -363,10 +363,10 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
       });
     }
 
-    // Permission check: only creator or admin can delete
+    // Permission check: creator, assignee, or admin can delete
     const userId = (req.user as any).id;
     const userRole = (req.user as any).role;
-    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager' && String(todo.created_by_user_id) !== String(userId)) {
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager' && String(todo.created_by_user_id) !== String(userId) && String(todo.assigned_to_user_id) !== String(userId)) {
       return res.status(403).json({
         success: false,
         error: 'Unauthorized to delete this todo',
