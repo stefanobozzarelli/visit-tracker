@@ -97,12 +97,16 @@ export const ClientForm: React.FC = () => {
     const countrySet = new Set<string>();
     // Include user's area countries
     for (const c of userAreaCountries) countrySet.add(c);
+    // For admin/manager: include all common countries
+    if (isAdmin || user?.role === 'manager') {
+      ['China', 'South Korea', 'Japan', 'Taiwan', 'Hong Kong', 'Singapore', 'Thailand', 'Vietnam', 'Malaysia', 'Indonesia', 'Philippines', 'India', 'Cambodia', 'Myanmar', 'Laos', 'Australia', 'New Zealand', 'Mongolia', 'Bangladesh', 'Sri Lanka', 'Nepal', 'Pakistan', 'UAE', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman', 'Italy', 'USA', 'UK', 'Germany', 'France', 'Spain', 'Brazil', 'Mexico', 'Canada', 'Russia', 'Turkey'].forEach(c => countrySet.add(c));
+    }
     // Also include formData.country if set but not in the list
     if (formData.country && !countrySet.has(formData.country)) {
       countrySet.add(formData.country);
     }
     return Array.from(countrySet).sort();
-  }, [userAreaCountries, formData.country]);
+  }, [userAreaCountries, formData.country, isAdmin, user?.role]);
 
   // Suppliers filtered for form (non-admin sees only their area suppliers)
   const formSuppliers = useMemo(() => {
