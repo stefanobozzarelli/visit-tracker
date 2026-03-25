@@ -32,10 +32,17 @@ export const Clients: React.FC = () => {
   const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
   const [userAreaCountries, setUserAreaCountries] = useState<string[]>([]);
 
+  const EMPTY_CONTACT = { name: '', role: '', email: '', phone: '', wechat_id: '' };
+
   // Form for new client
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', country: '', city: '', notes: '', role: 'cliente', has_showroom: false });
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
+  const [editContacts, setEditContacts] = useState<any[]>([]);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [contactForm, setContactForm] = useState({ name: '', role: '', email: '', phone: '', wechat_id: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isAddingCountry, setIsAddingCountry] = useState(false);
   const [newCountryInput, setNewCountryInput] = useState('');
 
