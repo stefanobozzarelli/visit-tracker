@@ -492,15 +492,6 @@ export const Tasks: React.FC = () => {
             <option value="1">&#9733; Low</option>
           </select>
 
-          <button
-            type="button"
-            className={`tasks-sort-btn${sortBy === 'priority' ? ' active' : ''}`}
-            onClick={() => setSortBy(sortBy === 'due_date' ? 'priority' : 'due_date')}
-            title={sortBy === 'due_date' ? 'Sort by Priority' : 'Sort by Due Date'}
-          >
-            {sortBy === 'due_date' ? 'Sort by Due Date' : 'Sort by Priority'}
-          </button>
-
           {isAdmin && (
             <select
               className={`tasks-filter-select${assignedToUserId ? ' active' : ''}`}
@@ -536,6 +527,15 @@ export const Tasks: React.FC = () => {
               ✕ Reset Filters
             </button>
           )}
+
+          <button
+            type="button"
+            className={`tasks-sort-btn${sortBy === 'priority' ? ' active' : ''}`}
+            onClick={() => setSortBy(sortBy === 'due_date' ? 'priority' : 'due_date')}
+            title={sortBy === 'due_date' ? 'Sort by Priority' : 'Sort by Due Date'}
+          >
+            {sortBy === 'due_date' ? 'Sort by Due Date' : 'Sort by Priority'}
+          </button>
 
           {/* Quick filter chips */}
           <div className="tasks-chips">
