@@ -172,12 +172,16 @@ export const Clients: React.FC = () => {
     const countrySet = new Set(clients.map(c => c.country).filter(Boolean));
     // Include user's area countries (so they can create clients in their assigned countries even if no clients exist yet)
     for (const c of userAreaCountries) countrySet.add(c);
+    // For admin/manager: include all common countries so they can assign any country
+    if (isAdmin || user?.role === 'manager') {
+      ['China', 'South Korea', 'Japan', 'Taiwan', 'Hong Kong', 'Singapore', 'Thailand', 'Vietnam', 'Malaysia', 'Indonesia', 'Philippines', 'India', 'Cambodia', 'Myanmar', 'Laos', 'Australia', 'New Zealand', 'Mongolia', 'Bangladesh', 'Sri Lanka', 'Nepal', 'Pakistan', 'UAE', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman', 'Italy', 'USA', 'UK', 'Germany', 'France', 'Spain', 'Brazil', 'Mexico', 'Canada', 'Russia', 'Turkey'].forEach(c => countrySet.add(c));
+    }
     // Also include formData.country if it's set but not in the list (for new countries being added)
     if (formData.country && !countrySet.has(formData.country)) {
       countrySet.add(formData.country);
     }
     return Array.from(countrySet).sort();
-  }, [clients, userAreaCountries, formData.country]);
+  }, [clients, userAreaCountries, formData.country, isAdmin, user?.role]);
 
   // ---- Companies filtered for form (non-admin sees only their area companies) ----
   const formCompanies = useMemo(() => {
