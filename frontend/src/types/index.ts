@@ -265,6 +265,7 @@ export interface TodoItem {
   id: string;
   title: string;
   status: 'todo' | 'in_progress' | 'done';
+  priority?: number; // 1 = low, 2 = medium, 3 = high
   due_date?: string;
   assigned_to_user_id: string;
   created_by_user_id: string;

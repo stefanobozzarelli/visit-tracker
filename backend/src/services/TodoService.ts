@@ -10,6 +10,8 @@ interface TodoFilters {
   overdue?: boolean;
   thisWeek?: boolean;
   next7Days?: boolean;
+  priority?: number;
+  sortBy?: 'due_date' | 'priority';
 }
 
 export class TodoService {
@@ -26,7 +28,8 @@ export class TodoService {
     visitReportId?: string,
     claimId?: string,
     visitId?: string,
-    companyVisitId?: string
+    companyVisitId?: string,
+    priority?: number
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
@@ -40,6 +43,7 @@ export class TodoService {
       visit_id: visitId || null,
       company_visit_id: companyVisitId || null,
       status: 'todo',
+      priority: priority || 1,
     });
     return await this.todoRepository.save(todo);
   }
@@ -99,7 +103,15 @@ export class TodoService {
       query = query.andWhere('todo.due_date BETWEEN :today AND :sevenDays', { today: todayStr, sevenDays: sevenDaysStr });
     }
 
-    return await query.orderBy('todo.due_date', 'ASC').addOrderBy('todo.created_at', 'DESC').getMany();
+    if (filters?.priority) {
+      query = query.andWhere('todo.priority = :priority', { priority: filters.priority });
+    }
+
+    if (filters?.sortBy === 'priority') {
+      return await query.orderBy('todo.priority', 'DESC').addOrderBy('todo.due_date', 'ASC').getMany();
+    }
+
+    return await query.orderBy('todo.due_date', 'ASC').addOrderBy('todo.priority', 'DESC').getMany();
   }
 
   async getMyTodos(userId: string, filters?: TodoFilters): Promise<TodoItem[]> {
@@ -170,6 +182,7 @@ export class TodoService {
       status: 'todo' | 'in_progress' | 'done';
       due_date: Date;
       assigned_to_user_id: string;
+      priority: number;
     }>
   ): Promise<TodoItem> {
     await this.todoRepository.update(id, data);

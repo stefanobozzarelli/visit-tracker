@@ -75,7 +75,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId } = req.body;
+    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!title || !clientId || !companyId || !assignedToUserId) {
@@ -95,7 +95,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       visitReportId,
       claimId,
       visitId,
-      companyVisitId
+      companyVisitId,
+      priority ? parseInt(priority, 10) : undefined
     );
 
     res.status(201).json({
@@ -124,7 +125,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
       });
     }
 
-    const { status, clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days } = req.query;
+    const { status, clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days, priority, sortBy } = req.query;
 
     const todos = await todoService.getTodos({
       status: status as string,
@@ -134,6 +135,8 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
       overdue: overdue === 'true',
       thisWeek: thisWeek === 'true',
       next7Days: next7Days === 'true',
+      priority: priority ? parseInt(priority as string, 10) : undefined,
+      sortBy: sortBy as 'due_date' | 'priority' | undefined,
     });
 
     res.json({
@@ -249,7 +252,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, dueDate, assignedToUserId } = req.body;
+    const { status, dueDate, assignedToUserId, priority } = req.body;
 
     const todo = await todoService.getTodoById(id);
     if (!todo) {
@@ -279,6 +282,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     if (status) updateData.status = status;
     if (dueDate) updateData.due_date = new Date(dueDate);
     if (assignedToUserId) updateData.assigned_to_user_id = assignedToUserId;
+    if (priority) updateData.priority = parseInt(priority, 10);
 
     const updated = await todoService.updateTodo(id, updateData);
 

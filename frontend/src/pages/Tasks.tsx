@@ -80,6 +80,8 @@ export const Tasks: React.FC = () => {
   const [next7Days, setNext7Days] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [sortBy, setSortBy] = useState<'due_date' | 'priority'>('due_date');
 
   // NLP search
   const [nlpQuery, setNlpQuery] = useState('');
@@ -150,7 +152,7 @@ export const Tasks: React.FC = () => {
 
   // ---- Data loading ----
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { loadTodos(); }, [clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days]);
+  useEffect(() => { loadTodos(); }, [clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days, priorityFilter, sortBy]);
 
   const loadData = async () => {
     try {
@@ -175,11 +177,16 @@ export const Tasks: React.FC = () => {
     }
   };
 
-  const sortTodos = (items: TodoItem[]): TodoItem[] => {
+  const sortTodos = (items: TodoItem[], sort: 'due_date' | 'priority' = sortBy): TodoItem[] => {
     return [...items].sort((a, b) => {
       const so = (s: string) => (s === 'completed' || s === 'done') ? 1 : 0;
       const d = so(a.status) - so(b.status);
       if (d !== 0) return d;
+      if (sort === 'priority') {
+        const pa = a.priority || 1;
+        const pb = b.priority || 1;
+        if (pa !== pb) return pb - pa; // high priority first
+      }
       const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
       const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
       return da - db;
@@ -195,6 +202,8 @@ export const Tasks: React.FC = () => {
       if (overdue) filters.overdue = true;
       if (thisWeek) filters.thisWeek = true;
       if (next7Days) filters.next7Days = true;
+      if (priorityFilter) filters.priority = Number(priorityFilter);
+      if (sortBy) filters.sortBy = sortBy;
 
       const response = isAdmin
         ? await apiService.getTodos(filters)
@@ -206,7 +215,7 @@ export const Tasks: React.FC = () => {
           ...t,
           status: normalizeStatus(t.status),
         }));
-        setTodos(sortTodos(normalized));
+        setTodos(sortTodos(normalized, sortBy));
         setNlpResults(null);
       }
     } catch {
@@ -304,6 +313,12 @@ export const Tasks: React.FC = () => {
       list = list.filter(t => normalizeStatus(t.status) === statusFilter);
     }
 
+    // Priority filter (client-side, in case API doesn't support it)
+    if (priorityFilter) {
+      const pv = Number(priorityFilter);
+      list = list.filter(t => (t.priority || 1) === pv);
+    }
+
     // Show completed toggle
     if (!showCompleted) {
       list = list.filter(t => normalizeStatus(t.status) !== 'completed');
@@ -322,7 +337,7 @@ export const Tasks: React.FC = () => {
     }
 
     return list;
-  }, [todos, nlpResults, statusFilter, showCompleted, localSearch, getClientName, getCompanyName, getUserName]);
+  }, [todos, nlpResults, statusFilter, priorityFilter, showCompleted, localSearch, getClientName, getCompanyName, getUserName]);
 
   // ---- Export ----
   const handleExport = async (format: 'pdf' | 'excel') => {
@@ -466,6 +481,26 @@ export const Tasks: React.FC = () => {
             <option value="completed">Completed</option>
           </select>
 
+          <select
+            className={`tasks-filter-select${priorityFilter ? ' active' : ''}`}
+            value={priorityFilter}
+            onChange={e => setPriorityFilter(e.target.value)}
+          >
+            <option value="">All Priorities</option>
+            <option value="3">&#9733;&#9733;&#9733; High</option>
+            <option value="2">&#9733;&#9733; Medium</option>
+            <option value="1">&#9733; Low</option>
+          </select>
+
+          <button
+            type="button"
+            className={`tasks-sort-btn${sortBy === 'priority' ? ' active' : ''}`}
+            onClick={() => setSortBy(sortBy === 'due_date' ? 'priority' : 'due_date')}
+            title={sortBy === 'due_date' ? 'Sort by Priority' : 'Sort by Due Date'}
+          >
+            {sortBy === 'due_date' ? 'Sort by Due Date' : 'Sort by Priority'}
+          </button>
+
           {isAdmin && (
             <select
               className={`tasks-filter-select${assignedToUserId ? ' active' : ''}`}
@@ -480,7 +515,7 @@ export const Tasks: React.FC = () => {
           <div className="tasks-filter-divider" />
 
           {/* Show warning if filters are active */}
-          {(clientId || companyId || assignedToUserId || statusFilter || overdue || thisWeek || next7Days) && (
+          {(clientId || companyId || assignedToUserId || statusFilter || priorityFilter || overdue || thisWeek || next7Days) && (
             <button
               type="button"
               className="tasks-chip"
@@ -489,6 +524,8 @@ export const Tasks: React.FC = () => {
                 setCompanyId('');
                 setAssignedToUserId('');
                 setStatusFilter('');
+                setPriorityFilter('');
+                setSortBy('due_date');
                 setOverdue(false);
                 setThisWeek(false);
                 setNext7Days(false);
@@ -575,6 +612,7 @@ export const Tasks: React.FC = () => {
               <thead>
                 <tr>
                   <th>Task</th>
+                  <th>Priority</th>
                   <th>Client / Company</th>
                   <th>Assigned To</th>
                   <th>Status</th>
@@ -636,6 +674,17 @@ export const Tasks: React.FC = () => {
                             {sourceLabel}
                           </span>
                         )}
+                      </td>
+
+                      {/* Priority */}
+                      <td>
+                        <span className="task-priority-stars">
+                          {[1, 2, 3].map(n => (
+                            <span key={n} className={n <= (todo.priority || 1) ? 'star filled' : 'star empty'}>
+                              {n <= (todo.priority || 1) ? '\u2605' : '\u2606'}
+                            </span>
+                          ))}
+                        </span>
                       </td>
 
                       {/* Client / Company */}

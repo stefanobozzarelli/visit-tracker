@@ -22,6 +22,9 @@ export class TodoItem {
   @Column({ type: 'date', nullable: true })
   due_date: Date | null;
 
+  @Column({ type: 'integer', default: 1, nullable: false })
+  priority: number; // 1 = low, 2 = medium, 3 = high
+
   @Column()
   assigned_to_user_id: string;
 

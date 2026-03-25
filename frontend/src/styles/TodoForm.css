@@ -137,6 +137,40 @@
   background-color: var(--color-bg-tertiary);
 }
 
+/* Priority Star Selector */
+.priority-star-selector {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0;
+}
+
+.priority-star {
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #d0ccc4;
+  transition: color 0.15s ease, transform 0.1s ease;
+  user-select: none;
+  line-height: 1;
+  padding: 2px 2px;
+}
+
+.priority-star:hover {
+  transform: scale(1.2);
+  color: #D4A017;
+}
+
+.priority-star.active {
+  color: #D4A017;
+}
+
+.priority-label {
+  margin-left: 10px;
+  font-size: 0.813rem;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+}
+
 /* Attachments */
 .attachments-section {
   margin-top: 24px;

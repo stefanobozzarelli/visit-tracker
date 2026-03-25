@@ -712,7 +712,7 @@ class ApiService {
   }
 
   // Todos
-  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string) {
+  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string, priority?: number) {
     const response = await this.api.post<ApiResponse<any>>('/todos', {
       title,
       clientId,
@@ -723,17 +723,18 @@ class ApiService {
       claimId,
       visitId,
       companyVisitId,
+      priority,
     });
     this.memoryCache.clear();
     return response.data;
   }
 
-  async getTodos(filters?: { status?: string; clientId?: string; companyId?: string; assignedToUserId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean }) {
+  async getTodos(filters?: { status?: string; clientId?: string; companyId?: string; assignedToUserId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean; priority?: number; sortBy?: string }) {
     const response = await this.cachedGet<ApiResponse<any>>('/todos', { params: filters });
     return response.data;
   }
 
-  async getMyTodos(filters?: { status?: string; clientId?: string; companyId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean }) {
+  async getMyTodos(filters?: { status?: string; clientId?: string; companyId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean; priority?: number; sortBy?: string }) {
     const response = await this.cachedGet<ApiResponse<any>>('/todos/my', { params: filters });
     return response.data;
   }
@@ -743,7 +744,7 @@ class ApiService {
     return response.data;
   }
 
-  async updateTodo(id: string, data: { title?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string }) {
+  async updateTodo(id: string, data: { title?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string; priority?: number }) {
     const response = await this.api.put<ApiResponse<any>>(`/todos/${id}`, data);
     this.memoryCache.clear();
     return response.data;

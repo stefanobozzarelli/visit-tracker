@@ -748,6 +748,49 @@
   background: rgba(158, 90, 82, 0.05);
 }
 
+/* ---- Priority Stars ---- */
+.task-priority-stars {
+  display: inline-flex;
+  gap: 1px;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.task-priority-stars .star {
+  color: #d0ccc4;
+}
+
+.task-priority-stars .star.filled {
+  color: #D4A017;
+}
+
+/* ---- Sort Button ---- */
+.tasks-sort-btn {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.813rem;
+  font-family: inherit;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-white);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tasks-sort-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.tasks-sort-btn.active {
+  border-color: rgba(212, 160, 23, 0.4);
+  color: #947E35;
+  background: rgba(212, 160, 23, 0.06);
+}
+
 /* ---- Empty state ---- */
 .tasks-empty {
   text-align: center;

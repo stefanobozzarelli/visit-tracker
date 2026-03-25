@@ -22,6 +22,7 @@ export const TodoForm = () => {
   const [claimId, setClaimId] = useState('');
   const [companyVisitId, setCompanyVisitId] = useState('');
   const [status, setStatus] = useState('todo');
+  const [priority, setPriority] = useState(1);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -91,6 +92,7 @@ export const TodoForm = () => {
             setCompanyId(todo.company_id || '');
             setAssignedToUserId(todo.assigned_to_user_id || '');
             setStatus(todo.status || 'todo');
+            setPriority(todo.priority || 1);
             setVisitReportId(todo.visit_report_id || '');
             setVisitId(todo.visit_id || '');
             setClaimId(todo.claim_id || '');
@@ -201,6 +203,7 @@ export const TodoForm = () => {
           assignedToUserId,
           status,
           dueDate: dueDate || undefined,
+          priority,
         });
         if (response.success) {
           setSuccess('Task updated successfully');
@@ -216,7 +219,8 @@ export const TodoForm = () => {
           visitReportId || undefined,
           claimId || undefined,
           visitId || undefined,
-          companyVisitId || undefined
+          companyVisitId || undefined,
+          priority
         );
         if (response.success && response.data?.id) {
           // Upload pending files to the newly created task
@@ -317,6 +321,25 @@ export const TodoForm = () => {
             <div className="form-group">
               <label htmlFor="dueDate">Due Date</label>
               <input id="dueDate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Priority</label>
+            <div className="priority-star-selector">
+              {[1, 2, 3].map(n => (
+                <span
+                  key={n}
+                  className={`priority-star${n <= priority ? ' active' : ''}`}
+                  onClick={() => setPriority(n)}
+                  title={n === 1 ? 'Low' : n === 2 ? 'Medium' : 'High'}
+                >
+                  {n <= priority ? '\u2605' : '\u2606'}
+                </span>
+              ))}
+              <span className="priority-label">
+                {priority === 3 ? 'High' : priority === 2 ? 'Medium' : 'Low'}
+              </span>
             </div>
           </div>
 
