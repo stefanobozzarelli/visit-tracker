@@ -6,15 +6,19 @@ export class EmailService {
 
   constructor() {
     this.fromAddress = process.env.SMTP_FROM || 'TradeFlow <noreply@tradeflow.com>';
+    const port = parseInt(process.env.SMTP_PORT || '465');
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
+      port,
+      secure: port === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-    });
+      // Force IPv4 to avoid Railway IPv6 connectivity issues
+      family: 4,
+      connectionTimeout: 10000,
+    } as any);
   }
 
   /**
