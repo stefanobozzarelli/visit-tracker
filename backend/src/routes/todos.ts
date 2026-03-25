@@ -3,7 +3,10 @@ import { TodoService } from '../services/TodoService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
+import { EmailService } from '../services/EmailService';
 import { authMiddleware } from '../middleware/auth';
+import { AppDataSource } from '../config/database';
+import { User } from '../entities/User';
 import multer from 'multer';
 
 const router = Router();
@@ -11,6 +14,7 @@ const todoService = new TodoService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
+const emailService = new EmailService();
 const upload = multer({ storage: multer.memoryStorage() });
 
 /**
@@ -98,6 +102,29 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       companyVisitId,
       priority ? parseInt(priority, 10) : undefined
     );
+
+    // Fire-and-forget: send task assignment email
+    if (assignedToUserId) {
+      const userRepository = AppDataSource.getRepository(User);
+      Promise.all([
+        userRepository.findOne({ where: { id: assignedToUserId } }),
+        userRepository.findOne({ where: { id: createdByUserId } }),
+      ]).then(([assignee, creator]) => {
+        if (assignee) {
+          const fullTodo = todoService.getTodoById(todo.id);
+          fullTodo.then(t => {
+            emailService.sendTaskAssignedEmail(assignee.email, assignee.name, {
+              title,
+              due_date: dueDate || '',
+              priority: priority ? parseInt(priority, 10) : 1,
+              client_name: t?.client?.name,
+              company_name: t?.company?.name,
+              assigned_by: creator?.name,
+            });
+          }).catch(err => console.error('[Todos] Error fetching todo for email:', err.message));
+        }
+      }).catch(err => console.error('[Todos] Error sending assignment email:', err.message));
+    }
 
     res.status(201).json({
       success: true,
@@ -278,6 +305,8 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
       });
     }
 
+    const oldAssignedToUserId = todo.assigned_to_user_id;
+
     const updateData: any = {};
     if (status) updateData.status = status;
     if (dueDate) updateData.due_date = new Date(dueDate);
@@ -285,6 +314,26 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     if (priority) updateData.priority = parseInt(priority, 10);
 
     const updated = await todoService.updateTodo(id, updateData);
+
+    // Fire-and-forget: send assignment email if assignee changed
+    if (assignedToUserId && String(assignedToUserId) !== String(oldAssignedToUserId)) {
+      const userRepository = AppDataSource.getRepository(User);
+      Promise.all([
+        userRepository.findOne({ where: { id: assignedToUserId } }),
+        userRepository.findOne({ where: { id: userId } }),
+      ]).then(([assignee, updater]) => {
+        if (assignee && updated) {
+          emailService.sendTaskAssignedEmail(assignee.email, assignee.name, {
+            title: updated.title,
+            due_date: updated.due_date ? new Date(updated.due_date).toLocaleDateString() : '',
+            priority: updated.priority || 1,
+            client_name: updated.client?.name,
+            company_name: updated.company?.name,
+            assigned_by: updater?.name,
+          });
+        }
+      }).catch(err => console.error('[Todos] Error sending reassignment email:', err.message));
+    }
 
     res.json({
       success: true,

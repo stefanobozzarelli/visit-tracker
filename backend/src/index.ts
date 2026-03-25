@@ -18,6 +18,7 @@ import companyVisitRoutes from './routes/company-visits';
 import showroomRoutes from './routes/showrooms';
 import offerRoutes from './routes/offers';
 import statisticsRoutes from './routes/statistics';
+import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
 
@@ -84,6 +85,10 @@ AppDataSource.initialize()
     } catch (e) {
       console.log('Schema update note:', (e as Error).message);
     }
+
+    // Start weekly email scheduler
+    const weeklyScheduler = new WeeklyScheduler();
+    weeklyScheduler.start();
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
