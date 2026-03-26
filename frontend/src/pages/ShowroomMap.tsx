@@ -104,9 +104,9 @@ export const ShowroomMap: React.FC = () => {
     return null;
   }, []);
 
-  const isGeocoded = useCallback((s: Showroom): boolean => {
-    return (!s.latitude || !s.longitude) && geocodedCoords.has(s.id);
-  }, [geocodedCoords]);
+  const isGeocoded = useCallback((_s: Showroom): boolean => {
+    return false;
+  }, []);
 
   const companyColorMap = useMemo(() => {
     const map = new Map<string, string>();
