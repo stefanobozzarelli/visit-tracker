@@ -134,8 +134,8 @@ router.post('/geocode-all', async (req: Request, res: Response) => {
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(showroom.city!)}&format=json&limit=1`,
           { headers: { 'User-Agent': 'TradeFlow/1.0' } }
         );
-        const data = await response.json();
-        if (data && data.length > 0) {
+        const data: any = await response.json();
+        if (data && Array.isArray(data) && data.length > 0) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
           for (const id of ids) {
