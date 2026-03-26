@@ -327,6 +327,7 @@ export const VisitDetail: React.FC = () => {
                             await uploadFilesToReport(report.id, Array.from(files));
                         }} />
                       </label>
+                      </div>
                     </div>
                     {report.attachments && report.attachments.length > 0 && (
                       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
