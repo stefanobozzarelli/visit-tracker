@@ -112,6 +112,50 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// Geocode all showrooms without coordinates
+router.post('/geocode-all', async (req: Request, res: Response) => {
+  try {
+    const showrooms = await showroomService.getShowrooms();
+    const needsGeocoding = showrooms.filter(s => (!s.latitude || !s.longitude) && s.city);
+
+    // Group by city to avoid duplicate requests
+    const cityMap = new Map<string, string[]>();
+    for (const s of needsGeocoding) {
+      const key = s.city!.toLowerCase().trim();
+      if (!cityMap.has(key)) cityMap.set(key, []);
+      cityMap.get(key)!.push(s.id);
+    }
+
+    let updated = 0;
+    for (const [, ids] of cityMap) {
+      const showroom = needsGeocoding.find(s => ids.includes(s.id))!;
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(showroom.city!)}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'TradeFlow/1.0' } }
+        );
+        const data = await response.json();
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          for (const id of ids) {
+            await showroomService.updateShowroom(id, { latitude: lat, longitude: lng });
+            updated++;
+          }
+        }
+        // Nominatim rate limit: 1 req/sec
+        await new Promise(r => setTimeout(r, 1100));
+      } catch (err) {
+        console.error(`Geocoding failed for ${showroom.city}:`, err);
+      }
+    }
+
+    res.json({ success: true, data: { total: needsGeocoding.length, updated, cities: cityMap.size } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const showroom = await showroomService.getShowroomById(req.params.id);

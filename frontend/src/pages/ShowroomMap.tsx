@@ -48,32 +48,7 @@ const STATUS_LABELS: Record<string, string> = {
   open: 'Open', closed: 'Closed', opening: 'Opening', none: 'None',
 };
 
-// Geocoding cache: city name -> [lat, lng] or null
-const geocodeCache = new Map<string, [number, number] | null>();
-
-async function geocodeCity(city: string): Promise<[number, number] | null> {
-  const key = city.toLowerCase().trim();
-  if (geocodeCache.has(key)) return geocodeCache.get(key)!;
-
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`,
-      { headers: { 'Accept': 'application/json' } }
-    );
-    const data = await response.json();
-    if (data && data.length > 0) {
-      const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-      geocodeCache.set(key, coords);
-      return coords;
-    }
-  } catch {}
-  geocodeCache.set(key, null);
-  return null;
-}
-
-function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+// Geocoding is now done server-side via /api/showrooms/geocode-all
 
 export const ShowroomMap: React.FC = () => {
   const navigate = useNavigate();
@@ -81,7 +56,6 @@ export const ShowroomMap: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
-  const [geocodedCoords, setGeocodedCoords] = useState<Map<string, [number, number]>>(new Map());
   const [filterCompany, setFilterCompany] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterArea, setFilterArea] = useState('');
@@ -101,56 +75,34 @@ export const ShowroomMap: React.FC = () => {
     load();
   }, []);
 
-  // Geocode showrooms without coordinates but with city
-  const geocodeShowrooms = useCallback(async (srs: Showroom[]) => {
-    const needsGeocoding = srs.filter(s => (!s.latitude || !s.longitude) && s.city);
-    if (needsGeocoding.length === 0) return;
-
+  // Geocode missing showrooms via backend (respects rate limits)
+  const geocodeMissing = useCallback(async () => {
+    const missing = showrooms.filter(s => (!s.latitude || !s.longitude) && s.city);
+    if (missing.length === 0) { alert('All showrooms already have coordinates!'); return; }
     setGeocoding(true);
-    const newCoords = new Map<string, [number, number]>();
-
-    // Group by city to avoid duplicate requests
-    const cityGroups = new Map<string, string[]>();
-    for (const s of needsGeocoding) {
-      const cityKey = s.city!.toLowerCase().trim();
-      if (!cityGroups.has(cityKey)) cityGroups.set(cityKey, []);
-      cityGroups.get(cityKey)!.push(s.id);
-    }
-
-    for (const [cityKey, ids] of cityGroups) {
-      // Find original city name (not lowercased)
-      const originalCity = needsGeocoding.find(s => s.city!.toLowerCase().trim() === cityKey)!.city!;
-      const coords = await geocodeCity(originalCity);
-      if (coords) {
-        for (const id of ids) {
-          newCoords.set(id, coords);
-        }
+    try {
+      const token = localStorage.getItem('token');
+      const { config } = await import('../config');
+      const { default: axios } = await import('axios');
+      const res = await axios.post(`${config.API_BASE_URL}/showrooms/geocode-all`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) {
+        alert(`Geocoded ${res.data.data.updated} showrooms across ${res.data.data.cities} cities. Reloading...`);
+        // Reload showrooms with new coordinates
+        const srRes = await apiService.getShowrooms();
+        if (srRes.success) setShowrooms(srRes.data || []);
       }
-      // Respect Nominatim rate limit: 1 request per second
-      if (!geocodeCache.has(cityKey)) {
-        await delay(1100);
-      }
-    }
+    } catch (err) {
+      alert('Geocoding failed. Try again later.');
+    } finally { setGeocoding(false); }
+  }, [showrooms]);
 
-    setGeocodedCoords(prev => {
-      const merged = new Map(prev);
-      newCoords.forEach((v, k) => merged.set(k, v));
-      return merged;
-    });
-    setGeocoding(false);
-  }, []);
-
-  useEffect(() => {
-    if (showrooms.length > 0) {
-      geocodeShowrooms(showrooms);
-    }
-  }, [showrooms, geocodeShowrooms]);
-
-  // Get coordinates for a showroom: GPS first, then geocoded
+  // Get coordinates for a showroom from DB
   const getCoords = useCallback((s: Showroom): [number, number] | null => {
     if (s.latitude && s.longitude) return [Number(s.latitude), Number(s.longitude)];
-    return geocodedCoords.get(s.id) || null;
-  }, [geocodedCoords]);
+    return null;
+  }, []);
 
   const isGeocoded = useCallback((s: Showroom): boolean => {
     return (!s.latitude || !s.longitude) && geocodedCoords.has(s.id);
@@ -207,6 +159,12 @@ export const ShowroomMap: React.FC = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {unmappable > 0 && (
+            <button onClick={geocodeMissing} className="sr-map-btn" disabled={geocoding}
+              style={{ backgroundColor: geocoding ? '#ccc' : 'var(--color-info)', color: '#fff' }}>
+              {geocoding ? '⏳ Geocoding...' : `📍 Geocode ${unmappable} Missing`}
+            </button>
+          )}
           <button onClick={() => navigate('/showrooms')} className="sr-map-btn">
             ← List View
           </button>
