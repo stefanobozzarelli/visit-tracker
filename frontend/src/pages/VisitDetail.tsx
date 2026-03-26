@@ -85,6 +85,54 @@ export const VisitDetail: React.FC = () => {
   const [allTasks, setAllTasks] = useState<TodoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pasteTargetReportId, setPasteTargetReportId] = useState<string | null>(null);
+  const [uploadingReportId, setUploadingReportId] = useState<string | null>(null);
+
+  // Upload files to a specific report
+  const uploadFilesToReport = async (reportId: string, files: File[]) => {
+    if (!visit || files.length === 0) return;
+    setUploadingReportId(reportId);
+    const token = localStorage.getItem('token');
+    for (const file of files) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        await fetch(`${config.API_BASE_URL}/visits/${visit.id}/reports/${reportId}/upload`, {
+          method: 'POST', body: fd,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (err) { console.error('Upload failed:', err); }
+    }
+    setUploadingReportId(null);
+    const updated = await apiService.getVisit(visit.id);
+    if (updated.success && updated.data) setVisit(updated.data);
+  };
+
+  // Global paste handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!pasteTargetReportId || !e.clipboardData) return;
+      const files: File[] = [];
+      for (let i = 0; i < e.clipboardData.items.length; i++) {
+        const item = e.clipboardData.items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            // Give pasted images a meaningful name
+            const ext = file.type.split('/')[1] || 'png';
+            const namedFile = new File([file], `pasted-${Date.now()}.${ext}`, { type: file.type });
+            files.push(namedFile);
+          }
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        uploadFilesToReport(pasteTargetReportId, files);
+      }
+    };
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [pasteTargetReportId, visit]);
 
   useEffect(() => { loadVisit(); }, [id, location.key]);
 
@@ -249,35 +297,34 @@ export const VisitDetail: React.FC = () => {
                   {/* Attachments section - always show for upload capability */}
                   <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <h4 style={{ margin: 0 }}>Attachments ({report.attachments?.length || 0})</h4>
-                      <label
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--color-info)', padding: '4px 10px', border: '1px dashed var(--color-border)', borderRadius: '4px' }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-                        </svg>
-                        + Add File
-                        <input type="file" multiple style={{ display: 'none' }} onChange={async (e) => {
-                          const files = e.target.files;
-                          if (!files || !visit) return;
-                          const baseUrl = config.API_BASE_URL;
-                          const token = localStorage.getItem('token');
-                          for (const file of Array.from(files)) {
-                            try {
-                              const fd = new FormData();
-                              fd.append('file', file);
-                              await fetch(`${baseUrl}/visits/${visit.id}/reports/${report.id}/upload`, {
-                                method: 'POST',
-                                body: fd,
-                                headers: { Authorization: `Bearer ${token}` },
-                              });
-                            } catch (err) {
-                              console.error('Upload failed:', err);
-                            }
-                          }
-                          // Reload visit to show new attachments
-                          const updated = await apiService.getVisit(visit.id);
-                          if (updated.success && updated.data) setVisit(updated.data);
+                      <h4 style={{ margin: 0 }}>
+                        Attachments ({report.attachments?.length || 0})
+                        {uploadingReportId === report.id && <span style={{ fontSize: '0.75rem', color: 'var(--color-info)', marginLeft: '0.5rem' }}>⏳ Uploading...</span>}
+                      </h4>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button
+                          onClick={() => setPasteTargetReportId(pasteTargetReportId === report.id ? null : report.id)}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.8rem',
+                            color: pasteTargetReportId === report.id ? '#fff' : '#666',
+                            backgroundColor: pasteTargetReportId === report.id ? 'var(--color-info)' : 'transparent',
+                            padding: '4px 10px', border: `1px ${pasteTargetReportId === report.id ? 'solid var(--color-info)' : 'dashed var(--color-border)'}`, borderRadius: '4px',
+                          }}
+                          title={pasteTargetReportId === report.id ? 'Now paste with ⌘+V' : 'Click to enable paste'}
+                        >
+                          📋 {pasteTargetReportId === report.id ? '⌘+V to Paste' : 'Paste'}
+                        </button>
+                        <label
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--color-info)', padding: '4px 10px', border: '1px dashed var(--color-border)', borderRadius: '4px' }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                          + Add File
+                          <input type="file" multiple style={{ display: 'none' }} onChange={async (e) => {
+                            const files = e.target.files;
+                            if (!files || !visit) return;
+                            await uploadFilesToReport(report.id, Array.from(files));
                         }} />
                       </label>
                     </div>
