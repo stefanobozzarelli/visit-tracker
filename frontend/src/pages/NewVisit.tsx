@@ -145,6 +145,7 @@ export const NewVisit: React.FC = () => {
             section: r.section,
             content: r.content,
             status: r.status,
+            attachments: r.attachments || [],
           }));
 
         setExistingReports(existingReportsList);
@@ -994,6 +995,47 @@ export const NewVisit: React.FC = () => {
                   </div>
                 )}
               </div>
+              {/* Existing attachments (edit mode) */}
+              {isEditMode && existingReports[index]?.attachments?.length > 0 && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.8rem', color: '#666' }}>Existing attachments:</label>
+                  {existingReports[index].attachments.map((att: any) => (
+                    <div key={att.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.5rem', backgroundColor: 'var(--color-bg-secondary)', borderRadius: '4px', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>📎</span>
+                        <a
+                          href="#"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            try {
+                              const r = await apiService.getAttachmentDownloadUrl(editId!, existingReports[index].id, att.id);
+                              const url = typeof r === 'string' ? r : (r as any)?.data?.url || (r as any)?.url;
+                              if (url) window.open(url, '_blank');
+                            } catch {}
+                          }}
+                          style={{ color: 'var(--color-info)', textDecoration: 'underline' }}
+                        >
+                          {att.original_filename || att.filename}
+                        </a>
+                        <span style={{ color: '#999', fontSize: '0.75rem' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!window.confirm('Delete this attachment?')) return;
+                          try {
+                            await apiService.deleteAttachment(editId!, existingReports[index].id, att.id);
+                            setExistingReports(prev => prev.map((r, i) => i === index ? { ...r, attachments: r.attachments.filter((a: any) => a.id !== att.id) } : r));
+                          } catch { alert('Error deleting attachment'); }
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: '1rem' }}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Tasks for this report (edit mode - read-only display) */}
               {isEditMode && existingReports[index]?.id && getTasksForReport(existingReports[index].id).length > 0 && (
