@@ -205,7 +205,7 @@ export const OpportunityDetail: React.FC = () => {
 
   // ---- Create Task ----
   const handleCreateTask = () => {
-    navigate(`/todos/new?clientId=${opportunity?.client_id || ''}&companyId=${opportunity?.company_id || ''}&opportunityId=${id}`);
+    navigate(`/todos/new?clientId=${opportunity?.client_id || ''}&companyId=${opportunity?.company_id || ''}&opportunityId=${id}&returnTo=/opportunities/${id}`);
   };
 
   if (loading) return <div className="opp-detail-page"><div className="opp-loading">Loading...</div></div>;
