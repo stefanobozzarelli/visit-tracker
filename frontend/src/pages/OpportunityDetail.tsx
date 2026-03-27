@@ -276,8 +276,8 @@ export const OpportunityDetail: React.FC = () => {
               {opportunity.attachments.map(att => (
                 <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.875rem' }}>
                   <span>📎</span>
-                  <span style={{ flex: 1 }}>{att.filename}</span>
-                  <span style={{ color: '#888', fontSize: '0.75rem' }}>{att.file_size ? `(${(att.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}</span>
+                  <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.3' }}>{att.filename}</span>
+                  <span style={{ color: '#888', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{att.file_size ? `(${(att.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}</span>
                   <button
                     onClick={async () => { const blob = await apiService.downloadOpportunityAttachment(opportunity!.id, att.id); const url = URL.createObjectURL(blob); window.open(url, '_blank'); }}
                     style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
@@ -303,10 +303,15 @@ export const OpportunityDetail: React.FC = () => {
               e.target.value = '';
             }}
           />
-          <label className="opp-upload-label" onClick={() => mainFileRef.current?.click()}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload File
-          </label>
+          <div
+            onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-info)'; e.currentTarget.style.background = '#f0f7ff'; }}
+            onDragLeave={e => { e.currentTarget.style.borderColor = '#ccc'; e.currentTarget.style.background = 'transparent'; }}
+            onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#ccc'; e.currentTarget.style.background = 'transparent'; const files = e.dataTransfer.files; if (files.length > 0) { Array.from(files).forEach(f => handleUploadAttachment(f)); } }}
+            onClick={() => mainFileRef.current?.click()}
+            style={{ border: '2px dashed #ccc', borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer', fontSize: '0.85rem', color: '#888', marginTop: '0.5rem' }}
+          >
+            📎 Drag files here or click to upload
+          </div>
         </div>
       </div>
 

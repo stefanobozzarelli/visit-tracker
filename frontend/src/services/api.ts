@@ -1546,7 +1546,7 @@ class ApiService {
   }
 
   async downloadOpportunityAttachment(opportunityId: string, attachmentId: string) {
-    const response = await this.api.get<ApiResponse<any>>(`/opportunities/${opportunityId}/attachments/${attachmentId}/download`);
+    const response = await this.api.get(`/opportunities/${opportunityId}/attachments/${attachmentId}/download`, { responseType: 'blob' });
     return response.data;
   }
 
@@ -1577,7 +1577,7 @@ class ApiService {
   }
 
   async downloadOpportunityAdvanceAttachment(opportunityId: string, advanceId: string, attachmentId: string) {
-    const response = await this.api.get<ApiResponse<any>>(`/opportunities/${opportunityId}/advances/${advanceId}/attachments/${attachmentId}/download`);
+    const response = await this.api.get(`/opportunities/${opportunityId}/advances/${advanceId}/attachments/${attachmentId}/download`, { responseType: 'blob' });
     return response.data;
   }
 
