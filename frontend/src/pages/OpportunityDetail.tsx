@@ -279,11 +279,11 @@ export const OpportunityDetail: React.FC = () => {
                   <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.3' }}>{att.filename}</span>
                   <span style={{ color: '#888', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{att.file_size ? `(${(att.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}</span>
                   <button
-                    onClick={async () => { const blob = await apiService.downloadOpportunityAttachment(opportunity!.id, att.id); const url = URL.createObjectURL(blob); window.open(url, '_blank'); }}
+                    onClick={async () => { const res = await apiService.downloadOpportunityAttachment(opportunity!.id, att.id); if (res.success && res.data?.url) window.open(res.data.url, '_blank'); }}
                     style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
                   >View</button>
                   <button
-                    onClick={async () => { const blob = await apiService.downloadOpportunityAttachment(opportunity!.id, att.id); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = att.filename; a.click(); }}
+                    onClick={async () => { const res = await apiService.downloadOpportunityAttachment(opportunity!.id, att.id); if (res.success && res.data?.url) { const a = document.createElement('a'); a.href = res.data.url; a.download = att.filename; a.target = '_blank'; a.click(); } }}
                     style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: 'var(--color-info)', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
                   >Download</button>
                   <button onClick={() => handleDeleteAttachment(att.id)} style={{ padding: '2px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.9rem' }} title="Delete">✕</button>
@@ -349,11 +349,11 @@ export const OpportunityDetail: React.FC = () => {
                         </span>
                         <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
                           <button
-                            onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); window.open(URL.createObjectURL(blob), '_blank'); }}
+                            onClick={async () => { const res = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); if (res.success && res.data?.url) window.open(res.data.url, '_blank'); }}
                             style={{ padding: '3px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
                           >View</button>
                           <button
-                            onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = att.filename; a.click(); }}
+                            onClick={async () => { const res = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); if (res.success && res.data?.url) { const a = document.createElement('a'); a.href = res.data.url; a.download = att.filename; a.target = '_blank'; a.click(); } }}
                             style={{ padding: '3px 8px', border: 'none', borderRadius: '3px', background: 'var(--color-info)', color: '#fff', cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
                           >Download</button>
                           <button onClick={() => handleDeleteAdvanceAttachment(adv.id, att.id)} style={{ padding: '3px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.85rem' }}>✕</button>
