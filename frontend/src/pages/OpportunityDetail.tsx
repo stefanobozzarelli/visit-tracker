@@ -274,13 +274,20 @@ export const OpportunityDetail: React.FC = () => {
           {opportunity.attachments && opportunity.attachments.length > 0 ? (
             <div className="opp-attachment-list">
               {opportunity.attachments.map(att => (
-                <span key={att.id} className="opp-attachment-chip">
-                  {att.filename}
-                  <button className="download-btn" onClick={() => handleDownloadAttachment(att.id, att.filename)} title="Download">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  </button>
-                  <button className="delete-btn" onClick={() => handleDeleteAttachment(att.id)} title="Delete">x</button>
-                </span>
+                <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.875rem' }}>
+                  <span>📎</span>
+                  <span style={{ flex: 1 }}>{att.filename}</span>
+                  <span style={{ color: '#888', fontSize: '0.75rem' }}>{att.file_size ? `(${(att.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}</span>
+                  <button
+                    onClick={async () => { const blob = await apiService.downloadOpportunityAttachment(opportunity!.id, att.id); const url = URL.createObjectURL(blob); window.open(url, '_blank'); }}
+                    style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
+                  >View</button>
+                  <button
+                    onClick={async () => { const blob = await apiService.downloadOpportunityAttachment(opportunity!.id, att.id); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = att.filename; a.click(); }}
+                    style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: 'var(--color-info)', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
+                  >Download</button>
+                  <button onClick={() => handleDeleteAttachment(att.id)} style={{ padding: '2px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.9rem' }} title="Delete">✕</button>
+                </div>
               ))}
             </div>
           ) : (
@@ -315,20 +322,35 @@ export const OpportunityDetail: React.FC = () => {
                     <span className="opp-advance-date">{formatDate(adv.date)}</span>
                     {adv.created_by_user && <span className="opp-advance-by">by {adv.created_by_user.name}</span>}
                   </div>
-                  <button className="opp-advance-delete" onClick={() => handleDeleteAdvance(adv.id)}>Delete</button>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button
+                      onClick={() => navigate(`/todos/new?clientId=${opportunity?.client_id || ''}&companyId=${opportunity?.company_id || ''}&opportunityId=${id}&returnTo=/opportunities/${id}`)}
+                      style={{ padding: '0.3rem 0.6rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >
+                      + Task
+                    </button>
+                    <button className="opp-advance-delete" onClick={() => handleDeleteAdvance(adv.id)}>Delete</button>
+                  </div>
                 </div>
                 <div className="opp-advance-description">{adv.description}</div>
                 {/* Advance attachments */}
                 {adv.attachments && adv.attachments.length > 0 && (
                   <div className="opp-advance-attachments">
                     {adv.attachments.map(att => (
-                      <span key={att.id} className="opp-attachment-chip">
-                        {att.filename}
-                        <button className="download-btn" onClick={() => handleDownloadAdvanceAttachment(adv.id, att.id)} title="Download">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        </button>
-                        <button className="delete-btn" onClick={() => handleDeleteAdvanceAttachment(adv.id, att.id)} title="Delete">x</button>
-                      </span>
+                      <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.875rem' }}>
+                        <span>📎</span>
+                        <span style={{ flex: 1 }}>{att.filename}</span>
+                        <span style={{ color: '#888', fontSize: '0.75rem' }}>{att.file_size ? `(${(att.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}</span>
+                        <button
+                          onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); const url = URL.createObjectURL(blob); window.open(url, '_blank'); }}
+                          style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >View</button>
+                        <button
+                          onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = att.filename; a.click(); }}
+                          style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: 'var(--color-info)', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >Download</button>
+                        <button onClick={() => handleDeleteAdvanceAttachment(adv.id, att.id)} style={{ padding: '2px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.9rem' }} title="Delete">✕</button>
+                      </div>
                     ))}
                   </div>
                 )}
