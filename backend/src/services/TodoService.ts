@@ -29,7 +29,8 @@ export class TodoService {
     claimId?: string,
     visitId?: string,
     companyVisitId?: string,
-    priority?: number
+    priority?: number,
+    opportunityId?: string
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
@@ -42,6 +43,7 @@ export class TodoService {
       claim_id: claimId || null,
       visit_id: visitId || null,
       company_visit_id: companyVisitId || null,
+      opportunity_id: opportunityId || null,
       status: 'todo',
       priority: priority || 1,
     });

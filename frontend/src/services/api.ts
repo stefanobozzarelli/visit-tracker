@@ -712,7 +712,7 @@ class ApiService {
   }
 
   // Todos
-  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string, priority?: number) {
+  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string, priority?: number, opportunityId?: string) {
     const response = await this.api.post<ApiResponse<any>>('/todos', {
       title,
       clientId,
@@ -724,6 +724,7 @@ class ApiService {
       visitId,
       companyVisitId,
       priority,
+      opportunityId,
     });
     this.memoryCache.clear();
     return response.data;

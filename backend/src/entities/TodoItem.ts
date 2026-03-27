@@ -49,6 +49,9 @@ export class TodoItem {
   @Column({ nullable: true })
   company_visit_id: string | null;
 
+  @Column({ nullable: true })
+  opportunity_id: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

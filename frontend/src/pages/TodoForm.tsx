@@ -21,6 +21,7 @@ export const TodoForm = () => {
   const [visitId, setVisitId] = useState('');
   const [claimId, setClaimId] = useState('');
   const [companyVisitId, setCompanyVisitId] = useState('');
+  const [opportunityId, setOpportunityId] = useState('');
   const [status, setStatus] = useState('todo');
   const [priority, setPriority] = useState(1);
 
@@ -48,6 +49,7 @@ export const TodoForm = () => {
     const urlVisitId = searchParams.get('visitId');
     const urlClaimId = searchParams.get('claimId');
     const urlCompanyVisitId = searchParams.get('companyVisitId');
+    const urlOpportunityId = searchParams.get('opportunityId');
 
     if (urlClientId) setClientId(urlClientId);
     if (urlCompanyId) setCompanyId(urlCompanyId);
@@ -55,6 +57,7 @@ export const TodoForm = () => {
     if (urlVisitId) setVisitId(urlVisitId);
     if (urlClaimId) setClaimId(urlClaimId);
     if (urlCompanyVisitId) setCompanyVisitId(urlCompanyVisitId);
+    if (urlOpportunityId) setOpportunityId(urlOpportunityId);
 
     loadData();
   }, []);
@@ -220,7 +223,8 @@ export const TodoForm = () => {
           claimId || undefined,
           visitId || undefined,
           companyVisitId || undefined,
-          priority
+          priority,
+          opportunityId || undefined
         );
         if (response.success && response.data?.id) {
           // Upload pending files to the newly created task

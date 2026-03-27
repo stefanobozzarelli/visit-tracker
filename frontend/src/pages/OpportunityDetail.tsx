@@ -39,6 +39,7 @@ export const OpportunityDetail: React.FC = () => {
   // Linked report data
   const [reportTasks, setReportTasks] = useState<any[]>([]);
   const [reportAttachments, setReportAttachments] = useState<any[]>([]);
+  const [opportunityTasks, setOpportunityTasks] = useState<any[]>([]);
 
   // Attachment upload
   const mainFileRef = useRef<HTMLInputElement>(null);
@@ -78,6 +79,14 @@ export const OpportunityDetail: React.FC = () => {
           } catch {}
           if (res.data.report?.attachments) setReportAttachments(res.data.report.attachments);
         }
+        // Load tasks linked to this opportunity
+        try {
+          const todosRes = await apiService.getTodos({ clientId: res.data.client_id });
+          if (todosRes.success && todosRes.data) {
+            const all = Array.isArray(todosRes.data) ? todosRes.data : [];
+            setOpportunityTasks(all.filter((t: any) => t.opportunity_id === id));
+          }
+        } catch {}
       } else {
         setError('Opportunity not found');
       }
@@ -336,6 +345,35 @@ export const OpportunityDetail: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Opportunity Tasks */}
+      {opportunityTasks.length > 0 && (
+        <div className="opp-detail-card">
+          <h3 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>Tasks ({opportunityTasks.length})</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Task</th>
+                <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Assigned To</th>
+                <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Due Date</th>
+                <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {opportunityTasks.map((t: any) => (
+                <tr key={t.id} style={{ borderBottom: '1px solid #eee', cursor: 'pointer' }}
+                  onClick={() => navigate(`/tasks?highlight=${t.id}`)}
+                >
+                  <td style={{ padding: '0.4rem 0.75rem', color: 'var(--color-info)' }}>{t.title}</td>
+                  <td style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>{t.assigned_to_user?.name || '-'}</td>
+                  <td style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>{t.due_date ? formatDate(t.due_date) : '-'}</td>
+                  <td style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>{t.status === 'done' ? 'Completed' : t.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Attachments section */}
       <div className="opp-detail-card">

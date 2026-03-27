@@ -79,7 +79,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority } = req.body;
+    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority, opportunityId } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!title || !clientId || !companyId || !assignedToUserId) {
@@ -100,7 +100,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       claimId,
       visitId,
       companyVisitId,
-      priority ? parseInt(priority, 10) : undefined
+      priority ? parseInt(priority, 10) : undefined,
+      opportunityId
     );
 
     // Fire-and-forget: send task assignment email
