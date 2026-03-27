@@ -409,6 +409,64 @@ export interface Project {
   client?: Client;
 }
 
+// ---- Opportunities ----
+export type OpportunityStatus = 'open' | 'in_progress' | 'qualified' | 'negotiation' | 'closed_won' | 'closed_lost';
+
+export interface OpportunityAdvanceAttachment {
+  id: string;
+  advance_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
+export interface OpportunityAdvance {
+  id: string;
+  opportunity_id: string;
+  date: string;
+  description: string;
+  created_by_user_id: string;
+  created_at: string;
+  created_by_user?: User;
+  attachments?: OpportunityAdvanceAttachment[];
+}
+
+export interface OpportunityAttachment {
+  id: string;
+  opportunity_id: string;
+  filename: string;
+  file_size: number;
+  s3_key: string;
+  uploaded_by_user_id: string;
+  created_at: string;
+  uploaded_by_user?: User;
+}
+
+export interface Opportunity {
+  id: string;
+  client_id: string;
+  company_id: string;
+  project_id?: string;
+  title: string;
+  description?: string;
+  status: OpportunityStatus;
+  estimated_value?: number;
+  currency?: string;
+  expected_close_date?: string;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  client?: Client;
+  company?: Company;
+  project?: Project;
+  created_by_user?: User;
+  advances?: OpportunityAdvance[];
+  attachments?: OpportunityAttachment[];
+}
+
 // ---- Offers ----
 export type OfferStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
 

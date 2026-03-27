@@ -44,6 +44,9 @@ import { CompanyDetail } from './pages/CompanyDetail';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { TodoDetail } from './pages/TodoDetail';
 import { ClaimDetail } from './pages/ClaimDetail';
+import { Opportunities } from './pages/Opportunities';
+import { OpportunityDetail } from './pages/OpportunityDetail';
+import { OpportunityForm } from './pages/OpportunityForm';
 import { Orders } from './pages/Orders';
 import { Statistics } from './pages/Statistics';
 import './styles/App.css';
@@ -99,6 +102,10 @@ const AppContent: React.FC = () => {
           <Route path="/claims/new" element={<ClaimForm />} />
           <Route path="/claims/:id" element={<ClaimDetail />} />
           <Route path="/claims/:id/edit" element={<ClaimForm />} />
+          <Route path="/opportunities" element={<Opportunities />} />
+          <Route path="/opportunities/new" element={<OpportunityForm />} />
+          <Route path="/opportunities/:id" element={<OpportunityDetail />} />
+          <Route path="/opportunities/:id/edit" element={<OpportunityForm />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/statistics" element={<Statistics />} />

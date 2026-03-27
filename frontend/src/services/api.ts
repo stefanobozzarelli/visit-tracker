@@ -1509,6 +1509,94 @@ class ApiService {
     return response.data;
   }
 
+  // ---- Opportunities ----
+  async getOpportunities(filters?: { client_id?: string; company_id?: string; status?: string }) {
+    const response = await this.api.get<ApiResponse<any>>('/opportunities', { params: filters });
+    return response.data;
+  }
+
+  async getOpportunityById(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/opportunities/${id}`);
+    return response.data;
+  }
+
+  async createOpportunity(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/opportunities', data);
+    return response.data;
+  }
+
+  async updateOpportunity(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/opportunities/${id}`, data);
+    return response.data;
+  }
+
+  async deleteOpportunity(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/opportunities/${id}`);
+    return response.data;
+  }
+
+  // Opportunity attachments
+  async uploadOpportunityAttachment(opportunityId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/opportunities/${opportunityId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async downloadOpportunityAttachment(opportunityId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/opportunities/${opportunityId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteOpportunityAttachment(opportunityId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/opportunities/${opportunityId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  // Opportunity advances
+  async addOpportunityAdvance(opportunityId: string, data: { date: string; description: string }) {
+    const response = await this.api.post<ApiResponse<any>>(`/opportunities/${opportunityId}/advances`, data);
+    return response.data;
+  }
+
+  async deleteOpportunityAdvance(opportunityId: string, advanceId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/opportunities/${opportunityId}/advances/${advanceId}`);
+    return response.data;
+  }
+
+  // Opportunity advance attachments
+  async uploadOpportunityAdvanceAttachment(opportunityId: string, advanceId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/opportunities/${opportunityId}/advances/${advanceId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async downloadOpportunityAdvanceAttachment(opportunityId: string, advanceId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/opportunities/${opportunityId}/advances/${advanceId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+
+  async deleteOpportunityAdvanceAttachment(opportunityId: string, advanceId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/opportunities/${opportunityId}/advances/${advanceId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  // Opportunity exports
+  async exportOpportunitiesPdf(filters: any = {}) {
+    const response = await this.api.post('/opportunities/export-pdf', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
+  async exportOpportunitiesExcel(filters: any = {}) {
+    const response = await this.api.post('/opportunities/export-excel', filters, { responseType: 'blob' });
+    return response.data;
+  }
+
   // ---- Statistics ----
   async getStatistics(filters?: { startDate?: string; endDate?: string }) {
     const response = await this.api.get<ApiResponse<any[]>>('/statistics', { params: filters });
