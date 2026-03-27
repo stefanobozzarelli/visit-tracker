@@ -17,16 +17,17 @@ router.use(authMiddleware);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, client_id, company_id, project_id, status, estimated_value, notes } = req.body;
+    const { name, title, client_id, company_id, project_id, status, estimated_value, notes, expected_close_date, currency, description } = req.body;
     const created_by_user_id = (req.user as any).id;
+    const effectiveTitle = title || name;
 
-    if (!name || !client_id || !company_id) {
-      return res.status(400).json({ success: false, error: 'name, client_id, and company_id are required' });
+    if (!effectiveTitle || !client_id || !company_id) {
+      return res.status(400).json({ success: false, error: 'title, client_id, and company_id are required' });
     }
 
     const opportunity = await opportunityService.createOpportunity({
-      name, client_id, company_id, project_id, status, estimated_value, notes, created_by_user_id,
-    });
+      name: effectiveTitle, title: effectiveTitle, client_id, company_id, project_id, status, estimated_value, notes: notes || description, created_by_user_id,
+    } as any);
 
     res.status(201).json({ success: true, data: opportunity });
   } catch (error) {

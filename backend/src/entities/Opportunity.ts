@@ -11,8 +11,11 @@ export class Opportunity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ nullable: true })
   name: string;
+
+  @Column({ nullable: true })
+  title: string;
 
   @Column()
   client_id: string;
@@ -23,18 +26,23 @@ export class Opportunity {
   @Column({ nullable: true })
   project_id: string;
 
-  @Column({
-    type: 'enum',
-    enum: ['new', 'qualifying', 'proposal', 'negotiation', 'won', 'lost'],
-    default: 'new',
-  })
-  status: 'new' | 'qualifying' | 'proposal' | 'negotiation' | 'won' | 'lost';
+  @Column({ default: 'open' })
+  status: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
   estimated_value: number;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ nullable: true })
+  currency: string;
+
+  @Column({ type: 'date', nullable: true })
+  expected_close_date: Date;
 
   @Column()
   created_by_user_id: string;
