@@ -449,7 +449,8 @@ export interface Opportunity {
   id: string;
   client_id: string;
   company_id: string;
-  project_id?: string;
+  visit_id?: string;
+  report_id?: string;
   title: string;
   description?: string;
   status: OpportunityStatus;
@@ -461,7 +462,8 @@ export interface Opportunity {
   updated_at: string;
   client?: Client;
   company?: Company;
-  project?: Project;
+  visit?: Visit;
+  report?: VisitReport;
   created_by_user?: User;
   advances?: OpportunityAdvance[];
   attachments?: OpportunityAttachment[];

@@ -1510,7 +1510,7 @@ class ApiService {
   }
 
   // ---- Opportunities ----
-  async getOpportunities(filters?: { client_id?: string; company_id?: string; status?: string }) {
+  async getOpportunities(filters?: { client_id?: string; company_id?: string; status?: string; visit_id?: string; report_id?: string }) {
     const response = await this.api.get<ApiResponse<any>>('/opportunities', { params: filters });
     return response.data;
   }

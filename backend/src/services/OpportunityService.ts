@@ -7,7 +7,8 @@ import { OpportunityAdvanceAttachment } from '../entities/OpportunityAdvanceAtta
 interface OpportunityFilters {
   client_id?: string;
   company_id?: string;
-  project_id?: string;
+  visit_id?: string;
+  report_id?: string;
   status?: string;
 }
 
@@ -23,7 +24,8 @@ export class OpportunityService {
     name: string;
     client_id: string;
     company_id: string;
-    project_id?: string;
+    visit_id?: string;
+    report_id?: string;
     status?: 'new' | 'qualifying' | 'proposal' | 'negotiation' | 'won' | 'lost';
     estimated_value?: number;
     notes?: string;
@@ -39,7 +41,8 @@ export class OpportunityService {
       .createQueryBuilder('opportunity')
       .leftJoinAndSelect('opportunity.client', 'client')
       .leftJoinAndSelect('opportunity.company', 'company')
-      .leftJoinAndSelect('opportunity.project', 'project')
+      .leftJoinAndSelect('opportunity.visit', 'visit')
+      .leftJoinAndSelect('opportunity.report', 'report')
       .leftJoinAndSelect('opportunity.created_by_user', 'created_user')
       .leftJoinAndSelect('opportunity.advances', 'advances')
       .leftJoinAndSelect('advances.attachments', 'advance_attachments')
@@ -51,8 +54,11 @@ export class OpportunityService {
     if (filters?.company_id) {
       query = query.andWhere('opportunity.company_id = :companyId', { companyId: filters.company_id });
     }
-    if (filters?.project_id) {
-      query = query.andWhere('opportunity.project_id = :projectId', { projectId: filters.project_id });
+    if (filters?.visit_id) {
+      query = query.andWhere('opportunity.visit_id = :visitId', { visitId: filters.visit_id });
+    }
+    if (filters?.report_id) {
+      query = query.andWhere('opportunity.report_id = :reportId', { reportId: filters.report_id });
     }
     if (filters?.status) {
       query = query.andWhere('opportunity.status = :status', { status: filters.status });
@@ -64,7 +70,7 @@ export class OpportunityService {
   async getOpportunityById(id: string): Promise<Opportunity | null> {
     return await this.opportunityRepository.findOne({
       where: { id },
-      relations: ['client', 'company', 'project', 'created_by_user', 'advances', 'advances.attachments', 'advances.created_by_user', 'attachments'],
+      relations: ['client', 'company', 'visit', 'report', 'created_by_user', 'advances', 'advances.attachments', 'advances.created_by_user', 'attachments'],
     });
   }
 
@@ -72,7 +78,8 @@ export class OpportunityService {
     name: string;
     client_id: string;
     company_id: string;
-    project_id: string;
+    visit_id: string;
+    report_id: string;
     status: 'new' | 'qualifying' | 'proposal' | 'negotiation' | 'won' | 'lost';
     estimated_value: number;
     notes: string;

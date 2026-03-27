@@ -17,7 +17,7 @@ router.use(authMiddleware);
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, title, client_id, company_id, project_id, status, estimated_value, notes, expected_close_date, currency, description } = req.body;
+    const { name, title, client_id, company_id, visit_id, report_id, status, estimated_value, notes, expected_close_date, currency, description } = req.body;
     const created_by_user_id = (req.user as any).id;
     const effectiveTitle = title || name;
 
@@ -26,7 +26,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const opportunity = await opportunityService.createOpportunity({
-      name: effectiveTitle, title: effectiveTitle, client_id, company_id, project_id, status, estimated_value, notes: notes || description, created_by_user_id,
+      name: effectiveTitle, title: effectiveTitle, client_id, company_id, visit_id, report_id, status, estimated_value, notes: notes || description, created_by_user_id,
     } as any);
 
     res.status(201).json({ success: true, data: opportunity });
@@ -38,11 +38,12 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.id;
-    const { client_id, company_id, project_id, status } = req.query;
+    const { client_id, company_id, visit_id, report_id, status } = req.query;
     let opportunities = await opportunityService.getOpportunities({
       client_id: client_id as string,
       company_id: company_id as string,
-      project_id: project_id as string,
+      visit_id: visit_id as string,
+      report_id: report_id as string,
       status: status as string,
     });
 

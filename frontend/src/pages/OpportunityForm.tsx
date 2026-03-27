@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { Opportunity, Client, Company, Project } from '../types';
+import { Opportunity, Client, Company } from '../types';
 import '../styles/OpportunityForm.css';
 
 export const OpportunityForm: React.FC = () => {
@@ -13,13 +13,13 @@ export const OpportunityForm: React.FC = () => {
   // Lookups
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
 
   // Form
   const [formData, setFormData] = useState({
     client_id: '',
     company_id: '',
-    project_id: '',
+    visit_id: '',
+    report_id: '',
     title: '',
     description: '',
     status: 'open',
@@ -55,23 +55,23 @@ export const OpportunityForm: React.FC = () => {
       try {
         setIsLoading(true);
 
-        const [clientsRes, companiesRes, projectsRes] = await Promise.all([
+        const [clientsRes, companiesRes] = await Promise.all([
           apiService.getClients(),
           apiService.getCompanies(),
-          apiService.getProjects(),
         ]);
 
         if (clientsRes.success && clientsRes.data) setClients(clientsRes.data);
         if (companiesRes.success && companiesRes.data) setCompanies(companiesRes.data);
-        if (projectsRes.success && projectsRes.data) setProjects(Array.isArray(projectsRes.data) ? projectsRes.data : []);
 
         // Pre-fill from URL params
         const clientIdFromUrl = searchParams.get('clientId');
         const companyIdFromUrl = searchParams.get('companyId');
-        const projectIdFromUrl = searchParams.get('projectId');
+        const visitIdFromUrl = searchParams.get('visitId');
+        const reportIdFromUrl = searchParams.get('reportId');
         if (clientIdFromUrl) setFormData(prev => ({ ...prev, client_id: clientIdFromUrl }));
         if (companyIdFromUrl) setFormData(prev => ({ ...prev, company_id: companyIdFromUrl }));
-        if (projectIdFromUrl) setFormData(prev => ({ ...prev, project_id: projectIdFromUrl }));
+        if (visitIdFromUrl) setFormData(prev => ({ ...prev, visit_id: visitIdFromUrl }));
+        if (reportIdFromUrl) setFormData(prev => ({ ...prev, report_id: reportIdFromUrl }));
 
         // Edit mode: load existing opportunity
         if (isEditMode && id) {
@@ -82,7 +82,8 @@ export const OpportunityForm: React.FC = () => {
             setFormData({
               client_id: existing.client_id || '',
               company_id: existing.company_id || '',
-              project_id: existing.project_id || '',
+              visit_id: existing.visit_id || '',
+              report_id: existing.report_id || '',
               title: existing.title || '',
               description: existing.description || '',
               status: existing.status || 'open',
@@ -132,7 +133,8 @@ export const OpportunityForm: React.FC = () => {
       const oppData: any = {
         client_id: formData.client_id,
         company_id: formData.company_id,
-        project_id: formData.project_id || undefined,
+        visit_id: formData.visit_id || undefined,
+        report_id: formData.report_id || undefined,
         title: formData.title.trim(),
         description: formData.description || undefined,
         status: formData.status,
@@ -231,26 +233,19 @@ export const OpportunityForm: React.FC = () => {
           </div>
         </div>
 
-        <h3 style={{ margin: '1.5rem 0 0.75rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>Links</h3>
-
-        <div className="oppf-form-group" style={{ marginBottom: '0.75rem' }}>
-          <label>Project (optional)</label>
-          <select name="project_id" value={formData.project_id} onChange={handleChange} disabled={isLoading}>
-            <option value="">-- No Project --</option>
-            {projects
-              .filter(p => !formData.client_id || p.client_id === formData.client_id || !p.client_id)
-              .map(p => (
-                <option key={p.id} value={p.id}>
-                  #{p.project_number} - {p.project_name || 'Untitled'} | {p.client?.name || '-'} | {p.supplier?.name || '-'}
-                </option>
-              ))}
-          </select>
-          {formData.client_id && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>
-              Showing projects for selected client. Clear client to see all.
+        {formData.visit_id && (
+          <>
+            <h3 style={{ margin: '1.5rem 0 0.75rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>Links</h3>
+            <div className="oppf-form-group" style={{ marginBottom: '0.75rem' }}>
+              <label>Linked Visit</label>
+              <div style={{ fontSize: '0.875rem', padding: '0.5rem 0' }}>
+                <Link to={`/visits/${formData.visit_id}`} style={{ color: 'var(--color-info)', textDecoration: 'none' }}>
+                  View Visit #{formData.visit_id.substring(0, 8)}...
+                </Link>
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
 
         <div className="oppf-form-group" style={{ marginTop: '0.5rem' }}>
           <label>Description</label>

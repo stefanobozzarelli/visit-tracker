@@ -2,7 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { User } from './User';
 import { Client } from './Client';
 import { Company } from './Company';
-import { Project } from './Project';
+import { Visit } from './Visit';
+import { VisitReport } from './VisitReport';
 import { OpportunityAdvance } from './OpportunityAdvance';
 import { OpportunityAttachment } from './OpportunityAttachment';
 
@@ -24,7 +25,10 @@ export class Opportunity {
   company_id: string;
 
   @Column({ nullable: true })
-  project_id: string;
+  visit_id: string;
+
+  @Column({ nullable: true })
+  report_id: string;
 
   @Column({ default: 'open' })
   status: string;
@@ -62,9 +66,13 @@ export class Opportunity {
   @JoinColumn({ name: 'company_id' })
   company: Company;
 
-  @ManyToOne(() => Project, { eager: true, nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'project_id' })
-  project: Project;
+  @ManyToOne(() => Visit, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'visit_id' })
+  visit: Visit;
+
+  @ManyToOne(() => VisitReport, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'report_id' })
+  report: VisitReport;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'created_by_user_id' })

@@ -290,6 +290,12 @@ export const VisitDetail: React.FC = () => {
                         >
                           + Order
                         </button>
+                        <button
+                          onClick={() => navigate(`/opportunities/new?visitId=${id}&reportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)}
+                          style={{ padding: '0.4rem 0.8rem', background: '#7B68AE', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                        >
+                          + Opportunity
+                        </button>
                       </div>
                     </div>
                   </div>

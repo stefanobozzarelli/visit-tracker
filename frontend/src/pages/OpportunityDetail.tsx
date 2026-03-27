@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Opportunity, OpportunityAdvance } from '../types';
 import '../styles/Opportunities.css';
@@ -232,10 +232,16 @@ export const OpportunityDetail: React.FC = () => {
             <label>Currency</label>
             <p>{opportunity.currency || 'EUR'}</p>
           </div>
-          {opportunity.project && (
+          {opportunity.visit_id && (
             <div className="opp-detail-field">
-              <label>Project</label>
-              <p>#{opportunity.project.project_number} - {opportunity.project.project_name || 'Untitled'}</p>
+              <label>Visit</label>
+              <p><Link to={`/visits/${opportunity.visit_id}`} style={{ color: 'var(--color-info)', textDecoration: 'none' }}>View Visit</Link></p>
+            </div>
+          )}
+          {opportunity.report_id && opportunity.report && (
+            <div className="opp-detail-field">
+              <label>Supplier Report</label>
+              <p>{opportunity.report.company?.name || '-'} - {opportunity.report.section || '-'}</p>
             </div>
           )}
           <div className="opp-detail-field">
