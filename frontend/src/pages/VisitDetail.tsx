@@ -83,6 +83,7 @@ export const VisitDetail: React.FC = () => {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [allTasks, setAllTasks] = useState<TodoItem[]>([]);
+  const [reportOpportunities, setReportOpportunities] = useState<Record<string, any[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [pasteTargetReportId, setPasteTargetReportId] = useState<string | null>(null);
@@ -155,6 +156,17 @@ export const VisitDetail: React.FC = () => {
           const offersResponse = await apiService.getOffers({ visit_id: id });
           if (offersResponse.success && offersResponse.data) {
             setOffers(Array.isArray(offersResponse.data) ? offersResponse.data : []);
+          }
+        } catch {}
+
+        // Load opportunities for this visit
+        try {
+          const oppRes = await apiService.getOpportunities({ visit_id: id });
+          if (oppRes.success && oppRes.data) {
+            const opps = Array.isArray(oppRes.data) ? oppRes.data : [];
+            const byReport: Record<string, any[]> = {};
+            opps.forEach((o: any) => { if (o.report_id) { if (!byReport[o.report_id]) byReport[o.report_id] = []; byReport[o.report_id].push(o); } });
+            setReportOpportunities(byReport);
           }
         } catch {}
 
@@ -290,12 +302,21 @@ export const VisitDetail: React.FC = () => {
                         >
                           + Order
                         </button>
-                        <button
-                          onClick={() => navigate(`/opportunities/new?visitId=${id}&reportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)}
-                          style={{ padding: '0.4rem 0.8rem', background: '#7B68AE', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                        >
-                          + Opportunity
-                        </button>
+                        {reportOpportunities[report.id]?.length > 0 ? (
+                          <button
+                            onClick={() => navigate(`/opportunities/${reportOpportunities[report.id][0].id}`)}
+                            style={{ padding: '0.4rem 0.8rem', background: '#7B68AE', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          >
+                            View Opportunity →
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => navigate(`/opportunities/new?visitId=${id}&reportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)}
+                            style={{ padding: '0.4rem 0.8rem', background: '#7B68AE', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          >
+                            + Opportunity
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

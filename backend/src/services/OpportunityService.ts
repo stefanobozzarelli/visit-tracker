@@ -70,7 +70,7 @@ export class OpportunityService {
   async getOpportunityById(id: string): Promise<Opportunity | null> {
     return await this.opportunityRepository.findOne({
       where: { id },
-      relations: ['client', 'company', 'visit', 'report', 'created_by_user', 'advances', 'advances.attachments', 'advances.created_by_user', 'attachments'],
+      relations: ['client', 'company', 'visit', 'report', 'report.company', 'report.attachments', 'created_by_user', 'advances', 'advances.attachments', 'advances.created_by_user', 'attachments'],
     });
   }
 

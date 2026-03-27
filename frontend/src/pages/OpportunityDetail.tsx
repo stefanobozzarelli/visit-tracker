@@ -35,6 +35,10 @@ export const OpportunityDetail: React.FC = () => {
   const [addingAdvance, setAddingAdvance] = useState(false);
   const advFileRef = useRef<HTMLInputElement>(null);
 
+  // Linked report data
+  const [reportTasks, setReportTasks] = useState<any[]>([]);
+  const [reportAttachments, setReportAttachments] = useState<any[]>([]);
+
   // Attachment upload
   const mainFileRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +66,17 @@ export const OpportunityDetail: React.FC = () => {
       const res = await apiService.getOpportunityById(id!);
       if (res.success && res.data) {
         setOpportunity(res.data);
+        // Load linked report tasks and attachments
+        if (res.data.report_id && res.data.client_id) {
+          try {
+            const todosRes = await apiService.getTodos({ clientId: res.data.client_id });
+            if (todosRes.success && todosRes.data) {
+              const all = Array.isArray(todosRes.data) ? todosRes.data : [];
+              setReportTasks(all.filter((t: any) => t.visit_report_id === res.data.report_id));
+            }
+          } catch {}
+          if (res.data.report?.attachments) setReportAttachments(res.data.report.attachments);
+        }
       } else {
         setError('Opportunity not found');
       }
@@ -249,6 +264,60 @@ export const OpportunityDetail: React.FC = () => {
             <p>{formatDate(opportunity.created_at)}{opportunity.created_by_user ? ` by ${opportunity.created_by_user.name}` : ''}</p>
           </div>
         </div>
+
+        {/* Linked Report Tasks */}
+        {reportTasks.length > 0 && (
+          <>
+            <hr className="opp-detail-divider" />
+            <h3 style={{ fontSize: '1rem', margin: '0 0 0.5rem' }}>Report Tasks ({reportTasks.length})</h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Task</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Assigned To</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Due Date</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportTasks.map((t: any) => (
+                  <tr key={t.id} style={{ borderBottom: '1px solid #eee', cursor: 'pointer' }}
+                    onClick={() => navigate(`/todos?highlight=${t.id}`)}
+                  >
+                    <td style={{ padding: '0.4rem 0.75rem', color: 'var(--color-info)' }}>{t.title}</td>
+                    <td style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>{t.assigned_to_user?.name || '-'}</td>
+                    <td style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>{t.due_date ? formatDate(t.due_date) : '-'}</td>
+                    <td style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>{t.status === 'done' ? 'Completed' : t.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Linked Report Attachments */}
+        {reportAttachments.length > 0 && (
+          <>
+            <hr className="opp-detail-divider" />
+            <h3 style={{ fontSize: '1rem', margin: '0 0 0.5rem' }}>Report Attachments ({reportAttachments.length})</h3>
+            {reportAttachments.map((att: any) => (
+              <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.4rem 0', fontSize: '0.85rem', borderBottom: '1px solid #eee' }}>
+                <span style={{ fontSize: '1rem' }}>📎</span>
+                <span style={{ flex: 1, wordBreak: 'break-all' }}>{att.filename}</span>
+                <span style={{ color: '#888', fontSize: '0.75rem' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>
+                <button onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('token');
+                    const { config: cfg } = await import('../config');
+                    const resp = await fetch(`${cfg.API_BASE_URL}/visits/${opportunity.visit_id}/reports/${opportunity.report_id}/attachments/${att.id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+                    const data = await resp.json();
+                    if (data.success && data.data?.url) window.open(data.data.url, '_blank');
+                  } catch {}
+                }} style={{ padding: '0.25rem 0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: 'white', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>
+              </div>
+            ))}
+          </>
+        )}
 
         {opportunity.description && (
           <>
