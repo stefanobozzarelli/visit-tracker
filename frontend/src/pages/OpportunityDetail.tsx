@@ -305,16 +305,9 @@ export const OpportunityDetail: React.FC = () => {
                 <span style={{ fontSize: '1rem' }}>📎</span>
                 <span style={{ flex: 1, wordBreak: 'break-all' }}>{att.filename}</span>
                 <span style={{ color: '#888', fontSize: '0.75rem' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>
-                <button onClick={async () => {
-                  try {
-                    const token = localStorage.getItem('token');
-                    const { config: cfg } = await import('../config');
-                    const resp = await fetch(`${cfg.API_BASE_URL}/visits/${opportunity.visit_id}/reports/${opportunity.report_id}/attachments/${att.id}/download`, { headers: { Authorization: `Bearer ${token}` } });
-                    const data = await resp.json();
-                    if (data.success && data.data?.url) {
-                      const a = document.createElement('a'); a.href = data.data.url; a.target = '_blank'; a.rel = 'noopener'; a.click();
-                    }
-                  } catch {}
+                <button onClick={() => {
+                  const { API_BASE_URL } = require('../config').config;
+                  window.open(`${API_BASE_URL}/visits/${opportunity.visit_id}/reports/${opportunity.report_id}/attachments/${att.id}/download`, '_blank');
                 }} style={{ padding: '0.25rem 0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: 'white', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>
               </div>
             ))}
