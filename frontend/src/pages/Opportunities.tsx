@@ -37,6 +37,9 @@ export const Opportunities: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
 
+  // Expand
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   // Filters
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
@@ -385,9 +388,13 @@ export const Opportunities: React.FC = () => {
                   const statusStyle = getStatusStyle(opp.status);
 
                   return (
-                    <tr key={opp.id} id={`opp-${opp.id}`} className={highlightId === opp.id ? 'highlighted' : ''} onDoubleClick={() => navigate(`/opportunities/${opp.id}`)} style={{ cursor: 'pointer' }}>
+                    <React.Fragment key={opp.id}>
+                    <tr id={`opp-${opp.id}`} className={highlightId === opp.id ? 'highlighted' : ''} onClick={() => setExpandedId(expandedId === opp.id ? null : opp.id)} onDoubleClick={() => navigate(`/opportunities/${opp.id}`)} style={{ cursor: 'pointer' }}>
                       <td>
-                        <div className="opp-client-name">{opp.title}</div>
+                        <div className="opp-client-name">
+                          <span style={{ marginRight: '0.4rem', fontSize: '0.7rem', color: '#888' }}>{expandedId === opp.id ? '▼' : '▶'}</span>
+                          {opp.title || opp.name}
+                        </div>
                       </td>
                       <td>{opp.client?.name || getClientName(opp.client_id)}</td>
                       <td style={{ color: 'var(--color-text-primary)', fontWeight: 'var(--font-weight-medium)' as any, fontSize: '0.813rem' }}>
@@ -437,6 +444,32 @@ export const Opportunities: React.FC = () => {
                         </div>
                       </td>
                     </tr>
+                    {expandedId === opp.id && (
+                      <tr>
+                        <td colSpan={8} style={{ padding: '0.75rem 1rem', background: '#fafaf5', borderBottom: '2px solid #e8e5da' }}>
+                          {opp.advances && opp.advances.length > 0 ? (
+                            <div>
+                              <strong style={{ fontSize: '0.8rem', color: '#555' }}>Advances ({opp.advances.length})</strong>
+                              <div style={{ marginTop: '0.4rem' }}>
+                                {[...opp.advances].sort((a, b) => new Date(b.date || b.created_at).getTime() - new Date(a.date || a.created_at).getTime()).map(adv => (
+                                  <div key={adv.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', padding: '0.4rem 0', borderBottom: '1px solid #eee', fontSize: '0.82rem' }}>
+                                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#666' }}>{adv.date ? formatDate(adv.date) : formatDate(adv.created_at)}</span>
+                                    <span style={{ color: '#888', whiteSpace: 'nowrap' }}>{adv.created_by_user?.name || '-'}</span>
+                                    <span style={{ flex: 1, color: '#333' }}>{adv.description}</span>
+                                    {adv.attachments && adv.attachments.length > 0 && (
+                                      <span style={{ color: '#888', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>📎 {adv.attachments.length}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.82rem', color: '#888' }}>No advances yet</span>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
