@@ -340,39 +340,37 @@ export const OpportunityDetail: React.FC = () => {
                 <div className="opp-advance-description">{adv.description}</div>
                 {/* Advance attachments */}
                 {adv.attachments && adv.attachments.length > 0 && (
-                  <div className="opp-advance-attachments">
+                  <div style={{ marginTop: '0.5rem' }}>
                     {adv.attachments.map(att => (
-                      <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.875rem' }}>
-                        <span>📎</span>
-                        <span style={{ flex: 1 }}>{att.filename}</span>
-                        <span style={{ color: '#888', fontSize: '0.75rem' }}>{att.file_size ? `(${(att.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}</span>
-                        <button
-                          onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); const url = URL.createObjectURL(blob); window.open(url, '_blank'); }}
-                          style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
-                        >View</button>
-                        <button
-                          onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = att.filename; a.click(); }}
-                          style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: 'var(--color-info)', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
-                        >Download</button>
-                        <button onClick={() => handleDeleteAdvanceAttachment(adv.id, att.id)} style={{ padding: '2px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.9rem' }} title="Delete">✕</button>
+                      <div key={att.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 0.5rem', background: '#f9f9f6', borderRadius: '4px' }}>
+                        <span style={{ marginTop: '2px' }}>📎</span>
+                        <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.4' }}>{att.filename}
+                          <span style={{ color: '#888', fontSize: '0.75rem', marginLeft: '0.3rem' }}>{att.file_size ? `(${(att.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}</span>
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                          <button
+                            onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); window.open(URL.createObjectURL(blob), '_blank'); }}
+                            style={{ padding: '3px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                          >View</button>
+                          <button
+                            onClick={async () => { const blob = await apiService.downloadOpportunityAdvanceAttachment(opportunity!.id, adv.id, att.id); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = att.filename; a.click(); }}
+                            style={{ padding: '3px 8px', border: 'none', borderRadius: '3px', background: 'var(--color-info)', color: '#fff', cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                          >Download</button>
+                          <button onClick={() => handleDeleteAdvanceAttachment(adv.id, att.id)} style={{ padding: '3px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.85rem' }}>✕</button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-                {/* Upload more attachments to existing advance */}
-                <div style={{ marginTop: '0.375rem' }}>
-                  <label className="opp-upload-label" onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.onchange = (ev: any) => {
-                      const file = ev.target?.files?.[0];
-                      if (file) handleUploadAdvanceAttachment(adv.id, file);
-                    };
-                    input.click();
-                  }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Attach
-                  </label>
+                {/* Drag & drop + click upload for advance */}
+                <div
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-info)'; e.currentTarget.style.background = '#f0f7ff'; }}
+                  onDragLeave={e => { e.currentTarget.style.borderColor = '#ccc'; e.currentTarget.style.background = 'transparent'; }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#ccc'; e.currentTarget.style.background = 'transparent'; Array.from(e.dataTransfer.files).forEach(f => handleUploadAdvanceAttachment(adv.id, f)); }}
+                  onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.onchange = (ev: any) => { Array.from(ev.target?.files || []).forEach((f: any) => handleUploadAdvanceAttachment(adv.id, f)); }; input.click(); }}
+                  style={{ border: '1px dashed #ccc', borderRadius: '6px', padding: '0.5rem', textAlign: 'center', cursor: 'pointer', fontSize: '0.8rem', color: '#888', marginTop: '0.4rem' }}
+                >
+                  📎 Drop files or click to attach
                 </div>
               </div>
             ))
