@@ -282,7 +282,7 @@ export const OpportunityDetail: React.FC = () => {
               <tbody>
                 {reportTasks.map((t: any) => (
                   <tr key={t.id} style={{ borderBottom: '1px solid #eee', cursor: 'pointer' }}
-                    onClick={() => navigate(`/todos?highlight=${t.id}`)}
+                    onClick={() => navigate(`/tasks?highlight=${t.id}`)}
                   >
                     <td style={{ padding: '0.4rem 0.75rem', color: 'var(--color-info)' }}>{t.title}</td>
                     <td style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>{t.assigned_to_user?.name || '-'}</td>
@@ -311,7 +311,9 @@ export const OpportunityDetail: React.FC = () => {
                     const { config: cfg } = await import('../config');
                     const resp = await fetch(`${cfg.API_BASE_URL}/visits/${opportunity.visit_id}/reports/${opportunity.report_id}/attachments/${att.id}/download`, { headers: { Authorization: `Bearer ${token}` } });
                     const data = await resp.json();
-                    if (data.success && data.data?.url) window.open(data.data.url, '_blank');
+                    if (data.success && data.data?.url) {
+                      const a = document.createElement('a'); a.href = data.data.url; a.target = '_blank'; a.rel = 'noopener'; a.click();
+                    }
                   } catch {}
                 }} style={{ padding: '0.25rem 0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: 'white', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>
               </div>
