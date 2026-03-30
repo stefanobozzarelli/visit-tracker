@@ -601,26 +601,28 @@ export const TripDetail: React.FC = () => {
                       <td style={{ fontWeight: 600 }}>{day.location}</td>
                       <td>
                         {day.flights.map(f => (
-                          <div key={f.id} className="td-report-status-line" style={{ marginBottom: 6 }}>
-                            <span className="td-report-route">{f.route}</span>
-                            <span className="td-report-muted">{f.details}</span>
+                          <div key={f.id} className="td-rpt-row">
+                            <div className="td-rpt-main">
+                              <span className="td-report-route">{f.route}</span>
+                              {f.details && <span className="td-report-muted"> {f.details}</span>}
+                            </div>
                             <span className={`status-badge ${f.status}`}>{STATUS_LABELS[f.status]}</span>
                           </div>
                         ))}
                       </td>
                       <td>
                         {day.hotel && (
-                          <div className="td-report-status-line">
-                            <span style={{ fontWeight: 500 }}>{day.hotel}</span>
+                          <div className="td-rpt-row">
+                            <span className="td-rpt-main" style={{ fontWeight: 500 }}>{day.hotel}</span>
                             <span className={`status-badge ${day.hotelStatus === 'confermato' ? 'confermato' : 'hotel-programmato'}`}>{STATUS_LABELS[day.hotelStatus]}</span>
                           </div>
                         )}
                       </td>
                       <td>
                         {day.appointments.map(a => (
-                          <div key={a.id} className="td-report-apt-line">
-                            <span className="td-report-apt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
-                            <span className="td-report-apt-client">{a.client}</span>
+                          <div key={a.id} className="td-rpt-row">
+                            <span className="td-rpt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
+                            <span className="td-rpt-client">{a.client}</span>
                             <span className={`status-badge ${a.status}`}>{STATUS_LABELS[a.status]}</span>
                           </div>
                         ))}

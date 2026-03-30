@@ -107,9 +107,20 @@ export const NewVisit: React.FC = () => {
 
           // Auto-fill client and date from URL params (from + Visita in trip)
           if (!isEditMode && prefillParams.client) {
-            const match = sortedClients.find((c: any) =>
-              c.name.toLowerCase() === prefillParams.client.toLowerCase()
+            const needle = prefillParams.client.toLowerCase();
+            // 1. Exact match
+            let match = sortedClients.find((c: any) => c.name.toLowerCase() === needle);
+            // 2. One contains the other (handles "Hafary" ↔ "Hafary Gallery" etc.)
+            if (!match) match = sortedClients.find((c: any) =>
+              c.name.toLowerCase().includes(needle) || needle.includes(c.name.toLowerCase())
             );
+            // 3. Any word of the needle appears in the client name
+            if (!match) {
+              const words = needle.split(/\s+/).filter(w => w.length > 2);
+              match = sortedClients.find((c: any) =>
+                words.some(w => c.name.toLowerCase().includes(w))
+              );
+            }
             setFormData(prev => ({
               ...prev,
               clientId: match ? match.id : prev.clientId,
