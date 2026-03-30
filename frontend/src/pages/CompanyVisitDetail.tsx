@@ -181,9 +181,17 @@ export const CompanyVisitDetail: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Status</label>
-          <p style={{ margin: 0, fontSize: '1rem' }}>{visit.status || '-'}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Status</label>
+            <p style={{ margin: 0, fontSize: '1rem' }}>{visit.status || '-'}</p>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Meeting Type</label>
+            <p style={{ margin: 0, fontSize: '1rem' }}>
+              {visit.meeting_type === 'call' ? '\uD83D\uDCDE Call' : visit.meeting_type === 'video_call' ? '\uD83D\uDCF9 Video Call' : '\uD83C\uDFE2 In Person'}
+            </p>
+          </div>
         </div>
 
         <div style={{ marginBottom: '2rem' }}>

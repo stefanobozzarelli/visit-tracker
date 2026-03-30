@@ -114,7 +114,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status } = req.body;
+    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status, meeting_type } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!companyId || !date || !subject) {
@@ -133,6 +133,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       participants_user_ids: Array.isArray(participantsUserIds) && participantsUserIds.length > 0 ? JSON.stringify(participantsUserIds) : null,
       participants_external: participantsExternal || null,
       status: status || 'scheduled',
+      meeting_type: meeting_type || 'in_person',
       created_by_user_id: createdByUserId,
     });
 
@@ -189,7 +190,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Company visit not found' });
     }
 
-    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status } = req.body;
+    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status, meeting_type } = req.body;
     const updateData: any = {};
 
     if (companyId) updateData.company_id = companyId;
@@ -200,6 +201,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     if (participantsUserIds !== undefined) updateData.participants_user_ids = JSON.stringify(participantsUserIds);
     if (participantsExternal !== undefined) updateData.participants_external = participantsExternal;
     if (status) updateData.status = status;
+    if (meeting_type !== undefined) updateData.meeting_type = meeting_type;
 
     const updated = await visitService.updateVisit(req.params.id, updateData);
     res.json({ success: true, data: updated });

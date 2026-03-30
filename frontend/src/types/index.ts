@@ -145,6 +145,7 @@ export interface Visit {
   visited_by_user_id: string;
   visit_date: string;
   status?: 'scheduled' | 'completed' | 'cancelled';
+  meeting_type?: string;
   preparation?: string | null;
   created_at: string;
   updated_at?: string;
@@ -243,6 +244,7 @@ export interface CompanyVisit {
   participants_user_ids?: string | null;
   participants_external?: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
+  meeting_type?: string;
   created_by_user_id: string;
   created_at: string;
   updated_at: string;

@@ -31,6 +31,7 @@ export const NewVisit: React.FC = () => {
     clientId: '',
     visitDate: '',
     status: 'scheduled',
+    meeting_type: 'in_person',
     preparation: '',
     reports: [{ companyId: '', section: '', content: '' }],
   });
@@ -160,6 +161,7 @@ export const NewVisit: React.FC = () => {
           clientId: visit.client_id,
           visitDate: visit.visit_date ? visit.visit_date.split('T')[0] : '',
           status: visit.status || 'scheduled',
+          meeting_type: visit.meeting_type || 'in_person',
           preparation: visit.preparation || '',
           reports: existingReportsList.map(r => ({
             companyId: r.companyId,
@@ -393,6 +395,7 @@ export const NewVisit: React.FC = () => {
           const updateRes = await apiService.updateVisit(editId, {
             status: formData.status,
             preparation: formData.preparation || undefined,
+            meeting_type: formData.meeting_type,
           });
           if (!updateRes.success) {
             errors.push('Failed to update visit information');
@@ -544,6 +547,7 @@ export const NewVisit: React.FC = () => {
         const response = await apiService.createVisit(formData.clientId, formData.visitDate, reports, {
           status: formData.status,
           preparation: formData.preparation || undefined,
+          meeting_type: formData.meeting_type,
         });
         if (!response.success) {
           throw new Error('Error creating visit');
@@ -728,7 +732,7 @@ export const NewVisit: React.FC = () => {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
             <div className="form-group">
               <label>Visit Date *</label>
               <input
@@ -738,6 +742,17 @@ export const NewVisit: React.FC = () => {
                 disabled={isEditMode}
                 required
               />
+            </div>
+            <div className="form-group">
+              <label>Meeting Type</label>
+              <select
+                value={formData.meeting_type}
+                onChange={(e) => setFormData(prev => ({ ...prev, meeting_type: e.target.value }))}
+              >
+                <option value="in_person">In Person</option>
+                <option value="call">Call</option>
+                <option value="video_call">Video Call</option>
+              </select>
             </div>
             <div className="form-group">
               <label>Status</label>

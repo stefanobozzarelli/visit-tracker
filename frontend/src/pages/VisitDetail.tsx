@@ -254,6 +254,12 @@ export const VisitDetail: React.FC = () => {
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Visited By</label>
             <p style={{ margin: 0, fontSize: '1rem' }}>{visit.visited_by_user?.name || '-'}</p>
           </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Meeting Type</label>
+            <p style={{ margin: 0, fontSize: '1rem' }}>
+              {visit.meeting_type === 'call' ? '\uD83D\uDCDE Call' : visit.meeting_type === 'video_call' ? '\uD83D\uDCF9 Video Call' : '\uD83C\uDFE2 In Person'}
+            </p>
+          </div>
         </div>
         {visitMetadata && (
           <div style={{ paddingTop: '1.5rem', borderTop: '1px solid #e0e0e0' }}>

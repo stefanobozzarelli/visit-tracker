@@ -26,6 +26,9 @@ export class Visit {
   })
   status: 'scheduled' | 'completed' | 'cancelled';
 
+  @Column({ default: 'in_person' })
+  meeting_type: 'in_person' | 'call' | 'video_call';
+
   @Column({ type: 'text', nullable: true })
   preparation: string | null;
 

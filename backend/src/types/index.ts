@@ -45,6 +45,7 @@ export interface CreateVisitRequest {
   visit_date: string;
   reports: CreateVisitReportRequest[];
   status?: 'scheduled' | 'completed' | 'cancelled';
+  meeting_type?: 'in_person' | 'call' | 'video_call';
   preparation?: string;
 }
 

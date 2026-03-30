@@ -212,12 +212,13 @@ router.put('/:id', async (req: Request, res: Response) => {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) return res.status(404).json({ success: false, error: 'Visit not found' });
 
-    const { status, preparation, visit_date } = req.body;
+    const { status, preparation, visit_date, meeting_type } = req.body;
     const updateData: any = {};
 
     if (status !== undefined) updateData.status = status;
     if (preparation !== undefined) updateData.preparation = preparation || null;
     if (visit_date) updateData.visit_date = new Date(visit_date);
+    if (meeting_type !== undefined) updateData.meeting_type = meeting_type;
 
     const updated = await visitService.updateVisit(req.params.id, updateData);
     res.json({ success: true, data: updated });

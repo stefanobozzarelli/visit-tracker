@@ -18,6 +18,7 @@ export class VisitService {
       visit_date: new Date(data.visit_date),
       status: (data as any).status || 'scheduled',
       preparation: (data as any).preparation || null,
+      meeting_type: (data as any).meeting_type || 'in_person',
     });
     const savedVisit = await this.visitRepository.save(visit);
 
@@ -34,6 +35,7 @@ export class VisitService {
     status: 'scheduled' | 'completed' | 'cancelled';
     preparation: string | null;
     client_id: string;
+    meeting_type: 'in_person' | 'call' | 'video_call';
   }>): Promise<Visit> {
     await this.visitRepository.update(id, data as any);
     const updated = await this.getVisitById(id);

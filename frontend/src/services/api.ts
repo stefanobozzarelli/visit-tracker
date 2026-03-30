@@ -540,18 +540,19 @@ class ApiService {
   }
 
   // Visits
-  async createVisit(clientId: string, visitDate: string, reports: any[], options?: { status?: string; preparation?: string }) {
+  async createVisit(clientId: string, visitDate: string, reports: any[], options?: { status?: string; preparation?: string; meeting_type?: string }) {
     const response = await this.api.post<ApiResponse<any>>('/visits', {
       client_id: clientId,
       visit_date: visitDate,
       reports,
       ...(options?.status && { status: options.status }),
       ...(options?.preparation && { preparation: options.preparation }),
+      ...(options?.meeting_type && { meeting_type: options.meeting_type }),
     });
     return response.data;
   }
 
-  async updateVisit(visitId: string, data: { status?: string; preparation?: string | null; visit_date?: string }) {
+  async updateVisit(visitId: string, data: { status?: string; preparation?: string | null; visit_date?: string; meeting_type?: string }) {
     const response = await this.api.put<ApiResponse<any>>(`/visits/${visitId}`, data);
     return response.data;
   }
@@ -848,7 +849,7 @@ class ApiService {
   }
 
   // Company Visits
-  async createCompanyVisit(data: { companyId: string; date: string; subject: string; report?: string; preparation?: string; participantsUserIds?: string[]; participantsExternal?: string; status?: string }) {
+  async createCompanyVisit(data: { companyId: string; date: string; subject: string; report?: string; preparation?: string; participantsUserIds?: string[]; participantsExternal?: string; status?: string; meeting_type?: string }) {
     const response = await this.api.post<ApiResponse<any>>('/company-visits', data);
     return response.data;
   }

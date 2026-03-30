@@ -87,6 +87,7 @@ export const CompanyVisitForm: React.FC = () => {
   const [date, setDate] = useState('');
   const [subject, setSubject] = useState('');
   const [status, setStatus] = useState<string>('scheduled');
+  const [meetingType, setMeetingType] = useState<string>('in_person');
   const [participantsUserIds, setParticipantsUserIds] = useState<string[]>([]);
   const [participantsExternal, setParticipantsExternal] = useState('');
   const [report, setReport] = useState('');
@@ -156,6 +157,7 @@ export const CompanyVisitForm: React.FC = () => {
             setDate(visit.date ? visit.date.substring(0, 10) : '');
             setSubject(visit.subject || '');
             setStatus(visit.status || 'scheduled');
+            setMeetingType(visit.meeting_type || 'in_person');
             setReport(visit.report || '');
             setPreparation(visit.preparation || '');
             setParticipantsExternal(visit.participants_external || '');
@@ -281,6 +283,7 @@ export const CompanyVisitForm: React.FC = () => {
         participantsUserIds: participantsUserIds.length > 0 ? participantsUserIds : undefined,
         participantsExternal: participantsExternal || undefined,
         status,
+        meeting_type: meetingType,
       };
 
       if (isEdit && id) {
@@ -375,6 +378,14 @@ export const CompanyVisitForm: React.FC = () => {
                 placeholder="Visit subject..."
                 required
               />
+            </div>
+            <div className="form-group">
+              <label>Meeting Type</label>
+              <select value={meetingType} onChange={e => setMeetingType(e.target.value)}>
+                <option value="in_person">In Person</option>
+                <option value="call">Call</option>
+                <option value="video_call">Video Call</option>
+              </select>
             </div>
             <div className="form-group">
               <label>Status</label>

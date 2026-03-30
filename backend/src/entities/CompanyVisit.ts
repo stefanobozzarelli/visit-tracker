@@ -36,6 +36,9 @@ export class CompanyVisit {
   })
   status: 'scheduled' | 'completed' | 'cancelled';
 
+  @Column({ default: 'in_person' })
+  meeting_type: 'in_person' | 'call' | 'video_call';
+
   @Column()
   created_by_user_id: string;
 
