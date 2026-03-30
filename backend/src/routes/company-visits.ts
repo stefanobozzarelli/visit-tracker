@@ -282,6 +282,7 @@ router.post('/:id/attachments', authMiddleware, upload.single('file'), async (re
         id: attachment.id,
         filename: attachment.filename,
         file_size: attachment.file_size,
+        attachment_type: attachment.attachment_type,
         created_at: attachment.created_at,
       },
     });
