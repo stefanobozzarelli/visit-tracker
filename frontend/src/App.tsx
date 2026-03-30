@@ -50,6 +50,8 @@ import { OpportunityForm } from './pages/OpportunityForm';
 import { Orders } from './pages/Orders';
 import { Statistics } from './pages/Statistics';
 import { MobileTasks } from './pages/MobileTasks';
+import { Trips } from './pages/Trips';
+import { TripDetail } from './pages/TripDetail';
 import './styles/App.css';
 
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -125,6 +127,8 @@ const AppContent: React.FC = () => {
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/new/:visitId" element={<OrderForm />} />
           <Route path="/orders/:id/edit" element={<OrderForm />} />
+          <Route path="/trips" element={<Trips />} />
+          <Route path="/trips/:id" element={<TripDetail />} />
         </Route>
 
         {/* Redirects from old paths */}

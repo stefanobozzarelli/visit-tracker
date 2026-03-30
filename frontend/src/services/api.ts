@@ -1616,6 +1616,32 @@ class ApiService {
     const response = await this.api.get<ApiResponse<any[]>>('/statistics', { params: filters });
     return response.data;
   }
+
+  // ---- Trips ----
+  async getTrips() {
+    const response = await this.api.get<ApiResponse<any[]>>('/trips');
+    return response.data;
+  }
+
+  async getTrip(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/trips/${id}`);
+    return response.data;
+  }
+
+  async createTrip(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/trips', data);
+    return response.data;
+  }
+
+  async updateTrip(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/trips/${id}`, data);
+    return response.data;
+  }
+
+  async deleteTrip(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/trips/${id}`);
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

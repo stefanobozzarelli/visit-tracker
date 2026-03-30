@@ -19,6 +19,7 @@ import showroomRoutes from './routes/showrooms';
 import offerRoutes from './routes/offers';
 import opportunityRoutes from './routes/opportunities';
 import statisticsRoutes from './routes/statistics';
+import tripRoutes from './routes/trips';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
@@ -48,6 +49,7 @@ app.use('/api/showrooms', showroomRoutes);
 app.use('/api/offers', offerRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/trips', tripRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
