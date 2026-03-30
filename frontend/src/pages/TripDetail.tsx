@@ -86,6 +86,7 @@ interface StatusDropdownProps {
 }
 function StatusDropdown({ status, statuses, onChange, type = 'apt' }: StatusDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -96,6 +97,15 @@ function StatusDropdown({ status, statuses, onChange, type = 'apt' }: StatusDrop
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 3, left: r.left, width: r.width });
+    }
+    setOpen(v => !v);
+  };
+
   const badgeCls = type === 'flight'
     ? (status === 'confermato' ? 'status-badge confermato' : 'status-badge programmato')
     : type === 'hotel'
@@ -104,11 +114,11 @@ function StatusDropdown({ status, statuses, onChange, type = 'apt' }: StatusDrop
 
   return (
     <div className="status-dropdown-wrap" ref={ref}>
-      <button className={badgeCls} onClick={e => { e.stopPropagation(); setOpen(!open); }}>
+      <button className={badgeCls} onClick={handleToggle}>
         {STATUS_LABELS[status] || status}
       </button>
       {open && (
-        <div className="status-dropdown-menu">
+        <div className="status-dropdown-menu" style={{ top: menuPos.top, left: menuPos.left, minWidth: menuPos.width }}>
           {statuses.map(s => (
             <button
               key={s}
@@ -272,6 +282,15 @@ export const TripDetail: React.FC = () => {
   const updateHotelStatus = (dayId: string, status: string) => {
     if (!trip) return;
     saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, hotelStatus: status as TravelDay['hotelStatus'] } : d) });
+  };
+  const deleteHotel = (dayId: string) => {
+    if (!trip) return;
+    saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, hotel: '', hotelStatus: 'programmato' as TravelDay['hotelStatus'] } : d) });
+  };
+  const editHotelDay = (day: TravelDay) => {
+    setEditingDay(day);
+    setDayForm({ date: day.date, location: day.location, hotel: day.hotel, hotelStatus: day.hotelStatus || 'programmato', notes: day.notes });
+    setShowDayModal(true);
   };
 
   // ---- Appointment ops ----
@@ -538,6 +557,14 @@ export const TripDetail: React.FC = () => {
                         <span className="td-hotel-icon">🏨</span>
                         <span className="td-hotel-name">{day.hotel}</span>
                         <StatusDropdown status={day.hotelStatus || 'confermato'} statuses={HOTEL_STATUSES} onChange={s => updateHotelStatus(day.id, s)} type="hotel" />
+                        <div className="td-item-actions">
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); editHotelDay(day); }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
+                          </button>
+                          <button className="td-icon-btn-sm danger" title="Elimina hotel" onClick={e => { e.stopPropagation(); deleteHotel(day.id); }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                          </button>
+                        </div>
                       </div>
                     )}
 

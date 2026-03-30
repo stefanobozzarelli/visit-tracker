@@ -481,6 +481,7 @@
   transition: opacity 0.15s;
 }
 .td-flight-item:hover .td-item-actions,
+.td-hotel-item:hover .td-item-actions,
 .td-apt-item:hover .td-item-actions { opacity: 1; }
 
 .td-icon-btn-sm {
@@ -624,14 +625,12 @@
   text-align: center;
 }
 .status-dropdown-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 3px);
+  position: fixed;
   background: white;
   border: 1px solid rgba(160, 154, 150, 0.2);
   border-radius: 0.5rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  z-index: 50;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
   min-width: 140px;
   max-height: 220px;
   overflow-y: auto;
