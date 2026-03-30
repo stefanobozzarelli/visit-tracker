@@ -450,8 +450,24 @@
   border: 1px solid rgba(106, 174, 214, 0.35);
   white-space: nowrap;
   flex-shrink: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 1.4;
+  font-family: inherit;
 }
 .td-visit-link:hover { background: rgba(106, 174, 214, 0.1); }
+
+.td-visit-done {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #4a6e48;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(74, 110, 72, 0.3);
+  background: rgba(74, 110, 72, 0.07);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 /* Item hover actions */
 .td-item-actions {

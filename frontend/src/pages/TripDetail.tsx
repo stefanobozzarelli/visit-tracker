@@ -552,7 +552,19 @@ export const TripDetail: React.FC = () => {
                               {a.notes && <div className="td-apt-notes">{a.notes}</div>}
                             </div>
                             <StatusDropdown status={a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, a.id, s)} type="apt" />
-                            <a href={`/visits/new?client=${encodeURIComponent(a.client)}&date=${day.date}`} className="td-visit-link" title="Crea visita">+ Visita</a>
+                            {a.status === 'confermato' && (
+                              <button
+                                className="td-visit-link"
+                                title="Crea visita e segna come Fatto/Report"
+                                onClick={() => {
+                                  updateAptStatus(day.id, a.id, 'fatto_report');
+                                  navigate(`/visits/new?client=${encodeURIComponent(a.client)}&date=${day.date}`);
+                                }}
+                              >+ Visita</button>
+                            )}
+                            {a.status === 'fatto_report' && (
+                              <span className="td-visit-done" title="Visita già registrata">✓ Report</span>
+                            )}
                             <div className="td-item-actions">
                               <button className="td-icon-btn-sm" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: a }); setAptForm({ time: a.time, endTime: a.endTime, client: a.client, status: a.status, notes: a.notes }); setShowAptModal(true); }}>✏</button>
                               <button className="td-icon-btn-sm danger" onClick={e => { e.stopPropagation(); deleteApt(day.id, a.id); }}>✕</button>
