@@ -21,6 +21,9 @@ export class CompanyVisit {
   report: string | null;
 
   @Column({ type: 'text', nullable: true })
+  preparation: string | null;
+
+  @Column({ type: 'text', nullable: true })
   participants_user_ids: string | null; // JSON array of user IDs
 
   @Column({ type: 'text', nullable: true })

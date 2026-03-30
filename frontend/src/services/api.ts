@@ -848,7 +848,7 @@ class ApiService {
   }
 
   // Company Visits
-  async createCompanyVisit(data: { companyId: string; date: string; subject: string; report?: string; participantsUserIds?: string[]; participantsExternal?: string; status?: string }) {
+  async createCompanyVisit(data: { companyId: string; date: string; subject: string; report?: string; preparation?: string; participantsUserIds?: string[]; participantsExternal?: string; status?: string }) {
     const response = await this.api.post<ApiResponse<any>>('/company-visits', data);
     return response.data;
   }
@@ -890,6 +890,11 @@ class ApiService {
   async downloadCompanyVisitAttachment(visitId: string, attachmentId: string) {
     const response = await this.api.get<ApiResponse<any>>(`/company-visits/${visitId}/attachments/${attachmentId}/download`);
     return response.data;
+  }
+
+  async previewCompanyVisitAttachment(visitId: string, attachmentId: string): Promise<string> {
+    // Returns the preview URL (no content-disposition) for opening in new tab
+    return `${this.api.defaults.baseURL}/company-visits/${visitId}/attachments/${attachmentId}/preview`;
   }
 
   async deleteCompanyVisitAttachment(visitId: string, attachmentId: string) {

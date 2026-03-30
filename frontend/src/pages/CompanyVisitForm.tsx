@@ -90,6 +90,7 @@ export const CompanyVisitForm: React.FC = () => {
   const [participantsUserIds, setParticipantsUserIds] = useState<string[]>([]);
   const [participantsExternal, setParticipantsExternal] = useState('');
   const [report, setReport] = useState('');
+  const [preparation, setPreparation] = useState('');
 
   // Attachments
   const [attachments, setAttachments] = useState<CompanyVisitAttachment[]>([]);
@@ -156,6 +157,7 @@ export const CompanyVisitForm: React.FC = () => {
             setSubject(visit.subject || '');
             setStatus(visit.status || 'scheduled');
             setReport(visit.report || '');
+            setPreparation(visit.preparation || '');
             setParticipantsExternal(visit.participants_external || '');
 
             // Parse participants_user_ids from JSON string
@@ -275,6 +277,7 @@ export const CompanyVisitForm: React.FC = () => {
         date,
         subject,
         report: report || undefined,
+        preparation: preparation || undefined,
         participantsUserIds: participantsUserIds.length > 0 ? participantsUserIds : undefined,
         participantsExternal: participantsExternal || undefined,
         status,
@@ -413,6 +416,18 @@ export const CompanyVisitForm: React.FC = () => {
               onChange={e => setParticipantsExternal(e.target.value)}
               rows={3}
               placeholder="External participant names (one per line or comma-separated)..."
+            />
+          </div>
+
+          {/* Preparation / Pre-meeting Notes */}
+          <div className="form-group">
+            <label>Preparation / Pre-meeting Notes</label>
+            <textarea
+              className="cv-report-textarea"
+              value={preparation}
+              onChange={e => setPreparation(e.target.value)}
+              rows={5}
+              placeholder="Topics to discuss, questions to ask, materials to bring..."
             />
           </div>
 

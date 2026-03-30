@@ -13,6 +13,45 @@ const pdfService = new PdfService();
 const excelService = new ExcelService();
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Helper function to generate S3 presigned URL
+async function generateS3Url(s3Key: string, filename: string, forceDownload: boolean = false) {
+  const { GetObjectCommand, S3Client } = require('@aws-sdk/client-s3');
+  const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+  const s3Client = new S3Client({
+    region: process.env.AWS_REGION || 'eu-north-1',
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    },
+  });
+
+  const s3Command = new GetObjectCommand({
+    Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
+    Key: s3Key,
+    ...(forceDownload && { ResponseContentDisposition: `attachment; filename="${filename}"` }),
+  });
+
+  return await getSignedUrl(s3Client, s3Command, { expiresIn: 3600 });
+}
+
+/**
+ * GET /api/company-visits/:id/attachments/:attachmentId/preview
+ * Preview attachment (opens in browser - no content-disposition)
+ */
+router.get('/:id/attachments/:attachmentId/preview', async (req: Request, res: Response) => {
+  try {
+    const attachment = await visitService.getAttachment(req.params.attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+    const previewUrl = await generateS3Url(attachment.s3_key, attachment.filename, false);
+    res.redirect(previewUrl);
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
 /**
  * POST /api/company-visits/export-pdf
  * Export filtered company visits to PDF
@@ -75,7 +114,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { companyId, date, subject, report, participantsUserIds, participantsExternal, status } = req.body;
+    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!companyId || !date || !subject) {
@@ -90,6 +129,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       date: new Date(date),
       subject,
       report: report || null,
+      preparation: preparation || null,
       participants_user_ids: Array.isArray(participantsUserIds) && participantsUserIds.length > 0 ? JSON.stringify(participantsUserIds) : null,
       participants_external: participantsExternal || null,
       status: status || 'scheduled',
@@ -149,13 +189,14 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Company visit not found' });
     }
 
-    const { companyId, date, subject, report, participantsUserIds, participantsExternal, status } = req.body;
+    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status } = req.body;
     const updateData: any = {};
 
     if (companyId) updateData.company_id = companyId;
     if (date) updateData.date = new Date(date);
     if (subject !== undefined) updateData.subject = subject;
     if (report !== undefined) updateData.report = report;
+    if (preparation !== undefined) updateData.preparation = preparation;
     if (participantsUserIds !== undefined) updateData.participants_user_ids = JSON.stringify(participantsUserIds);
     if (participantsExternal !== undefined) updateData.participants_external = participantsExternal;
     if (status) updateData.status = status;
@@ -271,7 +312,7 @@ router.get('/:id/attachments/:attachmentId/download', authMiddleware, async (req
     if (!attachment) {
       return res.status(404).json({ success: false, error: 'Attachment not found' });
     }
-    const downloadUrl = await s3Service.getDownloadUrl(attachment.s3_key);
+    const downloadUrl = await generateS3Url(attachment.s3_key, attachment.filename, true);
     res.json({ success: true, data: { url: downloadUrl, filename: attachment.filename } });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });

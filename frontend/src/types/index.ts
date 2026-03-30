@@ -239,6 +239,7 @@ export interface CompanyVisit {
   date: string;
   subject: string;
   report?: string | null;
+  preparation?: string | null;
   participants_user_ids?: string | null;
   participants_external?: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
