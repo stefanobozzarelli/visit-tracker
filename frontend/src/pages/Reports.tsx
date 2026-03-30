@@ -7,13 +7,13 @@ import '../styles/Reports.css';
 type TabKey = 'visits' | 'clients' | 'showrooms' | 'projects' | 'claims' | 'orders' | 'company-visits' | 'tasks';
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'visits', label: 'Company Meetings' },
+  { key: 'visits', label: 'Client Meetings' },
   { key: 'clients', label: 'Clients' },
   { key: 'showrooms', label: 'Showrooms' },
   { key: 'projects', label: 'Projects' },
   { key: 'claims', label: 'Claims' },
   { key: 'orders', label: 'Orders' },
-  { key: 'company-visits', label: 'Company Visits' },
+  { key: 'company-visits', label: 'Supplier Meetings' },
   { key: 'tasks', label: 'Tasks' },
 ];
 
@@ -139,6 +139,12 @@ export const Reports: React.FC = () => {
           const d = item.visit_date || item.date || item.order_date || item.created_at;
           return d && new Date(d) <= end;
         });
+      }
+      // Client-side supplier filter for visits (filter reports by company)
+      if (activeTab === 'visits' && filters.companyId) {
+        filtered = filtered
+          .map((v: any) => ({ ...v, reports: (v.reports || []).filter((r: any) => r.company_id === filters.companyId) }))
+          .filter((v: any) => v.reports && v.reports.length > 0);
       }
       // Client-side country/role filter for clients
       if (activeTab === 'clients' && filters.country) {
