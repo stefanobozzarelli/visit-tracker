@@ -382,7 +382,6 @@
   padding: 0.55rem 0.75rem;
   background: rgba(106, 174, 214, 0.06);
   border-radius: 0.5rem;
-  position: relative;
 }
 .td-flight-icon { color: #6AAED6; flex-shrink: 0; font-size: 0.85rem; }
 .td-flight-info { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
@@ -427,7 +426,6 @@
   background: rgba(240, 237, 229, 0.5);
   border-radius: 0.5rem;
   margin-bottom: 0.25rem;
-  position: relative;
 }
 .td-apt-time {
   width: 6.5rem;
@@ -471,22 +469,17 @@
   flex-shrink: 0;
 }
 
-/* Item hover actions — absolutely positioned so they don't affect badge alignment */
+/* Item hover actions — fixed-width column always in flow */
 .td-item-actions {
   display: flex;
-  gap: 0.2rem;
-  position: absolute;
-  right: 0.6rem;
-  top: 50%;
-  transform: translateY(-50%);
+  gap: 0.25rem;
+  flex-shrink: 0;
+  width: 3.6rem;
+  justify-content: flex-end;
+  align-items: center;
   opacity: 0;
   transition: opacity 0.15s;
-  border-radius: 0.3rem;
-  padding: 0 0.15rem;
-  z-index: 2;
 }
-.td-flight-item .td-item-actions { background: rgba(235, 245, 252, 0.95); }
-.td-apt-item .td-item-actions    { background: rgba(245, 243, 238, 0.95); }
 .td-flight-item:hover .td-item-actions,
 .td-apt-item:hover .td-item-actions { opacity: 1; }
 
@@ -504,7 +497,8 @@
   font-size: 0.75rem;
   transition: background 0.15s;
 }
-.td-icon-btn-sm:hover { background: white; }
+.td-icon-btn-sm svg { display: block; }
+.td-icon-btn-sm:hover { background: white; color: #506A7E; }
 .td-icon-btn-sm.danger:hover { background: #fff0f0; color: #e05050; }
 
 /* Inline flight form */
@@ -618,7 +612,17 @@
 }
 
 /* ---- Status dropdown ---- */
-.status-dropdown-wrap { position: relative; flex-shrink: 0; }
+.status-dropdown-wrap {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 7.8rem;
+  display: flex;
+  justify-content: center;
+}
+.status-dropdown-wrap .status-badge {
+  width: 100%;
+  text-align: center;
+}
 .status-dropdown-menu {
   position: absolute;
   right: 0;
