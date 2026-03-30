@@ -691,6 +691,43 @@
 .td-report-route { font-weight: 500; color: #6AAED6; }
 .td-report-muted { color: #7A7774; font-size: 0.75rem; }
 
+/* Compact badges inside report tables */
+.td-report-table .status-badge {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.38rem;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  cursor: default;
+  border-width: 1px;
+}
+/* Status as small tag on its own line inside report cells */
+.td-report-status-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  line-height: 1.5;
+}
+.td-report-apt-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.8rem;
+}
+.td-report-apt-line:last-child { margin-bottom: 0; }
+.td-report-apt-time {
+  font-family: monospace;
+  font-size: 0.78rem;
+  color: #6AAED6;
+  font-weight: 600;
+  min-width: 5rem;
+}
+.td-report-apt-client { font-weight: 600; color: #506A7E; }
+
 /* ---- Loading ---- */
 .td-loading {
   display: flex;

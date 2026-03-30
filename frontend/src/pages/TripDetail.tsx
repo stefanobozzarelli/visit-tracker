@@ -601,26 +601,27 @@ export const TripDetail: React.FC = () => {
                       <td style={{ fontWeight: 600 }}>{day.location}</td>
                       <td>
                         {day.flights.map(f => (
-                          <div key={f.id} style={{ marginBottom: 4 }}>
+                          <div key={f.id} className="td-report-status-line" style={{ marginBottom: 6 }}>
                             <span className="td-report-route">{f.route}</span>
-                            {' '}<span className="td-report-muted">{f.details}</span>
-                            {' '}<span className={`status-badge ${f.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[f.status]}</span>
+                            <span className="td-report-muted">{f.details}</span>
+                            <span className={`status-badge ${f.status}`}>{STATUS_LABELS[f.status]}</span>
                           </div>
                         ))}
                       </td>
                       <td>
                         {day.hotel && (
-                          <>{day.hotel}{' '}
-                            <span className={`status-badge ${day.hotelStatus === 'confermato' ? 'confermato' : 'hotel-programmato'}`} style={{ cursor: 'default' }}>{STATUS_LABELS[day.hotelStatus]}</span>
-                          </>
+                          <div className="td-report-status-line">
+                            <span style={{ fontWeight: 500 }}>{day.hotel}</span>
+                            <span className={`status-badge ${day.hotelStatus === 'confermato' ? 'confermato' : 'hotel-programmato'}`}>{STATUS_LABELS[day.hotelStatus]}</span>
+                          </div>
                         )}
                       </td>
                       <td>
                         {day.appointments.map(a => (
-                          <div key={a.id} style={{ marginBottom: 3, fontSize: '0.78rem' }}>
-                            <span style={{ fontFamily: 'monospace', color: '#6AAED6', fontWeight: 600 }}>{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
-                            {' '}<strong>{a.client}</strong>
-                            {' '}<span className={`status-badge ${a.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[a.status]}</span>
+                          <div key={a.id} className="td-report-apt-line">
+                            <span className="td-report-apt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
+                            <span className="td-report-apt-client">{a.client}</span>
+                            <span className={`status-badge ${a.status}`}>{STATUS_LABELS[a.status]}</span>
                           </div>
                         ))}
                       </td>
@@ -644,7 +645,7 @@ export const TripDetail: React.FC = () => {
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
                       <td className="td-report-route">{f.route}</td>
                       <td className="td-report-muted">{f.details}</td>
-                      <td><span className={`status-badge ${f.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[f.status]}</span></td>
+                      <td><span className={`status-badge ${f.status}`}>{STATUS_LABELS[f.status]}</span></td>
                     </tr>
                   )))}
                 </tbody>
@@ -665,7 +666,7 @@ export const TripDetail: React.FC = () => {
                       <td>{fmtMed(h.checkIn)}</td>
                       <td>{fmtMed(h.checkOut)}</td>
                       <td>{h.nights}</td>
-                      <td><span className={`status-badge ${h.status === 'confermato' ? 'confermato' : 'hotel-programmato'}`} style={{ cursor: 'default' }}>{STATUS_LABELS[h.status]}</span></td>
+                      <td><span className={`status-badge ${h.status === 'confermato' ? 'confermato' : 'hotel-programmato'}`}>{STATUS_LABELS[h.status]}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -687,7 +688,7 @@ export const TripDetail: React.FC = () => {
                       <td style={{ fontFamily: 'monospace' }}>{a.time || '—'}</td>
                       <td style={{ fontFamily: 'monospace' }}>{a.endTime || ''}</td>
                       <td style={{ fontWeight: 600 }}>{a.client}</td>
-                      <td><span className={`status-badge ${a.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[a.status]}</span></td>
+                      <td><span className={`status-badge ${a.status}`}>{STATUS_LABELS[a.status]}</span></td>
                     </tr>
                   )))}
                 </tbody>
