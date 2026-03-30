@@ -695,10 +695,10 @@
 
 .td-report-table {
   width: 100%;
-  min-width: 1020px;
+  min-width: 1100px;
   border-collapse: collapse;
   font-size: 0.8rem;
-  table-layout: fixed;
+  table-layout: auto;
 }
 .td-report-table th {
   padding: 0.45rem 0.875rem;
@@ -748,9 +748,6 @@
 .td-rpt-main {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Fixed-width time slot in appointment rows */
@@ -770,9 +767,6 @@
   font-weight: 600;
   color: #506A7E;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ---- Loading ---- */
