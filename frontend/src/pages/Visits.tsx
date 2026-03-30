@@ -76,7 +76,8 @@ export const Visits: React.FC = () => {
 
   // Filters
   const [clientId, setClientId] = useState('');
-  const [companyId, setCompanyId] = useState('');
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [visitedBy, setVisitedBy] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
@@ -113,6 +114,17 @@ export const Visits: React.FC = () => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [openMoreId]);
+
+  // Close company dropdown on outside click
+  useEffect(() => {
+    if (!showCompanyDropdown) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.visits-company-multiselect')) setShowCompanyDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showCompanyDropdown]);
 
   // Clear alerts
   useEffect(() => {
@@ -185,6 +197,20 @@ export const Visits: React.FC = () => {
     clients.forEach(c => { if (c.country) set.add(c.country); });
     return Array.from(set).sort();
   }, [clients]);
+
+  const toggleCompanyId = useCallback((id: string) => {
+    setSelectedCompanyIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }, []);
+
+  const companyFilterLabel = useMemo(() => {
+    if (selectedCompanyIds.length === 0) return 'All Companies';
+    if (selectedCompanyIds.length === 1) {
+      return companies.find(c => c.id === selectedCompanyIds[0])?.name || '1 company';
+    }
+    return `${selectedCompanyIds.length} companies`;
+  }, [selectedCompanyIds, companies]);
 
   // ---- Follow-up status per visit ----
   const visitFollowUp = useMemo(() => {
@@ -263,10 +289,10 @@ export const Visits: React.FC = () => {
       list = list.filter(v => v.client_id === clientId);
     }
 
-    // Company filter (visit has a report for this company)
-    if (companyId) {
+    // Company filter (visit has a report for any of the selected companies)
+    if (selectedCompanyIds.length > 0) {
       list = list.filter(v =>
-        v.reports?.some(r => r.company_id === companyId && r.section !== METADATA_SECTION)
+        v.reports?.some(r => selectedCompanyIds.includes(r.company_id) && r.section !== METADATA_SECTION)
       );
     }
 
@@ -324,7 +350,7 @@ export const Visits: React.FC = () => {
     }
 
     return list;
-  }, [visits, nlpResults, clientId, companyId, countryFilter, visitedBy, statusFilter, thisMonth, last30Days,
+  }, [visits, nlpResults, clientId, selectedCompanyIds, countryFilter, visitedBy, statusFilter, thisMonth, last30Days,
       withReport, missingReport, followUpNeeded, localSearch,
       clients, getClientName, getUserName, getVisitCompanies, visitFollowUp]);
 
@@ -359,7 +385,9 @@ export const Visits: React.FC = () => {
   const handleExport = async (format: 'pdf' | 'excel') => {
     setExporting(true);
     try {
-      const filters = { clientId, companyId, visitedBy, status: statusFilter };
+      const filters: any = { clientId, visitedBy, status: statusFilter };
+      if (selectedCompanyIds.length === 1) filters.companyId = selectedCompanyIds[0];
+      else if (selectedCompanyIds.length > 1) filters.companyIds = selectedCompanyIds;
       const blob = format === 'pdf'
         ? await apiService.exportVisitsPdf(filters)
         : await apiService.exportVisitsExcel(filters);
@@ -490,14 +518,66 @@ export const Visits: React.FC = () => {
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
-          <select
-            className={`visits-filter-select${companyId ? ' active' : ''}`}
-            value={companyId}
-            onChange={e => setCompanyId(e.target.value)}
-          >
-            <option value="">All Companies</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          {/* Multi-select company dropdown */}
+          <div className="visits-company-multiselect" style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={`visits-filter-select${selectedCompanyIds.length > 0 ? ' active' : ''}`}
+              onClick={() => setShowCompanyDropdown(prev => !prev)}
+              style={{ cursor: 'pointer', textAlign: 'left', minWidth: '180px' }}
+            >
+              {companyFilterLabel}
+            </button>
+            {showCompanyDropdown && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  zIndex: 50,
+                  background: 'var(--color-bg, #fff)',
+                  border: '1px solid var(--color-border, #ddd)',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  maxHeight: '280px',
+                  overflowY: 'auto',
+                  minWidth: '220px',
+                  padding: '0.25rem 0',
+                }}
+              >
+                {selectedCompanyIds.length > 0 && (
+                  <div
+                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', color: '#dc2626', cursor: 'pointer', borderBottom: '1px solid var(--color-border, #eee)' }}
+                    onClick={() => setSelectedCompanyIds([])}
+                  >
+                    Clear selection
+                  </div>
+                )}
+                {companies.map(c => (
+                  <label
+                    key={c.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.4rem 0.75rem',
+                      cursor: 'pointer',
+                      fontSize: '0.8125rem',
+                      background: selectedCompanyIds.includes(c.id) ? 'var(--color-bg-hover, #f0f4ff)' : 'transparent',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedCompanyIds.includes(c.id)}
+                      onChange={() => toggleCompanyId(c.id)}
+                      style={{ accentColor: '#3b82f6' }}
+                    />
+                    {c.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
 
           <select
             className={`visits-filter-select${countryFilter ? ' active' : ''}`}
@@ -533,13 +613,13 @@ export const Visits: React.FC = () => {
           <div className="visits-filter-divider" />
 
           {/* Reset filters button if any are active */}
-          {(clientId || companyId || countryFilter || visitedBy || statusFilter || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
+          {(clientId || selectedCompanyIds.length > 0 || countryFilter || visitedBy || statusFilter || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
             <button
               type="button"
               className="visits-chip"
               onClick={() => {
                 setClientId('');
-                setCompanyId('');
+                setSelectedCompanyIds([]);
                 setCountryFilter('');
                 setVisitedBy('');
                 setStatusFilter('');
