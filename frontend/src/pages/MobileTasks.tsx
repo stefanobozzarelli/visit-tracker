@@ -99,6 +99,8 @@ export const MobileTasks: React.FC = () => {
   // Filters
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilterType>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('');
 
   // UI
   const [loading, setLoading] = useState(true);
@@ -297,8 +299,24 @@ export const MobileTasks: React.FC = () => {
       list = list.filter((t) => t.category === categoryFilter);
     }
 
+    // Assignee filter
+    if (assigneeFilter) {
+      list = list.filter((t) => t.assigned_to_user_id === assigneeFilter);
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((t) =>
+        t.title?.toLowerCase().includes(q) ||
+        t.client?.name?.toLowerCase().includes(q) ||
+        t.company?.name?.toLowerCase().includes(q) ||
+        t.assigned_to_user?.name?.toLowerCase().includes(q)
+      );
+    }
+
     return list;
-  }, [todos, statusFilter, categoryFilter]);
+  }, [todos, statusFilter, categoryFilter, searchQuery, assigneeFilter]);
 
   // ---- Render ----
   if (loading) {
@@ -346,6 +364,25 @@ export const MobileTasks: React.FC = () => {
       {/* Alerts */}
       {error && <div className="mt-alert error">{error}</div>}
       {success && <div className="mt-alert success">{success}</div>}
+
+      {/* Search + Assignee */}
+      <div style={{ padding: '0 1rem', display: 'flex', gap: '0.5rem' }}>
+        <input
+          type="text"
+          placeholder="Search tasks..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--mt-border)', borderRadius: '8px', fontSize: '0.9rem', background: 'var(--mt-card)', outline: 'none' }}
+        />
+        <select
+          value={assigneeFilter}
+          onChange={e => setAssigneeFilter(e.target.value)}
+          style={{ padding: '0.5rem', border: '1px solid var(--mt-border)', borderRadius: '8px', fontSize: '0.85rem', background: 'var(--mt-card)', color: assigneeFilter ? 'var(--mt-text)' : 'var(--mt-text-secondary)', maxWidth: '140px' }}
+        >
+          <option value="">All Assignees</option>
+          {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      </div>
 
       {/* Filters */}
       <div className="mt-filters">
