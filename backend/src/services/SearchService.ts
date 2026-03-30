@@ -108,6 +108,52 @@ export class SearchService {
       console.log('✅ EXTRACTED "today" →', startDate);
     }
 
+    // "last X days" / "ultimi X giorni"
+    const lastDaysMatch = query.match(/(?:last|ultim[io])\s+(\d+)\s+(?:days|giorni)/i);
+    if (lastDaysMatch) {
+      const days = parseInt(lastDaysMatch[1]);
+      const start = new Date(today);
+      start.setDate(today.getDate() - days);
+      startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+      endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+      cleanQuery = cleanQuery.replace(/(?:last|ultim[io])\s+\d+\s+(?:days|giorni)/gi, '').trim();
+      console.log(`✅ EXTRACTED "last ${days} days" →`, startDate, 'to', endDate);
+    }
+
+    // "last X weeks" / "ultime X settimane"
+    const lastWeeksMatch = query.match(/(?:last|ultim[eao])\s+(\d+)\s+(?:weeks|settiman[eai])/i);
+    if (lastWeeksMatch) {
+      const weeks = parseInt(lastWeeksMatch[1]);
+      const start = new Date(today);
+      start.setDate(today.getDate() - (weeks * 7));
+      startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+      endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+      cleanQuery = cleanQuery.replace(/(?:last|ultim[eao])\s+\d+\s+(?:weeks|settiman[eai])/gi, '').trim();
+      console.log(`✅ EXTRACTED "last ${weeks} weeks" →`, startDate, 'to', endDate);
+    }
+
+    // "last month" / "mese scorso"
+    const lastMonthMatch = /(?:last\s+month|mese\s+scorso|mese\s+precedente)/i.test(query);
+    if (lastMonthMatch) {
+      const lastM = new Date(currentYear, currentMonth - 2, 1);
+      startDate = `${lastM.getFullYear()}-${String(lastM.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(lastM.getFullYear(), lastM.getMonth() + 1, 0).getDate();
+      endDate = `${lastM.getFullYear()}-${String(lastM.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      cleanQuery = cleanQuery.replace(/(?:last\s+month|mese\s+scorso|mese\s+precedente)/gi, '').trim();
+      console.log('✅ EXTRACTED "last month" →', startDate, 'to', endDate);
+    }
+
+    // "yesterday" / "ieri"
+    const yesterdayMatch = /\b(?:yesterday|ieri)\b/i.test(query);
+    if (yesterdayMatch) {
+      const y = new Date(today);
+      y.setDate(today.getDate() - 1);
+      startDate = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+      endDate = startDate;
+      cleanQuery = cleanQuery.replace(/\b(?:yesterday|ieri)\b/gi, '').trim();
+      console.log('✅ EXTRACTED "yesterday" →', startDate);
+    }
+
     if (/questa\s+settimana|settimana\s+corrente/i.test(query)) {
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - today.getDay());

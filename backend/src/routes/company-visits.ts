@@ -58,12 +58,17 @@ router.get('/:id/attachments/:attachmentId/preview', async (req: Request, res: R
  */
 router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { company_id, status, startDate, endDate } = req.body;
+    const { company_id, companyIds, status, startDate, endDate, country } = req.body;
     const userId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
     const filters: any = {};
-    if (company_id) filters.company_id = company_id;
+    if (companyIds && Array.isArray(companyIds) && companyIds.length > 0) {
+      filters.company_ids = companyIds;
+    } else if (company_id) {
+      filters.company_id = company_id;
+    }
     if (status) filters.status = status;
+    if (country) filters.country = country;
     let visits = await visitService.getVisits(filters);
     if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
     if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
@@ -86,12 +91,17 @@ router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) =
  */
 router.post('/export-excel', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { company_id, status, startDate, endDate } = req.body;
+    const { company_id, companyIds, status, startDate, endDate, country } = req.body;
     const userId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
     const filters: any = {};
-    if (company_id) filters.company_id = company_id;
+    if (companyIds && Array.isArray(companyIds) && companyIds.length > 0) {
+      filters.company_ids = companyIds;
+    } else if (company_id) {
+      filters.company_id = company_id;
+    }
     if (status) filters.status = status;
+    if (country) filters.country = country;
     let visits = await visitService.getVisits(filters);
     if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
     if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
@@ -150,12 +160,18 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  */
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { companyId, status } = req.query;
+    const { companyId, companyIds, status, country } = req.query;
 
-    const visits = await visitService.getVisits({
-      company_id: companyId as string,
-      status: status as string,
-    });
+    const filters: any = {};
+    if (companyIds) {
+      filters.company_ids = (companyIds as string).split(',').filter(Boolean);
+    } else if (companyId) {
+      filters.company_id = companyId as string;
+    }
+    if (status) filters.status = status as string;
+    if (country) filters.country = country as string;
+
+    const visits = await visitService.getVisits(filters);
 
     res.json({ success: true, data: visits });
   } catch (error) {

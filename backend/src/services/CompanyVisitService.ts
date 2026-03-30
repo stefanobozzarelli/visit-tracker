@@ -4,7 +4,9 @@ import { CompanyVisitAttachment } from '../entities/CompanyVisitAttachment';
 
 interface CompanyVisitFilters {
   company_id?: string;
+  company_ids?: string[];
   status?: string;
+  country?: string;
 }
 
 export class CompanyVisitService {
@@ -36,11 +38,16 @@ export class CompanyVisitService {
       .leftJoinAndSelect('cv.created_by_user', 'created_user')
       .leftJoinAndSelect('cv.attachments', 'attachments');
 
-    if (filters?.company_id) {
+    if (filters?.company_ids && filters.company_ids.length > 0) {
+      query = query.andWhere('cv.company_id IN (:...companyIds)', { companyIds: filters.company_ids });
+    } else if (filters?.company_id) {
       query = query.andWhere('cv.company_id = :companyId', { companyId: filters.company_id });
     }
     if (filters?.status) {
       query = query.andWhere('cv.status = :status', { status: filters.status });
+    }
+    if (filters?.country) {
+      query = query.andWhere('company.country = :country', { country: filters.country });
     }
 
     return await query.orderBy('cv.date', 'DESC').addOrderBy('cv.created_at', 'DESC').getMany();

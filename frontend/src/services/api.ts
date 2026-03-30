@@ -855,8 +855,13 @@ class ApiService {
     return response.data;
   }
 
-  async getCompanyVisits(filters?: { companyId?: string; status?: string }) {
-    const response = await this.api.get<ApiResponse<any>>('/company-visits', { params: filters });
+  async getCompanyVisits(filters?: { companyId?: string; companyIds?: string[]; status?: string; country?: string }) {
+    const params: any = { ...filters };
+    if (params.companyIds && params.companyIds.length > 0) {
+      params.companyIds = params.companyIds.join(',');
+      delete params.companyId;
+    }
+    const response = await this.api.get<ApiResponse<any>>('/company-visits', { params });
     return response.data;
   }
 

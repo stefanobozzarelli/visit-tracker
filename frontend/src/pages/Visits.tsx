@@ -79,6 +79,7 @@ export const Visits: React.FC = () => {
   const [companyId, setCompanyId] = useState('');
   const [visitedBy, setVisitedBy] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
   const [localSearch, setLocalSearch] = useState('');
 
   // Quick filters
@@ -178,6 +179,13 @@ export const Visits: React.FC = () => {
   const getCompanyName = useCallback((id: string) => companies.find(c => c.id === id)?.name || '-', [companies]);
   const getUserName = useCallback((id: string) => users.find(u => u.id === id)?.name || '-', [users]);
 
+  // Unique countries from clients
+  const countries = useMemo(() => {
+    const set = new Set<string>();
+    clients.forEach(c => { if (c.country) set.add(c.country); });
+    return Array.from(set).sort();
+  }, [clients]);
+
   // ---- Follow-up status per visit ----
   const visitFollowUp = useMemo(() => {
     const map = new Map<string, FollowUpStatus>();
@@ -262,6 +270,14 @@ export const Visits: React.FC = () => {
       );
     }
 
+    // Country filter (client country)
+    if (countryFilter) {
+      list = list.filter(v => {
+        const client = v.client || clients.find(c => c.id === v.client_id);
+        return client?.country === countryFilter;
+      });
+    }
+
     // Visited by filter
     if (visitedBy) {
       list = list.filter(v => v.visited_by_user_id === visitedBy);
@@ -308,9 +324,9 @@ export const Visits: React.FC = () => {
     }
 
     return list;
-  }, [visits, nlpResults, clientId, companyId, visitedBy, statusFilter, thisMonth, last30Days,
+  }, [visits, nlpResults, clientId, companyId, countryFilter, visitedBy, statusFilter, thisMonth, last30Days,
       withReport, missingReport, followUpNeeded, localSearch,
-      getClientName, getUserName, getVisitCompanies, visitFollowUp]);
+      clients, getClientName, getUserName, getVisitCompanies, visitFollowUp]);
 
   // ---- NLP search ----
   const handleNlpSearch = async (e: React.FormEvent) => {
@@ -483,6 +499,15 @@ export const Visits: React.FC = () => {
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
+          <select
+            className={`visits-filter-select${countryFilter ? ' active' : ''}`}
+            value={countryFilter}
+            onChange={e => setCountryFilter(e.target.value)}
+          >
+            <option value="">All Countries</option>
+            {countries.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+
           {isAdmin && (
             <select
               className={`visits-filter-select${visitedBy ? ' active' : ''}`}
@@ -508,13 +533,14 @@ export const Visits: React.FC = () => {
           <div className="visits-filter-divider" />
 
           {/* Reset filters button if any are active */}
-          {(clientId || companyId || visitedBy || statusFilter || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
+          {(clientId || companyId || countryFilter || visitedBy || statusFilter || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
             <button
               type="button"
               className="visits-chip"
               onClick={() => {
                 setClientId('');
                 setCompanyId('');
+                setCountryFilter('');
                 setVisitedBy('');
                 setStatusFilter('');
                 setThisMonth(false);

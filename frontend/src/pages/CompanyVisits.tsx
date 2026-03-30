@@ -29,14 +29,27 @@ export const CompanyVisits: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
 
   // Filters
-  const [companyId, setCompanyId] = useState('');
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
 
   // UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [exporting, setExporting] = useState(false);
+
+  // Close company dropdown on outside click
+  useEffect(() => {
+    if (!showCompanyDropdown) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.cv-company-multiselect')) setShowCompanyDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showCompanyDropdown]);
 
   // Clear alerts
   useEffect(() => {
@@ -55,7 +68,7 @@ export const CompanyVisits: React.FC = () => {
 
   // ---- Data loading ----
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { loadVisits(); }, [companyId, statusFilter]);
+  useEffect(() => { loadVisits(); }, [selectedCompanyIds, statusFilter, countryFilter]);
 
   const loadData = async () => {
     try {
@@ -79,8 +92,9 @@ export const CompanyVisits: React.FC = () => {
   const loadVisits = async () => {
     try {
       const filters: any = {};
-      if (companyId) filters.companyId = companyId;
+      if (selectedCompanyIds.length > 0) filters.companyIds = selectedCompanyIds;
       if (statusFilter) filters.status = statusFilter;
+      if (countryFilter) filters.country = countryFilter;
 
       const response = await apiService.getCompanyVisits(filters);
       if (response.success) {
@@ -135,6 +149,27 @@ export const CompanyVisits: React.FC = () => {
     return parts.length > 0 ? parts.join('; ') : '-';
   }, [getUserName]);
 
+  // Unique countries from companies
+  const countries = useMemo(() => {
+    const set = new Set<string>();
+    companies.forEach(c => { if (c.country) set.add(c.country); });
+    return Array.from(set).sort();
+  }, [companies]);
+
+  const toggleCompanyId = useCallback((id: string) => {
+    setSelectedCompanyIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }, []);
+
+  const companyFilterLabel = useMemo(() => {
+    if (selectedCompanyIds.length === 0) return 'All Companies';
+    if (selectedCompanyIds.length === 1) {
+      return companies.find(c => c.id === selectedCompanyIds[0])?.name || '1 company';
+    }
+    return `${selectedCompanyIds.length} companies`;
+  }, [selectedCompanyIds, companies]);
+
   // KPIs
   const kpis = useMemo(() => {
     let scheduled = 0, completed = 0, cancelled = 0;
@@ -151,8 +186,9 @@ export const CompanyVisits: React.FC = () => {
     setExporting(true);
     try {
       const filters: any = {};
-      if (companyId) filters.companyId = companyId;
+      if (selectedCompanyIds.length > 0) filters.companyIds = selectedCompanyIds;
       if (statusFilter) filters.status = statusFilter;
+      if (countryFilter) filters.country = countryFilter;
       const blob = format === 'pdf'
         ? await apiService.exportCompanyVisitsPdf(filters)
         : await apiService.exportCompanyVisitsExcel(filters);
@@ -245,13 +281,75 @@ export const CompanyVisits: React.FC = () => {
       {/* Filter toolbar */}
       <div className="cv-toolbar">
         <div className="cv-filters-row">
+          {/* Multi-select company dropdown */}
+          <div className="cv-company-multiselect" style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={`cv-filter-select${selectedCompanyIds.length > 0 ? ' active' : ''}`}
+              onClick={() => setShowCompanyDropdown(prev => !prev)}
+              style={{ cursor: 'pointer', textAlign: 'left', minWidth: '180px' }}
+            >
+              {companyFilterLabel}
+            </button>
+            {showCompanyDropdown && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  zIndex: 50,
+                  background: 'var(--color-bg, #fff)',
+                  border: '1px solid var(--color-border, #ddd)',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  maxHeight: '280px',
+                  overflowY: 'auto',
+                  minWidth: '220px',
+                  padding: '0.25rem 0',
+                }}
+              >
+                {selectedCompanyIds.length > 0 && (
+                  <div
+                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', color: '#dc2626', cursor: 'pointer', borderBottom: '1px solid var(--color-border, #eee)' }}
+                    onClick={() => setSelectedCompanyIds([])}
+                  >
+                    Clear selection
+                  </div>
+                )}
+                {companies.map(c => (
+                  <label
+                    key={c.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.4rem 0.75rem',
+                      cursor: 'pointer',
+                      fontSize: '0.8125rem',
+                      background: selectedCompanyIds.includes(c.id) ? 'var(--color-bg-hover, #f0f4ff)' : 'transparent',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedCompanyIds.includes(c.id)}
+                      onChange={() => toggleCompanyId(c.id)}
+                      style={{ accentColor: '#3b82f6' }}
+                    />
+                    {c.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Country filter */}
           <select
-            className={`cv-filter-select${companyId ? ' active' : ''}`}
-            value={companyId}
-            onChange={e => setCompanyId(e.target.value)}
+            className={`cv-filter-select${countryFilter ? ' active' : ''}`}
+            value={countryFilter}
+            onChange={e => setCountryFilter(e.target.value)}
           >
-            <option value="">All Companies</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="">All Countries</option>
+            {countries.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
           <select
@@ -265,13 +363,14 @@ export const CompanyVisits: React.FC = () => {
             <option value="cancelled">Cancelled</option>
           </select>
 
-          {(companyId || statusFilter) && (
+          {(selectedCompanyIds.length > 0 || statusFilter || countryFilter) && (
             <button
               type="button"
               className="cv-reset-btn"
               onClick={() => {
-                setCompanyId('');
+                setSelectedCompanyIds([]);
                 setStatusFilter('');
+                setCountryFilter('');
               }}
             >
               Reset Filters
