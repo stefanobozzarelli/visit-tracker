@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, Company } from '../types';
@@ -9,8 +9,15 @@ import '../styles/CrudPages.css';
 export const NewVisit: React.FC = () => {
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id: string }>();
+  const location = useLocation();
   const { user } = useAuth();
   const isEditMode = !!editId;
+
+  // Pre-fill from URL params (e.g. from + Visita button in trip)
+  const prefillParams = useMemo(() => {
+    const p = new URLSearchParams(location.search);
+    return { client: p.get('client') || '', date: p.get('date') || '' };
+  }, [location.search]);
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -97,6 +104,18 @@ export const NewVisit: React.FC = () => {
             (a.name || '').localeCompare(b.name || '')
           );
           setClients(sortedClients);
+
+          // Auto-fill client and date from URL params (from + Visita in trip)
+          if (!isEditMode && prefillParams.client) {
+            const match = sortedClients.find((c: any) =>
+              c.name.toLowerCase() === prefillParams.client.toLowerCase()
+            );
+            setFormData(prev => ({
+              ...prev,
+              clientId: match ? match.id : prev.clientId,
+              visitDate: prefillParams.date || prev.visitDate,
+            }));
+          }
         }
       } catch (err) {
         console.warn('[NewVisit] Failed to load clients:', err);
