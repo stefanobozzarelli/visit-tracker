@@ -24,6 +24,7 @@ export const TodoForm = () => {
   const [opportunityId, setOpportunityId] = useState('');
   const [status, setStatus] = useState('todo');
   const [priority, setPriority] = useState(1);
+  const [category, setCategory] = useState('work');
 
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -96,6 +97,7 @@ export const TodoForm = () => {
             setAssignedToUserId(todo.assigned_to_user_id || '');
             setStatus(todo.status || 'todo');
             setPriority(todo.priority || 1);
+            setCategory(todo.category || 'work');
             setVisitReportId(todo.visit_report_id || '');
             setVisitId(todo.visit_id || '');
             setClaimId(todo.claim_id || '');
@@ -207,6 +209,7 @@ export const TodoForm = () => {
           status,
           dueDate: dueDate || undefined,
           priority,
+          category,
         });
         if (response.success) {
           setSuccess('Task updated successfully');
@@ -224,7 +227,8 @@ export const TodoForm = () => {
           visitId || undefined,
           companyVisitId || undefined,
           priority,
-          opportunityId || undefined
+          opportunityId || undefined,
+          category
         );
         if (response.success && response.data?.id) {
           // Upload pending files to the newly created task
@@ -345,6 +349,17 @@ export const TodoForm = () => {
                 {priority === 3 ? 'High' : priority === 2 ? 'Medium' : 'Low'}
               </span>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="category">Category</label>
+            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="work">Work</option>
+              <option value="personal">Personal</option>
+              {(user?.name?.includes('Stefano') || user?.name?.includes('Bozzarelli')) && (
+                <option value="architectural_lines">Architectural Lines</option>
+              )}
+            </select>
           </div>
 
           {isEdit && (

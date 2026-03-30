@@ -81,6 +81,7 @@ export const Tasks: React.FC = () => {
   const [showCompleted, setShowCompleted] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [sortBy, setSortBy] = useState<'due_date' | 'priority'>('due_date');
 
   // NLP search
@@ -152,7 +153,7 @@ export const Tasks: React.FC = () => {
 
   // ---- Data loading ----
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { loadTodos(); }, [clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days, priorityFilter, sortBy]);
+  useEffect(() => { loadTodos(); }, [clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days, priorityFilter, categoryFilter, sortBy]);
 
   const loadData = async () => {
     try {
@@ -203,6 +204,7 @@ export const Tasks: React.FC = () => {
       if (thisWeek) filters.thisWeek = true;
       if (next7Days) filters.next7Days = true;
       if (priorityFilter) filters.priority = Number(priorityFilter);
+      if (categoryFilter) filters.category = categoryFilter;
       if (sortBy) filters.sortBy = sortBy;
 
       const response = isAdmin
@@ -492,6 +494,19 @@ export const Tasks: React.FC = () => {
             <option value="1">&#9733; Low</option>
           </select>
 
+          <select
+            className={`tasks-filter-select${categoryFilter ? ' active' : ''}`}
+            value={categoryFilter}
+            onChange={e => setCategoryFilter(e.target.value)}
+          >
+            <option value="">All Categories</option>
+            <option value="work">Work</option>
+            <option value="personal">Personal</option>
+            {(user?.name?.includes('Stefano') || user?.name?.includes('Bozzarelli')) && (
+              <option value="architectural_lines">Architectural Lines</option>
+            )}
+          </select>
+
           {isAdmin && (
             <select
               className={`tasks-filter-select${assignedToUserId ? ' active' : ''}`}
@@ -506,7 +521,7 @@ export const Tasks: React.FC = () => {
           <div className="tasks-filter-divider" />
 
           {/* Show warning if filters are active */}
-          {(clientId || companyId || assignedToUserId || statusFilter || priorityFilter || overdue || thisWeek || next7Days) && (
+          {(clientId || companyId || assignedToUserId || statusFilter || priorityFilter || categoryFilter || overdue || thisWeek || next7Days) && (
             <button
               type="button"
               className="tasks-chip"
@@ -516,6 +531,7 @@ export const Tasks: React.FC = () => {
                 setAssignedToUserId('');
                 setStatusFilter('');
                 setPriorityFilter('');
+                setCategoryFilter('');
                 setSortBy('due_date');
                 setOverdue(false);
                 setThisWeek(false);
@@ -642,6 +658,24 @@ export const Tasks: React.FC = () => {
                       <td className="task-title-cell">
                         <div className="task-title">
                           {todo.title}
+                          {todo.category && todo.category !== 'work' && (
+                            <span
+                              className="task-category-badge"
+                              style={{
+                                display: 'inline-block',
+                                padding: '1px 7px',
+                                borderRadius: '9999px',
+                                fontSize: '0.6875rem',
+                                fontWeight: 600,
+                                marginLeft: '6px',
+                                verticalAlign: 'middle',
+                                background: todo.category === 'personal' ? '#e0f2fe' : '#fef3c7',
+                                color: todo.category === 'personal' ? '#0369a1' : '#92400e',
+                              }}
+                            >
+                              {todo.category === 'personal' ? 'Personal' : 'Arch. Lines'}
+                            </span>
+                          )}
                           {(todo.attachments?.length ?? 0) > 0 && (
                             <span className="task-attachment-badge" title={`${todo.attachments!.length} allegat${todo.attachments!.length === 1 ? 'o' : 'i'}`}>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>

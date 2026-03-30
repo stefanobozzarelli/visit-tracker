@@ -79,7 +79,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority, opportunityId } = req.body;
+    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority, opportunityId, category } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!title || !clientId || !companyId || !assignedToUserId) {
@@ -101,7 +101,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       visitId,
       companyVisitId,
       priority ? parseInt(priority, 10) : undefined,
-      opportunityId
+      opportunityId,
+      category
     );
 
     // Fire-and-forget: send task assignment email
@@ -153,9 +154,11 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
       });
     }
 
-    const { status, clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days, priority, sortBy } = req.query;
+    const { status, clientId, companyId, assignedToUserId, overdue, thisWeek, next7Days, priority, sortBy, category } = req.query;
+    const userId = (req.user as any).id;
+    const userName = (req.user as any).name || '';
 
-    const todos = await todoService.getTodos({
+    let todos = await todoService.getTodos({
       status: status as string,
       clientId: clientId as string,
       companyId: companyId as string,
@@ -165,6 +168,22 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
       next7Days: next7Days === 'true',
       priority: priority ? parseInt(priority as string, 10) : undefined,
       sortBy: sortBy as 'due_date' | 'priority' | undefined,
+      category: category as string,
+    });
+
+    // Category visibility rules (applied AFTER existing permission checks)
+    const isStefano = userName === 'Stefano Bozzarelli';
+    todos = todos.filter((t: any) => {
+      // 'personal' tasks: only visible to creator or assignee
+      if (t.category === 'personal') {
+        return String(t.created_by_user_id) === String(userId) || String(t.assigned_to_user_id) === String(userId);
+      }
+      // 'architectural_lines' tasks: only visible to Stefano Bozzarelli
+      if (t.category === 'architectural_lines') {
+        return isStefano;
+      }
+      // 'work' tasks: normal visibility
+      return true;
     });
 
     res.json({
@@ -212,15 +231,29 @@ router.get('/by-company-visit/:companyVisitId', authMiddleware, async (req: Requ
 router.get('/my', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
-    const { status, clientId, companyId, overdue, thisWeek, next7Days } = req.query;
+    const userName = (req.user as any).name || '';
+    const { status, clientId, companyId, overdue, thisWeek, next7Days, category } = req.query;
 
-    const todos = await todoService.getMyTodos(userId, {
+    let todos = await todoService.getMyTodos(userId, {
       status: status as string,
       clientId: clientId as string,
       companyId: companyId as string,
       overdue: overdue === 'true',
       thisWeek: thisWeek === 'true',
       next7Days: next7Days === 'true',
+      category: category as string,
+    });
+
+    // Category visibility rules (applied AFTER existing permission checks)
+    const isStefano = userName === 'Stefano Bozzarelli';
+    todos = todos.filter((t: any) => {
+      if (t.category === 'personal') {
+        return String(t.created_by_user_id) === String(userId) || String(t.assigned_to_user_id) === String(userId);
+      }
+      if (t.category === 'architectural_lines') {
+        return isStefano;
+      }
+      return true;
     });
 
     res.json({
@@ -280,7 +313,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, dueDate, assignedToUserId, priority } = req.body;
+    const { status, dueDate, assignedToUserId, priority, category } = req.body;
 
     const todo = await todoService.getTodoById(id);
     if (!todo) {
@@ -313,6 +346,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     if (dueDate) updateData.due_date = new Date(dueDate);
     if (assignedToUserId) updateData.assigned_to_user_id = assignedToUserId;
     if (priority) updateData.priority = parseInt(priority, 10);
+    if (category) updateData.category = category;
 
     const updated = await todoService.updateTodo(id, updateData);
 

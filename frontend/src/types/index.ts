@@ -279,6 +279,7 @@ export interface TodoItem {
   visit_id?: string;
   claim_id?: string;
   company_visit_id?: string;
+  category?: string; // 'work' | 'personal' | 'architectural_lines'
   created_at: string;
   updated_at: string;
   // Relations

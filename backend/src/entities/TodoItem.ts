@@ -52,6 +52,9 @@ export class TodoItem {
   @Column({ nullable: true })
   opportunity_id: string | null;
 
+  @Column({ default: 'work' })
+  category: string; // 'work' | 'personal' | 'architectural_lines'
+
   @CreateDateColumn()
   created_at: Date;
 

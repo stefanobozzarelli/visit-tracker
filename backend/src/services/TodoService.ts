@@ -12,6 +12,7 @@ interface TodoFilters {
   next7Days?: boolean;
   priority?: number;
   sortBy?: 'due_date' | 'priority';
+  category?: string;
 }
 
 export class TodoService {
@@ -30,7 +31,8 @@ export class TodoService {
     visitId?: string,
     companyVisitId?: string,
     priority?: number,
-    opportunityId?: string
+    opportunityId?: string,
+    category?: string
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
@@ -46,6 +48,7 @@ export class TodoService {
       opportunity_id: opportunityId || null,
       status: 'todo',
       priority: priority || 1,
+      category: category || 'work',
     });
     return await this.todoRepository.save(todo);
   }
@@ -109,6 +112,10 @@ export class TodoService {
       query = query.andWhere('todo.priority = :priority', { priority: filters.priority });
     }
 
+    if (filters?.category) {
+      query = query.andWhere('todo.category = :category', { category: filters.category });
+    }
+
     if (filters?.sortBy === 'priority') {
       return await query.orderBy('todo.priority', 'DESC').addOrderBy('todo.due_date', 'ASC').getMany();
     }
@@ -167,6 +174,10 @@ export class TodoService {
       query = query.andWhere('todo.due_date BETWEEN :today AND :sevenDays', { today: todayStr, sevenDays: sevenDaysStr });
     }
 
+    if (filters?.category) {
+      query = query.andWhere('todo.category = :category', { category: filters.category });
+    }
+
     return await query.orderBy('todo.due_date', 'ASC').addOrderBy('todo.created_at', 'DESC').getMany();
   }
 
@@ -185,6 +196,7 @@ export class TodoService {
       due_date: Date;
       assigned_to_user_id: string;
       priority: number;
+      category: string;
     }>
   ): Promise<TodoItem> {
     await this.todoRepository.update(id, data);

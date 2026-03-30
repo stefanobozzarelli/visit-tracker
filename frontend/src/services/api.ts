@@ -713,7 +713,7 @@ class ApiService {
   }
 
   // Todos
-  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string, priority?: number, opportunityId?: string) {
+  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string, priority?: number, opportunityId?: string, category?: string) {
     const response = await this.api.post<ApiResponse<any>>('/todos', {
       title,
       clientId,
@@ -726,17 +726,18 @@ class ApiService {
       companyVisitId,
       priority,
       opportunityId,
+      category,
     });
     this.memoryCache.clear();
     return response.data;
   }
 
-  async getTodos(filters?: { status?: string; clientId?: string; companyId?: string; assignedToUserId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean; priority?: number; sortBy?: string }) {
+  async getTodos(filters?: { status?: string; clientId?: string; companyId?: string; assignedToUserId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean; priority?: number; sortBy?: string; category?: string }) {
     const response = await this.cachedGet<ApiResponse<any>>('/todos', { params: filters });
     return response.data;
   }
 
-  async getMyTodos(filters?: { status?: string; clientId?: string; companyId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean; priority?: number; sortBy?: string }) {
+  async getMyTodos(filters?: { status?: string; clientId?: string; companyId?: string; overdue?: boolean; thisWeek?: boolean; next7Days?: boolean; priority?: number; sortBy?: string; category?: string }) {
     const response = await this.cachedGet<ApiResponse<any>>('/todos/my', { params: filters });
     return response.data;
   }
@@ -746,7 +747,7 @@ class ApiService {
     return response.data;
   }
 
-  async updateTodo(id: string, data: { title?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string; priority?: number }) {
+  async updateTodo(id: string, data: { title?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string; priority?: number; category?: string }) {
     const response = await this.api.put<ApiResponse<any>>(`/todos/${id}`, data);
     this.memoryCache.clear();
     return response.data;
