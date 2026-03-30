@@ -1,6 +1,8 @@
 .app-layout {
   display: flex;
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .app-layout-main {
@@ -10,6 +12,8 @@
   background: var(--color-bg-primary, #fafbfc);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .app-layout-content {
@@ -19,16 +23,26 @@
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 @media (max-width: 768px) {
+  .app-layout {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
   .app-layout-main {
     margin-left: 0;
     padding-top: 56px; /* space for hamburger */
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   .app-layout-content {
     padding: 1rem;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 }
 
