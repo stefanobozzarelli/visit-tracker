@@ -18,6 +18,7 @@ export const CompanyVisitDetail: React.FC = () => {
   const navigate = useNavigate();
   const [visit, setVisit] = useState<CompanyVisit | null>(null);
   const [offers, setOffers] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<CompanyVisitAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,6 +45,12 @@ export const CompanyVisitDetail: React.FC = () => {
           const offersRes = await apiService.getOffers({ company_visit_id: id });
           if (offersRes.success && offersRes.data) {
             setOffers(Array.isArray(offersRes.data) ? offersRes.data : []);
+          }
+        } catch {}
+        try {
+          const tasksRes = await apiService.getTodosByCompanyVisitId(id);
+          if (tasksRes.success && tasksRes.data) {
+            setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
           }
         } catch {}
         try {
@@ -257,6 +264,57 @@ export const CompanyVisitDetail: React.FC = () => {
           </div>
         ) : (
           <p style={{ color: '#888', fontSize: '0.875rem' }}>No offers linked to this meeting.</p>
+        )}
+      </div>
+
+      {/* Tasks section */}
+      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.125rem' }}>Tasks ({tasks.length})</h2>
+          <button
+            onClick={() => navigate(`/todos/new?companyVisitId=${id}&companyId=${visit.company_id}&returnTo=/company-visits/${id}`)}
+            style={{ padding: '0.4rem 0.8rem', background: 'var(--color-info, #4A6078)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
+          >
+            + New Task
+          </button>
+        </div>
+        {tasks.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '2px solid #e0e0e0' }}>Task</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '2px solid #e0e0e0' }}>Assigned To</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '2px solid #e0e0e0' }}>Due Date</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '2px solid #e0e0e0' }}>Priority</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '2px solid #e0e0e0' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map((t: any) => {
+                const isOverdue = t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done';
+                const statusColors: Record<string, string> = { todo: '#B09840', in_progress: '#4A6078', done: '#5B8A65' };
+                return (
+                  <tr key={t.id}
+                    style={{ borderBottom: '1px solid #eee', cursor: 'pointer' }}
+                    onDoubleClick={() => navigate(`/tasks?highlight=${t.id}`)}
+                    title="Double-click to view in Tasks list"
+                  >
+                    <td style={{ padding: '0.5rem 0.75rem', color: isOverdue ? '#c00' : 'var(--color-info, #4A6078)', fontWeight: 500 }}>{t.title}</td>
+                    <td style={{ padding: '0.5rem 0.75rem' }}>{t.assigned_to_user?.name || '-'}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', color: isOverdue ? '#c00' : undefined }}>{t.due_date ? formatDate(t.due_date) : '-'}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', color: '#D4A017' }}>{'★'.repeat(t.priority || 1)}{'☆'.repeat(3 - (t.priority || 1))}</td>
+                    <td style={{ padding: '0.5rem 0.75rem' }}>
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '9999px', fontSize: '0.7rem', fontWeight: 600, background: `${statusColors[t.status] || '#888'}20`, color: statusColors[t.status] || '#888' }}>
+                        {t.status === 'in_progress' ? 'In Progress' : t.status === 'done' ? 'Done' : 'To Do'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <p style={{ color: '#888', fontSize: '0.875rem' }}>No tasks linked to this meeting.</p>
         )}
       </div>
     </div>
