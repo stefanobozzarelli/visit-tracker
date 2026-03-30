@@ -1,5 +1,70 @@
 /* ===== Trip Detail Page ===== */
 
+/* ---- Buttons (trip-scoped to avoid global conflicts) ---- */
+.trip-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.trip-btn-primary:hover { background: #3a5068; }
+
+.trip-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.trip-btn-secondary:hover { background: var(--color-bg-secondary); }
+
+.trip-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: white;
+  color: var(--color-error);
+  border: 1px solid rgba(158, 90, 82, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.trip-btn-danger:hover { background: rgba(158, 90, 82, 0.05); }
+
+.trip-btn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  background: none;
+  color: var(--color-accent);
+  border: 1px solid rgba(74, 96, 120, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.trip-btn-link:hover { background: rgba(74, 96, 120, 0.08); }
+
 .trip-detail-page {
   padding: 2rem;
   max-width: 1100px;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import '../styles/TripDetail.css';
@@ -105,6 +105,18 @@ export const TripDetail: React.FC = () => {
   const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato' });
   // Apt form
   const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '' });
+
+  // Client autocomplete
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
+  const [clientSuggestions, setClientSuggestions] = useState<{ id: string; name: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const clientInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    apiService.getClients().then((res: any) => {
+      if (res.success && res.data) setClients(res.data.map((c: any) => ({ id: c.id, name: c.name })));
+    }).catch(() => {});
+  }, []);
 
   const loadTrip = async () => {
     try {
@@ -334,11 +346,11 @@ export const TripDetail: React.FC = () => {
             </div>
           </div>
           <div className="trip-detail-actions">
-            <button className="btn-secondary" onClick={() => {
+            <button className="trip-btn-secondary" onClick={() => {
               setTripForm({ name: trip.name, destination: trip.destination || '', startDate: trip.startDate, endDate: trip.endDate, notes: trip.notes || '' });
               setShowEditTripModal(true);
             }}>✏ Modifica</button>
-            <button className="btn-danger" onClick={deleteTrip}>🗑 Elimina</button>
+            <button className="trip-btn-danger" onClick={deleteTrip}>🗑 Elimina</button>
           </div>
         </div>
       </div>
@@ -449,6 +461,13 @@ export const TripDetail: React.FC = () => {
                         >
                           {STATUS_LABELS[a.status] || a.status}
                         </button>
+                        <a
+                          href={`/visits/new?client=${encodeURIComponent(a.client)}&date=${day.date}`}
+                          className="trip-btn-link"
+                          title="Crea visita cliente"
+                        >
+                          + Visita
+                        </a>
                         <div className="trip-apt-actions">
                           <button className="icon-btn" onClick={() => openEditApt(day.id, a)} title="Modifica">✏</button>
                           <button className="icon-btn delete" onClick={() => deleteApt(day.id, a.id)} title="Elimina">✕</button>
@@ -646,8 +665,8 @@ export const TripDetail: React.FC = () => {
               <textarea rows={2} value={tripForm.notes} onChange={e => setTripForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowEditTripModal(false)}>Annulla</button>
-              <button className="btn-primary" onClick={saveTripMeta}>Salva</button>
+              <button className="trip-btn-secondary" onClick={() => setShowEditTripModal(false)}>Annulla</button>
+              <button className="trip-btn-primary" onClick={saveTripMeta}>Salva</button>
             </div>
           </div>
         </div>
@@ -684,8 +703,8 @@ export const TripDetail: React.FC = () => {
               <textarea rows={2} value={dayForm.notes} onChange={e => setDayForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowDayModal(false)}>Annulla</button>
-              <button className="btn-primary" onClick={saveDay}>{editingDay ? 'Salva' : 'Aggiungi'}</button>
+              <button className="trip-btn-secondary" onClick={() => setShowDayModal(false)}>Annulla</button>
+              <button className="trip-btn-primary" onClick={saveDay}>{editingDay ? 'Salva' : 'Aggiungi'}</button>
             </div>
           </div>
         </div>
@@ -721,8 +740,8 @@ export const TripDetail: React.FC = () => {
               </select>
             </div>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowFlightModal(false)}>Annulla</button>
-              <button className="btn-primary" onClick={saveFlight}>{flightContext?.flight ? 'Salva' : 'Aggiungi'}</button>
+              <button className="trip-btn-secondary" onClick={() => setShowFlightModal(false)}>Annulla</button>
+              <button className="trip-btn-primary" onClick={saveFlight}>{flightContext?.flight ? 'Salva' : 'Aggiungi'}</button>
             </div>
           </div>
         </div>
@@ -735,7 +754,53 @@ export const TripDetail: React.FC = () => {
             <h2 className="modal-title">{aptContext?.apt ? 'Modifica Appuntamento' : 'Nuovo Appuntamento'}</h2>
             <div className="form-group">
               <label>Cliente *</label>
-              <input value={aptForm.client} onChange={e => setAptForm(f => ({ ...f, client: e.target.value }))} placeholder="Nome cliente" autoFocus />
+              <div style={{ position: 'relative' }}>
+                <input
+                  ref={clientInputRef}
+                  value={aptForm.client}
+                  autoFocus
+                  placeholder="Nome cliente o cerca..."
+                  onChange={e => {
+                    const val = e.target.value;
+                    setAptForm(f => ({ ...f, client: val }));
+                    if (val.length >= 1) {
+                      const filtered = clients.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
+                      setClientSuggestions(filtered);
+                      setShowSuggestions(filtered.length > 0);
+                    } else {
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                />
+                {showSuggestions && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: 'white', border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-md)',
+                    maxHeight: 200, overflowY: 'auto',
+                  }}>
+                    {clientSuggestions.map(c => (
+                      <div
+                        key={c.id}
+                        onMouseDown={() => {
+                          setAptForm(f => ({ ...f, client: c.name }));
+                          setShowSuggestions(false);
+                        }}
+                        style={{
+                          padding: '0.5rem 0.75rem', cursor: 'pointer',
+                          fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)',
+                          borderBottom: '1px solid var(--color-border)',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-secondary)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                      >
+                        {c.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="form-row">
               <div className="form-group">
@@ -768,8 +833,8 @@ export const TripDetail: React.FC = () => {
               <textarea rows={2} value={aptForm.notes} onChange={e => setAptForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowAptModal(false)}>Annulla</button>
-              <button className="btn-primary" onClick={saveApt}>{aptContext?.apt ? 'Salva' : 'Aggiungi'}</button>
+              <button className="trip-btn-secondary" onClick={() => setShowAptModal(false)}>Annulla</button>
+              <button className="trip-btn-primary" onClick={saveApt}>{aptContext?.apt ? 'Salva' : 'Aggiungi'}</button>
             </div>
           </div>
         </div>

@@ -26,7 +26,7 @@
   margin: 0.25rem 0 0;
 }
 
-.btn-primary {
+.trip-btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -41,11 +41,11 @@
   transition: background 0.15s;
 }
 
-.btn-primary:hover {
+.trip-btn-primary:hover {
   background: #3a5068;
 }
 
-.btn-secondary {
+.trip-btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -59,11 +59,11 @@
   transition: background 0.15s;
 }
 
-.btn-secondary:hover {
+.trip-btn-secondary:hover {
   background: var(--color-bg-secondary);
 }
 
-.btn-danger {
+.trip-btn-danger {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -77,7 +77,7 @@
   transition: background 0.15s;
 }
 
-.btn-danger:hover {
+.trip-btn-danger:hover {
   background: rgba(158, 90, 82, 0.05);
 }
 

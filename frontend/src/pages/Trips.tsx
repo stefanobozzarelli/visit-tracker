@@ -156,7 +156,7 @@ export const Trips: React.FC = () => {
           <h1 className="trips-title">✈ Viaggi</h1>
           <p className="trips-subtitle">{trips.length} {trips.length === 1 ? 'viaggio' : 'viaggi'}</p>
         </div>
-        <button className="btn-primary" onClick={openNew}>
+        <button className="trip-btn-primary" onClick={openNew}>
           + Nuovo Viaggio
         </button>
       </div>
@@ -168,7 +168,7 @@ export const Trips: React.FC = () => {
           <div className="trips-empty-icon">🌏</div>
           <h3>Nessun viaggio</h3>
           <p>Crea il tuo primo viaggio per iniziare</p>
-          <button className="btn-primary" onClick={openNew}>+ Nuovo Viaggio</button>
+          <button className="trip-btn-primary" onClick={openNew}>+ Nuovo Viaggio</button>
         </div>
       ) : (
         <div className="trips-grid">
@@ -259,8 +259,8 @@ export const Trips: React.FC = () => {
               <textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Note..." />
             </div>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowModal(false)}>Annulla</button>
-              <button className="btn-primary" onClick={handleSave}>
+              <button className="trip-btn-secondary" onClick={() => setShowModal(false)}>Annulla</button>
+              <button className="trip-btn-primary" onClick={handleSave}>
                 {editingTrip ? 'Salva' : 'Crea Viaggio'}
               </button>
             </div>
