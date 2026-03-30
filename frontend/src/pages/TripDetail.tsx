@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { TripPdfUpload } from '../components/TripPdfUpload';
+import { exportTripPdf } from '../utils/exportTripPdf';
+import { exportTripExcel } from '../utils/exportTripExcel';
 import '../styles/TripDetail.css';
 
 // ---- Types ----
@@ -106,6 +109,11 @@ export const TripDetail: React.FC = () => {
   // Apt form
   const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '' });
 
+  // PDF upload & export
+  const [showPdfUpload, setShowPdfUpload] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
   // Client autocomplete
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [clientSuggestions, setClientSuggestions] = useState<{ id: string; name: string }[]>([]);
@@ -117,6 +125,17 @@ export const TripDetail: React.FC = () => {
       if (res.success && res.data) setClients(res.data.map((c: any) => ({ id: c.id, name: c.name })));
     }).catch(() => {});
   }, []);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    if (showExportMenu) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showExportMenu]);
 
   const loadTrip = async () => {
     try {
@@ -346,6 +365,24 @@ export const TripDetail: React.FC = () => {
             </div>
           </div>
           <div className="trip-detail-actions">
+            <button className="trip-btn-secondary" onClick={() => setShowPdfUpload(true)}>
+              📄 Carica PDF
+            </button>
+            <div className="trip-export-wrapper" ref={exportMenuRef}>
+              <button className="trip-btn-secondary" onClick={() => setShowExportMenu(v => !v)}>
+                ⬇ Esporta ▾
+              </button>
+              {showExportMenu && (
+                <div className="trip-export-menu">
+                  <button onClick={() => { exportTripPdf(trip); setShowExportMenu(false); }}>
+                    📄 Esporta PDF
+                  </button>
+                  <button onClick={() => { exportTripExcel(trip); setShowExportMenu(false); }}>
+                    📊 Esporta Excel
+                  </button>
+                </div>
+              )}
+            </div>
             <button className="trip-btn-secondary" onClick={() => {
               setTripForm({ name: trip.name, destination: trip.destination || '', startDate: trip.startDate, endDate: trip.endDate, notes: trip.notes || '' });
               setShowEditTripModal(true);
@@ -745,6 +782,15 @@ export const TripDetail: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PDF Upload Modal */}
+      {showPdfUpload && (
+        <TripPdfUpload
+          trip={trip}
+          onSave={(updatedDays: any[]) => saveTrip({ ...trip, days: updatedDays })}
+          onClose={() => setShowPdfUpload(false)}
+        />
       )}
 
       {/* Appointment Modal */}
