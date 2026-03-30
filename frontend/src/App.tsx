@@ -49,6 +49,7 @@ import { OpportunityDetail } from './pages/OpportunityDetail';
 import { OpportunityForm } from './pages/OpportunityForm';
 import { Orders } from './pages/Orders';
 import { Statistics } from './pages/Statistics';
+import { MobileTasks } from './pages/MobileTasks';
 import './styles/App.css';
 
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -65,6 +66,9 @@ const AppContent: React.FC = () => {
         {/* Public routes — no sidebar */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Navigate to="/login" replace />} />
+
+        {/* Mobile routes — protected but NO sidebar */}
+        <Route path="/m/tasks" element={<ProtectedRoute><MobileTasks /></ProtectedRoute>} />
 
         {/* Protected routes — inside sidebar layout */}
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
