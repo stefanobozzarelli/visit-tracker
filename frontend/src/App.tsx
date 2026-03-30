@@ -68,7 +68,7 @@ const AppContent: React.FC = () => {
         <Route path="/register" element={<Navigate to="/login" replace />} />
 
         {/* Mobile routes — protected but NO sidebar */}
-        <Route path="/m/tasks" element={<ProtectedRoute><MobileTasks /></ProtectedRoute>} />
+        <Route path="/m/tasks" element={<MobileTasks />} />
 
         {/* Protected routes — inside sidebar layout */}
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

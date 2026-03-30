@@ -33,6 +33,8 @@
   color: var(--mt-text);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  max-width: 100vw;
   overflow: hidden;
   height: 100dvh;
 }

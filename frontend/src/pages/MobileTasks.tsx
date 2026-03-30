@@ -67,9 +67,28 @@ type CategoryFilterType = '' | 'work' | 'personal' | 'architectural_lines';
 
 // ---- Component ----
 export const MobileTasks: React.FC = () => {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
   const isStefano = !!(user?.name?.includes('Stefano') || user?.name?.includes('Bozzarelli'));
+
+  // Login state (inline login when not authenticated)
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      await login(loginEmail, loginPassword);
+    } catch {
+      setLoginError('Invalid email or password');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   // Data
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -284,6 +303,26 @@ export const MobileTasks: React.FC = () => {
   // ---- Render ----
   if (loading) {
     return <div className="mt-loading">Loading tasks...</div>;
+  }
+
+  // If not logged in, show inline login
+  if (!user) {
+    return (
+      <div className="mt-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <form onSubmit={handleLogin} style={{ width: '100%', maxWidth: '320px', padding: '2rem' }}>
+          <h1 style={{ fontSize: '1.5rem', textAlign: 'center', marginBottom: '1.5rem', color: '#333' }}>TradeFlow Tasks</h1>
+          {loginError && <p style={{ color: '#c00', fontSize: '0.85rem', textAlign: 'center', marginBottom: '1rem' }}>{loginError}</p>}
+          <input type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required
+            style={{ width: '100%', padding: '0.75rem', marginBottom: '0.75rem', border: '1px solid #ddd', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' }} />
+          <input type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required
+            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' }} />
+          <button type="submit" disabled={loginLoading}
+            style={{ width: '100%', padding: '0.75rem', background: '#4A6078', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 600, cursor: 'pointer' }}>
+            {loginLoading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+    );
   }
 
   return (
