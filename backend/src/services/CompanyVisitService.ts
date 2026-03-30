@@ -18,6 +18,7 @@ export class CompanyVisitService {
     date: Date;
     subject: string;
     report?: string;
+    preparation?: string;
     participants_user_ids?: string;
     participants_external?: string;
     status?: 'scheduled' | 'completed' | 'cancelled';
@@ -56,6 +57,7 @@ export class CompanyVisitService {
     date: Date;
     subject: string;
     report: string;
+    preparation: string;
     participants_user_ids: string;
     participants_external: string;
     status: 'scheduled' | 'completed' | 'cancelled';
