@@ -45,10 +45,10 @@ interface Trip {
   days: TravelDay[];
 }
 
-// ---- Status cycles ----
-const FLIGHT_STATUSES: Array<'programmato' | 'confermato'> = ['programmato', 'confermato'];
-const HOTEL_STATUSES: Array<'programmato' | 'confermato'> = ['programmato', 'confermato'];
-const APT_STATUSES = ['programmato', 'in_attesa', 'confermato', 'sollecitato', 'da_modificare', 'rifiutato', 'fatto_report'];
+// ---- Constants ----
+const FLIGHT_STATUSES = ['programmato', 'confermato'];
+const HOTEL_STATUSES = ['programmato', 'confermato'];
+const APT_STATUSES = ['programmato', 'confermato', 'in_attesa', 'sollecitato', 'da_modificare', 'rifiutato', 'fatto_report'];
 
 const STATUS_LABELS: Record<string, string> = {
   programmato: 'Programmato',
@@ -60,26 +60,68 @@ const STATUS_LABELS: Record<string, string> = {
   fatto_report: 'Fatto / Report',
 };
 
-function nextStatus(current: string, cycle: string[]): string {
-  const idx = cycle.indexOf(current);
-  return cycle[(idx + 1) % cycle.length];
-}
+const DAY_NAMES_IT = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+const LOCALE = 'it-IT';
 
 function uid(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
-
 function formatTime(val: string): string {
-  const digits = val.replace(/\D/g, '');
-  if (digits.length === 4) return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-  return val;
+  const d = val.replace(/\D/g, '');
+  return d.length === 4 ? `${d.slice(0, 2)}:${d.slice(2)}` : val;
+}
+function fmtShort(dateStr: string) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function fmtMed(dateStr: string) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' });
 }
 
-const DAY_NAMES_IT = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+// ---- Status Dropdown ----
+interface StatusDropdownProps {
+  status: string;
+  statuses: string[];
+  onChange: (s: string) => void;
+  type?: 'flight' | 'hotel' | 'apt';
+}
+function StatusDropdown({ status, statuses, onChange, type = 'apt' }: StatusDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-function formatDateShort(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const badgeCls = type === 'flight'
+    ? (status === 'confermato' ? 'status-badge confermato' : 'status-badge programmato')
+    : type === 'hotel'
+    ? (status === 'confermato' ? 'status-badge confermato' : 'status-badge hotel-programmato')
+    : `status-badge ${status}`;
+
+  return (
+    <div className="status-dropdown-wrap" ref={ref}>
+      <button className={badgeCls} onClick={e => { e.stopPropagation(); setOpen(!open); }}>
+        {STATUS_LABELS[status] || status}
+      </button>
+      {open && (
+        <div className="status-dropdown-menu">
+          {statuses.map(s => (
+            <button
+              key={s}
+              className={`status-dropdown-item${s === status ? ' active' : ''}`}
+              onClick={() => { onChange(s); setOpen(false); }}
+            >
+              {STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ---- Main Component ----
@@ -88,37 +130,36 @@ export const TripDetail: React.FC = () => {
   const navigate = useNavigate();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'itinerary' | 'report'>('itinerary');
+  const [activeTab, setActiveTab] = useState<'overview' | 'list' | 'report'>('list');
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const todayStr = new Date().toISOString().slice(0, 10);
-
-  // Modals
-  const [showEditTripModal, setShowEditTripModal] = useState(false);
-  const [showDayModal, setShowDayModal] = useState(false);
-  const [editingDay, setEditingDay] = useState<TravelDay | null>(null);
-  const [showFlightModal, setShowFlightModal] = useState(false);
-  const [flightContext, setFlightContext] = useState<{ dayId: string; flight?: Flight } | null>(null);
-  const [showAptModal, setShowAptModal] = useState(false);
-  const [aptContext, setAptContext] = useState<{ dayId: string; apt?: Appointment } | null>(null);
-
-  // Trip form
-  const [tripForm, setTripForm] = useState({ name: '', destination: '', startDate: '', endDate: '', notes: '' });
-  // Day form
-  const [dayForm, setDayForm] = useState({ date: '', location: '', hotel: '', hotelStatus: 'programmato', notes: '' });
-  // Flight form
-  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato' });
-  // Apt form
-  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '' });
 
   // PDF upload & export
   const [showPdfUpload, setShowPdfUpload] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
+  // Modals
+  const [showEditTripModal, setShowEditTripModal] = useState(false);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [editingDay, setEditingDay] = useState<TravelDay | null>(null);
+  const [showAptModal, setShowAptModal] = useState(false);
+  const [aptContext, setAptContext] = useState<{ dayId: string; apt?: Appointment } | null>(null);
+
+  // Inline flight form
+  const [showFlightForm, setShowFlightForm] = useState<string | null>(null); // dayId
+  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato' });
+  const [editingFlight, setEditingFlight] = useState<{ dayId: string; flight: Flight } | null>(null);
+
+  // Forms
+  const [tripForm, setTripForm] = useState({ name: '', destination: '', startDate: '', endDate: '', notes: '' });
+  const [dayForm, setDayForm] = useState({ date: '', location: '', hotel: '', hotelStatus: 'programmato', notes: '' });
+  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '' });
+
   // Client autocomplete
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [clientSuggestions, setClientSuggestions] = useState<{ id: string; name: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const clientInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     apiService.getClients().then((res: any) => {
@@ -126,12 +167,11 @@ export const TripDetail: React.FC = () => {
     }).catch(() => {});
   }, []);
 
-  // Close export menu when clicking outside
+  // Close export menu on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node))
         setShowExportMenu(false);
-      }
     };
     if (showExportMenu) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -140,7 +180,12 @@ export const TripDetail: React.FC = () => {
   const loadTrip = async () => {
     try {
       const res = await (apiService as any).getTrip(id);
-      if (res.success) setTrip(res.data);
+      if (res.success) {
+        setTrip(res.data);
+        // Auto-expand today if present
+        const today = res.data.days.find((d: TravelDay) => d.date === todayStr);
+        if (today) setExpandedDays(new Set([today.id]));
+      }
     } catch (e) {
       console.error('Failed to load trip:', e);
     } finally {
@@ -148,11 +193,8 @@ export const TripDetail: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (id) loadTrip();
-  }, [id]);
+  useEffect(() => { if (id) loadTrip(); }, [id]);
 
-  // Save updated trip to server
   const saveTrip = useCallback(async (updated: Trip) => {
     setTrip(updated);
     try {
@@ -162,438 +204,427 @@ export const TripDetail: React.FC = () => {
     }
   }, []);
 
-  // ---- Day operations ----
-  const updateDayField = (dayId: string, field: string, value: string) => {
-    if (!trip) return;
-    const days = trip.days.map(d => d.id === dayId ? { ...d, [field]: value } : d);
-    saveTrip({ ...trip, days });
+  const toggleDay = (dayId: string) => {
+    setExpandedDays(prev => {
+      const next = new Set(prev);
+      next.has(dayId) ? next.delete(dayId) : next.add(dayId);
+      return next;
+    });
   };
 
+  // ---- Day ops ----
+  const updateDayField = (dayId: string, field: string, value: string) => {
+    if (!trip) return;
+    saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, [field]: value } : d) });
+  };
   const deleteDay = (dayId: string) => {
     if (!trip || !confirm('Eliminare questo giorno?')) return;
     saveTrip({ ...trip, days: trip.days.filter(d => d.id !== dayId) });
   };
-
-  // ---- Flight operations ----
-  const openAddFlight = (dayId: string) => {
-    setFlightContext({ dayId });
-    setFlightForm({ route: '', details: '', status: 'programmato' });
-    setShowFlightModal(true);
+  const saveDay = () => {
+    if (!trip || !dayForm.date) return;
+    const d = new Date(dayForm.date + 'T00:00:00');
+    if (editingDay) {
+      saveTrip({ ...trip, days: trip.days.map(day => day.id === editingDay.id ? { ...day, ...dayForm } : day) });
+    } else {
+      const newDay: TravelDay = {
+        id: `d${uid()}`, date: dayForm.date, dayOfWeek: DAY_NAMES_IT[d.getDay()],
+        location: dayForm.location, hotel: dayForm.hotel,
+        hotelStatus: dayForm.hotelStatus as TravelDay['hotelStatus'],
+        notes: dayForm.notes, flights: [], appointments: [],
+      };
+      setExpandedDays(prev => new Set([...prev, newDay.id]));
+      saveTrip({ ...trip, days: [...trip.days, newDay] });
+    }
+    setShowDayModal(false);
   };
 
-  const openEditFlight = (dayId: string, flight: Flight) => {
-    setFlightContext({ dayId, flight });
-    setFlightForm({ route: flight.route, details: flight.details, status: flight.status });
-    setShowFlightModal(true);
-  };
-
-  const saveFlight = () => {
-    if (!trip || !flightContext) return;
-    const days = trip.days.map(d => {
-      if (d.id !== flightContext.dayId) return d;
-      if (flightContext.flight) {
-        return { ...d, flights: d.flights.map(f => f.id === flightContext.flight!.id ? { ...f, ...flightForm } : f) };
-      } else {
+  // ---- Flight ops ----
+  const saveFlight = (dayId: string) => {
+    if (!trip || !flightForm.route.trim()) return;
+    let days;
+    if (editingFlight && editingFlight.dayId === dayId) {
+      days = trip.days.map(d => {
+        if (d.id !== dayId) return d;
+        return { ...d, flights: d.flights.map(f => f.id === editingFlight.flight.id ? { ...f, ...flightForm } : f) };
+      });
+      setEditingFlight(null);
+    } else {
+      days = trip.days.map(d => {
+        if (d.id !== dayId) return d;
         return { ...d, flights: [...d.flights, { id: `f${uid()}`, ...flightForm } as Flight] };
-      }
-    });
+      });
+    }
     saveTrip({ ...trip, days });
-    setShowFlightModal(false);
+    setFlightForm({ route: '', details: '', status: 'programmato' });
+    setShowFlightForm(null);
   };
-
   const deleteFlight = (dayId: string, flightId: string) => {
     if (!trip) return;
-    const days = trip.days.map(d => d.id === dayId ? { ...d, flights: d.flights.filter(f => f.id !== flightId) } : d);
-    saveTrip({ ...trip, days });
+    saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, flights: d.flights.filter(f => f.id !== flightId) } : d) });
   };
-
-  const toggleFlightStatus = (dayId: string, flightId: string) => {
+  const updateFlightStatus = (dayId: string, flightId: string, status: string) => {
     if (!trip) return;
-    const days = trip.days.map(d => {
-      if (d.id !== dayId) return d;
-      return { ...d, flights: d.flights.map(f => f.id === flightId ? { ...f, status: nextStatus(f.status, FLIGHT_STATUSES) as Flight['status'] } : f) };
-    });
-    saveTrip({ ...trip, days });
+    saveTrip({ ...trip, days: trip.days.map(d => d.id !== dayId ? d : { ...d, flights: d.flights.map(f => f.id === flightId ? { ...f, status: status as Flight['status'] } : f) }) });
   };
 
-  // ---- Hotel operations ----
-  const toggleHotelStatus = (dayId: string) => {
+  // ---- Hotel ops ----
+  const updateHotelStatus = (dayId: string, status: string) => {
     if (!trip) return;
-    const days = trip.days.map(d => d.id === dayId ? { ...d, hotelStatus: nextStatus(d.hotelStatus, HOTEL_STATUSES) as TravelDay['hotelStatus'] } : d);
-    saveTrip({ ...trip, days });
+    saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, hotelStatus: status as TravelDay['hotelStatus'] } : d) });
   };
 
-  // ---- Appointment operations ----
-  const openAddApt = (dayId: string) => {
-    setAptContext({ dayId });
-    setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '' });
-    setShowAptModal(true);
-  };
-
-  const openEditApt = (dayId: string, apt: Appointment) => {
-    setAptContext({ dayId, apt });
-    setAptForm({ time: apt.time, endTime: apt.endTime, client: apt.client, status: apt.status, notes: apt.notes });
-    setShowAptModal(true);
-  };
-
+  // ---- Appointment ops ----
   const saveApt = () => {
     if (!trip || !aptContext) return;
     const days = trip.days.map(d => {
       if (d.id !== aptContext.dayId) return d;
       if (aptContext.apt) {
         return { ...d, appointments: d.appointments.map(a => a.id === aptContext.apt!.id ? { ...a, ...aptForm } : a) };
-      } else {
-        return { ...d, appointments: [...d.appointments, { id: `a${uid()}`, ...aptForm }] };
       }
+      return { ...d, appointments: [...d.appointments, { id: `a${uid()}`, ...aptForm }] };
     });
     saveTrip({ ...trip, days });
     setShowAptModal(false);
   };
-
   const deleteApt = (dayId: string, aptId: string) => {
     if (!trip) return;
-    const days = trip.days.map(d => d.id === dayId ? { ...d, appointments: d.appointments.filter(a => a.id !== aptId) } : d);
-    saveTrip({ ...trip, days });
+    saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, appointments: d.appointments.filter(a => a.id !== aptId) } : d) });
   };
-
-  const toggleAptStatus = (dayId: string, aptId: string) => {
+  const updateAptStatus = (dayId: string, aptId: string, status: string) => {
     if (!trip) return;
-    const days = trip.days.map(d => {
-      if (d.id !== dayId) return d;
-      return { ...d, appointments: d.appointments.map(a => a.id === aptId ? { ...a, status: nextStatus(a.status, APT_STATUSES) } : a) };
-    });
-    saveTrip({ ...trip, days });
+    saveTrip({ ...trip, days: trip.days.map(d => d.id !== dayId ? d : { ...d, appointments: d.appointments.map(a => a.id === aptId ? { ...a, status } : a) }) });
   };
 
-  // ---- Save new day ----
-  const saveDay = () => {
-    if (!trip || !dayForm.date) return;
-    const d = new Date(dayForm.date + 'T00:00:00');
-    if (editingDay) {
-      const days = trip.days.map(day => day.id === editingDay.id ? { ...day, ...dayForm } : day);
-      saveTrip({ ...trip, days });
-    } else {
-      const newDay: TravelDay = {
-        id: `d${uid()}`,
-        date: dayForm.date,
-        dayOfWeek: DAY_NAMES_IT[d.getDay()],
-        location: dayForm.location,
-        hotel: dayForm.hotel,
-        hotelStatus: dayForm.hotelStatus as TravelDay['hotelStatus'],
-        notes: dayForm.notes,
-        flights: [],
-        appointments: [],
-      };
-      saveTrip({ ...trip, days: [...trip.days, newDay] });
-    }
-    setShowDayModal(false);
-  };
-
-  // ---- Save trip meta ----
+  // ---- Trip meta ----
   const saveTripMeta = async () => {
     if (!trip) return;
-    const updated = { ...trip, ...tripForm };
-    setTrip(updated);
+    setTrip({ ...trip, ...tripForm });
     try {
       await (apiService as any).updateTrip(trip.id, {
-        name: tripForm.name,
-        destination: tripForm.destination,
-        startDate: tripForm.startDate,
-        endDate: tripForm.endDate,
-        notes: tripForm.notes,
+        name: tripForm.name, destination: tripForm.destination,
+        startDate: tripForm.startDate, endDate: tripForm.endDate, notes: tripForm.notes,
       });
-    } catch (e) {
-      console.error('Save trip meta failed:', e);
-    }
+    } catch (e) { console.error(e); }
     setShowEditTripModal(false);
   };
-
   const deleteTrip = async () => {
     if (!trip || !confirm('Eliminare questo viaggio?')) return;
-    try {
-      await (apiService as any).deleteTrip(trip.id);
-      navigate('/trips');
-    } catch (e) {
-      console.error('Delete trip failed:', e);
-    }
+    try { await (apiService as any).deleteTrip(trip.id); navigate('/trips'); } catch (e) { console.error(e); }
   };
 
-  // ---- Computed stats ----
-  const totalFlights = trip?.days.reduce((s, d) => s + d.flights.length, 0) || 0;
-  const totalApts = trip?.days.reduce((s, d) => s + d.appointments.length, 0) || 0;
-  const hotelNames = trip ? [...new Set(trip.days.map(d => d.hotel).filter(Boolean))].length : 0;
-  const sortedDays = trip ? [...trip.days].sort((a, b) => a.date.localeCompare(b.date)) : [];
+  if (loading) return <div className="td-loading">Caricamento...</div>;
+  if (!trip) return <div className="td-loading">Viaggio non trovato</div>;
 
-  // ---- Hotel blocks for report ----
+  const sortedDays = [...trip.days].sort((a, b) => a.date.localeCompare(b.date));
+  const totalFlights = trip.days.reduce((s, d) => s + d.flights.length, 0);
+  const totalApts = trip.days.reduce((s, d) => s + d.appointments.length, 0);
+  const hotelNames = [...new Set(trip.days.map(d => d.hotel).filter(Boolean))];
+  const locations = [...new Set(trip.days.map(d => d.location).filter(Boolean))];
+
+  // Hotel blocks for report
   const hotelBlocks: { hotel: string; checkIn: string; checkOut: string; nights: number; status: string }[] = [];
-  let currentHotel: typeof hotelBlocks[0] | null = null;
+  let curHotel: typeof hotelBlocks[0] | null = null;
   for (const day of sortedDays.filter(d => d.hotel)) {
-    if (currentHotel && currentHotel.hotel === day.hotel) {
-      currentHotel.checkOut = day.date;
-      currentHotel.nights++;
-    } else {
-      if (currentHotel) hotelBlocks.push(currentHotel);
-      currentHotel = { hotel: day.hotel, checkIn: day.date, checkOut: day.date, nights: 1, status: day.hotelStatus };
-    }
+    if (curHotel && curHotel.hotel === day.hotel) { curHotel.checkOut = day.date; curHotel.nights++; }
+    else { if (curHotel) hotelBlocks.push(curHotel); curHotel = { hotel: day.hotel, checkIn: day.date, checkOut: day.date, nights: 1, status: day.hotelStatus }; }
   }
-  if (currentHotel) hotelBlocks.push(currentHotel);
+  if (curHotel) hotelBlocks.push(curHotel);
 
-  if (loading) return <div className="trip-detail-loading">Caricamento...</div>;
-  if (!trip) return <div className="trip-detail-loading">Viaggio non trovato</div>;
+  const statusCounts = trip.days.flatMap(d => d.appointments).reduce((acc, a) => {
+    acc[a.status] = (acc[a.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="trip-detail-page">
-      {/* Header */}
-      <div className="trip-detail-header">
-        <button className="trip-detail-back" onClick={() => navigate('/trips')}>
-          ← Viaggi
-        </button>
-        <div className="trip-detail-header-top">
+    <div className="td-page">
+
+      {/* ===== HEADER ===== */}
+      <div className="td-header-bar">
+        <button className="td-back-btn" onClick={() => navigate('/trips')}>← Viaggi</button>
+        <div className="td-header-main">
           <div>
-            <h1 className="trip-detail-title">{trip.name}</h1>
-            <p className="trip-detail-meta">
-              {new Date(trip.startDate + 'T00:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+            <h1 className="td-title">{trip.name}</h1>
+            <p className="td-subtitle">
+              {new Date(trip.startDate + 'T00:00:00').toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' })}
               {' — '}
-              {new Date(trip.endDate + 'T00:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {new Date(trip.endDate + 'T00:00:00').toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' })}
+              {' · '}{trip.days.length} giorni
             </p>
-            {trip.destination && <p className="trip-detail-destination">📍 {trip.destination}</p>}
-            <div className="trip-detail-stats">
-              <span className="trip-detail-stat"><strong>{trip.days.length}</strong> giorni</span>
-              <span className="trip-detail-stat"><strong>{totalFlights}</strong> voli</span>
-              <span className="trip-detail-stat"><strong>{hotelNames}</strong> hotel</span>
-              <span className="trip-detail-stat"><strong>{totalApts}</strong> appuntamenti</span>
-            </div>
           </div>
-          <div className="trip-detail-actions">
-            <button className="trip-btn-secondary" onClick={() => setShowPdfUpload(true)}>
-              📄 Carica PDF
-            </button>
-            <div className="trip-export-wrapper" ref={exportMenuRef}>
-              <button className="trip-btn-secondary" onClick={() => setShowExportMenu(v => !v)}>
-                ⬇ Esporta ▾
-              </button>
+          <div className="td-header-actions">
+            <button className="td-btn-upload" onClick={() => setShowPdfUpload(true)}>↑ Carica PDF</button>
+            <div className="td-export-wrap" ref={exportMenuRef}>
+              <button className="td-btn-export" onClick={() => setShowExportMenu(v => !v)}>↓ Esporta ▾</button>
               {showExportMenu && (
-                <div className="trip-export-menu">
-                  <button onClick={() => { exportTripPdf(trip); setShowExportMenu(false); }}>
-                    📄 Esporta PDF
-                  </button>
-                  <button onClick={() => { exportTripExcel(trip); setShowExportMenu(false); }}>
-                    📊 Esporta Excel
-                  </button>
+                <div className="td-export-menu">
+                  <button onClick={() => { exportTripPdf(trip); setShowExportMenu(false); }}>📄 Esporta PDF</button>
+                  <button onClick={() => { exportTripExcel(trip); setShowExportMenu(false); }}>📊 Esporta Excel</button>
                 </div>
               )}
             </div>
-            <button className="trip-btn-secondary" onClick={() => {
+            <button className="td-icon-btn" title="Modifica" onClick={() => {
               setTripForm({ name: trip.name, destination: trip.destination || '', startDate: trip.startDate, endDate: trip.endDate, notes: trip.notes || '' });
               setShowEditTripModal(true);
-            }}>✏ Modifica</button>
-            <button className="trip-btn-danger" onClick={deleteTrip}>🗑 Elimina</button>
+            }}>✏</button>
+            <button className="td-icon-btn danger" title="Elimina" onClick={deleteTrip}>🗑</button>
           </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="td-tabs">
+          <button className={`td-tab${activeTab === 'overview' ? ' active' : ''}`} onClick={() => setActiveTab('overview')}>
+            📊 Panoramica
+          </button>
+          <button className={`td-tab${activeTab === 'list' ? ' active' : ''}`} onClick={() => setActiveTab('list')}>
+            ☰ Lista
+          </button>
+          <button className={`td-tab${activeTab === 'report' ? ' active' : ''}`} onClick={() => setActiveTab('report')}>
+            📋 Report
+          </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="trip-tabs">
-        <button className={`trip-tab ${activeTab === 'itinerary' ? 'active' : ''}`} onClick={() => setActiveTab('itinerary')}>
-          Itinerario
-        </button>
-        <button className={`trip-tab ${activeTab === 'report' ? 'active' : ''}`} onClick={() => setActiveTab('report')}>
-          Report
-        </button>
-      </div>
+      {/* ===== PANORAMICA ===== */}
+      {activeTab === 'overview' && (
+        <div className="td-overview">
+          <div className="td-stats-grid">
+            <div className="td-stat-card teal">
+              <div className="td-stat-label">📍 Destinazioni</div>
+              <div className="td-stat-value">{locations.length}</div>
+            </div>
+            <div className="td-stat-card blue">
+              <div className="td-stat-label">✈ Voli</div>
+              <div className="td-stat-value">{totalFlights}</div>
+            </div>
+            <div className="td-stat-card purple">
+              <div className="td-stat-label">🏨 Hotel</div>
+              <div className="td-stat-value">{hotelNames.length}</div>
+            </div>
+            <div className="td-stat-card green">
+              <div className="td-stat-label">📅 Appuntamenti</div>
+              <div className="td-stat-value">{totalApts}</div>
+            </div>
+          </div>
 
-      {/* ---- ITINERARY TAB ---- */}
-      {activeTab === 'itinerary' && (
-        <div className="trip-days-list">
-          {sortedDays.map(day => (
-            <div key={day.id} className={`trip-day-card ${day.date === todayStr ? 'today' : ''}`}>
-              <div className="trip-day-header">
-                <div className="trip-day-date">
-                  <span className="trip-day-date-text">{formatDateShort(day.date)}</span>
-                  {day.date === todayStr && <span className="trip-day-today-badge">OGGI</span>}
-                  <input
-                    className="trip-day-location-input"
-                    value={day.location}
-                    placeholder="Localita..."
-                    onChange={e => updateDayField(day.id, 'location', e.target.value)}
-                    onBlur={e => updateDayField(day.id, 'location', e.target.value)}
-                  />
-                </div>
-                <div className="trip-day-header-actions">
-                  <button className="icon-btn" title="Modifica giorno" onClick={() => {
-                    setEditingDay(day);
-                    setDayForm({ date: day.date, location: day.location, hotel: day.hotel, hotelStatus: day.hotelStatus, notes: day.notes });
-                    setShowDayModal(true);
-                  }}>✏</button>
-                  <button className="icon-btn delete" title="Elimina giorno" onClick={() => deleteDay(day.id)}>🗑</button>
-                </div>
-              </div>
-
-              <div className="trip-day-body">
-                {/* Flights */}
-                <div className="trip-day-section">
-                  <span className="trip-day-section-label">Voli</span>
-                  <div className="trip-day-section-content">
-                    {day.flights.map(f => (
-                      <div key={f.id} className="trip-flight-item">
-                        <span className="trip-flight-route">{f.route || '—'}</span>
-                        <span className="trip-flight-details">{f.details}</span>
-                        <button
-                          className={`trip-status ${f.status}`}
-                          onClick={() => toggleFlightStatus(day.id, f.id)}
-                          title="Cambia stato"
-                        >
-                          {STATUS_LABELS[f.status]}
-                        </button>
-                        <div className="trip-flight-actions">
-                          <button className="icon-btn" onClick={() => openEditFlight(day.id, f)} title="Modifica">✏</button>
-                          <button className="icon-btn delete" onClick={() => deleteFlight(day.id, f.id)} title="Elimina">✕</button>
-                        </div>
-                      </div>
-                    ))}
-                    <button className="trip-add-btn" onClick={() => openAddFlight(day.id)}>+ volo</button>
-                  </div>
-                </div>
-
-                {/* Hotel */}
-                <div className="trip-day-section">
-                  <span className="trip-day-section-label">Hotel</span>
-                  <div className="trip-day-section-content">
-                    <div className="trip-hotel-row">
-                      <input
-                        className="trip-hotel-input"
-                        value={day.hotel}
-                        placeholder="Nome hotel..."
-                        onChange={e => updateDayField(day.id, 'hotel', e.target.value)}
-                        onBlur={e => updateDayField(day.id, 'hotel', e.target.value)}
-                      />
-                      {day.hotel && (
-                        <button
-                          className={`trip-status ${day.hotelStatus}`}
-                          onClick={() => toggleHotelStatus(day.id)}
-                          title="Cambia stato"
-                        >
-                          {STATUS_LABELS[day.hotelStatus]}
-                        </button>
-                      )}
+          <div className="td-overview-grid">
+            <div className="td-overview-card">
+              <h3 className="td-overview-card-title">Voli</h3>
+              <div className="td-overview-list">
+                {sortedDays.flatMap(d => d.flights.map(f => (
+                  <div key={f.id} className="td-overview-item">
+                    <span className="td-overview-date">{fmtMed(d.date)}</span>
+                    <div>
+                      <div className="td-overview-route">{f.route}</div>
+                      <div className="td-overview-details">{f.details}</div>
                     </div>
                   </div>
-                </div>
+                )))}
+                {totalFlights === 0 && <span style={{ color: '#A09A96', fontSize: '0.8rem' }}>Nessun volo</span>}
+              </div>
+            </div>
+            <div className="td-overview-card">
+              <h3 className="td-overview-card-title">Stato Appuntamenti</h3>
+              <div className="td-overview-list">
+                {Object.entries(statusCounts).map(([s, count]) => (
+                  <div key={s} className="td-overview-status-row">
+                    <span>{STATUS_LABELS[s] || s}</span>
+                    <strong>{count}</strong>
+                  </div>
+                ))}
+                {totalApts === 0 && <span style={{ color: '#A09A96', fontSize: '0.8rem' }}>Nessun appuntamento</span>}
+              </div>
+            </div>
+          </div>
 
-                {/* Appointments */}
-                <div className="trip-day-section">
-                  <span className="trip-day-section-label">Appunt.</span>
-                  <div className="trip-day-section-content">
-                    {day.appointments.map(a => (
-                      <div key={a.id} className="trip-apt-item">
-                        <span className="trip-apt-time">
-                          {a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}
+          {hotelNames.length > 0 && (
+            <div className="td-overview-card">
+              <h3 className="td-overview-card-title">Hotel</h3>
+              <div className="td-hotels-wrap">
+                {hotelNames.map(h => <span key={h} className="td-hotel-chip">{h}</span>)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== LISTA ===== */}
+      {activeTab === 'list' && (
+        <div className="td-list">
+          {sortedDays.map(day => {
+            const isToday = day.date === todayStr;
+            const isExpanded = expandedDays.has(day.id);
+            const dateObj = new Date(day.date + 'T00:00:00');
+            const dayNum = dateObj.getDate();
+            const monthStr = dateObj.toLocaleDateString(LOCALE, { month: 'short' }).toUpperCase();
+            const dateStr = dateObj.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
+
+            return (
+              <div key={day.id} className={`td-day-card${isToday ? ' today' : ''}`}>
+                {/* Header - click to expand */}
+                <div className="td-day-header" onClick={() => toggleDay(day.id)}>
+                  <div className={`td-date-box${isToday ? ' today' : ''}`}>
+                    <span className="td-date-num">{dayNum}</span>
+                    <span className="td-date-month">{monthStr}</span>
+                  </div>
+                  <div className="td-day-info">
+                    <div className="td-day-location">
+                      {day.location || '—'}
+                      {isToday && <span className="td-today-badge">OGGI</span>}
+                    </div>
+                    <div className="td-day-summary">
+                      <span>{dateStr}</span>
+                      {day.flights.length > 0 && (
+                        <span className="td-day-summary-item">
+                          ✈ {day.flights[0].route}
+                          {day.flights.length > 1 && <span className="td-extra-badge">+{day.flights.length - 1}</span>}
                         </span>
-                        <span className="trip-apt-client">{a.client}</span>
-                        {a.notes && <span className="trip-apt-notes">{a.notes}</span>}
-                        <button
-                          className={`trip-status ${a.status}`}
-                          onClick={() => toggleAptStatus(day.id, a.id)}
-                          title="Cambia stato"
-                        >
-                          {STATUS_LABELS[a.status] || a.status}
-                        </button>
-                        <a
-                          href={`/visits/new?client=${encodeURIComponent(a.client)}&date=${day.date}`}
-                          className="trip-btn-link"
-                          title="Crea visita cliente"
-                        >
-                          + Visita
-                        </a>
-                        <div className="trip-apt-actions">
-                          <button className="icon-btn" onClick={() => openEditApt(day.id, a)} title="Modifica">✏</button>
-                          <button className="icon-btn delete" onClick={() => deleteApt(day.id, a.id)} title="Elimina">✕</button>
-                        </div>
-                      </div>
-                    ))}
-                    <button className="trip-add-btn" onClick={() => openAddApt(day.id)}>+ appuntamento</button>
+                      )}
+                      {day.hotel && <span className="td-day-summary-item">🏨 {day.hotel}</span>}
+                    </div>
+                  </div>
+                  <div className="td-day-header-right">
+                    {day.appointments.length > 0 && (
+                      <span className="td-apt-count-badge">🕐 {day.appointments.length}</span>
+                    )}
+                    <span className="td-chevron">{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
 
-                {/* Notes */}
-                {day.notes && (
-                  <div className="trip-day-section">
-                    <span className="trip-day-section-label">Note</span>
-                    <div className="trip-day-section-content">
-                      <span className="trip-notes-text">{day.notes}</span>
+                {/* Expanded body */}
+                {isExpanded && (
+                  <div className="td-day-body">
+                    {/* Flights */}
+                    {day.flights.map(f => (
+                      <div key={f.id} className="td-flight-item">
+                        <span className="td-flight-icon">✈</span>
+                        <div className="td-flight-info">
+                          <span className="td-flight-route">{f.route}</span>
+                          {f.details && <span className="td-flight-details">{f.details}</span>}
+                        </div>
+                        <StatusDropdown status={f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, f.id, s)} type="flight" />
+                        <div className="td-item-actions">
+                          <button className="td-icon-btn-sm" onClick={e => { e.stopPropagation(); setFlightForm({ route: f.route, details: f.details, status: f.status }); setEditingFlight({ dayId: day.id, flight: f }); setShowFlightForm(day.id); }}>✏</button>
+                          <button className="td-icon-btn-sm danger" onClick={e => { e.stopPropagation(); deleteFlight(day.id, f.id); }}>✕</button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Inline flight form */}
+                    {showFlightForm === day.id && (
+                      <div className="td-flight-form">
+                        <div className="td-flight-form-fields">
+                          <input className="td-input" value={flightForm.route} onChange={e => setFlightForm(f => ({ ...f, route: e.target.value }))} placeholder="Tratta (es. BLQ-IST)" autoFocus />
+                          <input className="td-input" value={flightForm.details} onChange={e => setFlightForm(f => ({ ...f, details: e.target.value }))} placeholder="Dettagli (es. TK1322 10:55)" />
+                          <select className="td-select" value={flightForm.status} onChange={e => setFlightForm(f => ({ ...f, status: e.target.value }))}>
+                            <option value="programmato">Programmato</option>
+                            <option value="confermato">Confermato</option>
+                          </select>
+                        </div>
+                        <div className="td-flight-form-actions">
+                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato' }); }}>Annulla</button>
+                          <button className="td-small-btn-primary" onClick={() => saveFlight(day.id)}>Salva</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hotel */}
+                    {day.hotel && (
+                      <div className="td-hotel-item">
+                        <span className="td-hotel-icon">🏨</span>
+                        <span className="td-hotel-name">{day.hotel}</span>
+                        <StatusDropdown status={day.hotelStatus || 'confermato'} statuses={HOTEL_STATUSES} onChange={s => updateHotelStatus(day.id, s)} type="hotel" />
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {day.notes && <div className="td-day-notes">{day.notes}</div>}
+
+                    {/* Appointments */}
+                    {day.appointments.length > 0 && (
+                      <div className="td-apts-section">
+                        <div className="td-apts-label">Appuntamenti</div>
+                        {day.appointments.map(a => (
+                          <div key={a.id} className="td-apt-item">
+                            <div className="td-apt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</div>
+                            <div className="td-apt-main">
+                              <div className="td-apt-client">{a.client}</div>
+                              {a.notes && <div className="td-apt-notes">{a.notes}</div>}
+                            </div>
+                            <StatusDropdown status={a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, a.id, s)} type="apt" />
+                            <a href={`/visits/new?client=${encodeURIComponent(a.client)}&date=${day.date}`} className="td-visit-link" title="Crea visita">+ Visita</a>
+                            <div className="td-item-actions">
+                              <button className="td-icon-btn-sm" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: a }); setAptForm({ time: a.time, endTime: a.endTime, client: a.client, status: a.status, notes: a.notes }); setShowAptModal(true); }}>✏</button>
+                              <button className="td-icon-btn-sm danger" onClick={e => { e.stopPropagation(); deleteApt(day.id, a.id); }}>✕</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Day actions */}
+                    <div className="td-day-actions">
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Volo</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '' }); setShowAptModal(true); }}>+ Appuntamento</button>
+                      <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, location: day.location, hotel: day.hotel, hotelStatus: day.hotelStatus, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
+                      <button className="td-action-link red" onClick={e => { e.stopPropagation(); deleteDay(day.id); }}>🗑 Elimina</button>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
-          <button className="trip-add-day-btn" onClick={() => {
-            setEditingDay(null);
-            setDayForm({ date: '', location: '', hotel: '', hotelStatus: 'programmato', notes: '' });
-            setShowDayModal(true);
-          }}>
+          <button className="td-add-day-btn" onClick={() => { setEditingDay(null); setDayForm({ date: '', location: '', hotel: '', hotelStatus: 'programmato', notes: '' }); setShowDayModal(true); }}>
             + Aggiungi Giorno
           </button>
         </div>
       )}
 
-      {/* ---- REPORT TAB ---- */}
+      {/* ===== REPORT ===== */}
       {activeTab === 'report' && (
-        <div className="trip-report">
-          {/* Itinerary table */}
-          <div className="trip-report-block">
-            <div className="trip-report-block-header blue">Itinerario Completo</div>
+        <div className="td-report">
+          {/* Itinerary */}
+          <div className="td-report-card">
+            <div className="td-report-card-header blue">Itinerario Completo</div>
             <div style={{ overflowX: 'auto' }}>
-              <table className="trip-report-table">
+              <table className="td-report-table">
                 <thead>
                   <tr>
-                    <th>Data</th>
-                    <th>Localita</th>
-                    <th>Volo</th>
-                    <th>Hotel</th>
-                    <th>Appuntamenti</th>
-                    <th>Note</th>
+                    <th>Data</th><th>Localita</th><th>Volo</th><th>Hotel</th><th>Appuntamenti</th><th>Note</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedDays.map(day => (
                     <tr key={day.id}>
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--color-accent)', fontWeight: 600 }}>{formatDateShort(day.date)}</td>
+                      <td style={{ whiteSpace: 'nowrap', color: '#6AAED6', fontWeight: 600 }}>{fmtShort(day.date)}</td>
                       <td style={{ fontWeight: 600 }}>{day.location}</td>
                       <td>
                         {day.flights.map(f => (
                           <div key={f.id} style={{ marginBottom: 4 }}>
-                            <span className="trip-report-route">{f.route}</span>
-                            {' '}
-                            <span className="trip-report-muted">{f.details}</span>
-                            {' '}
-                            <span className={`trip-status ${f.status}`}>{STATUS_LABELS[f.status]}</span>
+                            <span className="td-report-route">{f.route}</span>
+                            {' '}<span className="td-report-muted">{f.details}</span>
+                            {' '}<span className={`status-badge ${f.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[f.status]}</span>
                           </div>
                         ))}
                       </td>
                       <td>
                         {day.hotel && (
-                          <>
-                            {day.hotel}{' '}
-                            <span className={`trip-status ${day.hotelStatus}`}>{STATUS_LABELS[day.hotelStatus]}</span>
+                          <>{day.hotel}{' '}
+                            <span className={`status-badge ${day.hotelStatus === 'confermato' ? 'confermato' : 'hotel-programmato'}`} style={{ cursor: 'default' }}>{STATUS_LABELS[day.hotelStatus]}</span>
                           </>
                         )}
                       </td>
                       <td>
                         {day.appointments.map(a => (
-                          <div key={a.id} style={{ marginBottom: 3, fontSize: '0.8rem' }}>
-                            <span style={{ fontFamily: 'monospace', color: 'var(--color-accent)' }}>
-                              {a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}
-                            </span>
-                            {' '}
-                            <strong>{a.client}</strong>
-                            {' '}
-                            <span className={`trip-status ${a.status}`}>{STATUS_LABELS[a.status]}</span>
+                          <div key={a.id} style={{ marginBottom: 3, fontSize: '0.78rem' }}>
+                            <span style={{ fontFamily: 'monospace', color: '#6AAED6', fontWeight: 600 }}>{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
+                            {' '}<strong>{a.client}</strong>
+                            {' '}<span className={`status-badge ${a.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[a.status]}</span>
                           </div>
                         ))}
                       </td>
-                      <td className="trip-report-muted">{day.notes}</td>
+                      <td className="td-report-muted">{day.notes}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -601,21 +632,19 @@ export const TripDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Flights table */}
+          {/* Flights */}
           {totalFlights > 0 && (
-            <div className="trip-report-block">
-              <div className="trip-report-block-header teal">Voli</div>
-              <table className="trip-report-table">
-                <thead>
-                  <tr><th>Data</th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr>
-                </thead>
+            <div className="td-report-card">
+              <div className="td-report-card-header teal">Voli</div>
+              <table className="td-report-table">
+                <thead><tr><th>Data</th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
                 <tbody>
                   {sortedDays.flatMap(day => day.flights.map(f => (
                     <tr key={f.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>{formatDateShort(day.date)}</td>
-                      <td className="trip-report-route">{f.route}</td>
-                      <td className="trip-report-muted">{f.details}</td>
-                      <td><span className={`trip-status ${f.status}`}>{STATUS_LABELS[f.status]}</span></td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
+                      <td className="td-report-route">{f.route}</td>
+                      <td className="td-report-muted">{f.details}</td>
+                      <td><span className={`status-badge ${f.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[f.status]}</span></td>
                     </tr>
                   )))}
                 </tbody>
@@ -623,22 +652,20 @@ export const TripDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Hotels table */}
+          {/* Hotels */}
           {hotelBlocks.length > 0 && (
-            <div className="trip-report-block">
-              <div className="trip-report-block-header purple">Hotel</div>
-              <table className="trip-report-table">
-                <thead>
-                  <tr><th>Hotel</th><th>Check-in</th><th>Check-out</th><th>Notti</th><th>Stato</th></tr>
-                </thead>
+            <div className="td-report-card">
+              <div className="td-report-card-header purple">Hotel</div>
+              <table className="td-report-table">
+                <thead><tr><th>Hotel</th><th>Check-in</th><th>Check-out</th><th>Notti</th><th>Stato</th></tr></thead>
                 <tbody>
                   {hotelBlocks.map((h, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 600 }}>{h.hotel}</td>
-                      <td>{new Date(h.checkIn + 'T00:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</td>
-                      <td>{new Date(h.checkOut + 'T00:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</td>
+                      <td>{fmtMed(h.checkIn)}</td>
+                      <td>{fmtMed(h.checkOut)}</td>
                       <td>{h.nights}</td>
-                      <td><span className={`trip-status ${h.status}`}>{STATUS_LABELS[h.status]}</span></td>
+                      <td><span className={`status-badge ${h.status === 'confermato' ? 'confermato' : 'hotel-programmato'}`} style={{ cursor: 'default' }}>{STATUS_LABELS[h.status]}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -646,23 +673,21 @@ export const TripDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Appointments table */}
+          {/* Appointments */}
           {totalApts > 0 && (
-            <div className="trip-report-block">
-              <div className="trip-report-block-header green">Appuntamenti</div>
-              <table className="trip-report-table">
-                <thead>
-                  <tr><th>Data</th><th>Localita</th><th>Ora Inizio</th><th>Ora Fine</th><th>Cliente</th><th>Stato</th></tr>
-                </thead>
+            <div className="td-report-card">
+              <div className="td-report-card-header green">Appuntamenti</div>
+              <table className="td-report-table">
+                <thead><tr><th>Data</th><th>Localita</th><th>Ora Inizio</th><th>Ora Fine</th><th>Cliente</th><th>Stato</th></tr></thead>
                 <tbody>
                   {sortedDays.flatMap(day => day.appointments.map(a => (
                     <tr key={a.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>{formatDateShort(day.date)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
                       <td>{day.location}</td>
                       <td style={{ fontFamily: 'monospace' }}>{a.time || '—'}</td>
                       <td style={{ fontFamily: 'monospace' }}>{a.endTime || ''}</td>
                       <td style={{ fontWeight: 600 }}>{a.client}</td>
-                      <td><span className={`trip-status ${a.status}`}>{STATUS_LABELS[a.status]}</span></td>
+                      <td><span className={`status-badge ${a.status}`} style={{ cursor: 'default' }}>{STATUS_LABELS[a.status]}</span></td>
                     </tr>
                   )))}
                 </tbody>
@@ -672,9 +697,18 @@ export const TripDetail: React.FC = () => {
         </div>
       )}
 
-      {/* ======= MODALS ======= */}
+      {/* ===== MODALS ===== */}
 
-      {/* Edit Trip Modal */}
+      {/* PDF Upload */}
+      {showPdfUpload && (
+        <TripPdfUpload
+          trip={trip}
+          onSave={(updatedDays: any[]) => saveTrip({ ...trip, days: updatedDays })}
+          onClose={() => setShowPdfUpload(false)}
+        />
+      )}
+
+      {/* Edit Trip */}
       {showEditTripModal && (
         <div className="modal-overlay" onClick={() => setShowEditTripModal(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -747,52 +781,6 @@ export const TripDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Flight Modal */}
-      {showFlightModal && (
-        <div className="modal-overlay" onClick={() => setShowFlightModal(false)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <h2 className="modal-title">{flightContext?.flight ? 'Modifica Volo' : 'Nuovo Volo'}</h2>
-            <div className="form-group">
-              <label>Tratta (es. MXP-ICN)</label>
-              <input
-                value={flightForm.route}
-                onChange={e => setFlightForm(f => ({ ...f, route: e.target.value }))}
-                placeholder="BRI-IST"
-                autoFocus
-              />
-            </div>
-            <div className="form-group">
-              <label>Dettagli (volo + orari)</label>
-              <input
-                value={flightForm.details}
-                onChange={e => setFlightForm(f => ({ ...f, details: e.target.value }))}
-                placeholder="TK1466 20:35/23:35"
-              />
-            </div>
-            <div className="form-group">
-              <label>Stato</label>
-              <select value={flightForm.status} onChange={e => setFlightForm(f => ({ ...f, status: e.target.value }))}>
-                <option value="programmato">Programmato</option>
-                <option value="confermato">Confermato</option>
-              </select>
-            </div>
-            <div className="modal-actions">
-              <button className="trip-btn-secondary" onClick={() => setShowFlightModal(false)}>Annulla</button>
-              <button className="trip-btn-primary" onClick={saveFlight}>{flightContext?.flight ? 'Salva' : 'Aggiungi'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PDF Upload Modal */}
-      {showPdfUpload && (
-        <TripPdfUpload
-          trip={trip}
-          onSave={(updatedDays: any[]) => saveTrip({ ...trip, days: updatedDays })}
-          onClose={() => setShowPdfUpload(false)}
-        />
-      )}
-
       {/* Appointment Modal */}
       {showAptModal && (
         <div className="modal-overlay" onClick={() => setShowAptModal(false)}>
@@ -802,7 +790,6 @@ export const TripDetail: React.FC = () => {
               <label>Cliente *</label>
               <div style={{ position: 'relative' }}>
                 <input
-                  ref={clientInputRef}
                   value={aptForm.client}
                   autoFocus
                   placeholder="Nome cliente o cerca..."
@@ -820,27 +807,12 @@ export const TripDetail: React.FC = () => {
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 />
                 {showSuggestions && (
-                  <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                    background: 'white', border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-md)',
-                    maxHeight: 200, overflowY: 'auto',
-                  }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'white', border: '1px solid rgba(160,154,150,0.3)', borderRadius: '0.5rem', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' }}>
                     {clientSuggestions.map(c => (
-                      <div
-                        key={c.id}
-                        onMouseDown={() => {
-                          setAptForm(f => ({ ...f, client: c.name }));
-                          setShowSuggestions(false);
-                        }}
-                        style={{
-                          padding: '0.5rem 0.75rem', cursor: 'pointer',
-                          fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)',
-                          borderBottom: '1px solid var(--color-border)',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-secondary)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'white')}
-                      >
+                      <div key={c.id} onMouseDown={() => { setAptForm(f => ({ ...f, client: c.name })); setShowSuggestions(false); }}
+                        style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', color: '#506A7E', borderBottom: '1px solid rgba(160,154,150,0.1)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F0EDE5')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
                         {c.name}
                       </div>
                     ))}
@@ -851,21 +823,11 @@ export const TripDetail: React.FC = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>Ora inizio</label>
-                <input
-                  value={aptForm.time}
-                  onChange={e => setAptForm(f => ({ ...f, time: e.target.value }))}
-                  onBlur={e => setAptForm(f => ({ ...f, time: formatTime(e.target.value) }))}
-                  placeholder="10:30"
-                />
+                <input value={aptForm.time} onChange={e => setAptForm(f => ({ ...f, time: e.target.value }))} onBlur={e => setAptForm(f => ({ ...f, time: formatTime(e.target.value) }))} placeholder="10:30" />
               </div>
               <div className="form-group">
                 <label>Ora fine</label>
-                <input
-                  value={aptForm.endTime}
-                  onChange={e => setAptForm(f => ({ ...f, endTime: e.target.value }))}
-                  onBlur={e => setAptForm(f => ({ ...f, endTime: formatTime(e.target.value) }))}
-                  placeholder="12:00"
-                />
+                <input value={aptForm.endTime} onChange={e => setAptForm(f => ({ ...f, endTime: e.target.value }))} onBlur={e => setAptForm(f => ({ ...f, endTime: formatTime(e.target.value) }))} placeholder="12:00" />
               </div>
             </div>
             <div className="form-group">
