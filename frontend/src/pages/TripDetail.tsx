@@ -589,6 +589,14 @@ export const TripDetail: React.FC = () => {
             <div className="td-report-card-header blue">Itinerario Completo</div>
             <div style={{ overflowX: 'auto' }}>
               <table className="td-report-table">
+                <colgroup>
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '230px' }} />
+                  <col style={{ width: '190px' }} />
+                  <col style={{ width: '340px' }} />
+                  <col style={{ width: 'auto' }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Data</th><th>Localita</th><th>Volo</th><th>Hotel</th><th>Appuntamenti</th><th>Note</th>
@@ -639,7 +647,14 @@ export const TripDetail: React.FC = () => {
           {totalFlights > 0 && (
             <div className="td-report-card">
               <div className="td-report-card-header teal">Voli</div>
+              <div style={{ overflowX: 'auto' }}>
               <table className="td-report-table">
+                <colgroup>
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '160px' }} />
+                  <col style={{ width: 'auto' }} />
+                  <col style={{ width: '110px' }} />
+                </colgroup>
                 <thead><tr><th>Data</th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
                 <tbody>
                   {sortedDays.flatMap(day => day.flights.map(f => (
@@ -652,6 +667,7 @@ export const TripDetail: React.FC = () => {
                   )))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -659,7 +675,15 @@ export const TripDetail: React.FC = () => {
           {hotelBlocks.length > 0 && (
             <div className="td-report-card">
               <div className="td-report-card-header purple">Hotel</div>
+              <div style={{ overflowX: 'auto' }}>
               <table className="td-report-table">
+                <colgroup>
+                  <col style={{ width: 'auto' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '60px' }} />
+                  <col style={{ width: '110px' }} />
+                </colgroup>
                 <thead><tr><th>Hotel</th><th>Check-in</th><th>Check-out</th><th>Notti</th><th>Stato</th></tr></thead>
                 <tbody>
                   {hotelBlocks.map((h, i) => (
@@ -673,6 +697,7 @@ export const TripDetail: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -680,7 +705,16 @@ export const TripDetail: React.FC = () => {
           {totalApts > 0 && (
             <div className="td-report-card">
               <div className="td-report-card-header green">Appuntamenti</div>
+              <div style={{ overflowX: 'auto' }}>
               <table className="td-report-table">
+                <colgroup>
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '85px' }} />
+                  <col style={{ width: '85px' }} />
+                  <col style={{ width: 'auto' }} />
+                  <col style={{ width: '110px' }} />
+                </colgroup>
                 <thead><tr><th>Data</th><th>Localita</th><th>Ora Inizio</th><th>Ora Fine</th><th>Cliente</th><th>Stato</th></tr></thead>
                 <tbody>
                   {sortedDays.flatMap(day => day.appointments.map(a => (
@@ -695,6 +729,7 @@ export const TripDetail: React.FC = () => {
                   )))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

@@ -666,8 +666,10 @@
 
 .td-report-table {
   width: 100%;
+  min-width: 1020px;
   border-collapse: collapse;
   font-size: 0.8rem;
+  table-layout: fixed;
 }
 .td-report-table th {
   padding: 0.45rem 0.875rem;
@@ -728,7 +730,8 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: #6AAED6;
-  width: 6.5rem;
+  width: 5.8rem;
+  min-width: 5.8rem;
   flex-shrink: 0;
 }
 
