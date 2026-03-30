@@ -171,8 +171,7 @@
   padding: 0 1.5rem;
 }
 .td-report {
-  max-width: 1100px;
-  margin: 1.5rem auto;
+  margin: 1.5rem 0;
   padding: 0 1.5rem;
 }
 
@@ -695,7 +694,6 @@
 
 .td-report-table {
   width: 100%;
-  min-width: 1100px;
   border-collapse: collapse;
   font-size: 0.8rem;
   table-layout: auto;
@@ -982,5 +980,6 @@
   .td-flight-form-fields { grid-template-columns: 1fr; }
   .td-apt-time { width: auto; min-width: 4rem; }
   .td-visit-link { display: none; }
-  .td-overview, .td-list, .td-report { padding: 0 1rem; margin: 1rem auto; }
+  .td-overview, .td-list { padding: 0 1rem; margin: 1rem auto; }
+  .td-report { padding: 0 1rem; margin: 1rem 0; }
 }
