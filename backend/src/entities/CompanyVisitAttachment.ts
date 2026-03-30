@@ -19,6 +19,9 @@ export class CompanyVisitAttachment {
   @Column()
   s3_key: string;
 
+  @Column({ default: 'post_visit' })
+  attachment_type: 'pre_visit' | 'post_visit';
+
   @Column()
   uploaded_by_user_id: string;
 

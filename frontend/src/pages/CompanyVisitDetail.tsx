@@ -67,11 +67,11 @@ export const CompanyVisitDetail: React.FC = () => {
   }, [id]);
 
   // ---- Attachment handlers ----
-  const handleUploadAttachment = async (file: File) => {
+  const handleUploadAttachment = async (file: File, attachmentType: string = 'post_visit') => {
     if (!id) return;
     setUploading(true);
     try {
-      await apiService.uploadCompanyVisitAttachment(id, file);
+      await apiService.uploadCompanyVisitAttachment(id, file, attachmentType);
       setSuccess('Attachment uploaded');
       const attRes = await apiService.getCompanyVisitAttachments(id);
       if (attRes.success && attRes.data) setAttachments(attRes.data);
@@ -113,6 +113,38 @@ export const CompanyVisitDetail: React.FC = () => {
     } catch {
       setError('Error deleting attachment');
     }
+  };
+
+  const renderAttachmentSection = (title: string, type: string) => {
+    const filtered = attachments.filter((a: any) => (a.attachment_type || 'post_visit') === type);
+    return (
+      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
+        <h2 style={{ margin: '0 0 1rem', fontSize: '1.125rem' }}>{title} ({filtered.length})</h2>
+        {filtered.length > 0 && (
+          <div style={{ marginBottom: '1rem' }}>
+            {filtered.map((att: any) => (
+              <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.875rem', padding: '0.4rem 0', borderBottom: '1px solid #eee' }}>
+                <span>📎</span>
+                <span style={{ flex: 1, wordBreak: 'break-word' }}>{att.filename}</span>
+                <span style={{ color: '#888', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{att.file_size ? formatFileSize(att.file_size) : ''}</span>
+                <button onClick={() => handleViewAttachment(att.id)} style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>
+                <button onClick={() => handleDownloadAttachment(att.id, att.filename)} style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: '#007bff', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>Download</button>
+                <button onClick={() => handleDeleteAttachment(att.id)} style={{ padding: '2px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.9rem' }} title="Delete">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); Array.from(e.dataTransfer.files).forEach(f => handleUploadAttachment(f, type)); }}
+          onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.onchange = (ev: any) => { const files = ev.target?.files; if (files) Array.from(files).forEach((f: any) => handleUploadAttachment(f, type)); }; input.click(); }}
+          style={{ border: `2px dashed ${dragOver ? '#007bff' : '#ccc'}`, borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer', fontSize: '0.85rem', color: '#888', background: dragOver ? '#f0f7ff' : 'transparent' }}
+        >
+          {uploading ? 'Uploading...' : '📎 Drop files here or click to upload'}
+        </div>
+      </div>
+    );
   };
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
@@ -162,12 +194,10 @@ export const CompanyVisitDetail: React.FC = () => {
           <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.notes || '-'}</p>
         </div>
 
-        {visit.preparation && (
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Preparation / Pre-meeting Notes</label>
-            <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.preparation}</p>
-          </div>
-        )}
+        <div style={{ marginBottom: '2rem' }}>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Preparation / Pre-meeting Notes</label>
+          <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.preparation || '-'}</p>
+        </div>
 
         <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e0e0e0' }}>
           <button
@@ -179,73 +209,11 @@ export const CompanyVisitDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Attachments section */}
-      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
-        <h2 style={{ margin: '0 0 1rem', fontSize: '1.125rem' }}>Attachments</h2>
-        {attachments.length > 0 ? (
-          <div style={{ marginBottom: '1rem' }}>
-            {attachments.map(att => (
-              <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.875rem', padding: '0.4rem 0', borderBottom: '1px solid #eee' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
-                <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.3' }}>{att.filename}</span>
-                <span style={{ color: '#888', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{att.file_size ? formatFileSize(att.file_size) : ''}</span>
-                <button
-                  onClick={() => handleViewAttachment(att.id)}
-                  style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
-                >View</button>
-                <button
-                  onClick={() => handleDownloadAttachment(att.id, att.filename)}
-                  style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: '#007bff', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
-                >Download</button>
-                <button
-                  onClick={() => handleDeleteAttachment(att.id)}
-                  style={{ padding: '2px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.9rem' }}
-                  title="Delete"
-                >&#10005;</button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ fontSize: '0.813rem', color: '#888', margin: '0 0 0.5rem' }}>No attachments yet.</p>
-        )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          style={{ display: 'none' }}
-          onChange={e => {
-            const files = e.target.files;
-            if (files) Array.from(files).forEach(f => handleUploadAttachment(f));
-            e.target.value = '';
-          }}
-        />
-        <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); Array.from(e.dataTransfer.files).forEach(f => handleUploadAttachment(f)); }}
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            border: `2px dashed ${dragOver ? '#007bff' : '#ccc'}`,
-            borderRadius: '8px',
-            padding: '1rem',
-            textAlign: 'center',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            color: '#888',
-            background: dragOver ? '#f0f7ff' : 'transparent',
-            transition: 'all 0.2s',
-          }}
-        >
-          {uploading ? 'Uploading...' : (
-            <span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              Drag files here or click to upload
-            </span>
-          )}
-        </div>
-      </div>
+      {/* Pre-Visit Attachments */}
+      {renderAttachmentSection('Pre-Visit Attachments', 'pre_visit')}
+
+      {/* Post-Visit Attachments */}
+      {renderAttachmentSection('Post-Visit Attachments', 'post_visit')}
 
       {/* Offers section */}
       <div style={{ marginBottom: '2rem' }}>

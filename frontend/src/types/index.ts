@@ -258,6 +258,7 @@ export interface CompanyVisitAttachment {
   file_size: number;
   s3_key: string;
   uploaded_by_user_id: string;
+  attachment_type?: 'pre_visit' | 'post_visit';
   created_at: string;
   uploaded_by_user?: User;
 }

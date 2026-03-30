@@ -873,9 +873,10 @@ class ApiService {
     return response.data;
   }
 
-  async uploadCompanyVisitAttachment(visitId: string, file: File) {
+  async uploadCompanyVisitAttachment(visitId: string, file: File, attachmentType: string = 'post_visit') {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('attachment_type', attachmentType);
     const response = await this.api.post<ApiResponse<any>>(`/company-visits/${visitId}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

@@ -74,13 +74,14 @@ export class CompanyVisitService {
 
   // --- Attachment methods ---
 
-  async addAttachment(visitId: string, userId: string, filename: string, fileSize: number, s3Key: string): Promise<CompanyVisitAttachment> {
+  async addAttachment(visitId: string, userId: string, filename: string, fileSize: number, s3Key: string, attachmentType: string = 'post_visit'): Promise<CompanyVisitAttachment> {
     const attachment = this.attachmentRepository.create({
       company_visit_id: visitId,
       uploaded_by_user_id: userId,
       filename,
       file_size: fileSize,
       s3_key: s3Key,
+      attachment_type: attachmentType as any,
     });
     return await this.attachmentRepository.save(attachment);
   }

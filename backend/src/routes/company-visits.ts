@@ -273,7 +273,8 @@ router.post('/:id/attachments', authMiddleware, upload.single('file'), async (re
       ContentType: contentType,
     }));
 
-    const attachment = await visitService.addAttachment(id, userId, filename, fileSize, s3Key);
+    const attachmentType = req.body?.attachment_type || 'post_visit';
+    const attachment = await visitService.addAttachment(id, userId, filename, fileSize, s3Key, attachmentType);
 
     res.json({
       success: true,
