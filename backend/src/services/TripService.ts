@@ -1,17 +1,28 @@
 import { AppDataSource } from '../config/database';
 import { Trip } from '../entities/Trip';
 
+const ADMIN_ROLES = ['admin', 'master_admin'];
+
 export class TripService {
   private tripRepo = AppDataSource.getRepository(Trip);
 
-  async getTrips(userId: string): Promise<Trip[]> {
+  async getTrips(userId: string, role: string): Promise<Trip[]> {
+    if (ADMIN_ROLES.includes(role)) {
+      return this.tripRepo.find({
+        relations: ['user'],
+        order: { startDate: 'DESC' },
+      });
+    }
     return this.tripRepo.find({
       where: { userId },
       order: { startDate: 'DESC' },
     });
   }
 
-  async getTripById(id: string, userId: string): Promise<Trip | null> {
+  async getTripById(id: string, userId: string, role: string): Promise<Trip | null> {
+    if (ADMIN_ROLES.includes(role)) {
+      return this.tripRepo.findOne({ where: { id }, relations: ['user'] });
+    }
     return this.tripRepo.findOne({ where: { id, userId } });
   }
 
@@ -28,8 +39,8 @@ export class TripService {
     return this.tripRepo.save(trip);
   }
 
-  async updateTrip(id: string, data: Partial<Trip>, userId: string): Promise<Trip | null> {
-    const trip = await this.getTripById(id, userId);
+  async updateTrip(id: string, data: Partial<Trip>, userId: string, role: string): Promise<Trip | null> {
+    const trip = await this.getTripById(id, userId, role);
     if (!trip) return null;
     if (data.name !== undefined) trip.name = data.name;
     if (data.startDate !== undefined) trip.startDate = data.startDate;
@@ -40,8 +51,8 @@ export class TripService {
     return this.tripRepo.save(trip);
   }
 
-  async deleteTrip(id: string, userId: string): Promise<boolean> {
-    const trip = await this.getTripById(id, userId);
+  async deleteTrip(id: string, userId: string, role: string): Promise<boolean> {
+    const trip = await this.getTripById(id, userId, role);
     if (!trip) return false;
     await this.tripRepo.remove(trip);
     return true;

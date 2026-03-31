@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Trips.css';
 
 interface TripData {
@@ -12,6 +13,7 @@ interface TripData {
   notes?: string;
   days: any[];
   created_at: string;
+  user?: { id: string; name: string; email: string };
 }
 
 const DAY_NAMES_IT = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -55,6 +57,8 @@ function countStats(trip: TripData) {
 
 export const Trips: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
   const [trips, setTrips] = useState<TripData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -182,6 +186,9 @@ export const Trips: React.FC = () => {
                     <h3 className="trip-card-name">{trip.name}</h3>
                     <p className="trip-card-dates">{formatDateRange(trip.startDate, trip.endDate)}</p>
                     {trip.destination && <p className="trip-card-destination">{trip.destination}</p>}
+                    {isAdmin && trip.user && (
+                      <p className="trip-card-owner">👤 {trip.user.name}</p>
+                    )}
                   </div>
                 </div>
                 <div className="trip-card-right">
