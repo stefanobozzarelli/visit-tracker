@@ -26,6 +26,9 @@ export const NewVisit: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
+  const [userAreaCountries, setUserAreaCountries] = useState<string[]>([]);
+
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [newClientData, setNewClientData] = useState({ name: '', country: '' });
   const [isAddingNewCountry, setIsAddingNewCountry] = useState(false);
@@ -82,15 +85,23 @@ export const NewVisit: React.FC = () => {
     }
   }, [editId, isEditMode]);
 
-  // Derive unique countries from existing clients + newly added countries in form
+  // Countries for the new-client dropdown:
+  // - sales_rep: their assigned countries (from userAreaCountries), sorted
+  // - admin/manager: all countries from existing clients + assigned countries
   const countries = useMemo(() => {
-    const uniqueCountries = new Set(clients.map(c => c.country).filter(Boolean));
-    // Also include newClientData.country if it's set but not in the list (for new countries being added)
-    if (newClientData.country && !uniqueCountries.has(newClientData.country)) {
-      uniqueCountries.add(newClientData.country);
+    const countrySet = new Set<string>();
+    // Always include the user's assigned countries
+    for (const c of userAreaCountries) countrySet.add(c);
+    // Admin/manager also see all countries already present in client list
+    if (isAdmin || user?.role === 'manager') {
+      for (const c of clients.map((cl: any) => cl.country).filter(Boolean)) countrySet.add(c);
     }
-    return Array.from(uniqueCountries).sort();
-  }, [clients, newClientData.country]);
+    // Always include a country that was manually typed (so it stays in the select)
+    if (newClientData.country && !countrySet.has(newClientData.country)) {
+      countrySet.add(newClientData.country);
+    }
+    return Array.from(countrySet).sort();
+  }, [userAreaCountries, clients, newClientData.country, isAdmin, user?.role]);
 
   const loadData = async () => {
     try {
@@ -142,6 +153,16 @@ export const NewVisit: React.FC = () => {
         }
       } catch (err) {
         console.warn('[NewVisit] Failed to load companies:', err);
+      }
+
+      // Load user's assigned countries (for the new-client country dropdown)
+      try {
+        const areasRes = await apiService.getMyAreas();
+        if (areasRes.success && areasRes.data?.countries) {
+          setUserAreaCountries(areasRes.data.countries);
+        }
+      } catch (err) {
+        console.warn('[NewVisit] Failed to load user areas:', err);
       }
 
       try {
