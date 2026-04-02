@@ -223,10 +223,13 @@ export const Clients: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiService.createClient(formData.name, formData.country, formData.notes, formData.role, selectedCompanyIds, formData.city, formData.has_showroom);
+      const res = await apiService.createClient(formData.name, formData.country, formData.notes, formData.role, selectedCompanyIds, formData.city, formData.has_showroom);
+      if (res.success && res.data) {
+        // Add new client immediately to local state — no reload needed
+        setClients(prev => [...prev, res.data].sort((a: Client, b: Client) => a.name.localeCompare(b.name)));
+      }
       setSuccess('Client created');
       resetForm();
-      loadData();
     } catch (err) {
       setError((err as Error).message);
     }
