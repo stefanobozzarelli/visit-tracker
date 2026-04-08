@@ -172,7 +172,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
     });
 
     // Category visibility rules (applied AFTER existing permission checks)
-    const isStefano = userName === 'Stefano Bozzarelli';
+    const isStefano = userName.includes('Stefano') || userName.includes('Bozzarelli');
     todos = todos.filter((t: any) => {
       // 'personal' tasks: only visible to creator or assignee
       if (t.category === 'personal') {
@@ -245,7 +245,7 @@ router.get('/my', authMiddleware, async (req: Request, res: Response) => {
     });
 
     // Category visibility rules (applied AFTER existing permission checks)
-    const isStefano = userName === 'Stefano Bozzarelli';
+    const isStefano = userName.includes('Stefano') || userName.includes('Bozzarelli');
     todos = todos.filter((t: any) => {
       if (t.category === 'personal') {
         return String(t.created_by_user_id) === String(userId) || String(t.assigned_to_user_id) === String(userId);
