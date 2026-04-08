@@ -121,6 +121,132 @@
   margin-top: 0.125rem;
 }
 
+/* ---- Task KPI Row (Due Today + Overdue) ---- */
+.dash-task-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.dash-task-kpi-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.125rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: var(--shadow-xs);
+}
+
+.dash-task-kpi-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--color-border-strong);
+}
+
+.dash-task-kpi-card.today  { border-left: 3px solid #B09840; }
+.dash-task-kpi-card.overdue { border-left: 3px solid #9E5A52; }
+
+.dash-task-kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.dash-task-kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dash-task-kpi-icon.today   { background: rgba(176, 152, 64, 0.1);  color: #B09840; }
+.dash-task-kpi-icon.overdue { background: rgba(158, 90, 82, 0.1);   color: #9E5A52; }
+
+.dash-task-kpi-count {
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+
+.dash-task-kpi-count.today   { color: #B09840; }
+.dash-task-kpi-count.overdue { color: #9E5A52; }
+
+.dash-task-kpi-label {
+  font-size: 0.688rem;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 0.15rem;
+}
+
+.dash-task-kpi-empty {
+  font-size: 0.8rem;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.dash-task-kpi-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.dash-task-kpi-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.dash-task-kpi-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dash-task-kpi-dot.today   { background: #B09840; }
+.dash-task-kpi-dot.overdue { background: #9E5A52; }
+
+.dash-task-kpi-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.dash-task-kpi-assignee {
+  font-size: 0.72rem;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.dash-task-kpi-date {
+  font-size: 0.72rem;
+  color: #9E5A52;
+  white-space: nowrap;
+  font-weight: var(--font-weight-medium);
+}
+
+.dash-task-kpi-more {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  padding-left: 1rem;
+}
+
 /* ---- Shared Card ---- */
 .dash-card {
   background: var(--color-white);

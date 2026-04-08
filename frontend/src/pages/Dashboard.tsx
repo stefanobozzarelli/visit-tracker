@@ -112,7 +112,21 @@ export const Dashboard: React.FC = () => {
       return last < cutoff60;
     }).length;
 
-    return { visitsThisMonth, reportsPending, openFollowups, neglectedClients };
+    const todayStr = today.toISOString().split('T')[0];
+
+    const tasksDueToday = data.todos.filter(t => {
+      if (t.status === 'done' || t.status === 'completed') return false;
+      if (!t.due_date) return false;
+      return new Date(t.due_date).toISOString().split('T')[0] === todayStr;
+    });
+
+    const tasksOverdue = data.todos.filter(t => {
+      if (t.status === 'done' || t.status === 'completed') return false;
+      if (!t.due_date) return false;
+      return new Date(t.due_date) < today;
+    }).sort((a: any, b: any) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+    return { visitsThisMonth, reportsPending, openFollowups, neglectedClients, tasksDueToday, tasksOverdue };
   }, [data]);
 
   // ── Priority Actions (visits missing report + overdue tasks) ──
@@ -306,6 +320,73 @@ export const Dashboard: React.FC = () => {
             <div className="dash-kpi-value">{kpis.neglectedClients}</div>
             <div className="dash-kpi-label">Not Visited (60d)</div>
           </div>
+        </div>
+      </div>
+
+      {/* Task Due Today + Overdue */}
+      <div className="dash-task-kpi-row">
+        {/* Due Today */}
+        <div className="dash-task-kpi-card today" onClick={() => navigate('/tasks')}>
+          <div className="dash-task-kpi-header">
+            <div className="dash-task-kpi-icon today">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <div className="dash-task-kpi-count today">{kpis.tasksDueToday.length}</div>
+              <div className="dash-task-kpi-label">In scadenza oggi</div>
+            </div>
+          </div>
+          {kpis.tasksDueToday.length === 0 ? (
+            <div className="dash-task-kpi-empty">Nessun task in scadenza oggi</div>
+          ) : (
+            <ul className="dash-task-kpi-list">
+              {kpis.tasksDueToday.slice(0, 5).map((t: any) => (
+                <li key={t.id} className="dash-task-kpi-item">
+                  <span className="dash-task-kpi-dot today" />
+                  <span className="dash-task-kpi-title">{t.title}</span>
+                  {t.assigned_to_user?.name && (
+                    <span className="dash-task-kpi-assignee">→ {t.assigned_to_user.name}</span>
+                  )}
+                </li>
+              ))}
+              {kpis.tasksDueToday.length > 5 && (
+                <li className="dash-task-kpi-more">+{kpis.tasksDueToday.length - 5} altri</li>
+              )}
+            </ul>
+          )}
+        </div>
+
+        {/* Overdue */}
+        <div className="dash-task-kpi-card overdue" onClick={() => navigate('/tasks')}>
+          <div className="dash-task-kpi-header">
+            <div className="dash-task-kpi-icon overdue">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div>
+              <div className="dash-task-kpi-count overdue">{kpis.tasksOverdue.length}</div>
+              <div className="dash-task-kpi-label">Task scaduti</div>
+            </div>
+          </div>
+          {kpis.tasksOverdue.length === 0 ? (
+            <div className="dash-task-kpi-empty">Nessun task scaduto</div>
+          ) : (
+            <ul className="dash-task-kpi-list">
+              {kpis.tasksOverdue.slice(0, 5).map((t: any) => (
+                <li key={t.id} className="dash-task-kpi-item">
+                  <span className="dash-task-kpi-dot overdue" />
+                  <span className="dash-task-kpi-title">{t.title}</span>
+                  <span className="dash-task-kpi-date">{formatDate(t.due_date)}</span>
+                </li>
+              ))}
+              {kpis.tasksOverdue.length > 5 && (
+                <li className="dash-task-kpi-more">+{kpis.tasksOverdue.length - 5} altri</li>
+              )}
+            </ul>
+          )}
         </div>
       </div>
 
