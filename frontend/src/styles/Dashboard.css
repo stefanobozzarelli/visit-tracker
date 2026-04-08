@@ -197,6 +197,20 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.dash-task-kpi-list::-webkit-scrollbar {
+  width: 4px;
+}
+.dash-task-kpi-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dash-task-kpi-list::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 2px;
 }
 
 .dash-task-kpi-item {

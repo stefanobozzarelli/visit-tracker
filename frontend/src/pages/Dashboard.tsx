@@ -342,7 +342,7 @@ export const Dashboard: React.FC = () => {
             <div className="dash-task-kpi-empty">Nessun task in scadenza oggi</div>
           ) : (
             <ul className="dash-task-kpi-list">
-              {kpis.tasksDueToday.slice(0, 5).map((t: any) => (
+              {kpis.tasksDueToday.map((t: any) => (
                 <li key={t.id} className="dash-task-kpi-item">
                   <span className="dash-task-kpi-dot today" />
                   <span className="dash-task-kpi-title">{t.title}</span>
@@ -351,9 +351,6 @@ export const Dashboard: React.FC = () => {
                   )}
                 </li>
               ))}
-              {kpis.tasksDueToday.length > 5 && (
-                <li className="dash-task-kpi-more">+{kpis.tasksDueToday.length - 5} altri</li>
-              )}
             </ul>
           )}
         </div>
@@ -375,16 +372,13 @@ export const Dashboard: React.FC = () => {
             <div className="dash-task-kpi-empty">Nessun task scaduto</div>
           ) : (
             <ul className="dash-task-kpi-list">
-              {kpis.tasksOverdue.slice(0, 5).map((t: any) => (
+              {kpis.tasksOverdue.map((t: any) => (
                 <li key={t.id} className="dash-task-kpi-item">
                   <span className="dash-task-kpi-dot overdue" />
                   <span className="dash-task-kpi-title">{t.title}</span>
                   <span className="dash-task-kpi-date">{formatDate(t.due_date)}</span>
                 </li>
               ))}
-              {kpis.tasksOverdue.length > 5 && (
-                <li className="dash-task-kpi-more">+{kpis.tasksOverdue.length - 5} altri</li>
-              )}
             </ul>
           )}
         </div>
