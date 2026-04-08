@@ -47,6 +47,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
       can_view_revenue: !!(user as any).can_view_revenue,
     };
 

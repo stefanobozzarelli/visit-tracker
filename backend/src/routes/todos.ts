@@ -82,10 +82,10 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
     const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority, opportunityId, category } = req.body;
     const createdByUserId = (req.user as any).id;
 
-    if (!title || !clientId || !companyId || !assignedToUserId) {
+    if (!title || !assignedToUserId) {
       return res.status(400).json({
         success: false,
-        error: 'title, clientId, companyId, and assignedToUserId are required',
+        error: 'title and assignedToUserId are required',
       });
     }
 

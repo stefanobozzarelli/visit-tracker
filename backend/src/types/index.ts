@@ -2,6 +2,7 @@ export interface AuthPayload {
   id: string;
   email: string;
   role: string;
+  name?: string;
   can_view_revenue?: boolean;
 }
 

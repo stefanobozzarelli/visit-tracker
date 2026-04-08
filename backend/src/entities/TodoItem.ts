@@ -31,11 +31,11 @@ export class TodoItem {
   @Column()
   created_by_user_id: string;
 
-  @Column()
-  client_id: string;
+  @Column({ nullable: true })
+  client_id: string | null;
 
-  @Column()
-  company_id: string;
+  @Column({ nullable: true })
+  company_id: string | null;
 
   @Column({ nullable: true })
   visit_report_id: string | null;

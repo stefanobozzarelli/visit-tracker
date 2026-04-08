@@ -190,7 +190,7 @@ export const TodoForm = () => {
     setError('');
     setSuccess('');
 
-    if (!title || !clientId || !companyId || !assignedToUserId) {
+    if (!title || !assignedToUserId) {
       setError('Fill in all required fields');
       return;
     }
@@ -289,8 +289,8 @@ export const TodoForm = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="clientId">Client *</label>
-              <select id="clientId" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+              <label htmlFor="clientId">Client</label>
+              <select id="clientId" value={clientId} onChange={(e) => setClientId(e.target.value)}>
                 <option value="">Select client...</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
@@ -301,8 +301,8 @@ export const TodoForm = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="companyId">Company *</label>
-              <select id="companyId" value={companyId} onChange={(e) => setCompanyId(e.target.value)} required>
+              <label htmlFor="companyId">Company</label>
+              <select id="companyId" value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
                 <option value="">Select company...</option>
                 {companies.map((company) => (
                   <option key={company.id} value={company.id}>

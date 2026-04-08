@@ -21,8 +21,8 @@ export class TodoService {
 
   async createTodo(
     title: string,
-    clientId: string,
-    companyId: string,
+    clientId: string | undefined,
+    companyId: string | undefined,
     assignedToUserId: string,
     createdByUserId: string,
     dueDate?: Date,
@@ -36,8 +36,8 @@ export class TodoService {
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
-      client_id: clientId,
-      company_id: companyId,
+      client_id: clientId || null,
+      company_id: companyId || null,
       assigned_to_user_id: assignedToUserId,
       created_by_user_id: createdByUserId,
       due_date: dueDate || null,
