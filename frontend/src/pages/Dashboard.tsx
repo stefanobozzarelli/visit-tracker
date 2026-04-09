@@ -326,7 +326,7 @@ export const Dashboard: React.FC = () => {
       {/* Task Due Today + Overdue */}
       <div className="dash-task-kpi-row">
         {/* Due Today */}
-        <div className="dash-task-kpi-card today" onClick={() => navigate('/tasks')}>
+        <div className="dash-task-kpi-card today">
           <div className="dash-task-kpi-header">
             <div className="dash-task-kpi-icon today">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -343,7 +343,7 @@ export const Dashboard: React.FC = () => {
           ) : (
             <ul className="dash-task-kpi-list">
               {kpis.tasksDueToday.map((t: any) => (
-                <li key={t.id} className="dash-task-kpi-item">
+                <li key={t.id} className="dash-task-kpi-item" onClick={() => navigate(`/tasks?highlight=${t.id}`)} style={{ cursor: 'pointer' }}>
                   <span className="dash-task-kpi-dot today" />
                   <span className="dash-task-kpi-title">{t.title}</span>
                   {t.assigned_to_user?.name && (
@@ -356,7 +356,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Overdue */}
-        <div className="dash-task-kpi-card overdue" onClick={() => navigate('/tasks')}>
+        <div className="dash-task-kpi-card overdue">
           <div className="dash-task-kpi-header">
             <div className="dash-task-kpi-icon overdue">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -373,9 +373,12 @@ export const Dashboard: React.FC = () => {
           ) : (
             <ul className="dash-task-kpi-list">
               {kpis.tasksOverdue.map((t: any) => (
-                <li key={t.id} className="dash-task-kpi-item">
+                <li key={t.id} className="dash-task-kpi-item" onClick={() => navigate(`/tasks?highlight=${t.id}`)} style={{ cursor: 'pointer' }}>
                   <span className="dash-task-kpi-dot overdue" />
                   <span className="dash-task-kpi-title">{t.title}</span>
+                  {t.assigned_to_user?.name && (
+                    <span className="dash-task-kpi-assignee">→ {t.assigned_to_user.name}</span>
+                  )}
                   <span className="dash-task-kpi-date">{formatDate(t.due_date)}</span>
                 </li>
               ))}
