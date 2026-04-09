@@ -192,6 +192,14 @@ export const Dashboard: React.FC = () => {
       .slice(0, 5);
   }, [data.visits]);
 
+  // ── Today's Visits ──
+  const todaysVisits = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return [...data.visits]
+      .filter(v => new Date(v.visit_date).toISOString().split('T')[0] === todayStr)
+      .sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
+  }, [data.visits]);
+
   // ── Clients needing attention ──
   const neglectedClientsList = useMemo(() => {
     const cutoff = new Date();
@@ -399,9 +407,56 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Two-column: Recent Visits + Clients Needing Attention */}
+      {/* Two-column: Today's Visits + Recent Client Meetings */}
       <div className="dash-columns">
-        {/* Recent Visits */}
+        {/* Today's Visits */}
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h3>Today's Visits</h3>
+            <button className="dash-link" onClick={() => navigate('/visits')}>View all</button>
+          </div>
+          {todaysVisits.length === 0 ? (
+            <p className="dash-empty">No visits scheduled for today</p>
+          ) : (
+            <div className="dash-list">
+              {todaysVisits.map(v => {
+                const clientName = v.client?.name || getClientName(v.client_id);
+                const visitorName = v.visited_by_user?.name || getUserName(v.visited_by_user_id);
+                const companies = getDisplayReports(v.reports)
+                  .map((r: any) => r.company?.name || getCompanyName(r.company_id))
+                  .filter((n: string, i: number, a: string[]) => n !== '-' && a.indexOf(n) === i);
+                const hasReport = getDisplayReports(v.reports).length > 0;
+                const meta = decodeMetadata(v.reports || []);
+                return (
+                  <div key={v.id} className="dash-visit-item" onClick={() => navigate(`/visits/${v.id}`)}>
+                    <div className="dash-visit-main">
+                      <div className="dash-visit-client">{clientName}</div>
+                      {companies.length > 0 && (
+                        <div className="dash-visit-companies">{companies.join(' · ')}</div>
+                      )}
+                      {meta?.purpose && (
+                        <div className="dash-visit-purpose">{meta.purpose}</div>
+                      )}
+                    </div>
+                    <div className="dash-visit-meta">
+                      <div className="dash-visit-visitor">
+                        <span className="dash-avatar">{getInitials(visitorName)}</span>
+                        <span className="dash-visitor-name">{visitorName}</span>
+                      </div>
+                      <div className="dash-visit-info">
+                        <span className={`dash-report-badge ${hasReport ? 'ready' : 'missing'}`}>
+                          {hasReport ? 'Report' : 'No report'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Client Meetings */}
         <div className="dash-card">
           <div className="dash-card-header">
             <h3>Recent Client Meetings</h3>
@@ -450,29 +505,6 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Clients Needing Attention */}
-        <div className="dash-card">
-          <div className="dash-card-header">
-            <h3>Clients Needing Attention</h3>
-            <button className="dash-link" onClick={() => navigate('/contacts')}>View all</button>
-          </div>
-          <p className="dash-card-hint">No visit in 60+ days</p>
-          {neglectedClientsList.length === 0 ? (
-            <p className="dash-empty">All clients are up to date</p>
-          ) : (
-            <div className="dash-list">
-              {neglectedClientsList.map(c => (
-                <div key={c.id} className="dash-client-item" onClick={() => navigate(`/clients/${c.id}`)}>
-                  <div className="dash-client-main">
-                    <div className="dash-client-name">{c.name}</div>
-                    <div className="dash-client-last">Last visit {c.daysAgo} days ago</div>
-                  </div>
-                  <span className="dash-days-badge">{c.daysAgo}d</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Recent Activity */}
