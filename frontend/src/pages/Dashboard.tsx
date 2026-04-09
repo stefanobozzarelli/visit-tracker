@@ -7,6 +7,7 @@ import '../styles/Dashboard.css';
 
 interface DashboardData {
   visits: any[];
+  companyVisits: any[];
   todos: any[];
   companies: any[];
   clients: any[];
@@ -34,7 +35,7 @@ const getDisplayReports = (reports?: any[]) => {
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [data, setData] = useState<DashboardData>({ visits: [], todos: [], companies: [], clients: [], users: [] });
+  const [data, setData] = useState<DashboardData>({ visits: [], companyVisits: [], todos: [], companies: [], clients: [], users: [] });
   const [isLoading, setIsLoading] = useState(true);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
@@ -44,7 +45,7 @@ export const Dashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const results: DashboardData = { visits: [], todos: [], companies: [], clients: [], users: [] };
+      const results: DashboardData = { visits: [], companyVisits: [], todos: [], companies: [], clients: [], users: [] };
 
       try {
         const res = await apiService.getVisits(isAdmin ? undefined : { user_id: user?.id });
@@ -53,6 +54,10 @@ export const Dashboard: React.FC = () => {
       try {
         const res = isAdmin ? await apiService.getTodos() : await apiService.getMyTodos();
         if (res.success && res.data) results.todos = Array.isArray(res.data) ? res.data : [];
+      } catch {}
+      try {
+        const res = await apiService.getCompanyVisits();
+        if (res.success && res.data) results.companyVisits = res.data;
       } catch {}
       try {
         const res = await apiService.getCompanies();
@@ -195,10 +200,14 @@ export const Dashboard: React.FC = () => {
   // ── Today's Visits ──
   const todaysVisits = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
-    return [...data.visits]
+    const clientVisits = data.visits
       .filter(v => new Date(v.visit_date).toISOString().split('T')[0] === todayStr)
-      .sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
-  }, [data.visits]);
+      .map(v => ({ ...v, _type: 'client' as const }));
+    const supplierVisits = data.companyVisits
+      .filter(v => new Date(v.date).toISOString().split('T')[0] === todayStr)
+      .map(v => ({ ...v, _type: 'supplier' as const }));
+    return { clientVisits, supplierVisits };
+  }, [data.visits, data.companyVisits]);
 
   // ── Clients needing attention ──
   const neglectedClientsList = useMemo(() => {
@@ -413,47 +422,89 @@ export const Dashboard: React.FC = () => {
         <div className="dash-card">
           <div className="dash-card-header">
             <h3>Today's Visits</h3>
-            <button className="dash-link" onClick={() => navigate('/visits')}>View all</button>
-          </div>
-          {todaysVisits.length === 0 ? (
-            <p className="dash-empty">No visits scheduled for today</p>
-          ) : (
-            <div className="dash-list">
-              {todaysVisits.map(v => {
-                const clientName = v.client?.name || getClientName(v.client_id);
-                const visitorName = v.visited_by_user?.name || getUserName(v.visited_by_user_id);
-                const companies = getDisplayReports(v.reports)
-                  .map((r: any) => r.company?.name || getCompanyName(r.company_id))
-                  .filter((n: string, i: number, a: string[]) => n !== '-' && a.indexOf(n) === i);
-                const hasReport = getDisplayReports(v.reports).length > 0;
-                const meta = decodeMetadata(v.reports || []);
-                return (
-                  <div key={v.id} className="dash-visit-item" onClick={() => navigate(`/visits/${v.id}`)}>
-                    <div className="dash-visit-main">
-                      <div className="dash-visit-client">{clientName}</div>
-                      {companies.length > 0 && (
-                        <div className="dash-visit-companies">{companies.join(' · ')}</div>
-                      )}
-                      {meta?.purpose && (
-                        <div className="dash-visit-purpose">{meta.purpose}</div>
-                      )}
-                    </div>
-                    <div className="dash-visit-meta">
-                      <div className="dash-visit-visitor">
-                        <span className="dash-avatar">{getInitials(visitorName)}</span>
-                        <span className="dash-visitor-name">{visitorName}</span>
-                      </div>
-                      <div className="dash-visit-info">
-                        <span className={`dash-report-badge ${hasReport ? 'ready' : 'missing'}`}>
-                          {hasReport ? 'Report' : 'No report'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="dash-today-actions">
+              <button className="dash-add-btn" onClick={() => navigate('/visits/new')} title="New client visit">+ Client</button>
+              <button className="dash-add-btn supplier" onClick={() => navigate('/company-visits/new')} title="New supplier visit">+ Supplier</button>
             </div>
-          )}
+          </div>
+
+          {/* Client Visits */}
+          <div className="dash-today-section">
+            <div className="dash-today-section-label">
+              <span className="dash-today-dot client" />
+              Clients ({todaysVisits.clientVisits.length})
+            </div>
+            {todaysVisits.clientVisits.length === 0 ? (
+              <p className="dash-empty-small">No client visits today</p>
+            ) : (
+              <div className="dash-list">
+                {todaysVisits.clientVisits.map(v => {
+                  const clientName = v.client?.name || getClientName(v.client_id);
+                  const visitorName = v.visited_by_user?.name || getUserName(v.visited_by_user_id);
+                  const companies = getDisplayReports(v.reports)
+                    .map((r: any) => r.company?.name || getCompanyName(r.company_id))
+                    .filter((n: string, i: number, a: string[]) => n !== '-' && a.indexOf(n) === i);
+                  const hasReport = getDisplayReports(v.reports).length > 0;
+                  const meta = decodeMetadata(v.reports || []);
+                  return (
+                    <div key={v.id} className="dash-visit-item" onClick={() => navigate(`/visits/${v.id}`)}>
+                      <div className="dash-visit-main">
+                        <div className="dash-visit-client">{clientName}</div>
+                        {companies.length > 0 && <div className="dash-visit-companies">{companies.join(' · ')}</div>}
+                        {meta?.purpose && <div className="dash-visit-purpose">{meta.purpose}</div>}
+                      </div>
+                      <div className="dash-visit-meta">
+                        <div className="dash-visit-visitor">
+                          <span className="dash-avatar">{getInitials(visitorName)}</span>
+                          <span className="dash-visitor-name">{visitorName}</span>
+                        </div>
+                        <div className="dash-visit-info">
+                          <span className={`dash-report-badge ${hasReport ? 'ready' : 'missing'}`}>{hasReport ? 'Report' : 'No report'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Supplier Visits */}
+          <div className="dash-today-section">
+            <div className="dash-today-section-label">
+              <span className="dash-today-dot supplier" />
+              Suppliers ({todaysVisits.supplierVisits.length})
+            </div>
+            {todaysVisits.supplierVisits.length === 0 ? (
+              <p className="dash-empty-small">No supplier visits today</p>
+            ) : (
+              <div className="dash-list">
+                {todaysVisits.supplierVisits.map(v => {
+                  const companyName = v.company?.name || getCompanyName(v.companyId || v.company_id);
+                  const participants = (v.participants || []).map((p: any) => p.user?.name || getUserName(p.userId || p.user_id)).filter(Boolean);
+                  return (
+                    <div key={v.id} className="dash-visit-item" onClick={() => navigate(`/company-visits/${v.id}`)}>
+                      <div className="dash-visit-main">
+                        <div className="dash-visit-client">{companyName}</div>
+                        {v.subject && <div className="dash-visit-purpose">{v.subject}</div>}
+                      </div>
+                      <div className="dash-visit-meta">
+                        {participants.length > 0 && (
+                          <div className="dash-visit-visitor">
+                            <span className="dash-avatar">{getInitials(participants[0])}</span>
+                            <span className="dash-visitor-name">{participants[0]}</span>
+                          </div>
+                        )}
+                        <div className="dash-visit-info">
+                          <span className={`dash-report-badge ${v.report ? 'ready' : 'missing'}`}>{v.report ? 'Report' : 'No report'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Recent Client Meetings */}
