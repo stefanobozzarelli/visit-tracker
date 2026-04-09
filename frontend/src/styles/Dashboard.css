@@ -232,13 +232,42 @@
 .dash-task-kpi-dot.today   { background: #B09840; }
 .dash-task-kpi-dot.overdue { background: #9E5A52; }
 
-.dash-task-kpi-title {
+.dash-task-kpi-body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dash-task-kpi-title {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-medium);
   word-break: break-word;
   line-height: 1.4;
+}
+
+.dash-task-kpi-meta-row {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.dash-task-kpi-meta-tag {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-weight: var(--font-weight-medium);
+}
+
+.dash-task-kpi-meta-tag.client {
+  background: rgba(74, 96, 120, 0.08);
+  color: #4A6078;
+}
+
+.dash-task-kpi-meta-tag.company {
+  background: rgba(91, 138, 101, 0.08);
+  color: #5B8A65;
 }
 
 .dash-task-kpi-assignee {

@@ -345,7 +345,13 @@ export const Dashboard: React.FC = () => {
               {kpis.tasksDueToday.map((t: any) => (
                 <li key={t.id} className="dash-task-kpi-item" onClick={() => navigate(`/tasks?highlight=${t.id}`)} style={{ cursor: 'pointer' }}>
                   <span className="dash-task-kpi-dot today" />
-                  <span className="dash-task-kpi-title">{t.title}</span>
+                  <div className="dash-task-kpi-body">
+                    <span className="dash-task-kpi-title">{t.title}</span>
+                    <div className="dash-task-kpi-meta-row">
+                      {(t.client?.name || getClientName(t.client_id)) !== '-' && <span className="dash-task-kpi-meta-tag client">{t.client?.name || getClientName(t.client_id)}</span>}
+                      {(t.company?.name || getCompanyName(t.company_id)) !== '-' && <span className="dash-task-kpi-meta-tag company">{t.company?.name || getCompanyName(t.company_id)}</span>}
+                    </div>
+                  </div>
                   {t.assigned_to_user?.name && (
                     <span className="dash-task-kpi-assignee">→ {t.assigned_to_user.name}</span>
                   )}
@@ -375,7 +381,13 @@ export const Dashboard: React.FC = () => {
               {kpis.tasksOverdue.map((t: any) => (
                 <li key={t.id} className="dash-task-kpi-item" onClick={() => navigate(`/tasks?highlight=${t.id}`)} style={{ cursor: 'pointer' }}>
                   <span className="dash-task-kpi-dot overdue" />
-                  <span className="dash-task-kpi-title">{t.title}</span>
+                  <div className="dash-task-kpi-body">
+                    <span className="dash-task-kpi-title">{t.title}</span>
+                    <div className="dash-task-kpi-meta-row">
+                      {(t.client?.name || getClientName(t.client_id)) !== '-' && <span className="dash-task-kpi-meta-tag client">{t.client?.name || getClientName(t.client_id)}</span>}
+                      {(t.company?.name || getCompanyName(t.company_id)) !== '-' && <span className="dash-task-kpi-meta-tag company">{t.company?.name || getCompanyName(t.company_id)}</span>}
+                    </div>
+                  </div>
                   {t.assigned_to_user?.name && (
                     <span className="dash-task-kpi-assignee">→ {t.assigned_to_user.name}</span>
                   )}
