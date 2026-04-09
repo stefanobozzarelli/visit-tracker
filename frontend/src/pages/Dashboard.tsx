@@ -335,11 +335,11 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <div className="dash-task-kpi-count today">{kpis.tasksDueToday.length}</div>
-              <div className="dash-task-kpi-label">In scadenza oggi</div>
+              <div className="dash-task-kpi-label">Due Today</div>
             </div>
           </div>
           {kpis.tasksDueToday.length === 0 ? (
-            <div className="dash-task-kpi-empty">Nessun task in scadenza oggi</div>
+            <div className="dash-task-kpi-empty">No tasks due today</div>
           ) : (
             <ul className="dash-task-kpi-list">
               {kpis.tasksDueToday.map((t: any) => (
@@ -365,11 +365,11 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <div className="dash-task-kpi-count overdue">{kpis.tasksOverdue.length}</div>
-              <div className="dash-task-kpi-label">Task scaduti</div>
+              <div className="dash-task-kpi-label">Overdue Tasks</div>
             </div>
           </div>
           {kpis.tasksOverdue.length === 0 ? (
-            <div className="dash-task-kpi-empty">Nessun task scaduto</div>
+            <div className="dash-task-kpi-empty">No overdue tasks</div>
           ) : (
             <ul className="dash-task-kpi-list">
               {kpis.tasksOverdue.map((t: any) => (
@@ -383,43 +383,6 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Priority Actions */}
-      {priorityItems.length > 0 && (
-        <div className="dash-card dash-priority-card">
-          <div className="dash-card-header">
-            <div className="dash-card-title-group">
-              <h3>Needs Attention</h3>
-              <span className="dash-card-badge">{priorityItems.length}</span>
-            </div>
-          </div>
-          <div className="dash-priority-list">
-            {priorityItems.map((item, i) => (
-              <div key={i} className="dash-priority-item" onClick={item.onClick}>
-                <div className={`dash-priority-icon ${item.type}`}>
-                  {item.type === 'missing_report' ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                  )}
-                </div>
-                <div className="dash-priority-content">
-                  <div className="dash-priority-title">{item.title}</div>
-                  <div className="dash-priority-subtitle">
-                    {item.type === 'missing_report' ? 'Missing report' : item.subtitle}
-                  </div>
-                </div>
-                <div className="dash-priority-meta">
-                  <span className={`dash-priority-tag ${item.type}`}>
-                    {item.type === 'missing_report' ? 'Report' : 'Overdue'}
-                  </span>
-                  <span className="dash-priority-date">{item.date}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Two-column: Recent Visits + Clients Needing Attention */}
       <div className="dash-columns">
