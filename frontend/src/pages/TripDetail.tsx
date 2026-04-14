@@ -142,6 +142,7 @@ export const TripDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'list' | 'report'>('list');
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [highlightDayId, setHighlightDayId] = useState<string | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10);
 
   // PDF upload & export
@@ -220,6 +221,17 @@ export const TripDetail: React.FC = () => {
       next.has(dayId) ? next.delete(dayId) : next.add(dayId);
       return next;
     });
+  };
+
+  const goToDay = (dayId: string) => {
+    setActiveTab('list');
+    setExpandedDays(prev => new Set([...prev, dayId]));
+    setHighlightDayId(dayId);
+    setTimeout(() => {
+      const el = document.getElementById(`trip-day-${dayId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    setTimeout(() => setHighlightDayId(null), 3000);
   };
 
   // ---- Day ops ----
@@ -479,7 +491,7 @@ export const TripDetail: React.FC = () => {
             const dateStr = dateObj.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
 
             return (
-              <div key={day.id} className={`td-day-card${isToday ? ' today' : ''}`}>
+              <div key={day.id} id={`trip-day-${day.id}`} className={`td-day-card${isToday ? ' today' : ''}${highlightDayId === day.id ? ' highlight' : ''}`}>
                 {/* Header - click to expand */}
                 <div className="td-day-header" onClick={() => toggleDay(day.id)}>
                   <div className={`td-date-box${isToday ? ' today' : ''}`}>
@@ -651,7 +663,7 @@ export const TripDetail: React.FC = () => {
                 </thead>
                 <tbody>
                   {sortedDays.map(day => (
-                    <tr key={day.id}>
+                    <tr key={day.id} onDoubleClick={() => goToDay(day.id)} style={{ cursor: 'pointer' }} title="Doppio click per aprire nella lista">
                       <td style={{ whiteSpace: 'nowrap', color: '#6AAED6', fontWeight: 600 }}>{fmtShort(day.date)}</td>
                       <td style={{ fontWeight: 600 }}>{day.location}</td>
                       <td>

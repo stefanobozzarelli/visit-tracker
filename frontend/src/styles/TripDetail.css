@@ -266,6 +266,16 @@
   transition: border-color 0.15s;
 }
 .td-day-card:hover { border-color: rgba(160, 154, 150, 0.4); }
+.td-day-card.highlight {
+  border-color: rgba(0, 153, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.15);
+  animation: day-highlight-fade 3s ease-out forwards;
+}
+@keyframes day-highlight-fade {
+  0%   { box-shadow: 0 0 0 4px rgba(0, 153, 255, 0.35); border-color: rgba(0, 153, 255, 0.8); background: rgba(0, 153, 255, 0.06); }
+  60%  { box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.15); border-color: rgba(0, 153, 255, 0.4); background: rgba(0, 153, 255, 0.02); }
+  100% { box-shadow: none; border-color: rgba(160, 154, 150, 0.2); background: white; }
+}
 .td-day-card.today {
   border-color: #6AAED6;
   box-shadow: 0 0 0 3px rgba(106, 174, 214, 0.15);
