@@ -7,11 +7,20 @@ import { exportTripExcel } from '../utils/exportTripExcel';
 import '../styles/TripDetail.css';
 
 // ---- Types ----
+interface TripHotel {
+  id: string;
+  name: string;
+  checkIn: string;
+  checkOut: string;
+  status: 'programmato' | 'richiesto' | 'confermato';
+}
+
 interface Flight {
   id: string;
   route: string;
   details: string;
   status: 'programmato' | 'confermato';
+  type: 'volo' | 'treno' | 'traghetto';
 }
 
 interface Appointment {
@@ -28,8 +37,6 @@ interface TravelDay {
   date: string;
   dayOfWeek: string;
   location: string;
-  hotel: string;
-  hotelStatus: 'programmato' | 'confermato';
   notes: string;
   flights: Flight[];
   appointments: Appointment[];
@@ -43,15 +50,18 @@ interface Trip {
   destination?: string;
   notes?: string;
   days: TravelDay[];
+  hotels: TripHotel[];
 }
 
 // ---- Constants ----
 const FLIGHT_STATUSES = ['programmato', 'confermato'];
-const HOTEL_STATUSES = ['programmato', 'confermato'];
+const HOTEL_STATUSES = ['programmato', 'richiesto', 'confermato'];
 const APT_STATUSES = ['programmato', 'confermato', 'in_attesa', 'sollecitato', 'da_modificare', 'rifiutato', 'fatto_report'];
+const TRANSPORT_ICONS: Record<string, string> = { volo: '✈', treno: '🚆', traghetto: '⛴' };
 
 const STATUS_LABELS: Record<string, string> = {
   programmato: 'Programmato',
+  richiesto: 'Richiesto',
   confermato: 'Confermato',
   in_attesa: 'In attesa',
   sollecitato: 'Sollecitato',
@@ -159,12 +169,17 @@ export const TripDetail: React.FC = () => {
 
   // Inline flight form
   const [showFlightForm, setShowFlightForm] = useState<string | null>(null); // dayId
-  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato' });
+  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato', type: 'volo' });
   const [editingFlight, setEditingFlight] = useState<{ dayId: string; flight: Flight } | null>(null);
+
+  // Inline hotel form
+  const [showHotelForm, setShowHotelForm] = useState<string | null>(null); // dayId (to pre-fill checkIn)
+  const [hotelForm, setHotelForm] = useState({ name: '', checkIn: '', checkOut: '', status: 'programmato' });
+  const [editingHotel, setEditingHotel] = useState<TripHotel | null>(null);
 
   // Forms
   const [tripForm, setTripForm] = useState({ name: '', destination: '', startDate: '', endDate: '', notes: '' });
-  const [dayForm, setDayForm] = useState({ date: '', location: '', hotel: '', hotelStatus: 'programmato', notes: '' });
+  const [dayForm, setDayForm] = useState({ date: '', location: '', notes: '' });
   const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '' });
 
   // Client autocomplete
@@ -192,7 +207,7 @@ export const TripDetail: React.FC = () => {
     try {
       const res = await (apiService as any).getTrip(id);
       if (res.success) {
-        setTrip(res.data);
+        setTrip({ ...res.data, hotels: res.data.hotels || [] });
         // Auto-expand today if present
         const today = res.data.days.find((d: TravelDay) => d.date === todayStr);
         if (today) setExpandedDays(new Set([today.id]));
@@ -209,7 +224,7 @@ export const TripDetail: React.FC = () => {
   const saveTrip = useCallback(async (updated: Trip) => {
     setTrip(updated);
     try {
-      await (apiService as any).updateTrip(updated.id, { days: updated.days });
+      await (apiService as any).updateTrip(updated.id, { days: updated.days, hotels: updated.hotels || [] });
     } catch (e) {
       console.error('Save trip failed:', e);
     }
@@ -251,8 +266,7 @@ export const TripDetail: React.FC = () => {
     } else {
       const newDay: TravelDay = {
         id: `d${uid()}`, date: dayForm.date, dayOfWeek: DAY_NAMES_IT[d.getDay()],
-        location: dayForm.location, hotel: dayForm.hotel,
-        hotelStatus: dayForm.hotelStatus as TravelDay['hotelStatus'],
+        location: dayForm.location,
         notes: dayForm.notes, flights: [], appointments: [],
       };
       setExpandedDays(prev => new Set([...prev, newDay.id]));
@@ -278,7 +292,7 @@ export const TripDetail: React.FC = () => {
       });
     }
     saveTrip({ ...trip, days });
-    setFlightForm({ route: '', details: '', status: 'programmato' });
+    setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' });
     setShowFlightForm(null);
   };
   const deleteFlight = (dayId: string, flightId: string) => {
@@ -291,18 +305,33 @@ export const TripDetail: React.FC = () => {
   };
 
   // ---- Hotel ops ----
-  const updateHotelStatus = (dayId: string, status: string) => {
-    if (!trip) return;
-    saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, hotelStatus: status as TravelDay['hotelStatus'] } : d) });
+  const getHotelsForDay = (date: string): TripHotel[] => {
+    if (!trip) return [];
+    return (trip.hotels || []).filter(h => h.checkIn <= date && h.checkOut >= date);
   };
-  const deleteHotel = (dayId: string) => {
-    if (!trip) return;
-    saveTrip({ ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, hotel: '', hotelStatus: 'programmato' as TravelDay['hotelStatus'] } : d) });
+
+  const saveHotel = () => {
+    if (!trip || !hotelForm.name.trim() || !hotelForm.checkIn || !hotelForm.checkOut) return;
+    let hotels: TripHotel[];
+    if (editingHotel) {
+      hotels = trip.hotels.map(h => h.id === editingHotel.id ? { ...h, ...hotelForm } : h);
+    } else {
+      hotels = [...(trip.hotels || []), { id: `h${uid()}`, ...hotelForm } as TripHotel];
+    }
+    saveTrip({ ...trip, hotels });
+    setHotelForm({ name: '', checkIn: '', checkOut: '', status: 'programmato' });
+    setShowHotelForm(null);
+    setEditingHotel(null);
   };
-  const editHotelDay = (day: TravelDay) => {
-    setEditingDay(day);
-    setDayForm({ date: day.date, location: day.location, hotel: day.hotel, hotelStatus: day.hotelStatus || 'programmato', notes: day.notes });
-    setShowDayModal(true);
+
+  const deleteHotel = (hotelId: string) => {
+    if (!trip) return;
+    saveTrip({ ...trip, hotels: trip.hotels.filter(h => h.id !== hotelId) });
+  };
+
+  const updateHotelStatus = (hotelId: string, status: string) => {
+    if (!trip) return;
+    saveTrip({ ...trip, hotels: trip.hotels.map(h => h.id === hotelId ? { ...h, status: status as TripHotel['status'] } : h) });
   };
 
   // ---- Appointment ops ----
@@ -350,17 +379,8 @@ export const TripDetail: React.FC = () => {
   const sortedDays = [...trip.days].sort((a, b) => a.date.localeCompare(b.date));
   const totalFlights = trip.days.reduce((s, d) => s + d.flights.length, 0);
   const totalApts = trip.days.reduce((s, d) => s + d.appointments.length, 0);
-  const hotelNames = [...new Set(trip.days.map(d => d.hotel).filter(Boolean))];
+  const hotelNames = [...new Set((trip.hotels || []).map(h => h.name).filter(Boolean))];
   const locations = [...new Set(trip.days.map(d => d.location).filter(Boolean))];
-
-  // Hotel blocks for report
-  const hotelBlocks: { hotel: string; checkIn: string; checkOut: string; nights: number; status: string }[] = [];
-  let curHotel: typeof hotelBlocks[0] | null = null;
-  for (const day of sortedDays.filter(d => d.hotel)) {
-    if (curHotel && curHotel.hotel === day.hotel) { curHotel.checkOut = day.date; curHotel.nights++; }
-    else { if (curHotel) hotelBlocks.push(curHotel); curHotel = { hotel: day.hotel, checkIn: day.date, checkOut: day.date, nights: 1, status: day.hotelStatus }; }
-  }
-  if (curHotel) hotelBlocks.push(curHotel);
 
   const statusCounts = trip.days.flatMap(d => d.appointments).reduce((acc, a) => {
     acc[a.status] = (acc[a.status] || 0) + 1;
@@ -507,11 +527,13 @@ export const TripDetail: React.FC = () => {
                       <span>{dateStr}</span>
                       {day.flights.length > 0 && (
                         <span className="td-day-summary-item">
-                          ✈ {day.flights[0].route}
+                          {TRANSPORT_ICONS[day.flights[0].type || 'volo']} {day.flights[0].route}
                           {day.flights.length > 1 && <span className="td-extra-badge">+{day.flights.length - 1}</span>}
                         </span>
                       )}
-                      {day.hotel && <span className="td-day-summary-item">🏨 {day.hotel}</span>}
+                      {getHotelsForDay(day.date).length > 0 && (
+                        <span className="td-day-summary-item">🏨 {getHotelsForDay(day.date)[0].name}</span>
+                      )}
                     </div>
                   </div>
                   <div className="td-day-header-right">
@@ -528,14 +550,14 @@ export const TripDetail: React.FC = () => {
                     {/* Flights */}
                     {day.flights.map(f => (
                       <div key={f.id} className="td-flight-item">
-                        <span className="td-flight-icon">✈</span>
+                        <span className="td-flight-icon">{TRANSPORT_ICONS[f.type || 'volo']}</span>
                         <div className="td-flight-info">
                           <span className="td-flight-route">{f.route}</span>
                           {f.details && <span className="td-flight-details">{f.details}</span>}
                         </div>
                         <StatusDropdown status={f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, f.id, s)} type="flight" />
                         <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: f.route, details: f.details, status: f.status }); setEditingFlight({ dayId: day.id, flight: f }); setShowFlightForm(day.id); }}>
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: f.route, details: f.details, status: f.status, type: f.type || 'volo' }); setEditingFlight({ dayId: day.id, flight: f }); setShowFlightForm(day.id); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                           </button>
                           <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteFlight(day.id, f.id); }}>
@@ -551,31 +573,59 @@ export const TripDetail: React.FC = () => {
                         <div className="td-flight-form-fields">
                           <input className="td-input" value={flightForm.route} onChange={e => setFlightForm(f => ({ ...f, route: e.target.value }))} placeholder="Tratta (es. BLQ-IST)" autoFocus />
                           <input className="td-input" value={flightForm.details} onChange={e => setFlightForm(f => ({ ...f, details: e.target.value }))} placeholder="Dettagli (es. TK1322 10:55)" />
+                          <select className="td-select" value={flightForm.type} onChange={e => setFlightForm(f => ({ ...f, type: e.target.value as Flight['type'] }))}>
+                            <option value="volo">✈ Volo</option>
+                            <option value="treno">🚆 Treno</option>
+                            <option value="traghetto">⛴ Traghetto</option>
+                          </select>
                           <select className="td-select" value={flightForm.status} onChange={e => setFlightForm(f => ({ ...f, status: e.target.value }))}>
                             <option value="programmato">Programmato</option>
                             <option value="confermato">Confermato</option>
                           </select>
                         </div>
                         <div className="td-flight-form-actions">
-                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato' }); }}>Annulla</button>
+                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); }}>Annulla</button>
                           <button className="td-small-btn-primary" onClick={() => saveFlight(day.id)}>Salva</button>
                         </div>
                       </div>
                     )}
 
-                    {/* Hotel */}
-                    {day.hotel && (
-                      <div className="td-hotel-item">
+                    {/* Hotels for this day */}
+                    {getHotelsForDay(day.date).map(h => (
+                      <div key={h.id} className="td-hotel-item">
                         <span className="td-hotel-icon">🏨</span>
-                        <span className="td-hotel-name">{day.hotel}</span>
-                        <StatusDropdown status={day.hotelStatus || 'confermato'} statuses={HOTEL_STATUSES} onChange={s => updateHotelStatus(day.id, s)} type="hotel" />
+                        <span className="td-hotel-name">{h.name}</span>
+                        <span className="td-hotel-dates" style={{ fontSize: '0.75rem', color: '#A09A96' }}>
+                          {fmtMed(h.checkIn)} → {fmtMed(h.checkOut)}
+                        </span>
+                        <StatusDropdown status={h.status} statuses={HOTEL_STATUSES} onChange={s => updateHotelStatus(h.id, s)} type="hotel" />
                         <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); editHotelDay(day); }}>
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setEditingHotel(h); setHotelForm({ name: h.name, checkIn: h.checkIn, checkOut: h.checkOut, status: h.status }); setShowHotelForm(day.id); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                           </button>
-                          <button className="td-icon-btn-sm danger" title="Elimina hotel" onClick={e => { e.stopPropagation(); deleteHotel(day.id); }}>
+                          <button className="td-icon-btn-sm danger" title="Elimina hotel" onClick={e => { e.stopPropagation(); deleteHotel(h.id); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
                           </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Inline hotel form */}
+                    {showHotelForm === day.id && (
+                      <div className="td-flight-form">
+                        <div className="td-flight-form-fields">
+                          <input className="td-input" value={hotelForm.name} onChange={e => setHotelForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome hotel" autoFocus />
+                          <input className="td-input" type="date" value={hotelForm.checkIn} onChange={e => setHotelForm(f => ({ ...f, checkIn: e.target.value }))} />
+                          <input className="td-input" type="date" value={hotelForm.checkOut} onChange={e => setHotelForm(f => ({ ...f, checkOut: e.target.value }))} />
+                          <select className="td-select" value={hotelForm.status} onChange={e => setHotelForm(f => ({ ...f, status: e.target.value as TripHotel['status'] }))}>
+                            <option value="programmato">Programmato</option>
+                            <option value="richiesto">Richiesto</option>
+                            <option value="confermato">Confermato</option>
+                          </select>
+                        </div>
+                        <div className="td-flight-form-actions">
+                          <button className="td-link-btn" onClick={() => { setShowHotelForm(null); setEditingHotel(null); setHotelForm({ name: '', checkIn: '', checkOut: '', status: 'programmato' }); }}>Annulla</button>
+                          <button className="td-small-btn-primary" onClick={saveHotel}>Salva</button>
                         </div>
                       </div>
                     )}
@@ -623,9 +673,10 @@ export const TripDetail: React.FC = () => {
 
                     {/* Day actions */}
                     <div className="td-day-actions">
-                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Volo</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Volo</button>
+                      <button className="td-action-link purple" onClick={e => { e.stopPropagation(); setHotelForm({ name: '', checkIn: day.date, checkOut: day.date, status: 'programmato' }); setEditingHotel(null); setShowHotelForm(day.id); }}>+ Hotel</button>
                       <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '' }); setShowAptModal(true); }}>+ Appuntamento</button>
-                      <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, location: day.location, hotel: day.hotel, hotelStatus: day.hotelStatus, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
+                      <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, location: day.location, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
                       <button className="td-action-link red" onClick={e => { e.stopPropagation(); deleteDay(day.id); }}>🗑 Elimina</button>
                     </div>
                   </div>
@@ -634,7 +685,7 @@ export const TripDetail: React.FC = () => {
             );
           })}
 
-          <button className="td-add-day-btn" onClick={() => { setEditingDay(null); setDayForm({ date: '', location: '', hotel: '', hotelStatus: 'programmato', notes: '' }); setShowDayModal(true); }}>
+          <button className="td-add-day-btn" onClick={() => { setEditingDay(null); setDayForm({ date: '', location: '', notes: '' }); setShowDayModal(true); }}>
             + Aggiungi Giorno
           </button>
         </div>
@@ -678,12 +729,12 @@ export const TripDetail: React.FC = () => {
                         ))}
                       </td>
                       <td>
-                        {day.hotel && (
-                          <div className="td-rpt-row">
-                            <span className="td-rpt-main" style={{ fontWeight: 500 }}>{day.hotel}</span>
-                            <span className={`status-badge ${day.hotelStatus === 'confermato' ? 'confermato' : 'hotel-programmato'}`}>{STATUS_LABELS[day.hotelStatus]}</span>
+                        {getHotelsForDay(day.date).map(h => (
+                          <div key={h.id} className="td-rpt-row">
+                            <span className="td-rpt-main" style={{ fontWeight: 500 }}>{h.name}</span>
+                            <span className={`status-badge ${h.status === 'confermato' ? 'confermato' : h.status === 'richiesto' ? 'in_attesa' : 'hotel-programmato'}`}>{STATUS_LABELS[h.status]}</span>
                           </div>
-                        )}
+                        ))}
                       </td>
                       <td>
                         {day.appointments.map(a => (
@@ -710,15 +761,17 @@ export const TripDetail: React.FC = () => {
               <table className="td-report-table">
                 <colgroup>
                   <col style={{ width: '90px' }} />
+                  <col style={{ width: '80px' }} />
                   <col style={{ width: '160px' }} />
                   <col style={{ width: 'auto' }} />
                   <col style={{ width: '110px' }} />
                 </colgroup>
-                <thead><tr><th>Data</th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
+                <thead><tr><th>Data</th><th>Tipo</th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
                 <tbody>
                   {sortedDays.flatMap(day => day.flights.map(f => (
                     <tr key={f.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
+                      <td>{TRANSPORT_ICONS[f.type || 'volo']} {f.type || 'volo'}</td>
                       <td className="td-report-route">{f.route}</td>
                       <td className="td-report-muted">{f.details}</td>
                       <td><span className={`status-badge ${f.status}`}>{STATUS_LABELS[f.status]}</span></td>
@@ -731,7 +784,7 @@ export const TripDetail: React.FC = () => {
           )}
 
           {/* Hotels */}
-          {hotelBlocks.length > 0 && (
+          {(trip.hotels || []).length > 0 && (
             <div className="td-report-card">
               <div className="td-report-card-header purple">Hotel</div>
               <div style={{ overflowX: 'auto' }}>
@@ -745,15 +798,18 @@ export const TripDetail: React.FC = () => {
                 </colgroup>
                 <thead><tr><th>Hotel</th><th>Check-in</th><th>Check-out</th><th>Notti</th><th>Stato</th></tr></thead>
                 <tbody>
-                  {hotelBlocks.map((h, i) => (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{h.hotel}</td>
-                      <td>{fmtMed(h.checkIn)}</td>
-                      <td>{fmtMed(h.checkOut)}</td>
-                      <td>{h.nights}</td>
-                      <td><span className={`status-badge ${h.status === 'confermato' ? 'confermato' : 'hotel-programmato'}`}>{STATUS_LABELS[h.status]}</span></td>
-                    </tr>
-                  ))}
+                  {(trip.hotels || []).sort((a,b) => a.checkIn.localeCompare(b.checkIn)).map(h => {
+                    const nights = Math.round((new Date(h.checkOut).getTime() - new Date(h.checkIn).getTime()) / 86400000) + 1;
+                    return (
+                      <tr key={h.id}>
+                        <td style={{ fontWeight: 600 }}>{h.name}</td>
+                        <td>{fmtMed(h.checkIn)}</td>
+                        <td>{fmtMed(h.checkOut)}</td>
+                        <td>{nights}</td>
+                        <td><span className={`status-badge ${h.status === 'confermato' ? 'confermato' : h.status === 'richiesto' ? 'in_attesa' : 'hotel-programmato'}`}>{STATUS_LABELS[h.status]}</span></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               </div>
@@ -852,19 +908,6 @@ export const TripDetail: React.FC = () => {
             <div className="form-group">
               <label>Localita</label>
               <input value={dayForm.location} onChange={e => setDayForm(f => ({ ...f, location: e.target.value }))} placeholder="es. Seoul" />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Hotel</label>
-                <input value={dayForm.hotel} onChange={e => setDayForm(f => ({ ...f, hotel: e.target.value }))} placeholder="Nome hotel" />
-              </div>
-              <div className="form-group">
-                <label>Stato hotel</label>
-                <select value={dayForm.hotelStatus} onChange={e => setDayForm(f => ({ ...f, hotelStatus: e.target.value }))}>
-                  <option value="programmato">Programmato</option>
-                  <option value="confermato">Confermato</option>
-                </select>
-              </div>
             </div>
             <div className="form-group">
               <label>Note</label>

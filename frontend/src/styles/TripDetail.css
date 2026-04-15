@@ -597,6 +597,8 @@
 .td-action-link.muted:hover { background: #F0EDE5; }
 .td-action-link.red { color: #e05050; }
 .td-action-link.red:hover { background: #fff0f0; }
+.td-action-link.purple { color: #9B7FC7; }
+.td-action-link.purple:hover { background: rgba(155, 127, 199, 0.08); }
 
 /* Add day button */
 .td-add-day-btn {

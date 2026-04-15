@@ -31,6 +31,9 @@ export class Trip {
   @Column({ type: 'jsonb', default: '[]' })
   days: any[];
 
+  @Column({ type: 'jsonb', default: '[]' })
+  hotels: any[];
+
   @CreateDateColumn()
   created_at: Date;
 

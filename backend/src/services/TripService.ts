@@ -34,6 +34,7 @@ export class TripService {
       destination: data.destination,
       notes: data.notes,
       days: data.days || [],
+      hotels: data.hotels || [],
       userId,
     });
     return this.tripRepo.save(trip);
@@ -48,6 +49,7 @@ export class TripService {
     if (data.destination !== undefined) trip.destination = data.destination;
     if (data.notes !== undefined) trip.notes = data.notes;
     if (data.days !== undefined) trip.days = data.days;
+    if (data.hotels !== undefined) trip.hotels = data.hotels;
     return this.tripRepo.save(trip);
   }
 
