@@ -38,7 +38,7 @@ export function exportTripPdf(trip: any) {
   doc.setFontSize(12);
   const totalApts = trip.days.reduce((s: number, d: any) => s + d.appointments.length, 0);
   const totalFlights = trip.days.reduce((s: number, d: any) => s + d.flights.length, 0);
-  const hotels = [...new Set(trip.days.map((d: any) => d.hotel).filter(Boolean))].length;
+  const hotels = (trip.hotels || []).length;
   doc.text(`${trip.days.length} giorni · ${totalFlights} voli · ${hotels} hotel · ${totalApts} appuntamenti`, W / 2, 95, { align: 'center' });
   const locations = [...new Set(trip.days.map((d: any) => d.location).filter(Boolean))];
   doc.setFontSize(10); doc.setTextColor(200, 220, 240);
@@ -60,7 +60,9 @@ export function exportTripPdf(trip: any) {
       const t = a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '—';
       return `${t} ${a.client} [${STATUS_LABELS[a.status] || a.status}]`;
     }).join('\n');
-    return [dateStr, day.location, flightStr, day.hotel, aptsStr, day.notes];
+    const hotelsForDay = (trip.hotels || []).filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
+    const hotelStr = hotelsForDay.map((h: any) => h.name).join(', ');
+    return [dateStr, day.location, flightStr, hotelStr, aptsStr, day.notes];
   });
 
   autoTable(doc, {
@@ -99,25 +101,26 @@ export function exportTripPdf(trip: any) {
   }
 
   // Hotels
-  const hotelDays = sorted.filter((d: any) => d.hotel);
-  if (hotelDays.length > 0) {
+  const tripHotels = (trip.hotels || []).slice().sort((a: any, b: any) => a.checkIn.localeCompare(b.checkIn));
+  if (tripHotels.length > 0) {
     doc.addPage();
     doc.setFillColor(...COLORS.quietViolet); doc.rect(0, 0, W, 18, 'F');
     doc.setTextColor(...COLORS.white); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
     doc.text('HOTEL', 14, 12);
-    const blocks: any[] = [];
-    let cur: any = null;
-    for (const day of hotelDays) {
-      if (cur && cur.hotel === day.hotel) { cur.checkOut = day.date; cur.nights++; }
-      else { if (cur) blocks.push(cur); cur = { hotel: day.hotel, checkIn: day.date, checkOut: day.date, nights: 1 }; }
-    }
-    if (cur) blocks.push(cur);
     autoTable(doc, {
-      startY: 22, head: [['Hotel', 'Check-in', 'Check-out', 'Notti']],
-      body: blocks.map((h: any) => [h.hotel,
-        new Date(h.checkIn + 'T00:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
-        new Date(h.checkOut + 'T00:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
-        `${h.nights} notti`]),
+      startY: 22, head: [['Hotel', 'Check-in', 'Check-out', 'Notti', 'Stato']],
+      body: tripHotels.map((h: any) => {
+        const ci = new Date(h.checkIn + 'T00:00:00');
+        const co = new Date(h.checkOut + 'T00:00:00');
+        const nights = Math.round((co.getTime() - ci.getTime()) / 86400000);
+        return [
+          h.name,
+          ci.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+          co.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+          `${nights} nott${nights === 1 ? 'e' : 'i'}`,
+          STATUS_LABELS[h.status] || h.status || '',
+        ];
+      }),
       theme: 'striped',
       styles: { fontSize: 10, cellPadding: 4 },
       headStyles: { fillColor: COLORS.quietViolet, textColor: COLORS.white, fontStyle: 'bold' },

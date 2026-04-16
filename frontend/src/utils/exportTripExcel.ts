@@ -35,7 +35,8 @@ export function exportTripExcel(trip: any) {
     for (let i = 0; i < maxFlights; i++) {
       row.push(day.flights[i]?.route || '', day.flights[i]?.details || '');
     }
-    row.push(day.hotel || '', day.notes || '');
+    const hotelsForDay = (trip.hotels || []).filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
+    row.push(hotelsForDay.map((h: any) => h.name).join(', '), day.notes || '');
     for (let i = 0; i < maxApts; i++) {
       const a = day.appointments[i];
       row.push(a?.time || '', a?.endTime || '', a?.client || '', a ? (STATUS_LABELS[a.status] || a.status) : '');
@@ -66,23 +67,24 @@ export function exportTripExcel(trip: any) {
   }
 
   // Hotels sheet
-  const hotelDays = sorted.filter((d: any) => d.hotel);
-  if (hotelDays.length > 0) {
-    const blocks: any[] = [];
-    let cur: any = null;
-    for (const d of hotelDays) {
-      if (cur && cur.hotel === d.hotel) { cur.checkOut = d.date; cur.nights++; }
-      else { if (cur) blocks.push(cur); cur = { hotel: d.hotel, checkIn: d.date, checkOut: d.date, nights: 1 }; }
-    }
-    if (cur) blocks.push(cur);
+  const tripHotels = (trip.hotels || []).slice().sort((a: any, b: any) => a.checkIn.localeCompare(b.checkIn));
+  if (tripHotels.length > 0) {
     const ws3 = XLSX.utils.aoa_to_sheet([
-      ['Hotel', 'Check-in', 'Check-out', 'Notti'],
-      ...blocks.map((h: any) => [h.hotel,
-        new Date(h.checkIn + 'T00:00:00').toLocaleDateString(locale),
-        new Date(h.checkOut + 'T00:00:00').toLocaleDateString(locale),
-        h.nights]),
+      ['Hotel', 'Check-in', 'Check-out', 'Notti', 'Stato'],
+      ...tripHotels.map((h: any) => {
+        const ci = new Date(h.checkIn + 'T00:00:00');
+        const co = new Date(h.checkOut + 'T00:00:00');
+        const nights = Math.round((co.getTime() - ci.getTime()) / 86400000);
+        return [
+          h.name,
+          ci.toLocaleDateString(locale),
+          co.toLocaleDateString(locale),
+          nights,
+          STATUS_LABELS[h.status] || h.status || '',
+        ];
+      }),
     ]);
-    ws3['!cols'] = [{ wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 8 }];
+    ws3['!cols'] = [{ wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, ws3, 'Hotel');
   }
 
