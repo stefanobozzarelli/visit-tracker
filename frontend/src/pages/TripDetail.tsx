@@ -86,6 +86,12 @@ function fmtShort(dateStr: string) {
 function fmtMed(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' });
 }
+function extractTime(details: string): string {
+  if (!details) return '99:99';
+  const m = details.match(/\b(\d{1,2}:\d{2})\b/);
+  if (!m) return '99:99';
+  return m[1].length === 4 ? `0${m[1]}` : m[1];
+}
 
 // ---- Status Dropdown ----
 interface StatusDropdownProps {
@@ -547,49 +553,6 @@ export const TripDetail: React.FC = () => {
                 {/* Expanded body */}
                 {isExpanded && (
                   <div className="td-day-body">
-                    {/* Flights */}
-                    {day.flights.map(f => (
-                      <div key={f.id} className="td-flight-item">
-                        <span className="td-flight-icon">{TRANSPORT_ICONS[f.type || 'volo']}</span>
-                        <div className="td-flight-info">
-                          <span className="td-flight-route">{f.route}</span>
-                          {f.details && <span className="td-flight-details">{f.details}</span>}
-                        </div>
-                        <StatusDropdown status={f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, f.id, s)} type="flight" />
-                        <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: f.route, details: f.details, status: f.status, type: f.type || 'volo' }); setEditingFlight({ dayId: day.id, flight: f }); setShowFlightForm(day.id); }}>
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
-                          </button>
-                          <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteFlight(day.id, f.id); }}>
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Inline flight form */}
-                    {showFlightForm === day.id && (
-                      <div className="td-flight-form">
-                        <div className="td-flight-form-fields">
-                          <input className="td-input" value={flightForm.route} onChange={e => setFlightForm(f => ({ ...f, route: e.target.value }))} placeholder="Tratta (es. BLQ-IST)" autoFocus />
-                          <input className="td-input" value={flightForm.details} onChange={e => setFlightForm(f => ({ ...f, details: e.target.value }))} placeholder="Dettagli (es. TK1322 10:55)" />
-                          <select className="td-select" value={flightForm.type} onChange={e => setFlightForm(f => ({ ...f, type: e.target.value as Flight['type'] }))}>
-                            <option value="volo">✈ Volo</option>
-                            <option value="treno">🚆 Treno</option>
-                            <option value="traghetto">⛴ Traghetto</option>
-                          </select>
-                          <select className="td-select" value={flightForm.status} onChange={e => setFlightForm(f => ({ ...f, status: e.target.value }))}>
-                            <option value="programmato">Programmato</option>
-                            <option value="confermato">Confermato</option>
-                          </select>
-                        </div>
-                        <div className="td-flight-form-actions">
-                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); }}>Annulla</button>
-                          <button className="td-small-btn-primary" onClick={() => saveFlight(day.id)}>Salva</button>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Hotels for this day */}
                     {getHotelsForDay(day.date).map(h => (
                       <div key={h.id} className="td-hotel-item">
@@ -630,50 +593,88 @@ export const TripDetail: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Notes */}
-                    {day.notes && <div className="td-day-notes">{day.notes}</div>}
-
-                    {/* Appointments */}
-                    {day.appointments.length > 0 && (
-                      <div className="td-apts-section">
-                        <div className="td-apts-label">Appuntamenti</div>
-                        {day.appointments.map(a => (
-                          <div key={a.id} className="td-apt-item">
-                            <div className="td-apt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</div>
-                            <div className="td-apt-main">
-                              <div className="td-apt-client">{a.client}</div>
-                              {a.notes && <div className="td-apt-notes">{a.notes}</div>}
-                            </div>
-                            {a.status === 'confermato' && (
-                              <button
-                                className="td-visit-link"
-                                title="Crea visita e segna come Fatto/Report"
-                                onClick={() => {
-                                  updateAptStatus(day.id, a.id, 'fatto_report');
-                                  navigate(`/visits/new?client=${encodeURIComponent(a.client)}&date=${day.date}`);
-                                }}
-                              >+ Visita</button>
-                            )}
-                            {a.status === 'fatto_report' && (
-                              <span className="td-visit-done" title="Visita già registrata">✓ Report</span>
-                            )}
-                            <StatusDropdown status={a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, a.id, s)} type="apt" />
-                            <div className="td-item-actions">
-                              <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: a }); setAptForm({ time: a.time, endTime: a.endTime, client: a.client, status: a.status, notes: a.notes }); setShowAptModal(true); }}>
-                                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
-                              </button>
-                              <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteApt(day.id, a.id); }}>
-                                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                    {/* Inline transport form */}
+                    {showFlightForm === day.id && (
+                      <div className="td-flight-form">
+                        <div className="td-flight-form-fields">
+                          <input className="td-input" value={flightForm.route} onChange={e => setFlightForm(f => ({ ...f, route: e.target.value }))} placeholder="Tratta (es. BLQ-IST)" autoFocus />
+                          <input className="td-input" value={flightForm.details} onChange={e => setFlightForm(f => ({ ...f, details: e.target.value }))} placeholder="Dettagli (es. TK1322 10:55)" />
+                          <select className="td-select" value={flightForm.type} onChange={e => setFlightForm(f => ({ ...f, type: e.target.value as Flight['type'] }))}>
+                            <option value="volo">✈ Volo</option>
+                            <option value="treno">🚆 Treno</option>
+                            <option value="traghetto">⛴ Traghetto</option>
+                          </select>
+                          <select className="td-select" value={flightForm.status} onChange={e => setFlightForm(f => ({ ...f, status: e.target.value }))}>
+                            <option value="programmato">Programmato</option>
+                            <option value="confermato">Confermato</option>
+                          </select>
+                        </div>
+                        <div className="td-flight-form-actions">
+                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); }}>Annulla</button>
+                          <button className="td-small-btn-primary" onClick={() => saveFlight(day.id)}>Salva</button>
+                        </div>
                       </div>
                     )}
 
+                    {/* Trasporti + Appuntamenti unificati, ordinati per orario */}
+                    {[
+                      ...day.flights.map(f => ({ kind: 'flight' as const, sortTime: extractTime(f.details), f, a: null as Appointment | null })),
+                      ...day.appointments.map(a => ({ kind: 'apt' as const, sortTime: a.time || '99:99', f: null as Flight | null, a })),
+                    ].sort((x, y) => x.sortTime.localeCompare(y.sortTime)).map(item => item.f ? (
+                      <div key={item.f.id} className="td-flight-item">
+                        <span className="td-flight-icon">{TRANSPORT_ICONS[item.f.type || 'volo']}</span>
+                        <div className="td-flight-info">
+                          <span className="td-flight-route">{item.f.route}</span>
+                          {item.f.details && <span className="td-flight-details">{item.f.details}</span>}
+                        </div>
+                        <StatusDropdown status={item.f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, item.f!.id, s)} type="flight" />
+                        <div className="td-item-actions">
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: item.f!.route, details: item.f!.details, status: item.f!.status, type: item.f!.type || 'volo' }); setEditingFlight({ dayId: day.id, flight: item.f! }); setShowFlightForm(day.id); }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
+                          </button>
+                          <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteFlight(day.id, item.f!.id); }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    ) : item.a ? (
+                      <div key={item.a.id} className="td-apt-item">
+                        <div className="td-apt-time">{item.a.time || '—'}{item.a.endTime ? `–${item.a.endTime}` : ''}</div>
+                        <div className="td-apt-main">
+                          <div className="td-apt-client">{item.a.client}</div>
+                          {item.a.notes && <div className="td-apt-notes">{item.a.notes}</div>}
+                        </div>
+                        {item.a.status === 'confermato' && (
+                          <button
+                            className="td-visit-link"
+                            title="Crea visita e segna come Fatto/Report"
+                            onClick={() => {
+                              updateAptStatus(day.id, item.a!.id, 'fatto_report');
+                              navigate(`/visits/new?client=${encodeURIComponent(item.a!.client)}&date=${day.date}`);
+                            }}
+                          >+ Visita</button>
+                        )}
+                        {item.a.status === 'fatto_report' && (
+                          <span className="td-visit-done" title="Visita già registrata">✓ Report</span>
+                        )}
+                        <StatusDropdown status={item.a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, item.a!.id, s)} type="apt" />
+                        <div className="td-item-actions">
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: item.a! }); setAptForm({ time: item.a!.time, endTime: item.a!.endTime, client: item.a!.client, status: item.a!.status, notes: item.a!.notes }); setShowAptModal(true); }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
+                          </button>
+                          <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteApt(day.id, item.a!.id); }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    ) : null)}
+
+                    {/* Notes */}
+                    {day.notes && <div className="td-day-notes">{day.notes}</div>}
+
                     {/* Day actions */}
                     <div className="td-day-actions">
-                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Volo</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Trasporto</button>
                       <button className="td-action-link purple" onClick={e => { e.stopPropagation(); setHotelForm({ name: '', checkIn: day.date, checkOut: day.date, status: 'programmato' }); setEditingHotel(null); setShowHotelForm(day.id); }}>+ Hotel</button>
                       <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '' }); setShowAptModal(true); }}>+ Appuntamento</button>
                       <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, location: day.location, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
