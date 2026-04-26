@@ -86,6 +86,11 @@ function fmtShort(dateStr: string) {
 function fmtMed(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' });
 }
+function checkOutDisplay(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' });
+}
 function extractTime(details: string): string {
   if (!details) return '99:99';
   const m = details.match(/\b(\d{1,2}:\d{2})\b/);
@@ -559,7 +564,7 @@ export const TripDetail: React.FC = () => {
                         <span className="td-hotel-icon">🏨</span>
                         <span className="td-hotel-name">{h.name}</span>
                         <span className="td-hotel-dates" style={{ fontSize: '0.75rem', color: '#A09A96' }}>
-                          {fmtMed(h.checkIn)} → {fmtMed(h.checkOut)}
+                          {fmtMed(h.checkIn)} → {checkOutDisplay(h.checkOut)}
                         </span>
                         <StatusDropdown status={h.status} statuses={HOTEL_STATUSES} onChange={s => updateHotelStatus(h.id, s)} type="hotel" />
                         <div className="td-item-actions">
@@ -806,7 +811,7 @@ export const TripDetail: React.FC = () => {
                       <tr key={h.id}>
                         <td style={{ fontWeight: 600 }}>{h.name}</td>
                         <td>{fmtMed(h.checkIn)}</td>
-                        <td>{fmtMed(h.checkOut)}</td>
+                        <td>{checkOutDisplay(h.checkOut)}</td>
                         <td>{nights}</td>
                         <td><span className={`status-badge ${h.status === 'confermato' ? 'confermato' : h.status === 'richiesto' ? 'in_attesa' : 'hotel-programmato'}`}>{STATUS_LABELS[h.status]}</span></td>
                       </tr>

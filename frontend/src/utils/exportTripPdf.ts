@@ -112,11 +112,12 @@ export function exportTripPdf(trip: any) {
       body: tripHotels.map((h: any) => {
         const ci = new Date(h.checkIn + 'T00:00:00');
         const co = new Date(h.checkOut + 'T00:00:00');
-        const nights = Math.round((co.getTime() - ci.getTime()) / 86400000);
+        const nights = Math.round((co.getTime() - ci.getTime()) / 86400000) + 1;
+        const coDisplay = new Date(co); coDisplay.setDate(coDisplay.getDate() + 1);
         return [
           h.name,
           ci.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
-          co.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+          coDisplay.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
           `${nights} nott${nights === 1 ? 'e' : 'i'}`,
           STATUS_LABELS[h.status] || h.status || '',
         ];
