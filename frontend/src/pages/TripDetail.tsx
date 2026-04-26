@@ -703,9 +703,9 @@ export const TripDetail: React.FC = () => {
                 <colgroup>
                   <col style={{ width: '95px' }} />
                   <col style={{ width: '110px' }} />
-                  <col style={{ width: '140px' }} />
+                  <col style={{ width: '200px' }} />
                   <col style={{ width: '160px' }} />
-                  <col style={{ width: '580px' }} />
+                  <col style={{ width: '480px' }} />
                   <col />
                 </colgroup>
                 <thead>
