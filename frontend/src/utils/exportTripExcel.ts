@@ -55,15 +55,17 @@ export function exportTripExcel(trip: any) {
   // Flights sheet
   const allFlights = sorted.flatMap((d: any) => d.flights.map((f: any) => ({ ...f, date: d.date })));
   if (allFlights.length > 0) {
+    const TRANSPORT_LABELS: Record<string, string> = { volo: 'Volo', treno: 'Treno', traghetto: 'Traghetto' };
     const ws2 = XLSX.utils.aoa_to_sheet([
-      ['Data', 'Tratta', 'Dettagli', 'Stato'],
+      ['Data', 'Tipo', 'Tratta', 'Dettagli', 'Stato'],
       ...allFlights.map((f: any) => [
         new Date(f.date + 'T00:00:00').toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        TRANSPORT_LABELS[f.type || 'volo'],
         f.route, f.details, STATUS_LABELS[f.status] || f.status,
       ]),
     ]);
-    ws2['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 40 }, { wch: 16 }];
-    XLSX.utils.book_append_sheet(wb, ws2, 'Voli');
+    ws2['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 40 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Trasporti');
   }
 
   // Hotels sheet
