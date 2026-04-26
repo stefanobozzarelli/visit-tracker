@@ -702,10 +702,10 @@ export const TripDetail: React.FC = () => {
               <table className="td-report-table">
                 <colgroup>
                   <col style={{ width: '95px' }} />
-                  <col style={{ width: '120px' }} />
-                  <col style={{ width: '190px' }} />
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '460px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '140px' }} />
+                  <col style={{ width: '160px' }} />
+                  <col style={{ width: '580px' }} />
                   <col />
                 </colgroup>
                 <thead>
@@ -721,7 +721,7 @@ export const TripDetail: React.FC = () => {
                       <td>
                         {day.flights.map(f => (
                           <div key={f.id} className="td-rpt-row">
-                            <div className="td-rpt-main" style={{ whiteSpace: 'nowrap' }}>
+                            <div className="td-rpt-main">
                               <span className="td-report-route">{f.route}</span>
                               {f.details && <span className="td-report-muted"> {f.details}</span>}
                             </div>
