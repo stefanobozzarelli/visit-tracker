@@ -763,22 +763,22 @@ export const TripDetail: React.FC = () => {
           {/* Flights */}
           {totalFlights > 0 && (
             <div className="td-report-card">
-              <div className="td-report-card-header teal">Voli</div>
+              <div className="td-report-card-header teal">Trasporti</div>
               <div style={{ overflowX: 'auto' }}>
               <table className="td-report-table">
                 <colgroup>
                   <col style={{ width: '90px' }} />
-                  <col style={{ width: '80px' }} />
+                  <col style={{ width: '40px' }} />
                   <col style={{ width: '160px' }} />
                   <col style={{ width: 'auto' }} />
                   <col style={{ width: '110px' }} />
                 </colgroup>
-                <thead><tr><th>Data</th><th>Tipo</th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
+                <thead><tr><th>Data</th><th></th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
                 <tbody>
                   {sortedDays.flatMap(day => day.flights.map(f => (
                     <tr key={f.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
-                      <td>{TRANSPORT_ICONS[f.type || 'volo']} {f.type || 'volo'}</td>
+                      <td style={{ fontSize: '1.1rem', textAlign: 'center' }}>{TRANSPORT_ICONS[f.type || 'volo']}</td>
                       <td className="td-report-route">{f.route}</td>
                       <td className="td-report-muted">{f.details}</td>
                       <td><span className={`status-badge ${f.status}`}>{STATUS_LABELS[f.status]}</span></td>
