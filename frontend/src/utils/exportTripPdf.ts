@@ -85,14 +85,17 @@ export function exportTripPdf(trip: any) {
     doc.addPage();
     doc.setFillColor(...COLORS.balticSea); doc.rect(0, 0, W, 18, 'F');
     doc.setTextColor(...COLORS.white); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-    doc.text('VOLI', 14, 12);
+    doc.text('TRASPORTI', 14, 12);
+    const TRANSPORT_ICONS_PDF: Record<string, string> = { volo: '✈', treno: '🚆', traghetto: '⛴' };
     autoTable(doc, {
       startY: 22,
-      head: [['Data', 'Tratta', 'Dettagli', 'Stato']],
+      head: [['Data', '', 'Tratta', 'Dettagli', 'Stato']],
       body: allFlights.map((f: any) => [
         new Date(f.date + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: 'short' }),
+        TRANSPORT_ICONS_PDF[f.type || 'volo'],
         f.route, f.details, STATUS_LABELS[f.status] || f.status,
       ]),
+      columnStyles: { 1: { cellWidth: 10, halign: 'center' } },
       theme: 'striped',
       styles: { fontSize: 10, cellPadding: 4 },
       headStyles: { fillColor: COLORS.balticSea, textColor: COLORS.white, fontStyle: 'bold' },
