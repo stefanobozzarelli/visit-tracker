@@ -703,14 +703,14 @@ export const TripDetail: React.FC = () => {
                 <colgroup>
                   <col style={{ width: '95px' }} />
                   <col style={{ width: '120px' }} />
-                  <col style={{ width: '270px' }} />
-                  <col style={{ width: '210px' }} />
-                  <col style={{ width: '370px' }} />
+                  <col style={{ width: '190px' }} />
+                  <col style={{ width: '180px' }} />
+                  <col style={{ width: '460px' }} />
                   <col />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th>Data</th><th>Localita</th><th>Volo</th><th>Hotel</th><th>Appuntamenti</th><th>Note</th>
+                    <th>Data</th><th>Localita</th><th>Trasporto</th><th>Hotel</th><th>Appuntamenti</th><th>Note</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -738,7 +738,7 @@ export const TripDetail: React.FC = () => {
                         ))}
                       </td>
                       <td>
-                        {day.appointments.map(a => (
+                        {[...day.appointments].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99')).map(a => (
                           <div key={a.id} className="td-rpt-row">
                             <span className="td-rpt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
                             <span className="td-rpt-client">{a.client}</span>
