@@ -722,6 +722,7 @@ export const TripDetail: React.FC = () => {
                         {day.flights.map(f => (
                           <div key={f.id} className="td-rpt-row">
                             <div className="td-rpt-main">
+                              <span style={{ marginRight: '4px' }}>{TRANSPORT_ICONS[f.type || 'volo']}</span>
                               <span className="td-report-route">{f.route}</span>
                               {f.details && <span className="td-report-muted"> {f.details}</span>}
                             </div>
