@@ -863,7 +863,7 @@ export const TripDetail: React.FC = () => {
       {showPdfUpload && (
         <TripPdfUpload
           trip={trip}
-          onSave={(updatedDays: any[], updatedHotels?: any[]) => saveTrip({ ...trip, days: updatedDays, hotels: updatedHotels ?? trip.hotels })}
+          onSave={(updatedDays: any[], updatedHotels?: any[], newEndDate?: string) => saveTrip({ ...trip, days: updatedDays, hotels: updatedHotels ?? trip.hotels, ...(newEndDate ? { endDate: newEndDate } : {}) })}
           onClose={() => setShowPdfUpload(false)}
         />
       )}

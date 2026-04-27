@@ -21,7 +21,7 @@ interface ParseResult {
 
 interface Props {
   trip: any;
-  onSave: (updatedDays: any[], updatedHotels?: any[]) => void;
+  onSave: (updatedDays: any[], updatedHotels?: any[], newEndDate?: string) => void;
   onClose: () => void;
 }
 
@@ -98,17 +98,28 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
     let updatedDays = [...trip.days];
     let updatedHotels = [...(trip.hotels || [])];
     const newApplied = new Set(applied);
-    const warnings: string[] = [];
-
     results.forEach((result, ri) => {
       result.flights.forEach((flight, fi) => {
         const key = `r${ri}-f${fi}`;
         if (!selected.has(key) || !flight.date) return;
+
+        // If no matching day exists, create one automatically (e.g. return day after last night)
         const matchingDay = updatedDays.find((d: any) => d.date === flight.date);
         if (!matchingDay) {
-          warnings.push(`${flight.route} (${flight.details}) — data ${flight.date} non presente nel viaggio`);
-          return;
+          const d = new Date(flight.date + 'T00:00:00');
+          const dayOfWeek = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][d.getDay()];
+          const newDay = {
+            id: `d_${Date.now()}_auto_${fi}_${Math.random().toString(36).slice(2, 6)}`,
+            date: flight.date,
+            dayOfWeek,
+            location: '',
+            notes: '',
+            flights: [],
+            appointments: [],
+          };
+          updatedDays = [...updatedDays, newDay].sort((a: any, b: any) => a.date.localeCompare(b.date));
         }
+
         updatedDays = updatedDays.map((day: any) => {
           if (day.date === flight.date) {
             return {
@@ -142,12 +153,12 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
       });
     });
 
-    onSave(updatedDays, updatedHotels);
+    // Extend trip end date if new days were added beyond current endDate
+    const maxDay = updatedDays.reduce((max: string, d: any) => d.date > max ? d.date : max, trip.endDate || '');
+    const updatedTrip = maxDay > (trip.endDate || '') ? { ...trip, endDate: maxDay } : trip;
+    onSave(updatedDays, updatedHotels, updatedTrip.endDate !== trip.endDate ? maxDay : undefined);
     setApplied(newApplied);
-    if (warnings.length > 0) {
-      alert(`⚠️ Alcuni voli non sono stati aggiunti perché la data non corrisponde a nessun giorno del viaggio:\n\n${warnings.join('\n')}\n\nAggiorna le date del viaggio o aggiungi manualmente questi voli.`);
-    }
-    setTimeout(() => { setResults([]); setApplied(new Set()); setSelected(new Set()); onClose(); }, warnings.length > 0 ? 1000 : 300);
+    setTimeout(() => { setResults([]); setApplied(new Set()); setSelected(new Set()); onClose(); }, 300);
   };
 
   const selectedCount = [...selected].filter(k => !applied.has(k)).length;
