@@ -415,7 +415,7 @@ export const TripDetail: React.FC = () => {
             </p>
           </div>
           <div className="td-header-actions">
-            <button className="td-btn-upload" onClick={() => setShowPdfUpload(true)}>↑ Carica PDF</button>
+            <button className="td-btn-upload" onClick={() => setShowPdfUpload(true)}>↑ Carica file prenotazione</button>
             <div className="td-export-wrap" ref={exportMenuRef}>
               <button className="td-btn-export" onClick={() => setShowExportMenu(v => !v)}>↓ Esporta ▾</button>
               {showExportMenu && (
