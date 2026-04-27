@@ -11,7 +11,11 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
-const PARSE_PROMPT = `You are a travel booking data extractor. Analyze this document (booking confirmation, e-ticket, screenshot, or photo) and extract ALL flight segments and hotel bookings.
+function buildPrompt(): string {
+  const today = new Date().toISOString().slice(0, 10); // e.g. "2026-04-27"
+  const year = today.slice(0, 4);
+  return `You are a travel booking data extractor. Today's date is ${today}.
+Analyze this document (booking confirmation, e-ticket, screenshot, or photo) and extract ALL flight segments and hotel bookings.
 
 Return ONLY a JSON object — no explanation, no markdown, no code fences — in exactly this structure:
 {
@@ -33,13 +37,14 @@ Return ONLY a JSON object — no explanation, no markdown, no code fences — in
 }
 
 Extraction rules:
-- date: flight departure date as YYYY-MM-DD. If year is missing infer it from context (nearest future date). null if truly not determinable.
+- date: flight departure date as YYYY-MM-DD. If the document shows a year, use it exactly. If year is missing, the current year is ${year} — use it unless the date would already be in the past, in which case use ${parseInt(year) + 1}.
 - route: "DEP_IATA-ARR_IATA" using 3-letter IATA airport codes (e.g. "BLQ-IST"). If IATA codes are not shown, derive them from city/airport names.
 - details: "FLIGHTCODE HH:MM/HH:MM" where HH:MM is departure/arrival time (e.g. "TK1322 10:30/15:50"). If times are missing use just the flight code.
 - Extract EVERY flight leg including connections in multi-city itineraries.
-- hotels checkOut: the LAST NIGHT of stay (NOT the day of departure). E.g. if guest departs 22 March, checkOut = "2026-03-21".
+- hotels checkOut: the LAST NIGHT of stay (NOT the day of departure). E.g. if guest departs 22 March ${year}, checkOut = "${year}-03-21".
 - If you see train or ferry bookings, include them as flights with route and details (e.g. details: "Trenitalia FR9604 08:00/10:30").
 - Return valid JSON only. Empty arrays if nothing found.`;
+}
 
 router.post('/', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
@@ -88,7 +93,7 @@ router.post('/', authMiddleware, upload.single('file'), async (req: Request, res
         response = await client.messages.create({
           model,
           max_tokens: 2048,
-          messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: PARSE_PROMPT }] }],
+          messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: buildPrompt() }] }],
         });
         console.log(`parse-booking: used model ${model}`);
         break;
