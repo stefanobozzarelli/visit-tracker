@@ -172,58 +172,73 @@ function parseFlightSegments(text: string): ParsedFlight[] {
     const context = text.substring(contextStart, contextEnd);
     const contextUpper = context.toUpperCase();
 
-    // Find IATA airport codes in this context
-    const airports = [...contextUpper.matchAll(/\b([A-Z]{3})\b/g)]
-      .map(m => m[1])
-      .filter(c => IATA_CODES.has(c));
-    // Deduplicate consecutive same codes
-    const uniqueAirports: string[] = [];
-    for (const a of airports) {
-      if (uniqueAirports[uniqueAirports.length - 1] !== a) uniqueAirports.push(a);
+    // Scan all lines for structured "HH:MM ... (IATA)" or "HH:MM IATA ..." patterns.
+    // Used for both route and time extraction — avoids false-positive IATA matches
+    // from Italian words like "del" (→ DEL airport) in plain uppercase text.
+    const pairedTimes: { time: string; iata?: string }[] = [];
+    for (const cline of context.split('\n')) {
+      const trimmed = cline.trim();
+      // Turkish Airlines: "10:30 BOLOGNA Aeroporto Guglielmo Marconi (BLQ)"
+      const m1 = trimmed.match(/^(\d{2}:\d{2})\s+.*\(([A-Z]{3})\)/);
+      // Trip.com: "12:25 CAN Guangzhou Baiyun"
+      const m2 = !m1 ? trimmed.match(/^(\d{2}:\d{2})\s+([A-Z]{3})\b/) : null;
+      const tm = m1 || m2;
+      if (tm && tm[2] && IATA_CODES.has(tm[2])) {
+        pairedTimes.push({ time: tm[1], iata: tm[2] });
+      } else if (!tm) {
+        const m3 = trimmed.match(/^(\d{2}:\d{2})\b/);
+        if (m3) pairedTimes.push({ time: m3[1] });
+      }
     }
-    const route = uniqueAirports.length >= 2 ? `${uniqueAirports[0]}-${uniqueAirports[1]}` : uniqueAirports[0] || '';
 
-    // Find departure and arrival times (labeled format)
+    // Route extraction — priority order:
+    // 1. IATAs paired with times (most reliable, avoids DEL/CAR/etc. false positives)
+    // 2. IATAs in parentheses "(BLQ)" form
+    // 3. Broad 3-letter uppercase scan (last resort)
+    const pairedIatas = pairedTimes.filter(pt => pt.iata).map(pt => pt.iata as string);
+    let routeAirports: string[];
+    if (pairedIatas.length >= 2) {
+      routeAirports = pairedIatas.filter((a, i) => i === 0 || pairedIatas[i - 1] !== a);
+    } else {
+      const parenIatas: string[] = [];
+      for (const m of context.matchAll(/\(([A-Z]{3})\)/g)) {
+        const a = m[1];
+        if (IATA_CODES.has(a) && parenIatas[parenIatas.length - 1] !== a) parenIatas.push(a);
+      }
+      if (parenIatas.length >= 2) {
+        routeAirports = parenIatas;
+      } else {
+        const broadIatas: string[] = [];
+        for (const m of contextUpper.matchAll(/\b([A-Z]{3})\b/g)) {
+          const a = m[1];
+          if (IATA_CODES.has(a) && broadIatas[broadIatas.length - 1] !== a) broadIatas.push(a);
+        }
+        routeAirports = broadIatas;
+      }
+    }
+    const route = routeAirports.length >= 2 ? `${routeAirports[0]}-${routeAirports[1]}` : routeAirports[0] || '';
+
+    // Time extraction — labeled format first, then paired times, then last resort
     const depTimeMatch = context.match(/[Pp]artenza\s+alle\s*:?\s*(\d{1,2}:\d{2})/) ||
                          context.match(/[Dd]eparture[:\s]+(\d{1,2}:\d{2})/);
     const arrTimeMatch = context.match(/[Aa]rrivo\s+alle\s*:?\s*(\d{1,2}:\d{2})/) ||
                          context.match(/[Aa]rrival[:\s]+(\d{1,2}:\d{2})/);
     let depTime = depTimeMatch?.[1] || '';
     let arrTime = arrTimeMatch?.[1] || '';
-
-    // Fallback: extract times from lines like "HH:MM CITY (IATA)" or "HH:MM IATA ..."
-    // Handles Turkish Airlines and Trip.com formats without labeled Partenza/Arrivo
-    if (!depTime || !arrTime) {
-      const pairedTimes: { time: string; iata?: string }[] = [];
-      for (const cline of context.split('\n')) {
-        const trimmed = cline.trim();
-        // Turkish Airlines: "10:30 BOLOGNA Aeroporto Guglielmo Marconi (BLQ)"
-        const m1 = trimmed.match(/^(\d{2}:\d{2})\s+.*\(([A-Z]{3})\)/);
-        // Trip.com: "12:25 CAN Guangzhou Baiyun"
-        const m2 = !m1 ? trimmed.match(/^(\d{2}:\d{2})\s+([A-Z]{3})\b/) : null;
-        const tm = m1 || m2;
-        if (tm && tm[2] && IATA_CODES.has(tm[2])) {
-          pairedTimes.push({ time: tm[1], iata: tm[2] });
-        } else if (!tm) {
-          // Bare HH:MM at start of line (last resort)
-          const m3 = trimmed.match(/^(\d{2}:\d{2})\b/);
-          if (m3) pairedTimes.push({ time: m3[1] });
-        }
-      }
-      if (!depTime && pairedTimes.length >= 1) depTime = pairedTimes[0].time;
-      if (!arrTime && pairedTimes.length >= 2) arrTime = pairedTimes[pairedTimes.length - 1].time;
-      // Absolute last resort: any HH:MM in context
-      if (!depTime) {
-        const allTimes = [...context.matchAll(/\b(\d{2}:\d{2})\b/g)].map(m => m[1]);
-        if (allTimes.length >= 1) depTime = allTimes[0];
-        if (!arrTime && allTimes.length >= 2) arrTime = allTimes[allTimes.length - 1];
-      }
+    if (!depTime && pairedTimes.length >= 1) depTime = pairedTimes[0].time;
+    if (!arrTime && pairedTimes.length >= 2) arrTime = pairedTimes[pairedTimes.length - 1].time;
+    if (!depTime) {
+      const allTimes = [...context.matchAll(/\b(\d{2}:\d{2})\b/g)].map(m => m[1]);
+      if (allTimes.length >= 1) depTime = allTimes[0];
+      if (!arrTime && allTimes.length >= 2) arrTime = allTimes[allTimes.length - 1];
     }
-
     const timeStr = depTime && arrTime ? `${depTime}/${arrTime}` : depTime || '';
 
-    // Find date in context - try full date first, then DD MONTH with fallback year
-    const dateFromContext = parseDateWithFallbackYear(context, fallbackYear);
+    // Date: search a wider backward window (600 chars) to capture section-level date headers
+    // e.g. "sabato, 20 giugno" that appears above the flight listing in Turkish Airlines PDFs
+    const wideDateContextStart = Math.max(0, pos - 600);
+    const wideDateContext = text.substring(wideDateContextStart, contextEnd);
+    const dateFromContext = parseDateWithFallbackYear(wideDateContext, fallbackYear);
 
     flights.push({
       date: dateFromContext,
