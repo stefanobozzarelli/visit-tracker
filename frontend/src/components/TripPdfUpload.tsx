@@ -98,11 +98,17 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
     let updatedDays = [...trip.days];
     let updatedHotels = [...(trip.hotels || [])];
     const newApplied = new Set(applied);
+    const warnings: string[] = [];
 
     results.forEach((result, ri) => {
       result.flights.forEach((flight, fi) => {
         const key = `r${ri}-f${fi}`;
         if (!selected.has(key) || !flight.date) return;
+        const matchingDay = updatedDays.find((d: any) => d.date === flight.date);
+        if (!matchingDay) {
+          warnings.push(`${flight.route} (${flight.details}) — data ${flight.date} non presente nel viaggio`);
+          return;
+        }
         updatedDays = updatedDays.map((day: any) => {
           if (day.date === flight.date) {
             return {
@@ -138,7 +144,10 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
 
     onSave(updatedDays, updatedHotels);
     setApplied(newApplied);
-    setTimeout(() => { setResults([]); setApplied(new Set()); setSelected(new Set()); onClose(); }, 300);
+    if (warnings.length > 0) {
+      alert(`⚠️ Alcuni voli non sono stati aggiunti perché la data non corrisponde a nessun giorno del viaggio:\n\n${warnings.join('\n')}\n\nAggiorna le date del viaggio o aggiungi manualmente questi voli.`);
+    }
+    setTimeout(() => { setResults([]); setApplied(new Set()); setSelected(new Set()); onClose(); }, warnings.length > 0 ? 1000 : 300);
   };
 
   const selectedCount = [...selected].filter(k => !applied.has(k)).length;

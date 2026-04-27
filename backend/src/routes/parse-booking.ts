@@ -37,12 +37,16 @@ Return ONLY a JSON object — no explanation, no markdown, no code fences — in
 }
 
 Extraction rules:
-- date: flight departure date as YYYY-MM-DD. If the document shows a year, use it exactly. If year is missing, the current year is ${year} — use it unless the date would already be in the past, in which case use ${parseInt(year) + 1}.
-- route: "DEP_IATA-ARR_IATA" using 3-letter IATA airport codes (e.g. "BLQ-IST"). If IATA codes are not shown, derive them from city/airport names.
-- details: "FLIGHTCODE HH:MM/HH:MM" where HH:MM is departure/arrival time (e.g. "TK1322 10:30/15:50"). If times are missing use just the flight code.
-- Extract EVERY flight leg including connections in multi-city itineraries.
-- hotels checkOut: the LAST NIGHT of stay (NOT the day of departure). E.g. if guest departs 22 March ${year}, checkOut = "${year}-03-21".
-- If you see train or ferry bookings, include them as flights with route and details (e.g. details: "Trenitalia FR9604 08:00/10:30").
+- date: the LOCAL DEPARTURE DATE of that specific flight leg as YYYY-MM-DD. This is critical for multi-leg itineraries:
+  * Each leg has its own departure date based on when THAT leg takes off.
+  * Example: if leg 1 departs July 8 at 23:05 and arrives July 9 at 05:15, then leg 2 which departs July 9 at 07:50 has date "YYYY-07-09" (NOT July 8).
+  * Do NOT use the section header date for all legs — read each leg's actual departure time.
+- year: if shown in the document use it exactly. If missing, current year is ${year}. Use next year (${parseInt(year) + 1}) only if the date is already in the past relative to today (${today}).
+- route: "DEP_IATA-ARR_IATA" using 3-letter IATA airport codes (e.g. "BLQ-IST"). Derive from city/airport names if codes not shown.
+- details: "FLIGHTCODE HH:MM/HH:MM" — departure time / arrival time of that leg (e.g. "TK1322 10:30/14:10"). Use just the code if times are missing.
+- Extract EVERY flight leg separately, including each connection in multi-city itineraries.
+- hotels checkOut: the LAST NIGHT of stay (NOT the departure day). E.g. if guest departs 22 March, checkOut = "${year}-03-21".
+- Train/ferry bookings: include as flights with appropriate route and details.
 - Return valid JSON only. Empty arrays if nothing found.`;
 }
 
