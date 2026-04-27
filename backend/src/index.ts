@@ -20,6 +20,7 @@ import offerRoutes from './routes/offers';
 import opportunityRoutes from './routes/opportunities';
 import statisticsRoutes from './routes/statistics';
 import tripRoutes from './routes/trips';
+import parseBookingRoutes from './routes/parse-booking';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
@@ -50,6 +51,7 @@ app.use('/api/offers', offerRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/trips', tripRoutes);
+app.use('/api/parse-booking', parseBookingRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

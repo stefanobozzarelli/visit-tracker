@@ -1,44 +1,81 @@
 import React, { useState, useRef } from 'react';
-import { parsePdf } from '../utils/pdfParser';
-import type { PdfParseResult } from '../utils/pdfParser';
+import { config } from '../config';
+
+interface ParsedFlight {
+  date: string | null;
+  route: string;
+  details: string;
+}
+interface ParsedHotel {
+  name: string;
+  checkIn: string | null;
+  checkOut: string | null;
+}
+interface ParseResult {
+  type: 'flight' | 'hotel' | 'mixed' | 'unknown';
+  flights: ParsedFlight[];
+  hotels: ParsedHotel[];
+  fileName: string;
+  error?: string;
+}
 
 interface Props {
   trip: any;
-  onSave: (updatedDays: any[]) => void;
+  onSave: (updatedDays: any[], updatedHotels?: any[]) => void;
   onClose: () => void;
 }
 
 type ItemKey = string;
 
+const ACCEPTED = '.pdf,.jpg,.jpeg,.png,.webp,.gif';
+const ACCEPTED_MIME = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+
 export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
-  const [results, setResults] = useState<(PdfParseResult & { fileName: string })[]>([]);
+  const [results, setResults] = useState<ParseResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingName, setLoadingName] = useState('');
   const [applied, setApplied] = useState<Set<ItemKey>>(new Set());
   const [selected, setSelected] = useState<Set<ItemKey>>(new Set());
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const parseFile = async (file: File): Promise<ParseResult> => {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${config.API_BASE_URL}/parse-booking`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const json = await res.json();
+    if (!json.success) throw new Error(json.message || 'Errore sconosciuto');
+    return { ...json.data, fileName: file.name };
+  };
+
   const handleFiles = async (files: FileList) => {
     setLoading(true);
-    const newResults: (PdfParseResult & { fileName: string })[] = [];
+    const newResults: ParseResult[] = [];
+
     for (const file of Array.from(files)) {
-      if (file.type === 'application/pdf') {
-        try {
-          const result = await parsePdf(file);
-          newResults.push({ ...result, fileName: file.name });
-        } catch (err) {
-          console.error('PDF parse error:', err);
-          newResults.push({
-            type: 'unknown', flights: [], hotels: [],
-            rawText: `ERRORE: ${err instanceof Error ? err.message : String(err)}`,
-            fileName: file.name,
-          });
-        }
+      if (!ACCEPTED_MIME.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|webp|gif)$/i)) {
+        newResults.push({ type: 'unknown', flights: [], hotels: [], fileName: file.name, error: 'Tipo file non supportato. Usa PDF, JPG, PNG o WEBP.' });
+        continue;
+      }
+      setLoadingName(file.name);
+      try {
+        const result = await parseFile(file);
+        newResults.push(result);
+      } catch (err) {
+        newResults.push({ type: 'unknown', flights: [], hotels: [], fileName: file.name, error: err instanceof Error ? err.message : String(err) });
       }
     }
-    // Auto-select items with dates
-    const newSelected = new Set(selected);
+
+    // Auto-select items that have dates
     const startIdx = results.length;
+    const newSelected = new Set(selected);
     newResults.forEach((r, ri) => {
       r.flights.forEach((f, fi) => { if (f.date) newSelected.add(`r${startIdx + ri}-f${fi}`); });
       r.hotels.forEach((h, hi) => { if (h.checkIn) newSelected.add(`r${startIdx + ri}-h${hi}`); });
@@ -46,6 +83,7 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
     setSelected(newSelected);
     setResults(prev => [...prev, ...newResults]);
     setLoading(false);
+    setLoadingName('');
   };
 
   const toggleSelect = (key: ItemKey) => {
@@ -58,6 +96,7 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
 
   const applySelected = () => {
     let updatedDays = [...trip.days];
+    let updatedHotels = [...(trip.hotels || [])];
     const newApplied = new Set(applied);
 
     results.forEach((result, ri) => {
@@ -68,7 +107,13 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
           if (day.date === flight.date) {
             return {
               ...day,
-              flights: [...day.flights, { id: 'f' + Date.now() + fi, route: flight.route, details: flight.details, status: 'confermato' }],
+              flights: [...day.flights, {
+                id: 'f' + Date.now() + fi,
+                route: flight.route,
+                details: flight.details,
+                status: 'confermato',
+                type: 'volo',
+              }],
               location: day.location || flight.route,
             };
           }
@@ -80,18 +125,19 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
       result.hotels.forEach((hotel, hi) => {
         const key = `r${ri}-h${hi}`;
         if (!selected.has(key) || !hotel.checkIn) return;
-        const checkIn = new Date(hotel.checkIn + 'T00:00:00');
-        const checkOut = hotel.checkOut ? new Date(hotel.checkOut + 'T00:00:00') : null;
-        updatedDays = updatedDays.map((day: any) => {
-          const dayDate = new Date(day.date + 'T00:00:00');
-          const inRange = checkOut ? dayDate >= checkIn && dayDate < checkOut : dayDate.getTime() === checkIn.getTime();
-          return inRange ? { ...day, hotel: hotel.name } : day;
-        });
+        // Add to trip.hotels array (not day.hotel)
+        updatedHotels = [...updatedHotels, {
+          id: 'h' + Date.now() + hi,
+          name: hotel.name,
+          checkIn: hotel.checkIn,
+          checkOut: hotel.checkOut || hotel.checkIn,
+          status: 'confermato',
+        }];
         newApplied.add(key);
       });
     });
 
-    onSave(updatedDays);
+    onSave(updatedDays, updatedHotels);
     setApplied(newApplied);
     setTimeout(() => { setResults([]); setApplied(new Set()); setSelected(new Set()); onClose(); }, 300);
   };
@@ -106,10 +152,16 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
     return 'Non riconosciuto';
   };
 
+  const fileIcon = (name: string) => {
+    if (name.match(/\.pdf$/i)) return '📄';
+    if (name.match(/\.(jpg|jpeg|png|webp|gif)$/i)) return '🖼️';
+    return '📎';
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box wide" onClick={e => e.stopPropagation()} style={{ maxWidth: 580 }}>
-        <h2 className="modal-title">Carica Prenotazioni PDF</h2>
+        <h2 className="modal-title">Carica Prenotazioni</h2>
 
         {/* Drop zone */}
         <div
@@ -119,10 +171,10 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
           onDragLeave={() => setDragging(false)}
           onDrop={e => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }}
         >
-          <div className="pdf-dropzone-icon">📄</div>
-          <p className="pdf-dropzone-text">Trascina qui i PDF delle prenotazioni o clicca per selezionarli</p>
-          <p className="pdf-dropzone-hint">Voli, hotel, conferme prenotazione</p>
-          <input ref={fileRef} type="file" accept=".pdf" multiple style={{ display: 'none' }}
+          <div className="pdf-dropzone-icon">📎</div>
+          <p className="pdf-dropzone-text">Trascina file o clicca per selezionare</p>
+          <p className="pdf-dropzone-hint">PDF, foto, screenshot — qualsiasi formato di prenotazione</p>
+          <input ref={fileRef} type="file" accept={ACCEPTED} multiple style={{ display: 'none' }}
             onChange={e => e.target.files && handleFiles(e.target.files)} />
         </div>
 
@@ -130,7 +182,7 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
         {loading && (
           <div className="pdf-loading">
             <span className="pdf-loading-spinner">⟳</span>
-            Analizzando PDF...
+            Analizzando con AI{loadingName ? `: ${loadingName}` : '…'}
           </div>
         )}
 
@@ -138,73 +190,78 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
         {results.map((result, ri) => (
           <div key={ri} className="pdf-result-block">
             <div className="pdf-result-header">
-              <span className="pdf-result-filename">📄 {result.fileName}</span>
-              <span className={`pdf-result-type type-${result.type}`}>{typeLabel(result.type)}</span>
-            </div>
-            <div className="pdf-result-items">
-              {result.flights.map((flight, fi) => {
-                const key = `r${ri}-f${fi}`;
-                const isApplied = applied.has(key);
-                const isSel = selected.has(key);
-                const dateStr = flight.date
-                  ? new Date(flight.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
-                  : null;
-                return (
-                  <div key={fi}
-                    className={`pdf-item flight ${isApplied ? 'applied' : isSel ? 'selected' : ''} ${!flight.date ? 'no-date' : ''}`}
-                    onClick={() => !isApplied && flight.date && toggleSelect(key)}
-                  >
-                    <span className="pdf-item-check">{isApplied ? '✓' : isSel ? '☑' : '☐'}</span>
-                    <span className="pdf-item-icon">✈</span>
-                    <div className="pdf-item-info">
-                      <div className="pdf-item-title">{flight.route || 'Rotta non trovata'}</div>
-                      <div className="pdf-item-sub">{flight.details}</div>
-                      {dateStr
-                        ? <div className="pdf-item-date">{dateStr}</div>
-                        : <div className="pdf-item-nodate">Data non trovata</div>
-                      }
-                    </div>
-                  </div>
-                );
-              })}
-
-              {result.hotels.map((hotel, hi) => {
-                const key = `r${ri}-h${hi}`;
-                const isApplied = applied.has(key);
-                const isSel = selected.has(key);
-                return (
-                  <div key={hi}
-                    className={`pdf-item hotel ${isApplied ? 'applied' : isSel ? 'selected' : ''} ${!hotel.checkIn ? 'no-date' : ''}`}
-                    onClick={() => !isApplied && hotel.checkIn && toggleSelect(key)}
-                  >
-                    <span className="pdf-item-check">{isApplied ? '✓' : isSel ? '☑' : '☐'}</span>
-                    <span className="pdf-item-icon">🏨</span>
-                    <div className="pdf-item-info">
-                      <div className="pdf-item-title">{hotel.name}</div>
-                      <div className="pdf-item-sub">
-                        {hotel.checkIn && `Check-in: ${hotel.checkIn}`}
-                        {hotel.checkOut && ` — Check-out: ${hotel.checkOut}`}
-                        {!hotel.checkIn && <span className="pdf-item-nodate">Data non trovata</span>}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {result.flights.length === 0 && result.hotels.length === 0 && (
-                <div className="pdf-no-results">
-                  Nessuna prenotazione trovata in questo file
-                  {result.rawText && (
-                    <details style={{ marginTop: 8 }}>
-                      <summary style={{ cursor: 'pointer', color: 'var(--color-accent)', fontSize: 11 }}>Mostra testo estratto</summary>
-                      <pre style={{ marginTop: 4, padding: 8, background: 'var(--color-bg-secondary)', borderRadius: 4, fontSize: 10, maxHeight: 120, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                        {result.rawText.substring(0, 1500)}
-                      </pre>
-                    </details>
-                  )}
-                </div>
+              <span className="pdf-result-filename">{fileIcon(result.fileName)} {result.fileName}</span>
+              {!result.error && (
+                <span className={`pdf-result-type type-${result.type}`}>{typeLabel(result.type)}</span>
               )}
             </div>
+
+            {result.error ? (
+              <div className="pdf-no-results" style={{ color: 'var(--color-danger)' }}>
+                ⚠️ {result.error}
+              </div>
+            ) : (
+              <div className="pdf-result-items">
+                {result.flights.map((flight, fi) => {
+                  const key = `r${ri}-f${fi}`;
+                  const isApplied = applied.has(key);
+                  const isSel = selected.has(key);
+                  const dateStr = flight.date
+                    ? new Date(flight.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+                    : null;
+                  return (
+                    <div key={fi}
+                      className={`pdf-item flight ${isApplied ? 'applied' : isSel ? 'selected' : ''} ${!flight.date ? 'no-date' : ''}`}
+                      onClick={() => !isApplied && flight.date && toggleSelect(key)}
+                    >
+                      <span className="pdf-item-check">{isApplied ? '✓' : isSel ? '☑' : '☐'}</span>
+                      <span className="pdf-item-icon">✈</span>
+                      <div className="pdf-item-info">
+                        <div className="pdf-item-title">{flight.route || 'Rotta non trovata'}</div>
+                        <div className="pdf-item-sub">{flight.details}</div>
+                        {dateStr
+                          ? <div className="pdf-item-date">{dateStr}</div>
+                          : <div className="pdf-item-nodate">Data non trovata</div>
+                        }
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {result.hotels.map((hotel, hi) => {
+                  const key = `r${ri}-h${hi}`;
+                  const isApplied = applied.has(key);
+                  const isSel = selected.has(key);
+                  const fmtDate = (d: string | null) => d
+                    ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
+                    : null;
+                  return (
+                    <div key={hi}
+                      className={`pdf-item hotel ${isApplied ? 'applied' : isSel ? 'selected' : ''} ${!hotel.checkIn ? 'no-date' : ''}`}
+                      onClick={() => !isApplied && hotel.checkIn && toggleSelect(key)}
+                    >
+                      <span className="pdf-item-check">{isApplied ? '✓' : isSel ? '☑' : '☐'}</span>
+                      <span className="pdf-item-icon">🏨</span>
+                      <div className="pdf-item-info">
+                        <div className="pdf-item-title">{hotel.name}</div>
+                        <div className="pdf-item-sub">
+                          {hotel.checkIn && hotel.checkOut
+                            ? `${fmtDate(hotel.checkIn)} — ${fmtDate(hotel.checkOut)}`
+                            : hotel.checkIn
+                              ? `Check-in: ${fmtDate(hotel.checkIn)}`
+                              : <span className="pdf-item-nodate">Date non trovate</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {result.flights.length === 0 && result.hotels.length === 0 && (
+                  <div className="pdf-no-results">Nessuna prenotazione trovata in questo file</div>
+                )}
+              </div>
+            )}
           </div>
         ))}
 
