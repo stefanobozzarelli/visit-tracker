@@ -731,7 +731,7 @@ export const TripDetail: React.FC = () => {
                               <span className="td-report-route">{f.route}</span>
                               {f.details && <span className="td-report-muted"> {f.details}</span>}
                             </div>
-                            <span className={`status-badge ${f.status}`}>{STATUS_LABELS[f.status]}</span>
+                            <StatusDropdown status={f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, f.id, s)} type="flight" />
                           </div>
                         ))}
                       </td>
@@ -739,7 +739,7 @@ export const TripDetail: React.FC = () => {
                         {getHotelsForDay(day.date).map(h => (
                           <div key={h.id} className="td-rpt-row">
                             <span className="td-rpt-main" style={{ fontWeight: 500 }}>{h.name}</span>
-                            <span className={`status-badge ${h.status === 'confermato' ? 'confermato' : h.status === 'richiesto' ? 'in_attesa' : 'hotel-programmato'}`}>{STATUS_LABELS[h.status]}</span>
+                            <StatusDropdown status={h.status} statuses={HOTEL_STATUSES} onChange={s => updateHotelStatus(h.id, s)} type="hotel" />
                           </div>
                         ))}
                       </td>
@@ -748,7 +748,7 @@ export const TripDetail: React.FC = () => {
                           <div key={a.id} className="td-rpt-row">
                             <span className="td-rpt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
                             <span className="td-rpt-client">{a.client}</span>
-                            <span className={`status-badge ${a.status}`}>{STATUS_LABELS[a.status]}</span>
+                            <StatusDropdown status={a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, a.id, s)} type="apt" />
                           </div>
                         ))}
                       </td>
@@ -781,7 +781,7 @@ export const TripDetail: React.FC = () => {
                       <td style={{ fontSize: '1.1rem', textAlign: 'center' }}>{TRANSPORT_ICONS[f.type || 'volo']}</td>
                       <td className="td-report-route">{f.route}</td>
                       <td className="td-report-muted">{f.details}</td>
-                      <td><span className={`status-badge ${f.status}`}>{STATUS_LABELS[f.status]}</span></td>
+                      <td><StatusDropdown status={f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, f.id, s)} type="flight" /></td>
                     </tr>
                   )))}
                 </tbody>
@@ -813,7 +813,7 @@ export const TripDetail: React.FC = () => {
                         <td>{fmtMed(h.checkIn)}</td>
                         <td>{checkOutDisplay(h.checkOut)}</td>
                         <td>{nights}</td>
-                        <td><span className={`status-badge ${h.status === 'confermato' ? 'confermato' : h.status === 'richiesto' ? 'in_attesa' : 'hotel-programmato'}`}>{STATUS_LABELS[h.status]}</span></td>
+                        <td><StatusDropdown status={h.status} statuses={HOTEL_STATUSES} onChange={s => updateHotelStatus(h.id, s)} type="hotel" /></td>
                       </tr>
                     );
                   })}
@@ -846,7 +846,7 @@ export const TripDetail: React.FC = () => {
                       <td style={{ fontFamily: 'monospace' }}>{a.time || '—'}</td>
                       <td style={{ fontFamily: 'monospace' }}>{a.endTime || ''}</td>
                       <td style={{ fontWeight: 600 }}>{a.client}</td>
-                      <td><span className={`status-badge ${a.status}`}>{STATUS_LABELS[a.status]}</span></td>
+                      <td><StatusDropdown status={a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, a.id, s)} type="apt" /></td>
                     </tr>
                   )))}
                 </tbody>
