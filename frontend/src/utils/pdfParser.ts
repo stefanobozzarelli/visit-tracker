@@ -58,7 +58,8 @@ async function extractText(file: File): Promise<string> {
     if (line.trim()) lines.push(line.trim());
     pages.push(lines.join('\n'));
   }
-  return pages.join('\n\n');
+  // Normalize unicode ratio colon ∶ (U+2236, used by Trip.com) to regular colon
+  return pages.join('\n\n').replace(/∶/g, ':');
 }
 
 function parseDate(text: string): string | null {
@@ -182,13 +183,43 @@ function parseFlightSegments(text: string): ParsedFlight[] {
     }
     const route = uniqueAirports.length >= 2 ? `${uniqueAirports[0]}-${uniqueAirports[1]}` : uniqueAirports[0] || '';
 
-    // Find departure and arrival times
+    // Find departure and arrival times (labeled format)
     const depTimeMatch = context.match(/[Pp]artenza\s+alle\s*:?\s*(\d{1,2}:\d{2})/) ||
                          context.match(/[Dd]eparture[:\s]+(\d{1,2}:\d{2})/);
     const arrTimeMatch = context.match(/[Aa]rrivo\s+alle\s*:?\s*(\d{1,2}:\d{2})/) ||
                          context.match(/[Aa]rrival[:\s]+(\d{1,2}:\d{2})/);
-    const depTime = depTimeMatch?.[1] || '';
-    const arrTime = arrTimeMatch?.[1] || '';
+    let depTime = depTimeMatch?.[1] || '';
+    let arrTime = arrTimeMatch?.[1] || '';
+
+    // Fallback: extract times from lines like "HH:MM CITY (IATA)" or "HH:MM IATA ..."
+    // Handles Turkish Airlines and Trip.com formats without labeled Partenza/Arrivo
+    if (!depTime || !arrTime) {
+      const pairedTimes: { time: string; iata?: string }[] = [];
+      for (const cline of context.split('\n')) {
+        const trimmed = cline.trim();
+        // Turkish Airlines: "10:30 BOLOGNA Aeroporto Guglielmo Marconi (BLQ)"
+        const m1 = trimmed.match(/^(\d{2}:\d{2})\s+.*\(([A-Z]{3})\)/);
+        // Trip.com: "12:25 CAN Guangzhou Baiyun"
+        const m2 = !m1 ? trimmed.match(/^(\d{2}:\d{2})\s+([A-Z]{3})\b/) : null;
+        const tm = m1 || m2;
+        if (tm && tm[2] && IATA_CODES.has(tm[2])) {
+          pairedTimes.push({ time: tm[1], iata: tm[2] });
+        } else if (!tm) {
+          // Bare HH:MM at start of line (last resort)
+          const m3 = trimmed.match(/^(\d{2}:\d{2})\b/);
+          if (m3) pairedTimes.push({ time: m3[1] });
+        }
+      }
+      if (!depTime && pairedTimes.length >= 1) depTime = pairedTimes[0].time;
+      if (!arrTime && pairedTimes.length >= 2) arrTime = pairedTimes[pairedTimes.length - 1].time;
+      // Absolute last resort: any HH:MM in context
+      if (!depTime) {
+        const allTimes = [...context.matchAll(/\b(\d{2}:\d{2})\b/g)].map(m => m[1]);
+        if (allTimes.length >= 1) depTime = allTimes[0];
+        if (!arrTime && allTimes.length >= 2) arrTime = allTimes[allTimes.length - 1];
+      }
+    }
+
     const timeStr = depTime && arrTime ? `${depTime}/${arrTime}` : depTime || '';
 
     // Find date in context - try full date first, then DD MONTH with fallback year
