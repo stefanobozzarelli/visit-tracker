@@ -71,16 +71,37 @@ router.post('/', authMiddleware, upload.single('file'), async (req: Request, res
     return res.status(400).json({ success: false, message: `Tipo file non supportato: ${mimetype}. Usa PDF, JPG, PNG o WEBP.` });
   }
 
+  // Try models in order until one works (API key may not have access to all models)
+  const MODELS = [
+    'claude-opus-4-5',
+    'claude-3-5-sonnet-20241022',
+    'claude-3-5-haiku-20241022',
+    'claude-3-haiku-20240307',
+  ];
+
   try {
     const client = new Anthropic({ apiKey });
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: [contentBlock, { type: 'text', text: PARSE_PROMPT }],
-      }],
-    });
+    let response: any = null;
+    let lastError: any = null;
+    for (const model of MODELS) {
+      try {
+        response = await client.messages.create({
+          model,
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: PARSE_PROMPT }] }],
+        });
+        console.log(`parse-booking: used model ${model}`);
+        break;
+      } catch (modelErr: any) {
+        lastError = modelErr;
+        if (modelErr?.status === 404 || modelErr?.error?.error?.type === 'not_found_error') {
+          console.warn(`Model ${model} not available, trying next...`);
+          continue;
+        }
+        throw modelErr; // non-404 error → propagate immediately
+      }
+    }
+    if (!response) throw lastError;
 
     const text = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
 
