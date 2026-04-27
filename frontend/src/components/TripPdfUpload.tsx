@@ -108,13 +108,12 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
             return {
               ...day,
               flights: [...day.flights, {
-                id: 'f' + Date.now() + fi,
+                id: `f_${Date.now()}_${ri}_${fi}_${Math.random().toString(36).slice(2, 6)}`,
                 route: flight.route,
                 details: flight.details,
-                status: 'confermato',
+                status: 'programmato',
                 type: 'volo',
               }],
-              location: day.location || flight.route,
             };
           }
           return day;
@@ -127,11 +126,11 @@ export const TripPdfUpload: React.FC<Props> = ({ trip, onSave, onClose }) => {
         if (!selected.has(key) || !hotel.checkIn) return;
         // Add to trip.hotels array (not day.hotel)
         updatedHotels = [...updatedHotels, {
-          id: 'h' + Date.now() + hi,
+          id: `h_${Date.now()}_${ri}_${hi}_${Math.random().toString(36).slice(2, 6)}`,
           name: hotel.name,
           checkIn: hotel.checkIn,
           checkOut: hotel.checkOut || hotel.checkIn,
-          status: 'confermato',
+          status: 'programmato',
         }];
         newApplied.add(key);
       });
