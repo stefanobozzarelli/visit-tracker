@@ -47,16 +47,26 @@ export class PdfService {
           .text(`${options.title || 'Report Visite'} — ${supplierName}`, { align: 'center' });
         doc.moveDown(1);
 
+        let prevClientName: string | null = null;
+
         entries.forEach((entry, idx) => {
           const { visit, report } = entry;
+          const clientName = visit.client?.name || 'N/A';
 
-          // Check page space
-          if (doc.y > 650) {
+          // New page when the client changes
+          if (prevClientName !== null && clientName !== prevClientName) {
+            doc.addPage();
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#333333')
+              .text(`${supplierName} (cont.)`, { align: 'center' });
+            doc.moveDown(0.5);
+          } else if (doc.y > 650) {
+            // Check page space
             doc.addPage();
             doc.fontSize(14).font('Helvetica-Bold').fillColor('#333333')
               .text(`${supplierName} (cont.)`, { align: 'center' });
             doc.moveDown(0.5);
           }
+          prevClientName = clientName;
 
           // Client name
           doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000')
@@ -79,8 +89,10 @@ export class PdfService {
 
           doc.moveDown(0.5);
 
-          // Separator between entries
-          if (idx < entries.length - 1) {
+          // Separator between entries of the same client
+          const nextEntry = entries[idx + 1];
+          const sameClientNext = nextEntry && (nextEntry.visit.client?.name || 'N/A') === clientName;
+          if (sameClientNext) {
             doc.moveTo(50, doc.y).lineTo(545, doc.y).lineWidth(0.3).strokeColor('#cccccc').stroke();
             doc.moveDown(0.4);
           }
