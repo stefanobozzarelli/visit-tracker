@@ -4,6 +4,7 @@ import { apiService } from '../services/api';
 import { config } from '../config';
 import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
 import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
+import { compressImages } from '../utils/compressImage';
 import '../styles/CrudPages.css';
 
 type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'completed';
@@ -106,18 +107,20 @@ export const VisitDetail: React.FC = () => {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (e: any) {
-      setError(`Errore generazione email PDF: ${e?.message || 'unknown'}`);
+      const msg = e?.message || 'Errore sconosciuto';
+      setError(`Errore generazione email PDF: ${msg}`);
     } finally {
       setEmailLoading(null);
     }
   };
 
-  // Upload files to a specific report
+  // Upload files to a specific report (images are compressed client-side first)
   const uploadFilesToReport = async (reportId: string, files: File[]) => {
     if (!visit || files.length === 0) return;
     setUploadingReportId(reportId);
     const token = localStorage.getItem('token');
-    for (const file of files) {
+    const compressed = await compressImages(files);
+    for (const file of compressed) {
       try {
         const fd = new FormData();
         fd.append('file', file);

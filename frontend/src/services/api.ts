@@ -989,11 +989,28 @@ class ApiService {
 
   // Email PDF for a visit (whole visit or a single section)
   async exportVisitEmailPdf(visitId: string, reportId?: string) {
-    const response = await this.api.get(`/visits/${visitId}/email-pdf`, {
-      params: reportId ? { reportId } : undefined,
-      responseType: 'blob',
-    });
-    return response.data;
+    try {
+      const response = await this.api.get(`/visits/${visitId}/email-pdf`, {
+        params: reportId ? { reportId } : undefined,
+        responseType: 'blob',
+        timeout: 120000, // 2 minutes — S3 downloads + PDF generation can be slow
+      });
+      return response.data as Blob;
+    } catch (err: any) {
+      // When responseType is 'blob' and the server returns an error JSON,
+      // axios wraps the body as a Blob. Extract the real message so the
+      // UI can show it instead of the generic "Request failed" string.
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const text = await (err.response.data as Blob).text();
+          const parsed = JSON.parse(text);
+          throw new Error(parsed?.error || parsed?.message || text);
+        } catch (parseErr: any) {
+          if (parseErr?.message && parseErr.message !== err.message) throw parseErr;
+        }
+      }
+      throw err;
+    }
   }
 
   // Export Orders

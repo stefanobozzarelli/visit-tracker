@@ -7,6 +7,9 @@ import { S3Service } from './S3Service';
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png']);
 const EMBEDDABLE_IMAGE_EXTS = IMAGE_EXTS; // pdfkit only supports JPG/PNG
 
+/** Files larger than this are linked rather than embedded to avoid OOM / timeouts. */
+const MAX_EMBED_BYTES = 8 * 1024 * 1024; // 8 MB
+
 function extOf(filename: string): string {
   return (filename.toLowerCase().split('.').pop() || '').trim();
 }
@@ -425,17 +428,28 @@ export class PdfService {
       const kind = classifyAttachment(att.filename || '');
       try {
         if (kind === 'image') {
-          const buf = await s3.getObjectBuffer(att.s3_key);
+          const buf = await s3.getObjectBuffer(att.s3_key, MAX_EMBED_BYTES);
           images.push({ att, buf });
         } else if (kind === 'pdf') {
-          const buf = await s3.getObjectBuffer(att.s3_key);
+          const buf = await s3.getObjectBuffer(att.s3_key, MAX_EMBED_BYTES);
           pdfBuffers.push(buf);
         } else {
           const url = await s3.getDownloadUrl(att.s3_key, 7 * 24 * 3600); // 7 days
           otherLinks.push({ filename: att.filename, url });
         }
       } catch (e) {
-        otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+        const tooLarge = (e as Error).message === 'FILE_TOO_LARGE';
+        if (tooLarge) {
+          // File too large to embed — add a presigned download link instead
+          try {
+            const url = await s3.getDownloadUrl(att.s3_key, 7 * 24 * 3600);
+            otherLinks.push({ filename: `${att.filename} (file grande — link esterno)`, url });
+          } catch {
+            otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+          }
+        } else {
+          otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+        }
       }
     }
 
@@ -537,17 +551,27 @@ export class PdfService {
       const kind = classifyAttachment(att.filename || '');
       try {
         if (kind === 'image') {
-          const buf = await s3.getObjectBuffer(att.s3_key);
+          const buf = await s3.getObjectBuffer(att.s3_key, MAX_EMBED_BYTES);
           images.push({ att, buf });
         } else if (kind === 'pdf') {
-          const buf = await s3.getObjectBuffer(att.s3_key);
+          const buf = await s3.getObjectBuffer(att.s3_key, MAX_EMBED_BYTES);
           pdfBuffers.push(buf);
         } else {
           const url = await s3.getDownloadUrl(att.s3_key, 7 * 24 * 3600);
           otherLinks.push({ filename: att.filename, url });
         }
-      } catch {
-        otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+      } catch (e) {
+        const tooLarge = (e as Error).message === 'FILE_TOO_LARGE';
+        if (tooLarge) {
+          try {
+            const url = await s3.getDownloadUrl(att.s3_key, 7 * 24 * 3600);
+            otherLinks.push({ filename: `${att.filename} (file grande — link esterno)`, url });
+          } catch {
+            otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+          }
+        } else {
+          otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+        }
       }
     }
 

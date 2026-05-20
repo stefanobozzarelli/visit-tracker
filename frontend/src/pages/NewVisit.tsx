@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, Company } from '../types';
 import { encodeMetadata, VisitMetadata, decodeMetadata } from '../utils/visitMetadata';
+import { compressImages } from '../utils/compressImage';
 import '../styles/CrudPages.css';
 
 export const NewVisit: React.FC = () => {
@@ -243,20 +244,16 @@ export const NewVisit: React.FC = () => {
           console.warn('[NewVisit] Failed to load orders:', orderErr);
         }
 
-        // Load tasks for this visit
+        // Load tasks for this visit only
         try {
           const visit = res.data;
           const todosRes = await apiService.getTodos({ clientId: visit.client_id });
           if (todosRes.success && todosRes.data) {
             const all = Array.isArray(todosRes.data) ? todosRes.data : [];
-            const reportIds = (visit.reports || []).map((r: any) => r.id);
-            const reportTasks = all.filter((t: any) => t.visit_report_id && reportIds.includes(t.visit_report_id));
-            const generalTasks = all.filter((t: any) =>
-              !t.visit_report_id && (
-                t.visit_id === visitId ||
-                (!t.visit_id && !t.claim_id)
-              )
-            );
+            const reportIds = new Set((visit.reports || []).map((r: any) => r.id));
+            // Only include tasks that belong to a report of THIS visit, or directly to this visit
+            const reportTasks = all.filter((t: any) => t.visit_report_id && reportIds.has(t.visit_report_id));
+            const generalTasks = all.filter((t: any) => !t.visit_report_id && t.visit_id === visitId);
             setAllTasks([...reportTasks, ...generalTasks]);
           }
         } catch (taskErr) {
@@ -344,12 +341,12 @@ export const NewVisit: React.FC = () => {
   };
 
   // Report attachment functions
-  const handleReportAttachmentSelect = (reportIdx: number, files: FileList | null) => {
+  const handleReportAttachmentSelect = async (reportIdx: number, files: FileList | null) => {
     if (!files) return;
-    const newFiles = Array.from(files);
+    const compressed = await compressImages(Array.from(files));
     setReportAttachments(prev => ({
       ...prev,
-      [reportIdx]: [...(prev[reportIdx] || []), ...newFiles],
+      [reportIdx]: [...(prev[reportIdx] || []), ...compressed],
     }));
   };
 
@@ -422,10 +419,10 @@ export const NewVisit: React.FC = () => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const handleDirectFileSelect = (files: FileList | null) => {
+  const handleDirectFileSelect = async (files: FileList | null) => {
     if (!files) return;
-    const newFiles = Array.from(files);
-    setPendingDirectFiles(prev => [...prev, ...newFiles]);
+    const compressed = await compressImages(Array.from(files));
+    setPendingDirectFiles(prev => [...prev, ...compressed]);
     if (directFileInputRef.current) directFileInputRef.current.value = '';
   };
 

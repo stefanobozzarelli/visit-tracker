@@ -70,25 +70,48 @@ export class S3Service {
   /**
    * Download a file from S3 directly into memory.
    * Used when we need the bytes server-side (e.g. to embed in a generated PDF).
+   *
+   * @param maxBytes  Optional hard cap. If the object's ContentLength exceeds this
+   *                  value the method throws an error with message 'FILE_TOO_LARGE'
+   *                  (without streaming the body at all).
    */
-  async getObjectBuffer(s3Key: string): Promise<Buffer> {
+  async getObjectBuffer(s3Key: string, maxBytes?: number): Promise<Buffer> {
     const command = new GetObjectCommand({
       Bucket: this.bucketName,
       Key: s3Key,
     });
 
+    let response: Awaited<ReturnType<typeof this.s3Client.send<GetObjectCommand>>>;
     try {
-      const response = await this.s3Client.send(command);
+      response = await this.s3Client.send(command);
+    } catch (error) {
+      throw new Error(`Failed to download file from S3: ${(error as Error).message}`);
+    }
+
+    // Size guard – checked before streaming so we don't waste bandwidth
+    if (
+      maxBytes !== undefined &&
+      response.ContentLength !== undefined &&
+      response.ContentLength > maxBytes
+    ) {
+      // Drain / destroy the body stream so the connection is released cleanly
       const body = response.Body as any;
-      if (!body) throw new Error('Empty body from S3');
-      // AWS SDK v3 returns a stream; concat chunks
+      if (typeof body?.destroy === 'function') body.destroy();
+      throw new Error('FILE_TOO_LARGE');
+    }
+
+    const body = response.Body as any;
+    if (!body) throw new Error('Empty body from S3');
+
+    try {
+      // AWS SDK v3 returns a ReadableStream; concat chunks
       const chunks: Buffer[] = [];
       for await (const chunk of body) {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       }
       return Buffer.concat(chunks);
     } catch (error) {
-      throw new Error(`Failed to download file from S3: ${(error as Error).message}`);
+      throw new Error(`Failed to stream file from S3: ${(error as Error).message}`);
     }
   }
 
