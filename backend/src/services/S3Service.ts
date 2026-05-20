@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, GetObjectCommandOutput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -81,7 +81,7 @@ export class S3Service {
       Key: s3Key,
     });
 
-    let response: Awaited<ReturnType<typeof this.s3Client.send<GetObjectCommand>>>;
+    let response: GetObjectCommandOutput;
     try {
       response = await this.s3Client.send(command);
     } catch (error) {
