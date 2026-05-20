@@ -476,6 +476,40 @@ export const VisitDetail: React.FC = () => {
         </div>
       )}
 
+      {(visit.direct_attachments && visit.direct_attachments.length > 0) && (
+        <div style={{ marginBottom: '2rem' }}>
+          <h2>Visit Attachments ({visit.direct_attachments.length})</h2>
+          <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem' }}>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {visit.direct_attachments.map((att: any) => (
+                <li key={att.id} style={{ marginBottom: '0.5rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                  <span style={{ flex: 1 }}>{att.filename}</span>
+                  {att.file_size && <span style={{ fontSize: '0.75rem', color: '#999' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res: any = await apiService.downloadVisitDirectAttachment(visit.id, att.id);
+                        const url = res?.data?.url || res?.url;
+                        if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                      } catch (e: any) {
+                        alert(`Errore: ${e?.message || 'unknown'}`);
+                      }
+                    }}
+                    style={{ fontSize: '0.8rem', color: '#fff', background: 'var(--color-info)', border: 'none', padding: '2px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Apri
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {visitLevelTasks.length > 0 && (
         <div style={{ marginBottom: '2rem' }}>
           <h2>Visit Tasks</h2>

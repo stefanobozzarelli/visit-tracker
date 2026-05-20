@@ -57,6 +57,9 @@ export const NewVisit: React.FC = () => {
   const [pendingDirectFiles, setPendingDirectFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const directFileInputRef = useRef<HTMLInputElement>(null);
+  // Already-uploaded visit-level attachments (edit mode)
+  const [existingDirectAttachments, setExistingDirectAttachments] = useState<any[]>([]);
+  const [deletingDirectAttId, setDeletingDirectAttId] = useState<string | null>(null);
 
   // Inline tasks to create with the visit
   const [tasks, setTasks] = useState<{ title: string; companyId: string; dueDate: string; assignedToUserId: string; files: File[] }[]>([]);
@@ -201,6 +204,7 @@ export const NewVisit: React.FC = () => {
           }));
 
         setExistingReports(existingReportsList);
+        setExistingDirectAttachments(Array.isArray(visit.direct_attachments) ? visit.direct_attachments : []);
         setOriginalVisitData({
           clientId: visit.client_id,
           visitDate: visit.visit_date,
@@ -423,6 +427,35 @@ export const NewVisit: React.FC = () => {
     const newFiles = Array.from(files);
     setPendingDirectFiles(prev => [...prev, ...newFiles]);
     if (directFileInputRef.current) directFileInputRef.current.value = '';
+  };
+
+  const openDirectAttachment = async (att: any) => {
+    if (!editId) return;
+    try {
+      const res = await apiService.downloadVisitDirectAttachment(editId, att.id);
+      const url = (res as any)?.data?.url || (res as any)?.url;
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        alert('URL non disponibile per questo allegato');
+      }
+    } catch (e: any) {
+      alert(`Errore apertura allegato: ${e?.message || 'unknown'}`);
+    }
+  };
+
+  const handleDeleteExistingDirectAttachment = async (att: any) => {
+    if (!editId) return;
+    if (!window.confirm(`Eliminare l'allegato "${att.filename}"?`)) return;
+    setDeletingDirectAttId(att.id);
+    try {
+      await apiService.deleteVisitDirectAttachment(editId, att.id);
+      setExistingDirectAttachments(prev => prev.filter(a => a.id !== att.id));
+    } catch (e: any) {
+      alert(`Errore eliminazione: ${e?.message || 'unknown'}`);
+    } finally {
+      setDeletingDirectAttId(null);
+    }
   };
 
   const handleRemovePendingDirectFile = (index: number) => {
@@ -1337,7 +1370,37 @@ export const NewVisit: React.FC = () => {
 
           {/* Direct File Attachments */}
           <div className="cv-attachments-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-            <label>Attachments</label>
+            <label>Attachments {isEditMode && existingDirectAttachments.length > 0 ? `(${existingDirectAttachments.length})` : ''}</label>
+
+            {isEditMode && existingDirectAttachments.length > 0 && (
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 0.75rem 0' }}>
+                {existingDirectAttachments.map((att: any) => (
+                  <li key={att.id} style={{ marginBottom: '0.4rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.6rem', border: '1px solid #e0e0e0', borderRadius: '4px', background: '#fafafa' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                    <span style={{ flex: 1 }}>{att.filename}</span>
+                    {att.file_size && <span style={{ fontSize: '0.75rem', color: '#999' }}>{formatFileSize(att.file_size)}</span>}
+                    <button
+                      type="button"
+                      onClick={() => openDirectAttachment(att)}
+                      style={{ fontSize: '0.8rem', color: '#fff', background: 'var(--color-info)', border: 'none', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Apri
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteExistingDirectAttachment(att)}
+                      disabled={deletingDirectAttId === att.id}
+                      style={{ fontSize: '0.8rem', color: '#fff', background: '#c0392b', border: 'none', padding: '2px 8px', borderRadius: '4px', cursor: deletingDirectAttId === att.id ? 'wait' : 'pointer' }}
+                      title="Elimina allegato"
+                    >
+                      {deletingDirectAttId === att.id ? '…' : '×'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div
               className={`cv-attachment-dropzone ${dragOver ? 'drag-over' : ''}`}
