@@ -88,6 +88,29 @@ export const VisitDetail: React.FC = () => {
   const [error, setError] = useState('');
   const [pasteTargetReportId, setPasteTargetReportId] = useState<string | null>(null);
   const [uploadingReportId, setUploadingReportId] = useState<string | null>(null);
+  const [emailLoading, setEmailLoading] = useState<string | null>(null); // 'all' | reportId | null
+
+  const handleEmailPdf = async (reportId?: string) => {
+    if (!visit) return;
+    const key = reportId || 'all';
+    setEmailLoading(key);
+    try {
+      const blob = await apiService.exportVisitEmailPdf(visit.id, reportId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const clientSlug = (visit.client?.name || 'visita').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      a.download = `email-${clientSlug}${reportId ? '-sezione' : ''}-${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(`Errore generazione email PDF: ${e?.message || 'unknown'}`);
+    } finally {
+      setEmailLoading(null);
+    }
+  };
 
   // Upload files to a specific report
   const uploadFilesToReport = async (reportId: string, files: File[]) => {
@@ -220,12 +243,22 @@ export const VisitDetail: React.FC = () => {
           </button>
           <h1 style={{ margin: 0 }}>Client Meeting - {visit.client?.name}</h1>
         </div>
-        <button
-          onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}&returnTo=/visits/${id}`)}
-          style={{ padding: '0.6rem 1.2rem', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
-        >
-          + Add Task
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => handleEmailPdf()}
+            disabled={emailLoading !== null}
+            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'all' ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            title="Genera un PDF con il report dell'intera visita (sezioni, allegati e ordini), pronto da allegare a un'email"
+          >
+            {emailLoading === 'all' ? '⏳ Generazione…' : '📧 Genera email'}
+          </button>
+          <button
+            onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}&returnTo=/visits/${id}`)}
+            style={{ padding: '0.6rem 1.2rem', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+          >
+            + Add Task
+          </button>
+        </div>
       </div>
 
       {error && <div style={{ padding: '0.75rem', marginBottom: '1rem', background: '#fee', border: '1px solid #fcc', borderRadius: '4px', color: '#c00' }}>{error}</div>}
@@ -292,7 +325,15 @@ export const VisitDetail: React.FC = () => {
                         <h3 style={{ margin: '0 0 0.5rem 0' }}>{report.company?.name} - {report.section}</h3>
                         <span style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.875rem', backgroundColor: report.status === 'draft' ? '#fff3cd' : report.status === 'submitted' ? '#d1ecf1' : '#d4edda', color: report.status === 'draft' ? '#856404' : report.status === 'submitted' ? '#0c5460' : '#155724' }}>{report.status}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => handleEmailPdf(report.id)}
+                          disabled={emailLoading !== null}
+                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === report.id ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          title="Genera un PDF con questa sezione (testo, allegati e ordini del fornitore)"
+                        >
+                          {emailLoading === report.id ? '⏳' : '📧 Genera email'}
+                        </button>
                         <button
                           onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}&returnTo=/visits/${id}`)}
                           style={{ padding: '0.4rem 0.8rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}

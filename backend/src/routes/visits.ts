@@ -5,6 +5,7 @@ import { PermissionService } from '../services/PermissionService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
+import { OrderService } from '../services/OrderService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateVisitRequest, CreateVisitReportRequest } from '../types';
@@ -15,6 +16,7 @@ const permissionService = new PermissionService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
+const orderService = new OrderService();
 
 // Helper function to generate S3 presigned URL
 async function generateS3Url(s3Key: string, filename: string, forceDownload: boolean = false) {
@@ -503,6 +505,43 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename="report-visite-${new Date().getTime()}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Email PDF for a single visit (full visit or a single section)
+// GET /visits/:id/email-pdf?reportId=<optional>
+router.get('/:id/email-pdf', async (req: Request, res: Response) => {
+  try {
+    const visit = await visitService.getVisitById(req.params.id);
+    if (!visit) {
+      return res.status(404).json({ success: false, error: 'Visita non trovata' });
+    }
+
+    const reportId = typeof req.query.reportId === 'string' && req.query.reportId.length > 0
+      ? req.query.reportId
+      : undefined;
+
+    if (reportId && !(visit.reports || []).some(r => r.id === reportId)) {
+      return res.status(404).json({ success: false, error: 'Sezione non trovata in questa visita' });
+    }
+
+    const orders = await orderService.getOrdersByVisit(visit.id);
+
+    const pdfBuffer = await pdfService.generateVisitEmailPdf(visit, orders, { reportId });
+
+    const clientSlug = (visit.client?.name || 'visita')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'visita';
+    const suffix = reportId ? `-sezione-${reportId.substring(0, 8)}` : '';
+    const filename = `email-${clientSlug}${suffix}-${new Date().getTime()}.pdf`;
+
+    res.contentType('application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('email-pdf error:', error);
     res.status(500).json({ success: false, error: (error as Error).message });
   }
 });

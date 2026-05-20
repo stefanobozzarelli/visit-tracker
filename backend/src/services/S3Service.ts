@@ -67,6 +67,31 @@ export class S3Service {
     }
   }
 
+  /**
+   * Download a file from S3 directly into memory.
+   * Used when we need the bytes server-side (e.g. to embed in a generated PDF).
+   */
+  async getObjectBuffer(s3Key: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: s3Key,
+    });
+
+    try {
+      const response = await this.s3Client.send(command);
+      const body = response.Body as any;
+      if (!body) throw new Error('Empty body from S3');
+      // AWS SDK v3 returns a stream; concat chunks
+      const chunks: Buffer[] = [];
+      for await (const chunk of body) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      return Buffer.concat(chunks);
+    } catch (error) {
+      throw new Error(`Failed to download file from S3: ${(error as Error).message}`);
+    }
+  }
+
   async getDownloadUrl(s3Key: string, expiresIn: number = 3600): Promise<string> {
     const command = new GetObjectCommand({
       Bucket: this.bucketName,

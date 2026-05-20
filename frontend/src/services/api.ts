@@ -987,6 +987,15 @@ class ApiService {
     return response.data;
   }
 
+  // Email PDF for a visit (whole visit or a single section)
+  async exportVisitEmailPdf(visitId: string, reportId?: string) {
+    const response = await this.api.get(`/visits/${visitId}/email-pdf`, {
+      params: reportId ? { reportId } : undefined,
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
   // Export Orders
   async exportOrderPdf(orderId: string) {
     const response = await this.api.get(`/orders/${orderId}/export-pdf`, {

@@ -1,6 +1,22 @@
 import PDFDocument from 'pdfkit';
 import { Readable } from 'stream';
+import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import { Visit } from '../entities/Visit';
+import { S3Service } from './S3Service';
+
+const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png']);
+const EMBEDDABLE_IMAGE_EXTS = IMAGE_EXTS; // pdfkit only supports JPG/PNG
+
+function extOf(filename: string): string {
+  return (filename.toLowerCase().split('.').pop() || '').trim();
+}
+
+function classifyAttachment(filename: string): 'image' | 'pdf' | 'other' {
+  const ext = extOf(filename);
+  if (EMBEDDABLE_IMAGE_EXTS.has(ext)) return 'image';
+  if (ext === 'pdf') return 'pdf';
+  return 'other';
+}
 
 export class PdfService {
   /**
@@ -259,6 +275,305 @@ export class PdfService {
       title: `Ordine: ${order.client_name}`,
       generatedAt: new Date(),
     });
+  }
+
+  // ─── Email PDF (visit report ready to attach to an email) ──────────────────
+
+  /**
+   * Build a self-contained PDF for emailing a visit:
+   *   - cover with visit header
+   *   - for each report section: text, then embedded images, then links to other files,
+   *     then appended PDF attachments, then appended order PDFs (orders of that supplier)
+   *   - at the end, the visit-level (direct) attachments
+   *
+   * When `opts.reportId` is provided, only that section is included and the cover
+   * and visit-level attachments are skipped.
+   */
+  async generateVisitEmailPdf(
+    visit: Visit,
+    orders: any[],
+    opts: { reportId?: string } = {},
+  ): Promise<Buffer> {
+    const s3 = new S3Service();
+    const singleSection = !!opts.reportId;
+
+    const reports = (visit.reports || [])
+      .filter(r => r.section !== '__metadata__')
+      .filter(r => !opts.reportId || r.id === opts.reportId);
+
+    // PDF parts in order; each is a separate PDF buffer that we'll concatenate at the end.
+    const parts: Buffer[] = [];
+
+    // Cover (general mode only)
+    if (!singleSection) {
+      parts.push(await this._buildEmailCoverPdf(visit));
+    }
+
+    for (const report of reports) {
+      const sectionParts = await this._buildSectionEmailParts(visit, report, orders, s3);
+      parts.push(...sectionParts);
+    }
+
+    // Visit-level direct attachments (general mode only)
+    if (!singleSection) {
+      const directs = visit.direct_attachments || [];
+      if (directs.length > 0) {
+        const directParts = await this._buildDirectAttachmentsParts(visit, directs, s3);
+        parts.push(...directParts);
+      }
+    }
+
+    return await this._mergePdfBuffers(parts);
+  }
+
+  private async _mergePdfBuffers(buffers: Buffer[]): Promise<Buffer> {
+    const merged = await PDFLibDocument.create();
+    for (const buf of buffers) {
+      try {
+        const doc = await PDFLibDocument.load(buf, { ignoreEncryption: true });
+        const pages = await merged.copyPages(doc, doc.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      } catch (e) {
+        // Skip a corrupt/unsupported PDF part rather than failing the whole export
+        console.error('Skipping unmergeable PDF part:', (e as Error).message);
+      }
+    }
+    const bytes = await merged.save();
+    return Buffer.from(bytes);
+  }
+
+  private _buildEmailCoverPdf(visit: Visit): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const buffers: Buffer[] = [];
+      const doc = new PDFDocument({ margin: 50 });
+      doc.on('data', (c: Buffer) => buffers.push(c));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      const visitDate = typeof visit.visit_date === 'string'
+        ? new Date(visit.visit_date).toLocaleDateString('it-IT')
+        : visit.visit_date.toLocaleDateString('it-IT');
+
+      doc.fontSize(22).font('Helvetica-Bold').fillColor('#000000')
+        .text(`Report visita — ${visit.client?.name || 'N/A'}`, { align: 'center' });
+      doc.moveDown(0.6);
+      doc.fontSize(11).font('Helvetica').fillColor('#444444')
+        .text(`Data: ${visitDate}`, { align: 'center' });
+      doc.text(`Sales rep: ${visit.visited_by_user?.name || 'N/A'}`, { align: 'center' });
+      doc.text(`Generato il: ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
+      doc.moveDown(1);
+
+      if ((visit as any).preparation) {
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#000').text('Preparazione');
+        doc.moveDown(0.2);
+        doc.fontSize(10).font('Helvetica').fillColor('#222')
+          .text(String((visit as any).preparation), { width: 495 });
+      }
+
+      doc.end();
+    });
+  }
+
+  private async _buildSectionEmailParts(
+    visit: Visit,
+    report: any,
+    orders: any[],
+    s3: S3Service,
+  ): Promise<Buffer[]> {
+    const parts: Buffer[] = [];
+
+    const attachments = report.attachments || [];
+
+    // Pre-fetch image buffers and link URLs; classify PDFs to merge after the text part.
+    const images: { att: any; buf: Buffer }[] = [];
+    const otherLinks: { filename: string; url: string }[] = [];
+    const pdfBuffers: Buffer[] = [];
+
+    for (const att of attachments) {
+      const kind = classifyAttachment(att.filename || '');
+      try {
+        if (kind === 'image') {
+          const buf = await s3.getObjectBuffer(att.s3_key);
+          images.push({ att, buf });
+        } else if (kind === 'pdf') {
+          const buf = await s3.getObjectBuffer(att.s3_key);
+          pdfBuffers.push(buf);
+        } else {
+          const url = await s3.getDownloadUrl(att.s3_key, 7 * 24 * 3600); // 7 days
+          otherLinks.push({ filename: att.filename, url });
+        }
+      } catch (e) {
+        otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+      }
+    }
+
+    // Text + images part
+    parts.push(await this._buildSectionTextPdf(visit, report, images, otherLinks));
+
+    // Then append the PDF attachments of this section
+    parts.push(...pdfBuffers);
+
+    // Then append PDFs of the orders linked to this supplier
+    const sectionOrders = (orders || []).filter(
+      o => o.supplier_id === report.company_id || o.supplier_id === report.company?.id,
+    );
+    for (const ord of sectionOrders) {
+      try {
+        const ordPdf = await this.generateOrderPdf(ord);
+        parts.push(ordPdf);
+      } catch (e) {
+        console.error('Failed to generate order PDF for email:', (e as Error).message);
+      }
+    }
+
+    return parts;
+  }
+
+  private _buildSectionTextPdf(
+    visit: Visit,
+    report: any,
+    images: { att: any; buf: Buffer }[],
+    otherLinks: { filename: string; url: string }[],
+  ): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const buffers: Buffer[] = [];
+      const doc = new PDFDocument({ margin: 50 });
+      doc.on('data', (c: Buffer) => buffers.push(c));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      // Section header
+      doc.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
+        .text(`${report.company?.name || 'N/A'} — ${report.section || ''}`);
+      doc.moveDown(0.4);
+      const visitDate = typeof visit.visit_date === 'string'
+        ? new Date(visit.visit_date).toLocaleDateString('it-IT')
+        : visit.visit_date.toLocaleDateString('it-IT');
+      doc.fontSize(10).font('Helvetica').fillColor('#666')
+        .text(`${visit.client?.name || ''} · ${visitDate} · ${visit.visited_by_user?.name || ''}`);
+      doc.moveDown(0.8);
+
+      // Body
+      doc.fontSize(11).font('Helvetica').fillColor('#222')
+        .text(report.content || '(nessun contenuto)', { width: 495 });
+      doc.moveDown(0.8);
+
+      // Embedded images
+      if (images.length > 0) {
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#000').text('Allegati (immagini):');
+        doc.moveDown(0.3);
+        for (const { att, buf } of images) {
+          // Page break if no room
+          if (doc.y > 600) doc.addPage();
+          doc.fontSize(9).font('Helvetica-Oblique').fillColor('#555')
+            .text(att.filename || '');
+          doc.moveDown(0.2);
+          try {
+            doc.image(buf, { fit: [495, 480], align: 'center' });
+          } catch (e) {
+            doc.fontSize(9).font('Helvetica').fillColor('#a00')
+              .text(`(impossibile inserire immagine: ${(e as Error).message})`);
+          }
+          doc.moveDown(0.6);
+        }
+      }
+
+      // Links for non-embeddable files
+      if (otherLinks.length > 0) {
+        if (doc.y > 700) doc.addPage();
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#000').text('Altri allegati:');
+        doc.moveDown(0.3);
+        doc.fontSize(10).font('Helvetica').fillColor('#333');
+        for (const lk of otherLinks) {
+          if (lk.url) {
+            doc.fillColor('#0066CC')
+              .text(`• ${lk.filename}`, { link: lk.url, underline: true });
+            doc.fillColor('#333');
+          } else {
+            doc.text(`• ${lk.filename}`);
+          }
+        }
+        doc.fontSize(8).font('Helvetica-Oblique').fillColor('#888').moveDown(0.4)
+          .text('(I link sono validi 7 giorni dalla generazione del PDF.)');
+      }
+
+      doc.end();
+    });
+  }
+
+  private async _buildDirectAttachmentsParts(
+    visit: Visit,
+    directs: any[],
+    s3: S3Service,
+  ): Promise<Buffer[]> {
+    const parts: Buffer[] = [];
+
+    const images: { att: any; buf: Buffer }[] = [];
+    const otherLinks: { filename: string; url: string }[] = [];
+    const pdfBuffers: Buffer[] = [];
+
+    for (const att of directs) {
+      const kind = classifyAttachment(att.filename || '');
+      try {
+        if (kind === 'image') {
+          const buf = await s3.getObjectBuffer(att.s3_key);
+          images.push({ att, buf });
+        } else if (kind === 'pdf') {
+          const buf = await s3.getObjectBuffer(att.s3_key);
+          pdfBuffers.push(buf);
+        } else {
+          const url = await s3.getDownloadUrl(att.s3_key, 7 * 24 * 3600);
+          otherLinks.push({ filename: att.filename, url });
+        }
+      } catch {
+        otherLinks.push({ filename: `${att.filename} (non disponibile)`, url: '' });
+      }
+    }
+
+    parts.push(await new Promise<Buffer>((resolve, reject) => {
+      const bufs: Buffer[] = [];
+      const doc = new PDFDocument({ margin: 50 });
+      doc.on('data', (c: Buffer) => bufs.push(c));
+      doc.on('end', () => resolve(Buffer.concat(bufs)));
+      doc.on('error', reject);
+
+      doc.fontSize(18).font('Helvetica-Bold').fillColor('#000').text('Allegati generali della visita');
+      doc.moveDown(0.6);
+
+      if (images.length > 0) {
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#000').text('Immagini:');
+        doc.moveDown(0.3);
+        for (const { att, buf } of images) {
+          if (doc.y > 600) doc.addPage();
+          doc.fontSize(9).font('Helvetica-Oblique').fillColor('#555').text(att.filename || '');
+          doc.moveDown(0.2);
+          try { doc.image(buf, { fit: [495, 480], align: 'center' }); } catch {}
+          doc.moveDown(0.6);
+        }
+      }
+
+      if (otherLinks.length > 0) {
+        if (doc.y > 700) doc.addPage();
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#000').text('Altri file:');
+        doc.moveDown(0.3);
+        doc.fontSize(10).font('Helvetica').fillColor('#333');
+        for (const lk of otherLinks) {
+          if (lk.url) {
+            doc.fillColor('#0066CC').text(`• ${lk.filename}`, { link: lk.url, underline: true });
+            doc.fillColor('#333');
+          } else {
+            doc.text(`• ${lk.filename}`);
+          }
+        }
+        doc.fontSize(8).font('Helvetica-Oblique').fillColor('#888').moveDown(0.4)
+          .text('(I link sono validi 7 giorni dalla generazione del PDF.)');
+      }
+
+      doc.end();
+    }));
+
+    parts.push(...pdfBuffers);
+    return parts;
   }
 
   // ─── Private helper for table-based PDFs ───────────────────────────────────
