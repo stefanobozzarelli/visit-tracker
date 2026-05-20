@@ -27,6 +27,7 @@ export const Reports: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabKey>('visits');
   const [data, setData] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
@@ -154,6 +155,8 @@ export const Reports: React.FC = () => {
         filtered = filtered.filter((c: any) => (c.role || 'cliente') === filters.role);
       }
       setData(filtered);
+      // All rows selected by default whenever data refreshes
+      setSelectedIds(new Set(filtered.map((item: any) => item.id)));
     } catch (err) {
       setError('Error loading data');
     } finally {
@@ -175,11 +178,14 @@ export const Reports: React.FC = () => {
       let blob: Blob;
       const f = { ...filters };
       switch (activeTab) {
-        case 'visits':
+        case 'visits': {
+          // Pass only the IDs of selected rows so deselected visits are excluded
+          const ids = Array.from(selectedIds);
           blob = format === 'pdf'
-            ? await apiService.exportVisitsPdf(f)
-            : await apiService.exportVisitsExcel(f);
+            ? await apiService.exportVisitsPdf({ ...f, visitIds: ids })
+            : await apiService.exportVisitsExcel({ ...f, visitIds: ids });
           break;
+        }
         case 'clients':
           blob = format === 'pdf'
             ? await apiService.exportClientsPdf(f)
@@ -454,13 +460,49 @@ export const Reports: React.FC = () => {
     if (data.length === 0) return <div className="rpt-empty">No data found. Adjust filters and click Apply.</div>;
 
     switch (activeTab) {
-      case 'visits':
+      case 'visits': {
+        const allChecked = data.length > 0 && data.every((v: any) => selectedIds.has(v.id));
+        const someChecked = data.some((v: any) => selectedIds.has(v.id));
+        const toggleAll = () => {
+          if (allChecked) {
+            setSelectedIds(new Set());
+          } else {
+            setSelectedIds(new Set(data.map((v: any) => v.id)));
+          }
+        };
+        const toggleOne = (id: string) => {
+          setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+          });
+        };
         return (
           <table className="rpt-table">
-            <thead><tr><th>Date</th><th>Client</th><th>Sales Rep</th><th>Status</th><th>Reports</th></tr></thead>
+            <thead>
+              <tr>
+                <th style={{ width: 36, textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
+                    onChange={toggleAll}
+                    title="Seleziona / deseleziona tutto"
+                  />
+                </th>
+                <th>Date</th><th>Client</th><th>Sales Rep</th><th>Status</th><th>Reports</th>
+              </tr>
+            </thead>
             <tbody>
               {data.map((v: any) => (
-                <tr key={v.id}>
+                <tr
+                  key={v.id}
+                  style={{ opacity: selectedIds.has(v.id) ? 1 : 0.4, cursor: 'pointer' }}
+                  onClick={() => toggleOne(v.id)}
+                >
+                  <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedIds.has(v.id)} onChange={() => toggleOne(v.id)} />
+                  </td>
                   <td>{formatDate(v.visit_date)}</td>
                   <td>{v.client?.name || '-'}</td>
                   <td>{v.visited_by_user?.name || '-'}</td>
@@ -471,6 +513,7 @@ export const Reports: React.FC = () => {
             </tbody>
           </table>
         );
+      }
       case 'clients':
         return (
           <table className="rpt-table">
@@ -636,19 +679,26 @@ export const Reports: React.FC = () => {
 
       {/* Summary */}
       <div className="rpt-summary">
-        <span>{data.length} record{data.length !== 1 ? 's' : ''} found</span>
+        <span>
+          {data.length} record{data.length !== 1 ? 's' : ''} found
+          {activeTab === 'visits' && data.length > 0 && (
+            <span style={{ marginLeft: '0.75rem', color: selectedIds.size < data.length ? '#dc2626' : '#4a7653', fontWeight: 600 }}>
+              · {selectedIds.size} selezionat{selectedIds.size === 1 ? 'a' : 'e'}
+            </span>
+          )}
+        </span>
         <div className="rpt-export-btns">
           <button
             className="rpt-btn rpt-btn-pdf"
             onClick={() => handleExport('pdf')}
-            disabled={exporting || data.length === 0}
+            disabled={exporting || data.length === 0 || (activeTab === 'visits' && selectedIds.size === 0)}
           >
             {exporting ? '...' : 'Export PDF'}
           </button>
           <button
             className="rpt-btn rpt-btn-excel"
             onClick={() => handleExport('excel')}
-            disabled={exporting || data.length === 0}
+            disabled={exporting || data.length === 0 || (activeTab === 'visits' && selectedIds.size === 0)}
           >
             {exporting ? '...' : 'Export Excel'}
           </button>

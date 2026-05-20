@@ -85,7 +85,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.post('/export-excel', async (req: Request, res: Response) => {
   try {
-    const { clientId, userId, startDate, endDate, status } = req.body;
+    const { clientId, userId, startDate, endDate, status, visitIds } = req.body;
     const filters: any = {};
     if (clientId) filters.client_id = clientId;
     if (userId) filters.user_id = userId;
@@ -93,6 +93,11 @@ router.post('/export-excel', async (req: Request, res: Response) => {
     let visits = await visitService.getVisits(filters);
     if (startDate) visits = visits.filter((v: any) => new Date(v.visit_date) >= new Date(startDate));
     if (endDate) visits = visits.filter((v: any) => new Date(v.visit_date) <= new Date(endDate));
+    // If specific visit IDs are provided (row-level selection), restrict to those
+    if (Array.isArray(visitIds) && visitIds.length > 0) {
+      const idSet = new Set(visitIds);
+      visits = visits.filter((v: any) => idSet.has(v.id));
+    }
     const buffer = excelService.generateVisitsExcel(visits);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=visits-report.xlsx');
@@ -451,7 +456,7 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const authUserId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
-    const { startDate, endDate, clientId, companyIds, companyId, userId } = req.body;
+    const { startDate, endDate, clientId, companyIds, companyId, userId, visitIds } = req.body;
     const effectiveCompanyIds = companyIds || (companyId ? [companyId] : null);
 
     // Get visits based on filters
@@ -472,7 +477,6 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
     if (startDate || endDate) {
       const start = startDate ? new Date(startDate) : new Date('1900-01-01');
       const end = endDate ? new Date(endDate) : new Date('2099-12-31');
-
       visits = visits.filter(
         v => new Date(v.visit_date) >= start && new Date(v.visit_date) <= end
       );
@@ -487,6 +491,12 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
       })) as any;
       // Remove visits without reports (after company filtering)
       visits = visits.filter(v => v.reports && v.reports.length > 0);
+    }
+
+    // If specific visit IDs are provided (row-level selection from Reports page), restrict to those
+    if (Array.isArray(visitIds) && visitIds.length > 0) {
+      const idSet = new Set(visitIds);
+      visits = visits.filter(v => idSet.has(v.id));
     }
 
     if (visits.length === 0) {

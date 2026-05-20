@@ -426,20 +426,6 @@ export const Visits: React.FC = () => {
           <p className="visits-header-subtitle">Track client meetings, reports, and follow-up activity</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <button
-            onClick={() => handleExport('pdf')}
-            disabled={exporting}
-            style={{ padding: '0.5rem 0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
-          >
-            PDF
-          </button>
-          <button
-            onClick={() => handleExport('excel')}
-            disabled={exporting}
-            style={{ padding: '0.5rem 0.75rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
-          >
-            Excel
-          </button>
           <button className="visits-btn-new" onClick={() => navigate('/visits/new')}>
             + Register New Visit
           </button>
