@@ -277,6 +277,38 @@ export class PdfService {
     });
   }
 
+  /**
+   * Place an image inside the current pdfkit document with a filename label
+   * above it. Computes the remaining vertical space on the page and forces a
+   * new page if the image (label + content) would not fit entirely, so that
+   * pdfkit does not crop the bottom of the picture.
+   */
+  private _placeImage(doc: any, buf: Buffer, filename: string): void {
+    const MIN_USABLE_HEIGHT = 260;          // never start an image with less space than this
+    const LABEL_HEIGHT = 18;                // filename line + small gap
+    const BOTTOM_PAD = 12;                  // breathing room before page bottom
+    const MAX_IMG_W = 495;
+    const MAX_IMG_H = 690;                  // cap on a fresh page (A4 minus margins)
+
+    const pageBottom = doc.page.height - doc.page.margins.bottom;
+    let available = pageBottom - doc.y - LABEL_HEIGHT - BOTTOM_PAD;
+    if (available < MIN_USABLE_HEIGHT) {
+      doc.addPage();
+      available = pageBottom - doc.y - LABEL_HEIGHT - BOTTOM_PAD;
+    }
+    const imgH = Math.min(available, MAX_IMG_H);
+
+    doc.fontSize(9).font('Helvetica-Oblique').fillColor('#555').text(filename);
+    doc.moveDown(0.2);
+    try {
+      doc.image(buf, { fit: [MAX_IMG_W, imgH], align: 'center' });
+    } catch (e) {
+      doc.fontSize(9).font('Helvetica').fillColor('#a00')
+        .text(`(impossibile inserire immagine: ${(e as Error).message})`);
+    }
+    doc.moveDown(0.6);
+  }
+
   // ─── Email PDF (visit report ready to attach to an email) ──────────────────
 
   /**
@@ -463,18 +495,7 @@ export class PdfService {
         doc.fontSize(11).font('Helvetica-Bold').fillColor('#000').text('Allegati (immagini):');
         doc.moveDown(0.3);
         for (const { att, buf } of images) {
-          // Page break if no room
-          if (doc.y > 600) doc.addPage();
-          doc.fontSize(9).font('Helvetica-Oblique').fillColor('#555')
-            .text(att.filename || '');
-          doc.moveDown(0.2);
-          try {
-            doc.image(buf, { fit: [495, 480], align: 'center' });
-          } catch (e) {
-            doc.fontSize(9).font('Helvetica').fillColor('#a00')
-              .text(`(impossibile inserire immagine: ${(e as Error).message})`);
-          }
-          doc.moveDown(0.6);
+          this._placeImage(doc, buf, att.filename || '');
         }
       }
 
@@ -544,11 +565,7 @@ export class PdfService {
         doc.fontSize(11).font('Helvetica-Bold').fillColor('#000').text('Immagini:');
         doc.moveDown(0.3);
         for (const { att, buf } of images) {
-          if (doc.y > 600) doc.addPage();
-          doc.fontSize(9).font('Helvetica-Oblique').fillColor('#555').text(att.filename || '');
-          doc.moveDown(0.2);
-          try { doc.image(buf, { fit: [495, 480], align: 'center' }); } catch {}
-          doc.moveDown(0.6);
+          this._placeImage(doc, buf, att.filename || '');
         }
       }
 
