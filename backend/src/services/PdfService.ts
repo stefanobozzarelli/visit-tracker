@@ -342,9 +342,12 @@ export class PdfService {
     // PDF parts in order; each is a separate PDF buffer that we'll concatenate at the end.
     const parts: Buffer[] = [];
 
-    // Cover (general mode only)
+    // Cover page
     if (!singleSection) {
       parts.push(await this._buildEmailCoverPdf(visit));
+    } else if (reports.length > 0) {
+      // Per-section: still show a prominent cover with meeting details
+      parts.push(await this._buildSectionCoverPdf(visit, reports[0]));
     }
 
     for (const report of reports) {
@@ -407,6 +410,52 @@ export class PdfService {
         doc.fontSize(10).font('Helvetica').fillColor('#222')
           .text(String((visit as any).preparation), { width: 495 });
       }
+
+      doc.end();
+    });
+  }
+
+  /** Cover page for a single-section email PDF: shows meeting header prominently. */
+  private _buildSectionCoverPdf(visit: Visit, report: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const bufs: Buffer[] = [];
+      const doc = new PDFDocument({ margin: 50 });
+      doc.on('data', (c: Buffer) => bufs.push(c));
+      doc.on('end', () => resolve(Buffer.concat(bufs)));
+      doc.on('error', reject);
+
+      const visitDate = typeof visit.visit_date === 'string'
+        ? new Date(visit.visit_date).toLocaleDateString('it-IT')
+        : visit.visit_date.toLocaleDateString('it-IT');
+
+      // Big client name
+      doc.moveDown(2);
+      doc.fontSize(28).font('Helvetica-Bold').fillColor('#000000')
+        .text(visit.client?.name || 'N/A', { align: 'center' });
+      doc.moveDown(0.5);
+
+      // Divider line
+      const cx = 50;
+      const cw = doc.page.width - 100;
+      doc.moveTo(cx, doc.y).lineTo(cx + cw, doc.y).lineWidth(1.5).strokeColor('#cccccc').stroke();
+      doc.moveDown(0.8);
+
+      // Supplier name
+      doc.fontSize(22).font('Helvetica-Bold').fillColor('#333333')
+        .text(report.company?.name || 'N/A', { align: 'center' });
+      doc.moveDown(0.5);
+
+      // Section label
+      doc.fontSize(14).font('Helvetica').fillColor('#555555')
+        .text(report.section || '', { align: 'center' });
+      doc.moveDown(0.8);
+
+      // Date + Sales rep
+      doc.fontSize(11).font('Helvetica').fillColor('#666666')
+        .text(`${visitDate}   ·   ${visit.visited_by_user?.name || ''}`, { align: 'center' });
+      doc.moveDown(0.4);
+      doc.fontSize(8).font('Helvetica-Oblique').fillColor('#999999')
+        .text(`Generato il: ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
 
       doc.end();
     });
@@ -618,6 +667,238 @@ export class PdfService {
 
     parts.push(...pdfBuffers);
     return parts;
+  }
+
+  // ─── Detailed PDF for Reports export (text + attachment names + orders) ─────
+
+  /**
+   * Like generateVisitsPdf but enriched with:
+   *  - Attachment file names per report section
+   *  - Order line items per supplier
+   *  - General visit attachments at the end of each visit (when includeDirectAtts = true)
+   *
+   * Does NOT download anything from S3 – attachment names come from the
+   * already-loaded metadata.
+   */
+  async generateVisitsPdfDetailed(
+    visits: Visit[],
+    ordersMap: Map<string, any[]>,   // visitId → orders[]
+    options: { title?: string; includeDirectAtts?: boolean } = {},
+  ): Promise<Buffer> {
+    const s3 = new S3Service();
+
+    // ── Phase 1: pre-fetch images from S3 ────────────────────────────────────
+    // reportId → { images: [{att, buf}], otherFilenames: string[] }
+    type AttData = { images: { att: any; buf: Buffer }[]; otherFilenames: string[] };
+    const reportAttMap = new Map<string, AttData>();
+
+    // visitId → images for direct attachments
+    const directImgMap = new Map<string, { att: any; buf: Buffer }[]>();
+
+    for (const visit of visits) {
+      for (const report of (visit.reports || []).filter((r: any) => r.section !== '__metadata__')) {
+        const images: { att: any; buf: Buffer }[] = [];
+        const otherFilenames: string[] = [];
+        for (const att of (report.attachments || [])) {
+          const kind = classifyAttachment(att.filename || '');
+          if (kind === 'image') {
+            try {
+              const buf = await s3.getObjectBuffer(att.s3_key, MAX_EMBED_BYTES);
+              images.push({ att, buf });
+            } catch {
+              otherFilenames.push(att.filename || '(file non disponibile)');
+            }
+          } else {
+            otherFilenames.push(att.filename || '');
+          }
+        }
+        reportAttMap.set(report.id, { images, otherFilenames });
+      }
+
+      if (options.includeDirectAtts) {
+        const imgs: { att: any; buf: Buffer }[] = [];
+        for (const att of (visit.direct_attachments || [])) {
+          const kind = classifyAttachment(att.filename || '');
+          if (kind === 'image') {
+            try {
+              const buf = await s3.getObjectBuffer(att.s3_key, MAX_EMBED_BYTES);
+              imgs.push({ att, buf });
+            } catch { /* skip oversized/unavailable */ }
+          }
+        }
+        directImgMap.set(visit.id, imgs);
+      }
+    }
+
+    // ── Phase 2: build PDF synchronously ─────────────────────────────────────
+    return new Promise((resolve, reject) => {
+      const buffers: Buffer[] = [];
+      const doc = new PDFDocument({ margin: 50 });
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      if (visits.length === 0) {
+        doc.fontSize(14).font('Helvetica-Bold').text(options.title || 'Report Visite', { align: 'center' });
+        doc.moveDown(1);
+        doc.fontSize(11).font('Helvetica').text('Nessun dato trovato.', { align: 'center' });
+        doc.end();
+        return;
+      }
+
+      // Group by supplier
+      const supplierGroups: Map<string, { visit: Visit; report: any }[]> = new Map();
+      visits.forEach(visit => {
+        if (visit.reports && visit.reports.length > 0) {
+          visit.reports.filter((r: any) => r.section !== '__metadata__').forEach((report: any) => {
+            const supplierName = report.company?.name || 'N/A';
+            if (!supplierGroups.has(supplierName)) supplierGroups.set(supplierName, []);
+            supplierGroups.get(supplierName)!.push({ visit, report });
+          });
+        }
+      });
+
+      let isFirstPage = true;
+
+      supplierGroups.forEach((entries, supplierName) => {
+        if (!isFirstPage) doc.addPage();
+        isFirstPage = false;
+
+        // Supplier header
+        doc.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
+          .text(`${options.title || 'Report Visite'} — ${supplierName}`, { align: 'center' });
+        doc.moveDown(1);
+
+        let prevClientName: string | null = null;
+
+        entries.forEach((entry, idx) => {
+          const { visit, report } = entry;
+          const clientName = visit.client?.name || 'N/A';
+
+          // Page break on client change or insufficient space
+          if (prevClientName !== null && clientName !== prevClientName) {
+            doc.addPage();
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#333333')
+              .text(`${supplierName} (cont.)`, { align: 'center' });
+            doc.moveDown(0.5);
+          } else if (doc.y > 630) {
+            doc.addPage();
+            doc.fontSize(14).font('Helvetica-Bold').fillColor('#333333')
+              .text(`${supplierName} (cont.)`, { align: 'center' });
+            doc.moveDown(0.5);
+          }
+          prevClientName = clientName;
+
+          // Client name + visit meta
+          doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000').text(clientName);
+          const visitDate = typeof visit.visit_date === 'string'
+            ? new Date(visit.visit_date).toLocaleDateString('it-IT')
+            : visit.visit_date.toLocaleDateString('it-IT');
+          doc.fontSize(10).font('Helvetica').fillColor('#333333')
+            .text(`${visitDate} — ${visit.visited_by_user?.name || 'N/A'}`);
+          doc.moveDown(0.2);
+
+          // Section label + content
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#0066CC').text(`${report.section}:`);
+          doc.fontSize(10).font('Helvetica').fillColor('#000000')
+            .text(report.content || '(Nessun contenuto)', { width: 480 });
+          doc.moveDown(0.4);
+
+          // ── Attachments: embedded images + filenames for others ───────────
+          const attData = reportAttMap.get(report.id);
+          if (attData) {
+            if (attData.images.length > 0) {
+              doc.fontSize(9).font('Helvetica-Bold').fillColor('#555555').text('Foto allegate:');
+              doc.moveDown(0.2);
+              for (const { att, buf } of attData.images) {
+                this._placeImage(doc, buf, att.filename || '');
+              }
+            }
+            if (attData.otherFilenames.length > 0) {
+              doc.fontSize(9).font('Helvetica-Bold').fillColor('#555555').text('Altri allegati:');
+              attData.otherFilenames.forEach((name: string) => {
+                doc.fontSize(9).font('Helvetica').fillColor('#555555').text(`• ${name}`, { indent: 8 });
+              });
+              doc.moveDown(0.3);
+            }
+          }
+
+          // ── Orders for this supplier in this visit ────────────────────────
+          const visitOrders = (ordersMap.get(visit.id) || [])
+            .filter((o: any) => o.supplier_id === report.company_id || o.supplier?.id === report.company_id);
+
+          if (visitOrders.length > 0) {
+            if (doc.y > 680) doc.addPage();
+            doc.fontSize(9).font('Helvetica-Bold').fillColor('#333').text('Ordini:');
+            visitOrders.forEach((order: any) => {
+              if (doc.y > 680) doc.addPage();
+              doc.fontSize(9).font('Helvetica-Bold').fillColor('#444')
+                .text(`  Ordine ${new Date(order.order_date).toLocaleDateString('it-IT')}${order.payment_method ? ` — ${order.payment_method}` : ''}  [${order.status || 'draft'}]`);
+              const items = (order.items || []);
+              items.forEach((item: any) => {
+                const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(String(item.quantity || 0));
+                const price = typeof item.unit_price === 'number' ? item.unit_price : parseFloat(String(item.unit_price || 0));
+                const isComment = qty === 0 && !item.unit_of_measure;
+                if (isComment) {
+                  doc.fontSize(8).font('Helvetica-Oblique').fillColor('#666')
+                    .text(`    ↳ ${item.description}`, { indent: 12 });
+                } else {
+                  const line = [
+                    item.article_code ? `[${item.article_code}]` : '',
+                    item.description || '',
+                    item.format ? `(${item.format})` : '',
+                    `—`,
+                    item.unit_of_measure,
+                    `${qty % 1 === 0 ? qty.toFixed(0) : qty.toFixed(2)}`,
+                    `× € ${price.toFixed(2)}`,
+                    item.discount ? `sc. ${item.discount}` : '',
+                  ].filter(Boolean).join(' ');
+                  doc.fontSize(8).font('Helvetica').fillColor('#222')
+                    .text(`    ${line}`, { indent: 12 });
+                }
+              });
+              doc.moveDown(0.3);
+            });
+          }
+
+          // Separator between same-client entries
+          const nextEntry = entries[idx + 1];
+          const sameClientNext = nextEntry && (nextEntry.visit.client?.name || 'N/A') === clientName;
+          if (sameClientNext) {
+            doc.moveTo(50, doc.y).lineTo(545, doc.y).lineWidth(0.3).strokeColor('#cccccc').stroke();
+            doc.moveDown(0.4);
+          }
+
+          // ── General (direct) attachments – shown once per visit ───────────
+          if (options.includeDirectAtts) {
+            const isLastReportOfVisit = !entries.slice(idx + 1).some(e => e.visit.id === visit.id);
+            if (isLastReportOfVisit) {
+              const directImgs = directImgMap.get(visit.id) || [];
+              if (directImgs.length > 0) {
+                doc.moveDown(0.3);
+                doc.fontSize(9).font('Helvetica-Bold').fillColor('#555').text('Foto generali della visita:');
+                doc.moveDown(0.2);
+                for (const { att, buf } of directImgs) {
+                  this._placeImage(doc, buf, att.filename || '');
+                }
+              }
+              // Non-image direct attachments (filenames only)
+              const directOthers = (visit.direct_attachments || [])
+                .filter((a: any) => a.filename && classifyAttachment(a.filename) !== 'image');
+              if (directOthers.length > 0) {
+                doc.fontSize(9).font('Helvetica-Bold').fillColor('#555').text('Altri allegati generali:');
+                directOthers.forEach((a: any) => {
+                  doc.fontSize(9).font('Helvetica').fillColor('#555').text(`• ${a.filename}`, { indent: 8 });
+                });
+                doc.moveDown(0.4);
+              }
+            }
+          }
+        });
+      });
+
+      doc.end();
+    });
   }
 
   // ─── Private helper for table-based PDFs ───────────────────────────────────
