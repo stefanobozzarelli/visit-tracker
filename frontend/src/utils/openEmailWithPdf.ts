@@ -50,11 +50,8 @@ export async function openEmailWithPdf(
 
   const emlBlob = new Blob([eml], { type: 'message/rfc822' });
   const url = URL.createObjectURL(emlBlob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${pdfFilename.replace('.pdf', '')}.eml`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // Navigate directly — no 'download' attribute so the browser hands off
+  // to the OS default handler for message/rfc822, which is Mail.app on macOS
+  window.location.href = url;
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
