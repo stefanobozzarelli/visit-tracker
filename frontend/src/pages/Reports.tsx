@@ -245,7 +245,9 @@ export const Reports: React.FC = () => {
       const pdfFilename = `report-visite-${Date.now()}.pdf`;
       const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
       const clientName = clients.find((c: any) => c.id === filters.clientId)?.name;
-      const subject = clientName ? `${today} Report "${clientName}"` : `${today} Report Visite`;
+      const companyName = companies.find((c: any) => c.id === filters.companyId)?.name;
+      const entityName = clientName || companyName;
+      const subject = entityName ? `${today} Report "${entityName}"` : `${today} Report Visite`;
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (err) {
       setError('Errore generazione email');
