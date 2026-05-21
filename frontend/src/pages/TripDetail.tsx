@@ -160,6 +160,9 @@ export const TripDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [trip, setTrip] = useState<Trip | null>(null);
+  // Mappa "clientName|YYYY-MM-DD" → delivery status aggregato della visita corrispondente.
+  // Usata per mostrare lo stato di consegna nel badge dell'appuntamento (riga "Hafary", "Hirata"...).
+  const [visitDeliveryMap, setVisitDeliveryMap] = useState<Map<string, 'ready' | 'partial' | 'fully' | null>>(new Map());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'list' | 'report'>('list');
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -222,11 +225,45 @@ export const TripDetail: React.FC = () => {
         // Auto-expand today if present
         const today = res.data.days.find((d: TravelDay) => d.date === todayStr);
         if (today) setExpandedDays(new Set([today.id]));
+        // Carica le visite del periodo per popolare la mappa delivery
+        loadVisitsDeliveryStatus(res.data);
       }
     } catch (e) {
       console.error('Failed to load trip:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /** Costruisce la mappa "clientName|YYYY-MM-DD" → delivery status guardando
+   *  le visite del periodo del viaggio. */
+  const loadVisitsDeliveryStatus = async (tripData: Trip) => {
+    try {
+      const startDate = tripData.startDate;
+      const endDate = tripData.endDate;
+      const visitsRes = await apiService.getVisits({ startDate, endDate } as any);
+      if (!visitsRes.success || !visitsRes.data) return;
+
+      const map = new Map<string, 'ready' | 'partial' | 'fully' | null>();
+      for (const v of visitsRes.data as any[]) {
+        const clientName = (v.client?.name || '').trim().toLowerCase();
+        if (!clientName || !v.visit_date) continue;
+        // visit_date può arrivare come "2026-05-18T00:00:00.000Z" → estrai YYYY-MM-DD
+        const dateStr = String(v.visit_date).slice(0, 10);
+        const key = `${clientName}|${dateStr}`;
+        const sectionReports = (v.reports || []).filter((r: any) => r.section !== '__metadata__');
+        if (sectionReports.length === 0) {
+          map.set(key, null);
+        } else {
+          const delivered = sectionReports.filter((r: any) => r.delivered_at).length;
+          if (delivered === 0) map.set(key, 'ready');
+          else if (delivered === sectionReports.length) map.set(key, 'fully');
+          else map.set(key, 'partial');
+        }
+      }
+      setVisitDeliveryMap(map);
+    } catch (e) {
+      console.error('Failed to load visits delivery status:', e);
     }
   };
 
@@ -659,9 +696,23 @@ export const TripDetail: React.FC = () => {
                             }}
                           >+ Visita</button>
                         )}
-                        {item.a.status === 'fatto_report' && (
-                          <span className="td-visit-done" title="Visita già registrata">✓ Report</span>
-                        )}
+                        {item.a.status === 'fatto_report' && (() => {
+                          // Cerca lo stato di consegna della visita corrispondente
+                          // matching per "client|date" — fallback al badge generico se non trovata
+                          const key = `${(item.a.client || '').trim().toLowerCase()}|${day.date}`;
+                          const delivery = visitDeliveryMap.get(key);
+                          if (delivery === 'fully') {
+                            return <span className="td-visit-done" style={{ background: 'rgba(74, 96, 120, 0.12)', color: '#3D5068', borderColor: 'rgba(74, 96, 120, 0.3)' }} title="Tutti i report consegnati al cliente">✓ Fully Delivered</span>;
+                          }
+                          if (delivery === 'partial') {
+                            return <span className="td-visit-done" style={{ background: 'rgba(212, 175, 55, 0.12)', color: '#997b1a', borderColor: 'rgba(212, 175, 55, 0.3)' }} title="Alcuni report consegnati, altri no">◐ Partially Delivered</span>;
+                          }
+                          if (delivery === 'ready') {
+                            return <span className="td-visit-done" title="Report pronti ma non ancora consegnati">✓ Report Ready</span>;
+                          }
+                          // Visita non trovata o senza report → badge generico legacy
+                          return <span className="td-visit-done" title="Visita registrata">✓ Report</span>;
+                        })()}
                         <StatusDropdown status={item.a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, item.a!.id, s)} type="apt" />
                         <div className="td-item-actions">
                           <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: item.a! }); setAptForm({ time: item.a!.time, endTime: item.a!.endTime, client: item.a!.client, status: item.a!.status, notes: item.a!.notes }); setShowAptModal(true); }}>
