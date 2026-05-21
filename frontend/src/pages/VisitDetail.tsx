@@ -131,7 +131,7 @@ export const VisitDetail: React.FC = () => {
 
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (e: any) {
-      setError(`Errore generazione email: ${e?.message || 'Errore sconosciuto'}`);
+      setError(`Errore condivisione: ${e?.message || 'Errore sconosciuto'}`);
     } finally {
       setEmailLoading(null);
     }
@@ -282,9 +282,9 @@ export const VisitDetail: React.FC = () => {
             onClick={() => handleGenerateEmail()}
             disabled={emailLoading !== null}
             style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'eml-all' ? '#999' : '#2E7D32', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
-            title="Crea email con PDF allegato (apre Mail)"
+            title="Condividi PDF (apre il share sheet di sistema)"
           >
-            {emailLoading === 'eml-all' ? '⏳…' : '✉️ Genera email'}
+            {emailLoading === 'eml-all' ? '⏳…' : '✉️ Condividi'}
           </button>
           <button
             onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}&returnTo=/visits/${id}`)}
@@ -372,9 +372,9 @@ export const VisitDetail: React.FC = () => {
                           onClick={() => handleGenerateEmail(report.id, `${report.company?.name} - ${report.section}`)}
                           disabled={emailLoading !== null}
                           style={{ padding: '0.4rem 0.8rem', background: emailLoading === `eml-${report.id}` ? '#999' : '#2E7D32', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                          title="Crea email con PDF allegato (apre Mail)"
+                          title="Condividi PDF (apre il share sheet di sistema)"
                         >
-                          {emailLoading === `eml-${report.id}` ? '⏳…' : '✉️ Genera email'}
+                          {emailLoading === `eml-${report.id}` ? '⏳…' : '✉️ Condividi'}
                         </button>
                         <button
                           onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}&returnTo=/visits/${id}`)}

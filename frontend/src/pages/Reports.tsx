@@ -252,7 +252,7 @@ export const Reports: React.FC = () => {
       const pdfFilename = `${subject.replace(/[/\\:*?<>|]/g, '')}.pdf`;
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (err) {
-      setError('Errore generazione email');
+      setError('Errore condivisione');
     } finally {
       setEmailExporting(false);
     }
@@ -726,9 +726,9 @@ export const Reports: React.FC = () => {
               onClick={handleEmailExport}
               disabled={exporting || emailExporting || selectedIds.size === 0}
               style={{ background: emailExporting ? '#999' : '#2E7D32', color: 'white' }}
-              title="Crea email con PDF allegato (apre Mail)"
+              title="Condividi PDF (apre il share sheet di sistema)"
             >
-              {emailExporting ? '⏳…' : '✉️ Genera email'}
+              {emailExporting ? '⏳…' : '✉️ Condividi'}
             </button>
           )}
           <button
