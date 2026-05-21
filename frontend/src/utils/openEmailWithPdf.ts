@@ -16,12 +16,26 @@ export async function openEmailWithPdf(
   subject: string,
   body: string = 'Buongiorno,\n\nin allegato il report in oggetto.\n\nCordiali saluti,\nStefano',
 ): Promise<void> {
+  const pdfSizeMB = pdfBlob.size / 1024 / 1024;
+  console.log(`[openEmailWithPdf] PDF size: ${pdfSizeMB.toFixed(2)} MB`);
+
   const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
   const shareData: ShareData = {
     files: [pdfFile],
     title: subject,
     text: body,
   };
+
+  // Safari su macOS rifiuta share() di file > ~50MB con NotAllowedError.
+  // Se siamo sopra soglia conservativa, saltiamo direttamente al fallback .eml
+  // così non sprechiamo tempo con un share destinato a fallire.
+  const SIZE_LIMIT_MB = 45;
+  if (pdfSizeMB > SIZE_LIMIT_MB) {
+    console.warn(`[openEmailWithPdf] PDF too large for Web Share (${pdfSizeMB.toFixed(1)} MB > ${SIZE_LIMIT_MB} MB), using .eml fallback`);
+    showSizeWarningToast(pdfSizeMB);
+    downloadEml(pdfBlob, pdfFilename, subject, body);
+    return;
+  }
 
   const canUseShare =
     typeof navigator !== 'undefined' &&
@@ -180,7 +194,45 @@ function showRetryShareToast(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Fallback: scarica .eml (per browser senza Web Share API)
+// Toast: PDF troppo grande per la Web Share API
+// ────────────────────────────────────────────────────────────────────────────
+function showSizeWarningToast(sizeMB: number): void {
+  document.getElementById('__share-size-warning__')?.remove();
+
+  const toast = document.createElement('div');
+  toast.id = '__share-size-warning__';
+  toast.style.cssText = `
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100002;
+    max-width: 460px;
+    background: #b45309;
+    color: white;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    cursor: pointer;
+  `;
+  toast.innerHTML = `
+    <div style="font-weight:700;margin-bottom:0.375rem;">⚠️ PDF troppo grande per Mail (${sizeMB.toFixed(1)} MB)</div>
+    <div style="opacity:0.95;font-size:0.85rem;">
+      Safari non permette di condividere file > ~50 MB. Scaricato il file <b>.eml</b>
+      — fai doppio click per aprirlo in Mail (verrà mostrato come messaggio ricevuto).
+    </div>
+    <div style="opacity:0.7;font-size:0.7rem;margin-top:0.5rem;text-align:right;">Click per chiudere</div>
+  `;
+  toast.addEventListener('click', () => toast.remove());
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 15000);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Fallback: scarica .eml (per browser senza Web Share API o file troppo grande)
 // ────────────────────────────────────────────────────────────────────────────
 async function downloadEml(
   pdfBlob: Blob,
