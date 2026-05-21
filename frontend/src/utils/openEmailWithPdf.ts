@@ -1,16 +1,53 @@
 /**
- * Creates and downloads an .eml file with the given PDF pre-attached.
- * When the user opens the .eml file, their default mail client (e.g. Apple Mail)
- * opens a new compose window with the subject pre-filled and the PDF attached.
- * The user only needs to fill in the recipient address and send.
+ * Apre Mail (o un'altra app) con un PDF già allegato e l'oggetto precompilato.
+ *
+ * Strategia 1 (preferita): Web Share API con file
+ *   - Su macOS Safari 16.4+ apre il share sheet nativo di sistema.
+ *   - L'utente sceglie "Mail" e si apre una nuova email con:
+ *     · oggetto precompilato (da `title`)
+ *     · corpo precompilato (da `text`)
+ *     · PDF allegato (da `files`)
+ *   - L'utente aggiunge il destinatario e invia.
+ *
+ * Strategia 2 (fallback): download .eml
+ *   - Su browser senza Web Share API, viene scaricato un file .eml
+ *     che l'utente può aprire con doppio click per lanciare Mail.
  */
 export async function openEmailWithPdf(
   pdfBlob: Blob,
   pdfFilename: string,
   subject: string,
-  body: string = '',
+  body: string = 'In allegato il report in oggetto.',
 ): Promise<void> {
-  // Convert PDF blob to base64 (57 bytes per chunk = 76 base64 chars per line, per RFC 2045)
+  // ────────────────────────────────────────────────────────────────
+  // Strategia 1: Web Share API (Safari macOS 16.4+, iOS Safari, Chrome Android)
+  // ────────────────────────────────────────────────────────────────
+  try {
+    const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
+    const shareData: ShareData = {
+      files: [pdfFile],
+      title: subject,
+      text: body,
+    };
+
+    if (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare(shareData)
+    ) {
+      await navigator.share(shareData);
+      return; // Successo
+    }
+  } catch (err: any) {
+    // AbortError = l'utente ha chiuso il share sheet — non facciamo fallback
+    if (err && err.name === 'AbortError') return;
+    // Per altri errori (NotAllowedError, ecc.) cadiamo nel fallback
+    console.warn('[openEmailWithPdf] Web Share failed, falling back to .eml:', err);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Strategia 2: fallback .eml (per browser senza Web Share API)
+  // ────────────────────────────────────────────────────────────────
   const arrayBuffer = await pdfBlob.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
   const lines: string[] = [];
@@ -20,12 +57,8 @@ export async function openEmailWithPdf(
   }
   const base64Pdf = lines.join('\r\n');
 
-  // Encode subject for non-ASCII characters (RFC 2047)
   const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
-
   const boundary = `----=_MixedPart_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-  const bodyText = body || 'In allegato il report in oggetto.';
 
   const eml = [
     'MIME-Version: 1.0',
@@ -36,7 +69,7 @@ export async function openEmailWithPdf(
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: 8bit',
     '',
-    bodyText,
+    body,
     '',
     `--${boundary}`,
     `Content-Type: application/pdf; name="${pdfFilename}"`,
@@ -48,8 +81,6 @@ export async function openEmailWithPdf(
     `--${boundary}--`,
   ].join('\r\n');
 
-  // Safari: link.download con .eml + "Apri file sicuri dopo il download" (default macOS)
-  // → il file viene scaricato e Safari apre Mail automaticamente
   const emlBlob = new Blob([eml], { type: 'message/rfc822' });
   const url = URL.createObjectURL(emlBlob);
   const link = document.createElement('a');
