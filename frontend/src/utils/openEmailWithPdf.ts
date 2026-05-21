@@ -50,11 +50,6 @@ export async function openEmailWithPdf(
 
   const emlBlob = new Blob([eml], { type: 'message/rfc822' });
   const url = URL.createObjectURL(emlBlob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${pdfFilename.replace('.pdf', '')}.eml`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  window.location.href = url;
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
