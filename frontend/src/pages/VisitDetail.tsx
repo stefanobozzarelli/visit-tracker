@@ -91,6 +91,23 @@ export const VisitDetail: React.FC = () => {
   const [pasteTargetReportId, setPasteTargetReportId] = useState<string | null>(null);
   const [uploadingReportId, setUploadingReportId] = useState<string | null>(null);
   const [emailLoading, setEmailLoading] = useState<string | null>(null); // 'all' | reportId | null
+  const [deliveryLoading, setDeliveryLoading] = useState<string | null>(null); // reportId being toggled
+
+  /** Toggle dello stato di consegna di un singolo report al cliente */
+  const handleToggleDelivery = async (reportId: string, currentlyDelivered: boolean) => {
+    if (!visit) return;
+    setDeliveryLoading(reportId);
+    try {
+      await apiService.setReportDelivery(visit.id, reportId, !currentlyDelivered);
+      // Ricarica la visita per ottenere il nuovo delivered_at
+      const updated = await apiService.getVisit(visit.id);
+      if (updated.success && updated.data) setVisit(updated.data);
+    } catch (e: any) {
+      setError(`Errore aggiornamento stato consegna: ${e?.message || 'Errore sconosciuto'}`);
+    } finally {
+      setDeliveryLoading(null);
+    }
+  };
 
   /** Download the email PDF as a plain .pdf file */
   const handleDownloadPdf = async (reportId?: string) => {
@@ -360,7 +377,48 @@ export const VisitDetail: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                       <div>
                         <h3 style={{ margin: '0 0 0.5rem 0' }}>{report.company?.name} - {report.section}</h3>
-                        <span style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.875rem', backgroundColor: report.status === 'draft' ? '#fff3cd' : report.status === 'submitted' ? '#d1ecf1' : '#d4edda', color: report.status === 'draft' ? '#856404' : report.status === 'submitted' ? '#0c5460' : '#155724' }}>{report.status}</span>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.875rem', backgroundColor: report.status === 'draft' ? '#fff3cd' : report.status === 'submitted' ? '#d1ecf1' : '#d4edda', color: report.status === 'draft' ? '#856404' : report.status === 'submitted' ? '#0c5460' : '#155724' }}>{report.status}</span>
+                          {report.delivered_at ? (
+                            <button
+                              onClick={() => handleToggleDelivery(report.id, true)}
+                              disabled={deliveryLoading === report.id}
+                              title="Click per annullare la consegna"
+                              style={{
+                                padding: '0.25rem 0.75rem',
+                                borderRadius: '4px',
+                                fontSize: '0.875rem',
+                                backgroundColor: 'rgba(74, 96, 120, 0.12)',
+                                color: '#3D5068',
+                                border: '1px solid rgba(74, 96, 120, 0.3)',
+                                cursor: deliveryLoading === report.id ? 'wait' : 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {deliveryLoading === report.id
+                                ? '⏳…'
+                                : `✓ Consegnato il ${new Date(report.delivered_at).toLocaleDateString('it-IT')}`}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleDelivery(report.id, false)}
+                              disabled={deliveryLoading === report.id}
+                              title="Marca questo report come consegnato al cliente"
+                              style={{
+                                padding: '0.25rem 0.75rem',
+                                borderRadius: '4px',
+                                fontSize: '0.875rem',
+                                backgroundColor: 'rgba(212, 175, 55, 0.12)',
+                                color: '#997b1a',
+                                border: '1px dashed rgba(212, 175, 55, 0.4)',
+                                cursor: deliveryLoading === report.id ? 'wait' : 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {deliveryLoading === report.id ? '⏳…' : '📤 Marca come consegnato'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button

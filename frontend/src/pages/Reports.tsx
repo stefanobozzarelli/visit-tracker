@@ -535,26 +535,46 @@ export const Reports: React.FC = () => {
                     title="Seleziona / deseleziona tutto"
                   />
                 </th>
-                <th>Date</th><th>Client</th><th>Sales Rep</th><th>Status</th><th>Reports</th>
+                <th>Date</th><th>Client</th><th>Sales Rep</th><th>Status</th><th>Reports</th><th>Delivery</th>
               </tr>
             </thead>
             <tbody>
-              {data.map((v: any) => (
-                <tr
-                  key={v.id}
-                  style={{ opacity: selectedIds.has(v.id) ? 1 : 0.4, cursor: 'pointer' }}
-                  onClick={() => toggleOne(v.id)}
-                >
-                  <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                    <input type="checkbox" checked={selectedIds.has(v.id)} onChange={() => toggleOne(v.id)} />
-                  </td>
-                  <td>{formatDate(v.visit_date)}</td>
-                  <td>{v.client?.name || '-'}</td>
-                  <td>{v.visited_by_user?.name || '-'}</td>
-                  <td>{v.status}</td>
-                  <td>{v.reports?.filter((r: any) => r.section !== '__metadata__').length || 0}</td>
-                </tr>
-              ))}
+              {data.map((v: any) => {
+                // Calcolo dello stato di consegna aggregato per la visita
+                const sectionReports = (v.reports || []).filter((r: any) => r.section !== '__metadata__');
+                let deliveryLabel = '-';
+                let deliveryColor = '#999';
+                if (sectionReports.length > 0) {
+                  const deliveredCount = sectionReports.filter((r: any) => r.delivered_at).length;
+                  if (deliveredCount === 0) {
+                    deliveryLabel = 'Ready';
+                    deliveryColor = '#4A7653';
+                  } else if (deliveredCount === sectionReports.length) {
+                    deliveryLabel = 'Fully Delivered';
+                    deliveryColor = '#3D5068';
+                  } else {
+                    deliveryLabel = `Partially (${deliveredCount}/${sectionReports.length})`;
+                    deliveryColor = '#997b1a';
+                  }
+                }
+                return (
+                  <tr
+                    key={v.id}
+                    style={{ opacity: selectedIds.has(v.id) ? 1 : 0.4, cursor: 'pointer' }}
+                    onClick={() => toggleOne(v.id)}
+                  >
+                    <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedIds.has(v.id)} onChange={() => toggleOne(v.id)} />
+                    </td>
+                    <td>{formatDate(v.visit_date)}</td>
+                    <td>{v.client?.name || '-'}</td>
+                    <td>{v.visited_by_user?.name || '-'}</td>
+                    <td>{v.status}</td>
+                    <td>{sectionReports.length}</td>
+                    <td style={{ color: deliveryColor, fontWeight: 500, fontSize: '0.85rem' }}>{deliveryLabel}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         );

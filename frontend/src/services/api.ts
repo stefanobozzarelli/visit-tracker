@@ -591,6 +591,15 @@ class ApiService {
     return response.data;
   }
 
+  /** Marca/smarca un report come consegnato al cliente (toggle delivered_at) */
+  async setReportDelivery(visitId: string, reportId: string, delivered: boolean) {
+    const response = await this.api.patch<ApiResponse<any>>(
+      `/visits/${visitId}/reports/${reportId}/delivery`,
+      { delivered }
+    );
+    return response.data;
+  }
+
   async canDeleteVisit(visitId: string) {
     const response = await this.api.get<ApiResponse<any>>(
       `/visits/${visitId}/can-delete`

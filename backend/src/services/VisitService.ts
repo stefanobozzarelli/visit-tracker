@@ -93,6 +93,20 @@ export class VisitService {
     await this.reportRepository.delete(reportId);
   }
 
+  /**
+   * Toggle dello stato di consegna di un report:
+   *   delivered=true  → delivered_at = ora corrente
+   *   delivered=false → delivered_at = null
+   */
+  async setReportDelivery(reportId: string, delivered: boolean): Promise<VisitReport> {
+    await this.reportRepository.update(reportId, {
+      delivered_at: delivered ? new Date() : null,
+    });
+    const updated = await this.reportRepository.findOne({ where: { id: reportId } });
+    if (!updated) throw new Error('Report not found');
+    return updated;
+  }
+
   async addAttachment(
     reportId: string,
     userId: string,

@@ -23,6 +23,11 @@ export class VisitReport {
   @Column({ type: 'enum', enum: ['draft', 'submitted', 'approved'], default: 'draft' })
   status: string;
 
+  // Timestamp di consegna del report al cliente. null = non ancora consegnato.
+  // Reversibile da UI (può essere riportato a null).
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  delivered_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

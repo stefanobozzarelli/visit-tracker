@@ -267,6 +267,19 @@ router.delete('/:visitId/reports/:reportId', async (req: Request, res: Response)
   }
 });
 
+// Toggle delivery status del report (consegnato al cliente / non consegnato).
+// Body: { delivered: boolean }. Setta delivered_at a now() o null.
+router.patch('/:visitId/reports/:reportId/delivery', async (req: Request, res: Response) => {
+  try {
+    const { delivered } = req.body as { delivered: boolean };
+    const report = await visitService.setReportDelivery(req.params.reportId, delivered);
+    const response: ApiResponse<any> = { success: true, data: report };
+    res.json(response);
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/:visitId/reports/:reportId/upload', upload.single('file'), async (req: Request, res: Response) => {

@@ -162,6 +162,8 @@ export interface VisitReport {
   section: string;
   content: string;
   status: 'draft' | 'submitted' | 'approved';
+  /** Timestamp ISO di consegna al cliente, o null se non ancora consegnato */
+  delivered_at: string | null;
   created_at: string;
   updated_at: string;
   company?: Company;

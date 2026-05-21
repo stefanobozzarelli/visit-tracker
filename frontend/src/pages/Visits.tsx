@@ -39,16 +39,27 @@ const getDisplayReports = (reports?: VisitReport[]) => {
   return reports.filter(r => r.section !== METADATA_SECTION);
 };
 
-// Report status for a visit
-type ReportStatus = 'has_report' | 'missing';
+// Report status aggregato per visita.
+//   missing        → nessun report sezione visibile
+//   ready          → almeno un report esiste, ma NESSUNO è stato consegnato al cliente
+//   partial        → alcuni report consegnati, altri no
+//   delivered      → TUTTI i report consegnati
+type ReportStatus = 'has_report' | 'partial_delivered' | 'fully_delivered' | 'missing';
+
 const getReportStatus = (reports?: VisitReport[]): ReportStatus => {
   const display = getDisplayReports(reports);
-  return display.length > 0 ? 'has_report' : 'missing';
+  if (display.length === 0) return 'missing';
+  const deliveredCount = display.filter(r => !!r.delivered_at).length;
+  if (deliveredCount === 0) return 'has_report';
+  if (deliveredCount === display.length) return 'fully_delivered';
+  return 'partial_delivered';
 };
 
 const REPORT_STATUS_CONFIG: Record<ReportStatus, { label: string; className: string }> = {
-  has_report: { label: 'Report Ready', className: 'report-ready' },
-  missing:    { label: 'Missing Report', className: 'report-missing' },
+  has_report:         { label: 'Report Ready',               className: 'report-ready' },
+  partial_delivered:  { label: 'Report Partially Delivered', className: 'report-partial' },
+  fully_delivered:    { label: 'Report Fully Delivered',     className: 'report-delivered' },
+  missing:            { label: 'Missing Report',             className: 'report-missing' },
 };
 
 // Follow-up status
@@ -88,6 +99,8 @@ export const Visits: React.FC = () => {
   const [last30Days, setLast30Days] = useState(false);
   const [withReport, setWithReport] = useState(false);
   const [missingReport, setMissingReport] = useState(false);
+  const [partialDeliveredFilter, setPartialDeliveredFilter] = useState(false);
+  const [fullyDeliveredFilter, setFullyDeliveredFilter] = useState(false);
   const [followUpNeeded, setFollowUpNeeded] = useState(false);
 
   // NLP search
@@ -327,6 +340,12 @@ export const Visits: React.FC = () => {
     if (missingReport) {
       list = list.filter(v => getReportStatus(v.reports) === 'missing');
     }
+    if (partialDeliveredFilter) {
+      list = list.filter(v => getReportStatus(v.reports) === 'partial_delivered');
+    }
+    if (fullyDeliveredFilter) {
+      list = list.filter(v => getReportStatus(v.reports) === 'fully_delivered');
+    }
     if (followUpNeeded) {
       list = list.filter(v => {
         const fu = visitFollowUp.get(v.id);
@@ -351,7 +370,7 @@ export const Visits: React.FC = () => {
 
     return list;
   }, [visits, nlpResults, clientId, selectedCompanyIds, countryFilter, visitedBy, statusFilter, thisMonth, last30Days,
-      withReport, missingReport, followUpNeeded, localSearch,
+      withReport, missingReport, partialDeliveredFilter, fullyDeliveredFilter, followUpNeeded, localSearch,
       clients, getClientName, getUserName, getVisitCompanies, visitFollowUp]);
 
   // ---- NLP search ----
@@ -599,7 +618,7 @@ export const Visits: React.FC = () => {
           <div className="visits-filter-divider" />
 
           {/* Reset filters button if any are active */}
-          {(clientId || selectedCompanyIds.length > 0 || countryFilter || visitedBy || statusFilter || thisMonth || last30Days || withReport || missingReport || followUpNeeded || localSearch) && (
+          {(clientId || selectedCompanyIds.length > 0 || countryFilter || visitedBy || statusFilter || thisMonth || last30Days || withReport || missingReport || partialDeliveredFilter || fullyDeliveredFilter || followUpNeeded || localSearch) && (
             <button
               type="button"
               className="visits-chip"
@@ -613,6 +632,8 @@ export const Visits: React.FC = () => {
                 setLast30Days(false);
                 setWithReport(false);
                 setMissingReport(false);
+                setPartialDeliveredFilter(false);
+                setFullyDeliveredFilter(false);
                 setFollowUpNeeded(false);
                 setLocalSearch('');
               }}
@@ -651,6 +672,20 @@ export const Visits: React.FC = () => {
             >
               <span className="visits-chip-dot" />
               Missing Report
+            </button>
+            <button
+              className={`visits-chip${partialDeliveredFilter ? ' active chip-yellow' : ''}`}
+              onClick={() => { setPartialDeliveredFilter(!partialDeliveredFilter); if (!partialDeliveredFilter) setFullyDeliveredFilter(false); }}
+            >
+              <span className="visits-chip-dot" />
+              Partially Delivered
+            </button>
+            <button
+              className={`visits-chip${fullyDeliveredFilter ? ' active chip-blue' : ''}`}
+              onClick={() => { setFullyDeliveredFilter(!fullyDeliveredFilter); if (!fullyDeliveredFilter) setPartialDeliveredFilter(false); }}
+            >
+              <span className="visits-chip-dot" />
+              Fully Delivered
             </button>
             <button
               className={`visits-chip${followUpNeeded ? ' active chip-red' : ''}`}
