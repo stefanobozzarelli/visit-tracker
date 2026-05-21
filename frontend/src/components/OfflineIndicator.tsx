@@ -18,6 +18,15 @@ export function OfflineIndicator() {
     conflictCount: 0,
   });
 
+  const handleClearQueue = async () => {
+    try {
+      await offlineDB.clearSyncQueue();
+      setSyncState({ status: 'idle', pendingCount: 0, conflictCount: 0 });
+    } catch (error) {
+      console.warn('[OfflineIndicator] Failed to clear sync queue:', error);
+    }
+  };
+
   const updatePendingCounts = async () => {
     try {
       // Ensure DB is initialized before accessing it
@@ -92,6 +101,7 @@ export function OfflineIndicator() {
           <div className="indicator-content">
             <span className="spinner"></span>
             <span>Syncing {syncState.pendingCount} pending operation{syncState.pendingCount !== 1 ? 's' : ''}...</span>
+            <button onClick={handleClearQueue} title="Svuota coda" style={{ marginLeft: '0.75rem', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', opacity: 0.7, lineHeight: 1 }}>×</button>
           </div>
         </div>
       );
@@ -114,6 +124,7 @@ export function OfflineIndicator() {
           <div className="indicator-content">
             <span className="error-icon">❌</span>
             <span>{syncState.pendingCount} items failed to sync - will retry</span>
+            <button onClick={handleClearQueue} title="Svuota coda" style={{ marginLeft: '0.75rem', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', opacity: 0.7, lineHeight: 1 }}>×</button>
           </div>
         </div>
       );
@@ -126,6 +137,7 @@ export function OfflineIndicator() {
             <span className="pending-icon">⏳</span>
             <span>{syncState.pendingCount} pending operation{syncState.pendingCount !== 1 ? 's' : ''}</span>
             {syncState.conflictCount > 0 && <span className="conflict-info">({syncState.conflictCount} conflict{syncState.conflictCount !== 1 ? 's' : ''})</span>}
+            <button onClick={handleClearQueue} title="Svuota coda" style={{ marginLeft: '0.75rem', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', opacity: 0.7, lineHeight: 1 }}>×</button>
           </div>
         </div>
       );

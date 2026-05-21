@@ -224,6 +224,16 @@ class OfflineDB {
     });
   }
 
+  async clearSyncQueue(): Promise<void> {
+    const transaction = await this.getTransaction('syncQueue', 'readwrite');
+    const store = transaction.objectStore('syncQueue');
+    return new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
   async removeSyncQueueItem(id: number): Promise<void> {
     const transaction = await this.getTransaction('syncQueue', 'readwrite');
     const store = transaction.objectStore('syncQueue');
