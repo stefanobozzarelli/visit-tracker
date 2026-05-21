@@ -242,12 +242,14 @@ export const Reports: React.FC = () => {
     try {
       const ids = Array.from(selectedIds);
       const blob = await apiService.exportVisitsPdf({ ...filters, visitIds: ids });
-      const pdfFilename = `report-visite-${Date.now()}.pdf`;
       const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
       const clientName = clients.find((c: any) => c.id === filters.clientId)?.name;
       const companyName = companies.find((c: any) => c.id === filters.companyId)?.name;
       const entityName = clientName || companyName;
       const subject = entityName ? `${today} Report "${entityName}"` : `${today} Report Visite`;
+      // PDF filename = subject (sanitized) so Mail.app uses it as email subject
+      // when title is ignored by the share sheet on macOS
+      const pdfFilename = `${subject.replace(/[/\\:*?<>|]/g, '')}.pdf`;
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (err) {
       setError('Errore generazione email');

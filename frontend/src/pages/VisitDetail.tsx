@@ -124,10 +124,10 @@ export const VisitDetail: React.FC = () => {
       const blob = await apiService.exportVisitEmailPdf(visit.id, reportId);
       const clientName = visit.client?.name || 'Cliente';
       const visitDateISO = new Date(visit.visit_date).toISOString().slice(0, 10); // YYYY-MM-DD
-      const clientSlug = clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      const pdfFilename = `report-${clientSlug}${reportId ? '-sezione' : ''}-${Date.now()}.pdf`;
-
       const subject = `${visitDateISO} Report "${clientName}"`;
+      // PDF filename = subject (sanitized) so Mail.app uses it as email subject
+      // when title is ignored by the share sheet on macOS
+      const pdfFilename = `${subject.replace(/[/\\:*?<>|]/g, '')}.pdf`;
 
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (e: any) {

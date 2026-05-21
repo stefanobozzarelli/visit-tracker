@@ -17,7 +17,7 @@ export async function openEmailWithPdf(
   pdfBlob: Blob,
   pdfFilename: string,
   subject: string,
-  body: string = 'In allegato il report in oggetto.',
+  body: string = 'Buongiorno,\n\nin allegato il report in oggetto.\n\nCordiali saluti,\nStefano',
 ): Promise<void> {
   // ────────────────────────────────────────────────────────────────
   // Strategia 1: Web Share API (Safari macOS 16.4+, iOS Safari, Chrome Android)
