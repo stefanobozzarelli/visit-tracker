@@ -48,7 +48,7 @@ export async function openEmailWithPdf(
     `--${boundary}--`,
   ].join('\r\n');
 
-  const emlBlob = new Blob([eml], { type: 'message/rfc822' });
+  const emlBlob = new Blob([eml], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(emlBlob);
   const link = document.createElement('a');
   link.href = url;
