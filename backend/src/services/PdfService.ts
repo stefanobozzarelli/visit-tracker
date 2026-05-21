@@ -191,79 +191,9 @@ export class PdfService {
 
         // Tabella righe ordine
         if (order.items && order.items.length > 0) {
-          doc.fontSize(10).font('Helvetica-Bold').text('Righe Ordine:');
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000').text('Righe Ordine:');
           doc.moveDown(0.3);
-
-          // Intestazione tabella - allineata su una singola riga
-          const headers = ['Codice', 'Descrizione', 'Formato', 'UM', 'Qta', 'Prezzo', 'Sconto'];
-          const columnWidths = [50, 110, 75, 40, 45, 65, 60];
-          let xPos = 50;
-          const headerY = doc.y;
-
-          doc.fontSize(9).font('Helvetica-Bold');
-          headers.forEach((header, i) => {
-            doc.text(header, xPos, headerY, { width: columnWidths[i], align: 'left' });
-            xPos += columnWidths[i];
-          });
-
-          doc.moveDown(0.5);
-          doc.moveTo(50, doc.y).lineTo(50 + columnWidths.reduce((a, b) => a + b, 0), doc.y).stroke();
-          doc.moveDown(0.3);
-
-          // Righe dati
-          doc.font('Helvetica');
-          doc.fontSize(8);
-          order.items.forEach((item: any) => {
-            try {
-              const yBefore = doc.y;
-              xPos = 50;
-
-              // Convert quantity to number and check if it's a comment row
-              const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : (item.quantity || 0);
-              const unitOfMeasure = item.unit_of_measure || '';
-              const isCommentRow = quantity === 0 && !unitOfMeasure;
-
-              if (isCommentRow) {
-                // Riga commento - mostra solo la descrizione su tutta la larghezza
-                doc.font('Helvetica-Oblique');
-                doc.text(item.description || '(No comment text)', xPos, yBefore, { width: 500, align: 'left' });
-                doc.font('Helvetica');
-              } else {
-                // Riga ordine normale
-                const unitPrice = typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : (item.unit_price || 0);
-
-                // Codice
-                doc.text((item.article_code || '').substring(0, 10), xPos, yBefore, { width: columnWidths[0], align: 'left' });
-                xPos += columnWidths[0];
-                // Descrizione
-                doc.text((item.description || '').substring(0, 22), xPos, yBefore, { width: columnWidths[1], align: 'left' });
-                xPos += columnWidths[1];
-                // Formato
-                doc.text((item.format || '-').substring(0, 15), xPos, yBefore, { width: columnWidths[2], align: 'left' });
-                xPos += columnWidths[2];
-                // UM
-                doc.text(unitOfMeasure, xPos, yBefore, { width: columnWidths[3], align: 'center' });
-                xPos += columnWidths[3];
-                // Qta
-                doc.text(quantity.toFixed(2), xPos, yBefore, { width: columnWidths[4], align: 'right' });
-                xPos += columnWidths[4];
-                // Prezzo
-                doc.text(`€ ${unitPrice.toFixed(2)}`, xPos, yBefore, { width: columnWidths[5], align: 'right' });
-                xPos += columnWidths[5];
-                // Sconto
-                doc.text(`${item.discount || '-'}`, xPos, yBefore, { width: columnWidths[6], align: 'right' });
-              }
-
-              doc.moveDown(0.4);
-            } catch (itemError) {
-              console.error('Error processing order item:', itemError, item);
-              doc.fontSize(8).text('Error rendering item', 50, doc.y);
-              doc.moveDown(0.4);
-            }
-          });
-
-          doc.moveTo(50, doc.y).lineTo(50 + columnWidths.reduce((a, b) => a + b, 0), doc.y).stroke();
-          doc.moveDown(0.5);
+          this._renderOrderTable(doc, order);
         }
 
         doc.moveDown(0.8);
@@ -281,6 +211,87 @@ export class PdfService {
       title: `Ordine: ${order.client_name}`,
       generatedAt: new Date(),
     });
+  }
+
+  /**
+   * Render a single order as a table inside an existing pdfkit document.
+   * Reused by generateOrdersPdf and generateVisitsPdfDetailed.
+   */
+  private _renderOrderTable(doc: any, order: any): void {
+    const headers = ['Codice', 'Descrizione', 'Formato', 'UM', 'Qta', 'Prezzo', 'Sconto'];
+    const columnWidths = [50, 110, 75, 40, 45, 65, 60];
+    const tableLeft = 50;
+    const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
+
+    // Header row
+    const headerY = doc.y;
+    let xPos = tableLeft;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#333333');
+    headers.forEach((header, i) => {
+      doc.text(header, xPos, headerY, { width: columnWidths[i], align: 'left', lineBreak: false });
+      xPos += columnWidths[i];
+    });
+    doc.moveDown(0.5);
+    doc.moveTo(tableLeft, doc.y).lineTo(tableLeft + tableWidth, doc.y).lineWidth(0.5).strokeColor('#333333').stroke();
+    doc.moveDown(0.3);
+
+    // Data rows
+    doc.fontSize(8).font('Helvetica').fillColor('#000000');
+    (order.items || []).forEach((item: any) => {
+      try {
+        // Page break check
+        if (doc.y > 720) {
+          doc.addPage();
+          // Repeat mini-header
+          const hY = doc.y;
+          let hx = tableLeft;
+          doc.fontSize(8).font('Helvetica-Bold').fillColor('#333333');
+          headers.forEach((h, i) => {
+            doc.text(h, hx, hY, { width: columnWidths[i], align: 'left', lineBreak: false });
+            hx += columnWidths[i];
+          });
+          doc.moveDown(0.4);
+          doc.moveTo(tableLeft, doc.y).lineTo(tableLeft + tableWidth, doc.y).lineWidth(0.3).stroke();
+          doc.moveDown(0.2);
+          doc.fontSize(8).font('Helvetica').fillColor('#000000');
+        }
+
+        const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : (item.quantity || 0);
+        const unitOfMeasure = item.unit_of_measure || '';
+        const isCommentRow = quantity === 0 && !unitOfMeasure;
+        const yBefore = doc.y;
+        xPos = tableLeft;
+
+        if (isCommentRow) {
+          doc.font('Helvetica-Oblique').fillColor('#555555');
+          doc.text(item.description || '', xPos, yBefore, { width: tableWidth, align: 'left', lineBreak: true });
+          doc.font('Helvetica').fillColor('#000000');
+        } else {
+          const unitPrice = typeof item.unit_price === 'string' ? parseFloat(item.unit_price) : (item.unit_price || 0);
+          doc.text((item.article_code || '').substring(0, 10), xPos, yBefore, { width: columnWidths[0], align: 'left', lineBreak: false });
+          xPos += columnWidths[0];
+          doc.text((item.description || '').substring(0, 30), xPos, yBefore, { width: columnWidths[1], align: 'left', lineBreak: false });
+          xPos += columnWidths[1];
+          doc.text((item.format || '-').substring(0, 12), xPos, yBefore, { width: columnWidths[2], align: 'left', lineBreak: false });
+          xPos += columnWidths[2];
+          doc.text(unitOfMeasure.substring(0, 8), xPos, yBefore, { width: columnWidths[3], align: 'center', lineBreak: false });
+          xPos += columnWidths[3];
+          const qtyStr = quantity % 1 === 0 ? quantity.toFixed(0) : quantity.toFixed(2);
+          doc.text(qtyStr, xPos, yBefore, { width: columnWidths[4], align: 'right', lineBreak: false });
+          xPos += columnWidths[4];
+          doc.text(`€ ${unitPrice.toFixed(2)}`, xPos, yBefore, { width: columnWidths[5], align: 'right', lineBreak: false });
+          xPos += columnWidths[5];
+          doc.text((item.discount || '-').toString().substring(0, 10), xPos, yBefore, { width: columnWidths[6], align: 'right', lineBreak: false });
+        }
+        doc.moveDown(0.4);
+      } catch (err) {
+        console.error('Error rendering order item:', err);
+        doc.moveDown(0.3);
+      }
+    });
+
+    doc.moveTo(tableLeft, doc.y).lineTo(tableLeft + tableWidth, doc.y).lineWidth(0.5).strokeColor('#666666').stroke();
+    doc.moveDown(0.5);
   }
 
   /**
@@ -830,36 +841,18 @@ export class PdfService {
             .filter((o: any) => o.supplier_id === report.company_id || o.supplier?.id === report.company_id);
 
           if (visitOrders.length > 0) {
-            if (doc.y > 680) doc.addPage();
-            doc.fontSize(9).font('Helvetica-Bold').fillColor('#333').text('Ordini:');
+            if (doc.y > 650) doc.addPage();
+            doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333').text('Ordini:');
+            doc.moveDown(0.2);
             visitOrders.forEach((order: any) => {
-              if (doc.y > 680) doc.addPage();
-              doc.fontSize(9).font('Helvetica-Bold').fillColor('#444')
-                .text(`  Ordine ${new Date(order.order_date).toLocaleDateString('it-IT')}${order.payment_method ? ` — ${order.payment_method}` : ''}  [${order.status || 'draft'}]`);
-              const items = (order.items || []);
-              items.forEach((item: any) => {
-                const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(String(item.quantity || 0));
-                const price = typeof item.unit_price === 'number' ? item.unit_price : parseFloat(String(item.unit_price || 0));
-                const isComment = qty === 0 && !item.unit_of_measure;
-                if (isComment) {
-                  doc.fontSize(8).font('Helvetica-Oblique').fillColor('#666')
-                    .text(`    ↳ ${item.description}`, { indent: 12 });
-                } else {
-                  const line = [
-                    item.article_code ? `[${item.article_code}]` : '',
-                    item.description || '',
-                    item.format ? `(${item.format})` : '',
-                    `—`,
-                    item.unit_of_measure,
-                    `${qty % 1 === 0 ? qty.toFixed(0) : qty.toFixed(2)}`,
-                    `× € ${price.toFixed(2)}`,
-                    item.discount ? `sc. ${item.discount}` : '',
-                  ].filter(Boolean).join(' ');
-                  doc.fontSize(8).font('Helvetica').fillColor('#222')
-                    .text(`    ${line}`, { indent: 12 });
-                }
-              });
-              doc.moveDown(0.3);
+              if (doc.y > 650) doc.addPage();
+              doc.fontSize(9).font('Helvetica-Bold').fillColor('#000000')
+                .text(`Ordine del ${new Date(order.order_date).toLocaleDateString('it-IT')}${order.payment_method ? ' — ' + order.payment_method : ''}  [${order.status || 'draft'}]`);
+              if (order.notes) {
+                doc.fontSize(8).font('Helvetica-Oblique').fillColor('#555555').text(order.notes);
+              }
+              doc.moveDown(0.2);
+              this._renderOrderTable(doc, order);
             });
           }
 
