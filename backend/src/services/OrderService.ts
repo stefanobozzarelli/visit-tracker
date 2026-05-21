@@ -106,10 +106,14 @@ export class OrderService {
    * Recupera un singolo ordine con tutte le relazioni
    */
   async getOrderById(id: string): Promise<CustomerOrder | null> {
-    return await this.orderRepository.findOne({
+    const order = await this.orderRepository.findOne({
       where: { id },
       relations: ['visit', 'supplier', 'client', 'items'],
     });
+    if (order?.items) {
+      order.items.sort((a, b) => (a.sort_order - b.sort_order) || (a.created_at < b.created_at ? -1 : 1));
+    }
+    return order;
   }
 
   /**
@@ -140,6 +144,9 @@ export class OrderService {
    * Aggiungi una nuova riga ordine
    */
   async addOrderItem(orderId: string, data: CreateOrderItemRequest): Promise<CustomerOrderItem> {
+    // Assign sort_order as the next position in the order
+    const existingCount = await this.itemRepository.count({ where: { order_id: orderId } });
+
     const item = this.itemRepository.create({
       order_id: orderId,
       article_code: data.article_code,
@@ -149,6 +156,7 @@ export class OrderService {
       quantity: data.quantity,
       unit_price: data.unit_price,
       discount: data.discount || null,
+      sort_order: existingCount,
     });
 
     const savedItem = await this.itemRepository.save(item);
@@ -198,6 +206,18 @@ export class OrderService {
 
     // Ricalcola totali ordine
     await this.calculateOrderTotals(item.order_id);
+  }
+
+  /**
+   * Aggiorna il sort_order di più righe in una sola transazione.
+   * Accetta un array di { id, sort_order } e li applica tutti.
+   */
+  async updateItemSortOrders(updates: { id: string; sort_order: number }[]): Promise<void> {
+    await Promise.all(
+      updates.map(({ id, sort_order }) =>
+        this.itemRepository.update(id, { sort_order }),
+      ),
+    );
   }
 
   /**

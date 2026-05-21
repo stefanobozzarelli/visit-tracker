@@ -51,6 +51,9 @@ export class CustomerOrderItem {
   })
   total_line: number; // Calcolato: quantity * unit_price (il discount è solo testo libero)
 
+  @Column({ type: 'int', default: 0 })
+  sort_order: number;
+
   @CreateDateColumn()
   created_at: Date;
 

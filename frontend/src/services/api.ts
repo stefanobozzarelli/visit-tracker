@@ -977,6 +977,11 @@ class ApiService {
     return response.data;
   }
 
+  async reorderOrderItems(orderId: string, items: { id: string; sort_order: number }[]) {
+    const response = await this.api.put<ApiResponse<any>>(`/orders/${orderId}/items/reorder`, { items });
+    return response.data;
+  }
+
   async getOrdersByVisit(visitId: string) {
     const response = await this.api.get<ApiResponse<any>>('/orders', { params: { visit_id: visitId } });
     return response.data;

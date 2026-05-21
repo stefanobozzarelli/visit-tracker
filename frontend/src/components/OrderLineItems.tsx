@@ -9,6 +9,7 @@ interface OrderLineItemsProps {
   onAddItem: (item: any) => void;
   onUpdateItem: (itemId: string, item: any) => void;
   onDeleteItem: (itemId: string) => void;
+  onReorderItems?: (reordered: CustomerOrderItem[]) => void;
 }
 
 export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
@@ -18,6 +19,7 @@ export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
   onAddItem,
   onUpdateItem,
   onDeleteItem,
+  onReorderItems,
 }) => {
   const [showNewItemForm, setShowNewItemForm] = useState(false);
   const [showCommentForm, setShowCommentForm] = useState(false);
@@ -88,6 +90,17 @@ export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
     setEditData({});
   };
 
+  const moveItem = (index: number, direction: 'up' | 'down') => {
+    if (!onReorderItems) return;
+    const newItems = [...items];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newItems.length) return;
+    // Swap
+    [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+    // Reassign sort_order sequentially
+    const withOrder = newItems.map((item, i) => ({ ...item, sort_order: i }));
+    onReorderItems(withOrder);
+  };
 
   const commonUnitsOfMeasure = ['m2', 'pezzi', 'comp', 'palette', 'container'];
 
@@ -106,6 +119,7 @@ export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
           <table className="items-table">
             <thead>
               <tr>
+                {isEditable && onReorderItems && <th style={{ width: 56 }}></th>}
                 <th>Codice Articolo</th>
                 <th>Descrizione</th>
                 <th>Formato</th>
@@ -117,15 +131,32 @@ export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
               </tr>
             </thead>
             <tbody>
-              {items.map(item => {
+              {items.map((item, rowIndex) => {
                 // Controlla se è una riga commento (quantity = 0 e unit_of_measure vuoto)
                 const isCommentRow = item.quantity === 0 && !item.unit_of_measure;
                 const colSpan = isEditable ? 8 : 7;
+                const moveButtons = isEditable && onReorderItems ? (
+                  <td style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
+                    <button
+                      onClick={() => moveItem(rowIndex, 'up')}
+                      disabled={rowIndex === 0}
+                      title="Sposta su"
+                      style={{ background: 'none', border: 'none', cursor: rowIndex === 0 ? 'default' : 'pointer', opacity: rowIndex === 0 ? 0.25 : 1, fontSize: '1rem', padding: '0 2px' }}
+                    >▲</button>
+                    <button
+                      onClick={() => moveItem(rowIndex, 'down')}
+                      disabled={rowIndex === items.length - 1}
+                      title="Sposta giù"
+                      style={{ background: 'none', border: 'none', cursor: rowIndex === items.length - 1 ? 'default' : 'pointer', opacity: rowIndex === items.length - 1 ? 0.25 : 1, fontSize: '1rem', padding: '0 2px' }}
+                    >▼</button>
+                  </td>
+                ) : null;
 
                 return (
                   <tr key={item.id} className={isCommentRow ? 'comment-row' : ''}>
                     {editingId === item.id ? (
                       <>
+                        {isEditable && onReorderItems && <td />}
                         <td>
                           <input
                             type="text"
@@ -195,6 +226,7 @@ export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
                       </>
                     ) : isCommentRow ? (
                       <>
+                        {moveButtons}
                         <td colSpan={colSpan} className="comment-cell">
                           <div className="comment-content">
                             <span className="comment-icon">💬</span>
@@ -210,6 +242,7 @@ export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
                       </>
                     ) : (
                       <>
+                        {moveButtons}
                         <td>{item.article_code}</td>
                         <td className="description-cell">{item.description}</td>
                         <td>{item.format || '-'}</td>

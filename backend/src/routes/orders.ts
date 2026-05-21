@@ -269,6 +269,25 @@ router.post('/:id/items', async (req: Request, res: Response) => {
 });
 
 /**
+ * PUT /api/orders/:orderId/items/reorder
+ * Aggiorna il sort_order di più righe in una volta sola.
+ * Body: { items: [{ id: string, sort_order: number }] }
+ * Deve stare PRIMA di /:itemId per non essere catturato come ID.
+ */
+router.put('/:orderId/items/reorder', async (req: Request, res: Response) => {
+  try {
+    const { items } = req.body as { items: { id: string; sort_order: number }[] };
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'items array required' });
+    }
+    await orderService.updateItemSortOrders(items);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
  * PUT /api/orders/:orderId/items/:itemId
  * Aggiorna una riga dell'ordine
  */

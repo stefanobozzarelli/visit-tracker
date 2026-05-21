@@ -156,6 +156,21 @@ export const OrderForm: React.FC = () => {
     }
   };
 
+  // Reorder items (called when ↑↓ is clicked)
+  const handleReorderItems = async (reordered: CustomerOrderItem[]) => {
+    // Update local state immediately for snappy UI
+    setItems(reordered);
+    if (!order) return;
+    try {
+      await apiService.reorderOrderItems(
+        order.id,
+        reordered.map((item, i) => ({ id: item.id, sort_order: i })),
+      );
+    } catch (err) {
+      console.error('Reorder failed:', err);
+    }
+  };
+
   // Delete order item
   const handleDeleteItem = async (itemId: string) => {
     if (!window.confirm('Delete this order line?')) return;
@@ -412,6 +427,7 @@ export const OrderForm: React.FC = () => {
             onAddItem={handleAddItem}
             onUpdateItem={handleUpdateItem}
             onDeleteItem={handleDeleteItem}
+            onReorderItems={handleReorderItems}
           />
         )}
 
