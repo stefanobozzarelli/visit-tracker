@@ -48,8 +48,15 @@ export async function openEmailWithPdf(
     `--${boundary}--`,
   ].join('\r\n');
 
+  // Safari: link.download con .eml + "Apri file sicuri dopo il download" (default macOS)
+  // → il file viene scaricato e Safari apre Mail automaticamente
   const emlBlob = new Blob([eml], { type: 'message/rfc822' });
   const url = URL.createObjectURL(emlBlob);
-  window.location.href = url;
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${pdfFilename.replace(/\.pdf$/i, '')}.eml`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
