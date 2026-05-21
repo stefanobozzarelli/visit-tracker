@@ -1,17 +1,17 @@
 /**
- * Genera un file .eml (RFC 2822) come bozza email con:
- *   - Oggetto precompilato (header Subject)
- *   - Corpo formattato HTML con Helvetica
- *   - PDF già allegato
- *   - Header X-Unsent: 1 → Mail.app lo apre come BOZZA in finestra di composizione,
- *     non come messaggio ricevuto in sola lettura
+ * Apre Mail.app come bozza con PDF allegato + corpo precompilato.
+ * L'oggetto viene COPIATO NEGLI APPUNTI automaticamente — l'utente fa Cmd+V
+ * nel campo Oggetto di Mail per incollarlo.
  *
- * Su macOS Safari con "Apri file sicuri dopo il download" attivo (default), il file
- * si apre automaticamente in Mail. Altrimenti, doppio click sul file scaricato.
+ * PERCHÉ QUESTO E NON ALTRO:
+ *   - mailto: → apre Mail come bozza con oggetto+corpo, ma NON supporta allegati
+ *   - .eml   → apre Mail come MESSAGGIO RICEVUTO (sola lettura), non come bozza
+ *              (X-Unsent: 1 è Outlook, Mail.app non lo rispetta)
+ *   - Web Share API → apre Mail come bozza con allegato+corpo, ma Mail ignora
+ *                     il `title` quando ci sono file → oggetto vuoto
  *
- * Perché non Web Share API? Mail.app ignora il `title` della share quando ci sono
- * file allegati — l'oggetto rimane vuoto. È un limite di macOS. Solo il .eml
- * con Subject header permette di pre-compilare l'oggetto in modo affidabile.
+ * Apple non espone alcuna API che dia oggetto+corpo+allegato insieme.
+ * La copia automatica dell'oggetto negli appunti è il workaround più pulito.
  */
 export async function openEmailWithPdf(
   pdfBlob: Blob,
@@ -19,7 +19,49 @@ export async function openEmailWithPdf(
   subject: string,
   body: string = 'Buongiorno,\n\nin allegato il report in oggetto.\n\nCordiali saluti,\nStefano',
 ): Promise<void> {
-  // Converti il PDF in base64 (chunk di 57 byte = 76 caratteri base64 per linea, RFC 2045)
+  // 1. Copia l'oggetto negli appunti PRIMA della share
+  //    (la writeText richiede gesto utente — funziona perché siamo dentro un onClick)
+  let clipboardOK = false;
+  try {
+    await navigator.clipboard.writeText(subject);
+    clipboardOK = true;
+  } catch (err) {
+    console.warn('[openEmailWithPdf] Clipboard write failed:', err);
+  }
+
+  // 2. Apri il share sheet di sistema → utente sceglie Mail → si apre bozza con PDF+corpo
+  const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
+  const shareData: ShareData = {
+    files: [pdfFile],
+    title: subject, // ignorato da Mail con file allegati, ma alcuni altri client lo onorano
+    text: body,
+  };
+
+  if (
+    typeof navigator !== 'undefined' &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare(shareData)
+  ) {
+    try {
+      await navigator.share(shareData);
+      // Dopo che l'utente ha completato la share, mostra un promemoria
+      // (delay di 600ms così Mail ha tempo di aprirsi e prendere il focus)
+      if (clipboardOK) {
+        setTimeout(() => {
+          alert(`✉️ Mail aperto con PDF e corpo.\n\nL'oggetto è negli appunti — vai sul campo "Oggetto" di Mail e premi ⌘V per incollarlo:\n\n«${subject}»`);
+        }, 600);
+      }
+      return;
+    } catch (err: any) {
+      // AbortError = utente ha annullato la share — non facciamo fallback
+      if (err && err.name === 'AbortError') return;
+      console.warn('[openEmailWithPdf] Web Share failed, falling back to .eml:', err);
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Fallback: download .eml (browser senza Web Share API, es. Chrome desktop)
+  // ────────────────────────────────────────────────────────────────
   const arrayBuffer = await pdfBlob.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
   const lines: string[] = [];
@@ -29,79 +71,37 @@ export async function openEmailWithPdf(
   }
   const base64Pdf = lines.join('\r\n');
 
-  // Subject con caratteri non-ASCII (RFC 2047 Base64 UTF-8)
   const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+  const boundary = `=_Mixed_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-  const altBoundary = `=_Alt_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const mixedBoundary = `=_Mixed_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-  // Corpo HTML con Helvetica
-  const htmlBody = [
-    '<!DOCTYPE html>',
-    '<html>',
-    '<head><meta charset="UTF-8"></head>',
-    '<body style="font-family: Helvetica, Arial, sans-serif; font-size: 14pt; color: #000;">',
-    body.split('\n').map(line => line.trim() === '' ? '<br>' : `<div>${escapeHtml(line)}</div>`).join(''),
-    '</body>',
-    '</html>',
-  ].join('');
-
-  // Costruisci l'EML:
-  //   multipart/mixed
-  //   ├── multipart/alternative
-  //   │   ├── text/plain (fallback)
-  //   │   └── text/html (con formattazione Helvetica)
-  //   └── application/pdf (allegato)
   const eml = [
     'MIME-Version: 1.0',
-    'X-Unsent: 1',
     `Subject: ${encodedSubject}`,
-    `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
     '',
-    `--${mixedBoundary}`,
-    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
-    '',
-    `--${altBoundary}`,
+    `--${boundary}`,
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: 8bit',
     '',
     body,
     '',
-    `--${altBoundary}`,
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    htmlBody,
-    '',
-    `--${altBoundary}--`,
-    '',
-    `--${mixedBoundary}`,
+    `--${boundary}`,
     `Content-Type: application/pdf; name="${pdfFilename}"`,
     `Content-Disposition: attachment; filename="${pdfFilename}"`,
     'Content-Transfer-Encoding: base64',
     '',
     base64Pdf,
     '',
-    `--${mixedBoundary}--`,
+    `--${boundary}--`,
   ].join('\r\n');
 
   const emlBlob = new Blob([eml], { type: 'message/rfc822' });
   const url = URL.createObjectURL(emlBlob);
   const link = document.createElement('a');
   link.href = url;
-  // Nome file leggibile = oggetto sanitizzato (no caratteri vietati nei nomi file)
   link.download = `${subject.replace(/[/\\:*?<>|"]/g, '')}.eml`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
