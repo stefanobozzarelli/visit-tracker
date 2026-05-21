@@ -473,30 +473,29 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
       }
     }
 
-    // Filter by date range if provided
-    if (startDate || endDate) {
-      const start = startDate ? new Date(startDate) : new Date('1900-01-01');
-      const end = endDate ? new Date(endDate) : new Date('2099-12-31');
-      visits = visits.filter(
-        v => new Date(v.visit_date) >= start && new Date(v.visit_date) <= end
-      );
-    }
-
-    // Filter by companies if provided (accepts array or single value for backward compatibility)
-    if (effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds)) {
-      const companyIdArray = Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds : [effectiveCompanyIds];
-      visits = visits.map(v => ({
-        ...v,
-        reports: v.reports?.filter(r => companyIdArray.includes(r.company_id)) || [],
-      })) as any;
-      // Remove visits without reports (after company filtering)
-      visits = visits.filter(v => v.reports && v.reports.length > 0);
-    }
-
-    // If specific visit IDs are provided (row-level selection from Reports page), restrict to those
+    // If specific visit IDs are provided (row-level selection from Reports page),
+    // use ONLY those IDs — skip date/company filters so deselected rows don't sneak back
     if (Array.isArray(visitIds) && visitIds.length > 0) {
       const idSet = new Set(visitIds);
       visits = visits.filter(v => idSet.has(v.id));
+    } else {
+      // No explicit selection: apply date and company filters
+      if (startDate || endDate) {
+        const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+        const end = endDate ? new Date(endDate) : new Date('2099-12-31');
+        visits = visits.filter(
+          v => new Date(v.visit_date) >= start && new Date(v.visit_date) <= end
+        );
+      }
+
+      if (effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds)) {
+        const companyIdArray = Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds : [effectiveCompanyIds];
+        visits = visits.map(v => ({
+          ...v,
+          reports: v.reports?.filter(r => companyIdArray.includes(r.company_id)) || [],
+        })) as any;
+        visits = visits.filter(v => v.reports && v.reports.length > 0);
+      }
     }
 
     if (visits.length === 0) {
@@ -506,9 +505,14 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
       });
     }
 
-    const pdfBuffer = await pdfService.generateVisitsPdf(visits, {
+    // Load orders for all visits in one batch query
+    const ordersMap = await orderService.getOrdersByVisitIds(visits.map(v => v.id));
+
+    // Use the detailed PDF (includes attachments names + orders)
+    const hasCompanyFilter = !!(effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds));
+    const pdfBuffer = await pdfService.generateVisitsPdfDetailed(visits, ordersMap, {
       title: 'Report Visite',
-      generatedAt: new Date(),
+      includeDirectAtts: !hasCompanyFilter,
     });
 
     res.contentType('application/pdf');

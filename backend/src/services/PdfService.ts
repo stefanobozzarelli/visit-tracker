@@ -767,6 +767,8 @@ export class PdfService {
         // Supplier header
         doc.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
           .text(`${options.title || 'Report Visite'} — ${supplierName}`, { align: 'center' });
+        doc.fontSize(8).font('Helvetica').fillColor('#aaaaaa')
+          .text(`con allegati e ordini`, { align: 'center' });
         doc.moveDown(1);
 
         let prevClientName: string | null = null;
