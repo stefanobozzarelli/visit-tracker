@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { apiService } from '../services/api';
 import { downloadBlob } from '../utils/downloadBlob';
+import { openEmailWithPdf } from '../utils/openEmailWithPdf';
 import { useAuth } from '../context/AuthContext';
 import '../styles/Reports.css';
 
@@ -30,6 +31,7 @@ export const Reports: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [emailExporting, setEmailExporting] = useState(false);
   const [error, setError] = useState('');
 
   // Reference data for filters
@@ -230,6 +232,30 @@ export const Reports: React.FC = () => {
       setError(`Error exporting ${format.toUpperCase()}`);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleEmailExport = async () => {
+    if (activeTab !== 'visits' || selectedIds.size === 0) return;
+    setEmailExporting(true);
+    setError('');
+    try {
+      const ids = Array.from(selectedIds);
+      const blob = await apiService.exportVisitsPdf({ ...filters, visitIds: ids });
+      const pdfFilename = `report-visite-${Date.now()}.pdf`;
+      let subject = 'Report visite';
+      if (filters.startDate && filters.endDate) {
+        subject = `Report visite ${formatDate(filters.startDate)} – ${formatDate(filters.endDate)}`;
+      } else if (filters.startDate) {
+        subject = `Report visite dal ${formatDate(filters.startDate)}`;
+      } else if (filters.endDate) {
+        subject = `Report visite al ${formatDate(filters.endDate)}`;
+      }
+      await openEmailWithPdf(blob, pdfFilename, subject);
+    } catch (err) {
+      setError('Errore generazione email');
+    } finally {
+      setEmailExporting(false);
     }
   };
 
@@ -691,14 +717,25 @@ export const Reports: React.FC = () => {
           <button
             className="rpt-btn rpt-btn-pdf"
             onClick={() => handleExport('pdf')}
-            disabled={exporting || data.length === 0 || (activeTab === 'visits' && selectedIds.size === 0)}
+            disabled={exporting || emailExporting || data.length === 0 || (activeTab === 'visits' && selectedIds.size === 0)}
           >
             {exporting ? '...' : 'Export PDF'}
           </button>
+          {activeTab === 'visits' && (
+            <button
+              className="rpt-btn"
+              onClick={handleEmailExport}
+              disabled={exporting || emailExporting || selectedIds.size === 0}
+              style={{ background: emailExporting ? '#999' : '#2E7D32', color: 'white' }}
+              title="Crea email con PDF allegato (apre Mail)"
+            >
+              {emailExporting ? '⏳…' : '✉️ Genera email'}
+            </button>
+          )}
           <button
             className="rpt-btn rpt-btn-excel"
             onClick={() => handleExport('excel')}
-            disabled={exporting || data.length === 0 || (activeTab === 'visits' && selectedIds.size === 0)}
+            disabled={exporting || emailExporting || data.length === 0 || (activeTab === 'visits' && selectedIds.size === 0)}
           >
             {exporting ? '...' : 'Export Excel'}
           </button>

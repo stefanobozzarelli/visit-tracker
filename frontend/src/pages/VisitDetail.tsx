@@ -5,6 +5,7 @@ import { config } from '../config';
 import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
 import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
 import { compressImages } from '../utils/compressImage';
+import { openEmailWithPdf } from '../utils/openEmailWithPdf';
 import '../styles/CrudPages.css';
 
 type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'completed';
@@ -91,9 +92,10 @@ export const VisitDetail: React.FC = () => {
   const [uploadingReportId, setUploadingReportId] = useState<string | null>(null);
   const [emailLoading, setEmailLoading] = useState<string | null>(null); // 'all' | reportId | null
 
-  const handleEmailPdf = async (reportId?: string) => {
+  /** Download the email PDF as a plain .pdf file */
+  const handleDownloadPdf = async (reportId?: string) => {
     if (!visit) return;
-    const key = reportId || 'all';
+    const key = `pdf-${reportId || 'all'}`;
     setEmailLoading(key);
     try {
       const blob = await apiService.exportVisitEmailPdf(visit.id, reportId);
@@ -101,14 +103,40 @@ export const VisitDetail: React.FC = () => {
       const a = document.createElement('a');
       a.href = url;
       const clientSlug = (visit.client?.name || 'visita').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      a.download = `email-${clientSlug}${reportId ? '-sezione' : ''}-${Date.now()}.pdf`;
+      a.download = `report-${clientSlug}${reportId ? '-sezione' : ''}-${Date.now()}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (e: any) {
-      const msg = e?.message || 'Errore sconosciuto';
-      setError(`Errore generazione email PDF: ${msg}`);
+      setError(`Errore generazione PDF: ${e?.message || 'Errore sconosciuto'}`);
+    } finally {
+      setEmailLoading(null);
+    }
+  };
+
+  /** Generate .eml file — opens Mac Mail with PDF pre-attached, user only adds recipient */
+  const handleGenerateEmail = async (reportId?: string, reportSection?: string) => {
+    if (!visit) return;
+    const key = `eml-${reportId || 'all'}`;
+    setEmailLoading(key);
+    try {
+      const blob = await apiService.exportVisitEmailPdf(visit.id, reportId);
+      const clientName = visit.client?.name || 'Cliente';
+      const visitDate = new Date(visit.visit_date).toLocaleDateString('it-IT');
+      const clientSlug = clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const pdfFilename = `report-${clientSlug}${reportId ? '-sezione' : ''}-${Date.now()}.pdf`;
+
+      let subject: string;
+      if (reportSection) {
+        subject = `Report ${reportSection} - ${clientName} - ${visitDate}`;
+      } else {
+        subject = `Report visita ${clientName} - ${visitDate}`;
+      }
+
+      await openEmailWithPdf(blob, pdfFilename, subject);
+    } catch (e: any) {
+      setError(`Errore generazione email: ${e?.message || 'Errore sconosciuto'}`);
     } finally {
       setEmailLoading(null);
     }
@@ -248,12 +276,20 @@ export const VisitDetail: React.FC = () => {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
-            onClick={() => handleEmailPdf()}
+            onClick={() => handleDownloadPdf()}
             disabled={emailLoading !== null}
-            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'all' ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
-            title="Genera un PDF con il report dell'intera visita (sezioni, allegati e ordini), pronto da allegare a un'email"
+            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'pdf-all' ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            title="Scarica PDF con il report dell'intera visita"
           >
-            {emailLoading === 'all' ? '⏳ Generazione…' : '📧 Genera email'}
+            {emailLoading === 'pdf-all' ? '⏳…' : '📄 PDF'}
+          </button>
+          <button
+            onClick={() => handleGenerateEmail()}
+            disabled={emailLoading !== null}
+            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'eml-all' ? '#999' : '#2E7D32', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            title="Crea email con PDF allegato (apre Mail)"
+          >
+            {emailLoading === 'eml-all' ? '⏳…' : '✉️ Genera email'}
           </button>
           <button
             onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}&returnTo=/visits/${id}`)}
@@ -330,12 +366,20 @@ export const VisitDetail: React.FC = () => {
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button
-                          onClick={() => handleEmailPdf(report.id)}
+                          onClick={() => handleDownloadPdf(report.id)}
                           disabled={emailLoading !== null}
-                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === report.id ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                          title="Genera un PDF con questa sezione (testo, allegati e ordini del fornitore)"
+                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === `pdf-${report.id}` ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          title="Scarica PDF con questa sezione (testo, allegati e ordini del fornitore)"
                         >
-                          {emailLoading === report.id ? '⏳' : '📧 Genera email'}
+                          {emailLoading === `pdf-${report.id}` ? '⏳…' : '📄 PDF'}
+                        </button>
+                        <button
+                          onClick={() => handleGenerateEmail(report.id, `${report.company?.name} - ${report.section}`)}
+                          disabled={emailLoading !== null}
+                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === `eml-${report.id}` ? '#999' : '#2E7D32', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          title="Crea email con PDF allegato (apre Mail)"
+                        >
+                          {emailLoading === `eml-${report.id}` ? '⏳…' : '✉️ Genera email'}
                         </button>
                         <button
                           onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}&returnTo=/visits/${id}`)}
