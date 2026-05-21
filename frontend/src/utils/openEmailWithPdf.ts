@@ -1,14 +1,15 @@
 /**
- * Apre Mail.app come bozza con PDF allegato + corpo precompilato via Web Share API.
+ * Apre Mail.app come BOZZA EDITABILE con PDF allegato + oggetto + corpo.
  *
- * Limite Apple noto: Mail.app su macOS ignora il `title` quando ci sono `files`
- * → l'oggetto rimane vuoto. Workaround: il chiamante copia l'oggetto negli
- * appunti PRIMA della share così l'utente fa ⌘V nel campo Oggetto.
- *
- * Limite Safari noto: "transient user activation" scade dopo ~5s. Se il
- * fetch del PDF è lungo, navigator.share() viene rifiutato con NotAllowedError.
- * Workaround: mostriamo un toast con bottone "Apri Mail" che fornisce un
- * gesto utente fresco quando l'utente lo clicca.
+ * Strategie (in ordine di priorità):
+ *   1. Web Share API → share sheet → Mail. PDF + corpo allegati, oggetto da
+ *      incollare con ⌘V (copiato negli appunti dal chiamante).
+ *   2. Se share() fallisce per gesto utente scaduto (PDF lento da generare),
+ *      mostriamo un toast con bottone "Apri Mail" che dà un gesto fresco.
+ *   3. Se il PDF è > 45MB (limite Safari) o se anche il retry fallisce,
+ *      apriamo Mail via `mailto:` (con oggetto + corpo) e scarichiamo il PDF
+ *      in parallelo. L'utente trascina il PDF dalla download bar nella bozza.
+ *      → Mail si apre SEMPRE come BOZZA EDITABILE (mai più .eml in sola lettura).
  */
 export async function openEmailWithPdf(
   pdfBlob: Blob,
@@ -26,14 +27,12 @@ export async function openEmailWithPdf(
     text: body,
   };
 
-  // Safari su macOS rifiuta share() di file > ~50MB con NotAllowedError.
-  // Se siamo sopra soglia conservativa, saltiamo direttamente al fallback .eml
-  // così non sprechiamo tempo con un share destinato a fallire.
+  // Safari rifiuta share() di file > ~50MB con NotAllowedError.
+  // Skippa direttamente al fallback mailto:+download.
   const SIZE_LIMIT_MB = 45;
   if (pdfSizeMB > SIZE_LIMIT_MB) {
-    console.warn(`[openEmailWithPdf] PDF too large for Web Share (${pdfSizeMB.toFixed(1)} MB > ${SIZE_LIMIT_MB} MB), using .eml fallback`);
-    showSizeWarningToast(pdfSizeMB);
-    downloadEml(pdfBlob, pdfFilename, subject, body);
+    console.warn(`[openEmailWithPdf] PDF too large (${pdfSizeMB.toFixed(1)} MB), using mailto:+download`);
+    mailtoPlusDownload(pdfBlob, pdfFilename, subject, body, `PDF da ${pdfSizeMB.toFixed(1)} MB`);
     return;
   }
 
@@ -43,29 +42,62 @@ export async function openEmailWithPdf(
     navigator.canShare(shareData);
 
   if (canUseShare) {
-    // Toast informativo (oggetto da incollare)
     showClipboardToast(subject);
 
     try {
       await navigator.share(shareData);
       return;
     } catch (err: any) {
-      // L'utente ha annullato il share sheet → nessun fallback
       if (err && err.name === 'AbortError') return;
 
-      // Gesto utente scaduto durante il fetch → mostro toast con bottone
-      // di retry che fornisce un gesto fresco
+      // Gesto utente scaduto durante il fetch → toast con retry button
       if (err && err.name === 'NotAllowedError') {
         showRetryShareToast(shareData, pdfBlob, pdfFilename, subject, body);
         return;
       }
 
-      console.warn('[openEmailWithPdf] Web Share failed, falling back to .eml:', err);
+      console.warn('[openEmailWithPdf] Web Share failed, using mailto:+download', err);
     }
   }
 
-  // Fallback: download .eml per browser senza Web Share API
-  downloadEml(pdfBlob, pdfFilename, subject, body);
+  // Browser senza Web Share API (es. Chrome desktop) → mailto:+download
+  mailtoPlusDownload(pdfBlob, pdfFilename, subject, body);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// mailto: (apre Mail come bozza editabile) + download PDF (da trascinare)
+// ────────────────────────────────────────────────────────────────────────────
+function mailtoPlusDownload(
+  pdfBlob: Blob,
+  pdfFilename: string,
+  subject: string,
+  body: string,
+  sizeNote: string = '',
+): void {
+  // 1. Mostra il toast PRIMA (Safari sta per perdere focus a favore di Mail)
+  showDragPdfToast(pdfFilename, sizeNote);
+
+  // 2. Scarica il PDF (parte per primo così è in Downloads quando l'utente
+  //    torna su Mail per fare il drag)
+  const pdfUrl = URL.createObjectURL(pdfBlob);
+  const pdfLink = document.createElement('a');
+  pdfLink.href = pdfUrl;
+  pdfLink.download = pdfFilename;
+  document.body.appendChild(pdfLink);
+  pdfLink.click();
+  document.body.removeChild(pdfLink);
+  setTimeout(() => URL.revokeObjectURL(pdfUrl), 30000);
+
+  // 3. Apri Mail via mailto: (apre una BOZZA editabile con oggetto + corpo)
+  //    Piccolo delay per non sovrapporsi al download
+  setTimeout(() => {
+    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailtoLink = document.createElement('a');
+    mailtoLink.href = mailtoUrl;
+    document.body.appendChild(mailtoLink);
+    mailtoLink.click();
+    document.body.removeChild(mailtoLink);
+  }, 200);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -167,9 +199,9 @@ function showRetryShareToast(
       await navigator.share(shareData);
     } catch (err: any) {
       if (err && err.name === 'AbortError') return;
-      // Se anche il retry fallisce (es. permessi negati), fallback .eml
-      console.warn('[openEmailWithPdf] Retry share failed:', err);
-      downloadEml(pdfBlob, pdfFilename, subject, body);
+      // Anche il retry fallisce → mailto+download (Mail come BOZZA editabile)
+      console.warn('[openEmailWithPdf] Retry share failed, using mailto:+download:', err);
+      mailtoPlusDownload(pdfBlob, pdfFilename, subject, body);
     }
   };
   toast.appendChild(btn);
@@ -189,97 +221,48 @@ function showRetryShareToast(
   toast.appendChild(closeBtn);
 
   document.body.appendChild(toast);
-  // Auto-rimozione dopo 60s
   setTimeout(() => toast.remove(), 60000);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Toast: PDF troppo grande per la Web Share API
+// Toast: spiega all'utente di trascinare il PDF dalla download bar in Mail
 // ────────────────────────────────────────────────────────────────────────────
-function showSizeWarningToast(sizeMB: number): void {
-  document.getElementById('__share-size-warning__')?.remove();
+function showDragPdfToast(pdfFilename: string, sizeNote: string): void {
+  document.getElementById('__share-drag-toast__')?.remove();
 
   const toast = document.createElement('div');
-  toast.id = '__share-size-warning__';
+  toast.id = '__share-drag-toast__';
   toast.style.cssText = `
     position: fixed;
     top: 1rem;
     left: 50%;
     transform: translateX(-50%);
     z-index: 100002;
-    max-width: 460px;
-    background: #b45309;
+    max-width: 480px;
+    background: #2E7D32;
     color: white;
     border-radius: 10px;
     padding: 1rem 1.25rem;
     box-shadow: 0 12px 40px rgba(0,0,0,0.4);
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     font-size: 0.9rem;
-    line-height: 1.4;
+    line-height: 1.5;
     cursor: pointer;
   `;
+  const sizeLine = sizeNote ? `<div style="opacity:0.85;font-size:0.75rem;margin-bottom:0.5rem;">${sizeNote}</div>` : '';
   toast.innerHTML = `
-    <div style="font-weight:700;margin-bottom:0.375rem;">⚠️ PDF troppo grande per Mail (${sizeMB.toFixed(1)} MB)</div>
+    ${sizeLine}
+    <div style="font-weight:700;margin-bottom:0.5rem;">✉️ Mail si apre come bozza editabile</div>
     <div style="opacity:0.95;font-size:0.85rem;">
-      Safari non permette di condividere file > ~50 MB. Scaricato il file <b>.eml</b>
-      — fai doppio click per aprirlo in Mail (verrà mostrato come messaggio ricevuto).
+      Oggetto e corpo sono già compilati. <b>Trascina il PDF</b> dalla download bar
+      di Safari nella finestra di Mail per allegarlo.
+    </div>
+    <div style="background:rgba(255,255,255,0.15);padding:0.4rem 0.6rem;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;margin-top:0.5rem;word-break:break-word;">
+      📎 ${pdfFilename.replace(/</g, '&lt;')}
     </div>
     <div style="opacity:0.7;font-size:0.7rem;margin-top:0.5rem;text-align:right;">Click per chiudere</div>
   `;
   toast.addEventListener('click', () => toast.remove());
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 15000);
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Fallback: scarica .eml (per browser senza Web Share API o file troppo grande)
-// ────────────────────────────────────────────────────────────────────────────
-async function downloadEml(
-  pdfBlob: Blob,
-  pdfFilename: string,
-  subject: string,
-  body: string,
-): Promise<void> {
-  const arrayBuffer = await pdfBlob.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  const lines: string[] = [];
-  for (let i = 0; i < bytes.length; i += 57) {
-    const chunk = bytes.slice(i, i + 57);
-    lines.push(btoa(String.fromCharCode(...Array.from(chunk))));
-  }
-  const base64Pdf = lines.join('\r\n');
-
-  const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
-  const boundary = `=_Mixed_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-  const eml = [
-    'MIME-Version: 1.0',
-    `Subject: ${encodedSubject}`,
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    body,
-    '',
-    `--${boundary}`,
-    `Content-Type: application/pdf; name="${pdfFilename}"`,
-    `Content-Disposition: attachment; filename="${pdfFilename}"`,
-    'Content-Transfer-Encoding: base64',
-    '',
-    base64Pdf,
-    '',
-    `--${boundary}--`,
-  ].join('\r\n');
-
-  const emlBlob = new Blob([eml], { type: 'message/rfc822' });
-  const url = URL.createObjectURL(emlBlob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${subject.replace(/[/\\:*?<>|"]/g, '')}.eml`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  setTimeout(() => toast.remove(), 30000);
 }
