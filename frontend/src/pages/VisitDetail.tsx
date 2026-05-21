@@ -115,20 +115,23 @@ export const VisitDetail: React.FC = () => {
     }
   };
 
-  /** Generate .eml file — opens Mac Mail with PDF pre-attached, user only adds recipient */
-  const handleGenerateEmail = async (reportId?: string, reportSection?: string) => {
+  /** Share PDF via system share sheet → Mail. Subject copied to clipboard for ⌘V paste. */
+  const handleGenerateEmail = async (reportId?: string, _reportSection?: string) => {
     if (!visit) return;
     const key = `eml-${reportId || 'all'}`;
+
+    // 1. Calcola subject + copia clipboard SUBITO, prima del fetch PDF.
+    //    Se aspettiamo dopo l'await, Safari perde il gesto utente e rifiuta writeText.
+    const clientName = visit.client?.name || 'Cliente';
+    const visitDateISO = new Date(visit.visit_date).toISOString().slice(0, 10);
+    const subject = `${visitDateISO} Report "${clientName}"`;
+    try { await navigator.clipboard.writeText(subject); }
+    catch (e) { console.warn('[handleGenerateEmail] clipboard.writeText failed:', e); }
+
     setEmailLoading(key);
     try {
       const blob = await apiService.exportVisitEmailPdf(visit.id, reportId);
-      const clientName = visit.client?.name || 'Cliente';
-      const visitDateISO = new Date(visit.visit_date).toISOString().slice(0, 10); // YYYY-MM-DD
-      const subject = `${visitDateISO} Report "${clientName}"`;
-      // PDF filename = subject (sanitized) so Mail.app uses it as email subject
-      // when title is ignored by the share sheet on macOS
       const pdfFilename = `${subject.replace(/[/\\:*?<>|]/g, '')}.pdf`;
-
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (e: any) {
       setError(`Errore condivisione: ${e?.message || 'Errore sconosciuto'}`);

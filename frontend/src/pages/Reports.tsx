@@ -237,18 +237,22 @@ export const Reports: React.FC = () => {
 
   const handleEmailExport = async () => {
     if (activeTab !== 'visits' || selectedIds.size === 0) return;
+
+    // 1. Calcola subject + copia clipboard SUBITO, prima del fetch PDF.
+    //    Se aspettiamo dopo l'await, Safari perde il gesto utente e rifiuta writeText.
+    const today = new Date().toISOString().slice(0, 10);
+    const clientName = clients.find((c: any) => c.id === filters.clientId)?.name;
+    const companyName = companies.find((c: any) => c.id === filters.companyId)?.name;
+    const entityName = clientName || companyName;
+    const subject = entityName ? `${today} Report "${entityName}"` : `${today} Report Visite`;
+    try { await navigator.clipboard.writeText(subject); }
+    catch (e) { console.warn('[handleEmailExport] clipboard.writeText failed:', e); }
+
     setEmailExporting(true);
     setError('');
     try {
       const ids = Array.from(selectedIds);
       const blob = await apiService.exportVisitsPdf({ ...filters, visitIds: ids });
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const clientName = clients.find((c: any) => c.id === filters.clientId)?.name;
-      const companyName = companies.find((c: any) => c.id === filters.companyId)?.name;
-      const entityName = clientName || companyName;
-      const subject = entityName ? `${today} Report "${entityName}"` : `${today} Report Visite`;
-      // PDF filename = subject (sanitized) so Mail.app uses it as email subject
-      // when title is ignored by the share sheet on macOS
       const pdfFilename = `${subject.replace(/[/\\:*?<>|]/g, '')}.pdf`;
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (err) {

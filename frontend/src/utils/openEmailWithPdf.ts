@@ -1,17 +1,12 @@
 /**
  * Apre Mail.app come bozza con PDF allegato + corpo precompilato.
- * L'oggetto viene COPIATO NEGLI APPUNTI automaticamente — l'utente fa Cmd+V
- * nel campo Oggetto di Mail per incollarlo.
+ * L'oggetto deve essere copiato negli appunti dal CHIAMANTE prima di
+ * invocare questa funzione (perché richiede gesto utente "fresco" —
+ * dopo il fetch PDF Safari rifiuta clipboard.writeText).
  *
- * PERCHÉ QUESTO E NON ALTRO:
- *   - mailto: → apre Mail come bozza con oggetto+corpo, ma NON supporta allegati
- *   - .eml   → apre Mail come MESSAGGIO RICEVUTO (sola lettura), non come bozza
- *              (X-Unsent: 1 è Outlook, Mail.app non lo rispetta)
- *   - Web Share API → apre Mail come bozza con allegato+corpo, ma Mail ignora
- *                     il `title` quando ci sono file → oggetto vuoto
- *
- * Apple non espone alcuna API che dia oggetto+corpo+allegato insieme.
- * La copia automatica dell'oggetto negli appunti è il workaround più pulito.
+ * Limite Apple: Mail.app ignora il `title` della Web Share API quando ci
+ * sono file allegati. Non esiste API web per pre-compilare l'oggetto E
+ * avere l'allegato insieme. L'utente fa ⌘V nel campo Oggetto.
  */
 export async function openEmailWithPdf(
   pdfBlob: Blob,
@@ -19,21 +14,11 @@ export async function openEmailWithPdf(
   subject: string,
   body: string = 'Buongiorno,\n\nin allegato il report in oggetto.\n\nCordiali saluti,\nStefano',
 ): Promise<void> {
-  // 1. Copia l'oggetto negli appunti PRIMA della share
-  //    (la writeText richiede gesto utente — funziona perché siamo dentro un onClick)
-  let clipboardOK = false;
-  try {
-    await navigator.clipboard.writeText(subject);
-    clipboardOK = true;
-  } catch (err) {
-    console.warn('[openEmailWithPdf] Clipboard write failed:', err);
-  }
-
-  // 2. Apri il share sheet di sistema → utente sceglie Mail → si apre bozza con PDF+corpo
+  // Strategia 1: Web Share API → apre Mail come bozza con PDF+corpo
   const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
   const shareData: ShareData = {
     files: [pdfFile],
-    title: subject, // ignorato da Mail con file allegati, ma alcuni altri client lo onorano
+    title: subject, // ignorato da Mail.app, ma onorato da altri client
     text: body,
   };
 
@@ -43,25 +28,18 @@ export async function openEmailWithPdf(
     navigator.canShare(shareData)
   ) {
     try {
+      // Toast in-page PRIMA della share, così l'utente lo vede prima
+      // che Safari perda il focus a favore di Mail
+      showClipboardToast(subject);
       await navigator.share(shareData);
-      // Dopo che l'utente ha completato la share, mostra un promemoria
-      // (delay di 600ms così Mail ha tempo di aprirsi e prendere il focus)
-      if (clipboardOK) {
-        setTimeout(() => {
-          alert(`✉️ Mail aperto con PDF e corpo.\n\nL'oggetto è negli appunti — vai sul campo "Oggetto" di Mail e premi ⌘V per incollarlo:\n\n«${subject}»`);
-        }, 600);
-      }
       return;
     } catch (err: any) {
-      // AbortError = utente ha annullato la share — non facciamo fallback
       if (err && err.name === 'AbortError') return;
       console.warn('[openEmailWithPdf] Web Share failed, falling back to .eml:', err);
     }
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Fallback: download .eml (browser senza Web Share API, es. Chrome desktop)
-  // ────────────────────────────────────────────────────────────────
+  // Fallback: .eml download per browser senza Web Share API
   const arrayBuffer = await pdfBlob.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
   const lines: string[] = [];
@@ -104,4 +82,49 @@ export async function openEmailWithPdf(
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** Toast in-page non bloccante che mostra l'oggetto da incollare in Mail.
+ *  Resta visibile per ~12s o finché l'utente non clicca per chiuderlo.
+ *  Indipendente da React, si attacca direttamente al DOM. */
+function showClipboardToast(subject: string): void {
+  // Rimuovi un eventuale toast precedente
+  document.getElementById('__share-toast__')?.remove();
+
+  const toast = document.createElement('div');
+  toast.id = '__share-toast__';
+  toast.style.cssText = `
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 100000;
+    max-width: 360px;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    cursor: pointer;
+    animation: slidein 0.3s ease;
+  `;
+  toast.innerHTML = `
+    <div style="font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">
+      <span>📋</span><span>Oggetto copiato negli appunti</span>
+    </div>
+    <div style="opacity:0.8;font-size:0.8125rem;margin-bottom:0.5rem;">
+      Fai ⌘V nel campo <b>Oggetto</b> di Mail per incollarlo:
+    </div>
+    <div style="background:rgba(255,255,255,0.1);padding:0.5rem 0.75rem;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:0.8125rem;word-break:break-word;">
+      ${subject.replace(/</g, '&lt;')}
+    </div>
+    <div style="opacity:0.5;font-size:0.6875rem;margin-top:0.5rem;text-align:right;">
+      Click per chiudere
+    </div>
+  `;
+  toast.addEventListener('click', () => toast.remove());
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 12000);
 }
