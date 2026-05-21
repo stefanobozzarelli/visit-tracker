@@ -240,11 +240,27 @@ export const Reports: React.FC = () => {
 
     // 1. Calcola subject + copia clipboard SUBITO, prima del fetch PDF.
     //    Se aspettiamo dopo l'await, Safari perde il gesto utente e rifiuta writeText.
-    const today = new Date().toISOString().slice(0, 10);
-    const clientName = clients.find((c: any) => c.id === filters.clientId)?.name;
-    const companyName = companies.find((c: any) => c.id === filters.companyId)?.name;
-    const entityName = clientName || companyName;
-    const subject = entityName ? `${today} Report "${entityName}"` : `${today} Report Visite`;
+    //
+    //    Logica subject:
+    //    - 1 sola visita selezionata → usa la sua data e il suo cliente
+    //    - Più visite → usa data di oggi + filtro cliente/fornitore se impostato
+    const selectedVisits = data.filter((v: any) => selectedIds.has(v.id));
+    let dateStr = new Date().toISOString().slice(0, 10);
+    let entityName: string | undefined;
+
+    if (selectedVisits.length === 1) {
+      const v = selectedVisits[0];
+      if (v.visit_date) {
+        dateStr = new Date(v.visit_date).toISOString().slice(0, 10);
+      }
+      entityName = v.client?.name;
+    } else {
+      const clientName = clients.find((c: any) => c.id === filters.clientId)?.name;
+      const companyName = companies.find((c: any) => c.id === filters.companyId)?.name;
+      entityName = clientName || companyName;
+    }
+
+    const subject = entityName ? `${dateStr} Report "${entityName}"` : `${dateStr} Report Visite`;
     try { await navigator.clipboard.writeText(subject); }
     catch (e) { console.warn('[handleEmailExport] clipboard.writeText failed:', e); }
 
