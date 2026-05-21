@@ -99,7 +99,11 @@ export class OrderService {
       query = query.andWhere('order.status = :status', { status: filters.status });
     }
 
-    return await query.orderBy('order.created_at', 'DESC').getMany();
+    return await query
+      .orderBy('order.created_at', 'DESC')
+      .addOrderBy('items.sort_order', 'ASC')
+      .addOrderBy('items.created_at', 'ASC')
+      .getMany();
   }
 
   /**
@@ -121,6 +125,29 @@ export class OrderService {
    */
   async getOrdersByVisit(visitId: string): Promise<CustomerOrder[]> {
     return await this.getOrders({ visit_id: visitId });
+  }
+
+  /**
+   * Recupera gli ordini per più visite in una sola query.
+   * Restituisce una mappa { visitId → orders[] }.
+   */
+  async getOrdersByVisitIds(visitIds: string[]): Promise<Map<string, CustomerOrder[]>> {
+    if (visitIds.length === 0) return new Map();
+    const orders = await this.orderRepository.createQueryBuilder('order')
+      .leftJoinAndSelect('order.items', 'items')
+      .leftJoinAndSelect('order.supplier', 'supplier')
+      .where('order.visit_id IN (:...visitIds)', { visitIds })
+      .orderBy('order.created_at', 'ASC')
+      .addOrderBy('items.sort_order', 'ASC')
+      .getMany();
+
+    const map = new Map<string, CustomerOrder[]>();
+    for (const order of orders) {
+      const list = map.get(order.visit_id) || [];
+      list.push(order);
+      map.set(order.visit_id, list);
+    }
+    return map;
   }
 
   /**
