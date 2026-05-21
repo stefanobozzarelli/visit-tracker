@@ -1181,7 +1181,6 @@ export const NewVisit: React.FC = () => {
                               </p>
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                              <span style={{ fontWeight: 'bold', color: 'var(--color-info)' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount || 0)).toFixed(2)}</span>
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleRemoveExistingOrder(order.id); }}

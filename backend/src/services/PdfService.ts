@@ -195,8 +195,8 @@ export class PdfService {
           doc.moveDown(0.3);
 
           // Intestazione tabella - allineata su una singola riga
-          const headers = ['Codice', 'Descrizione', 'UM', 'Qta', 'Prezzo', 'Sconto'];
-          const columnWidths = [50, 140, 40, 45, 65, 60];
+          const headers = ['Codice', 'Descrizione', 'Formato', 'UM', 'Qta', 'Prezzo', 'Sconto'];
+          const columnWidths = [50, 110, 75, 40, 45, 65, 60];
           let xPos = 50;
           const headerY = doc.y;
 
@@ -236,19 +236,22 @@ export class PdfService {
                 doc.text((item.article_code || '').substring(0, 10), xPos, yBefore, { width: columnWidths[0], align: 'left' });
                 xPos += columnWidths[0];
                 // Descrizione
-                doc.text((item.description || '').substring(0, 25), xPos, yBefore, { width: columnWidths[1], align: 'left' });
+                doc.text((item.description || '').substring(0, 22), xPos, yBefore, { width: columnWidths[1], align: 'left' });
                 xPos += columnWidths[1];
-                // UM
-                doc.text(unitOfMeasure, xPos, yBefore, { width: columnWidths[2], align: 'center' });
+                // Formato
+                doc.text((item.format || '-').substring(0, 15), xPos, yBefore, { width: columnWidths[2], align: 'left' });
                 xPos += columnWidths[2];
-                // Qta
-                doc.text(quantity.toFixed(2), xPos, yBefore, { width: columnWidths[3], align: 'right' });
+                // UM
+                doc.text(unitOfMeasure, xPos, yBefore, { width: columnWidths[3], align: 'center' });
                 xPos += columnWidths[3];
-                // Prezzo
-                doc.text(`€ ${unitPrice.toFixed(2)}`, xPos, yBefore, { width: columnWidths[4], align: 'right' });
+                // Qta
+                doc.text(quantity.toFixed(2), xPos, yBefore, { width: columnWidths[4], align: 'right' });
                 xPos += columnWidths[4];
+                // Prezzo
+                doc.text(`€ ${unitPrice.toFixed(2)}`, xPos, yBefore, { width: columnWidths[5], align: 'right' });
+                xPos += columnWidths[5];
                 // Sconto
-                doc.text(`${item.discount || '-'}`, xPos, yBefore, { width: columnWidths[5], align: 'right' });
+                doc.text(`${item.discount || '-'}`, xPos, yBefore, { width: columnWidths[6], align: 'right' });
               }
 
               doc.moveDown(0.4);

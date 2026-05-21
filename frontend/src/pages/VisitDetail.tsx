@@ -462,7 +462,6 @@ export const VisitDetail: React.FC = () => {
                                   </p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                  <span style={{ fontWeight: 'bold', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount || 0)).toFixed(2)}</span>
                                   <span style={{ fontSize: '0.8rem', color: 'var(--color-info)', fontWeight: '600' }}>View →</span>
                                 </div>
                               </div>
@@ -540,7 +539,6 @@ export const VisitDetail: React.FC = () => {
                     <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#666' }}>Date: {new Date(order.order_date).toLocaleDateString('it-IT')} | Payment: {order.payment_method}</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontWeight: 'bold', color: '#007aff' }}>€ {typeof order.total_amount === 'number' ? order.total_amount.toFixed(2) : parseFloat(String(order.total_amount || 0)).toFixed(2)}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--color-info)', fontWeight: '600' }}>View →</span>
                   </div>
                 </div>
