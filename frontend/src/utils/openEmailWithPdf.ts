@@ -25,7 +25,7 @@ export async function openEmailWithPdf(
 
   const boundary = `----=_MixedPart_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-  const bodyText = body || 'In allegato il report richiesto.\r\n\r\nCordiali saluti';
+  const bodyText = body || 'In allegato il report in oggetto.';
 
   const eml = [
     'MIME-Version: 1.0',

@@ -243,14 +243,9 @@ export const Reports: React.FC = () => {
       const ids = Array.from(selectedIds);
       const blob = await apiService.exportVisitsPdf({ ...filters, visitIds: ids });
       const pdfFilename = `report-visite-${Date.now()}.pdf`;
-      let subject = 'Report visite';
-      if (filters.startDate && filters.endDate) {
-        subject = `Report visite ${formatDate(filters.startDate)} – ${formatDate(filters.endDate)}`;
-      } else if (filters.startDate) {
-        subject = `Report visite dal ${formatDate(filters.startDate)}`;
-      } else if (filters.endDate) {
-        subject = `Report visite al ${formatDate(filters.endDate)}`;
-      }
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const clientName = clients.find((c: any) => c.id === filters.clientId)?.name;
+      const subject = clientName ? `${today} Report "${clientName}"` : `${today} Report Visite`;
       await openEmailWithPdf(blob, pdfFilename, subject);
     } catch (err) {
       setError('Errore generazione email');
