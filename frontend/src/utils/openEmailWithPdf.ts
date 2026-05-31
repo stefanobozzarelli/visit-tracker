@@ -1,15 +1,17 @@
 /**
- * Apre Mail.app come BOZZA EDITABILE con PDF allegato + oggetto + corpo.
+ * Apre Outlook come bozza con soggetto, corpo e PDF già allegato.
  *
- * Strategie (in ordine di priorità):
- *   1. Web Share API → share sheet → Mail. PDF + corpo allegati, oggetto da
- *      incollare con ⌘V (copiato negli appunti dal chiamante).
- *   2. Se share() fallisce per gesto utente scaduto (PDF lento da generare),
- *      mostriamo un toast con bottone "Apri Mail" che dà un gesto fresco.
- *   3. Se il PDF è > 45MB (limite Safari) o se anche il retry fallisce,
- *      apriamo Mail via `mailto:` (con oggetto + corpo) e scarichiamo il PDF
- *      in parallelo. L'utente trascina il PDF dalla download bar nella bozza.
- *      → Mail si apre SEMPRE come BOZZA EDITABILE (mai più .eml in sola lettura).
+ * COME FUNZIONA:
+ *   Genera un file .eml (RFC 2822) con il PDF incorporato come allegato Base64.
+ *   Lo scarica nella download bar di Safari.
+ *   L'utente fa doppio click sul file .eml → Outlook lo apre.
+ *
+ *   - Se Outlook rispetta l'header X-Unsent: 1 → apre come BOZZA EDITABILE
+ *     con oggetto, corpo e PDF allegati. L'utente aggiunge solo i destinatari.
+ *   - Se Outlook lo apre come messaggio ricevuto → l'utente clicca "Inoltra"
+ *     (Forward) e il PDF è già allegato.
+ *
+ * PREREQUISITO (già verificato): Outlook è il client di posta predefinito.
  */
 export async function openEmailWithPdf(
   pdfBlob: Blob,
@@ -18,67 +20,194 @@ export async function openEmailWithPdf(
   body: string = 'Buongiorno,\n\nin allegato il report in oggetto.\n\nCordiali saluti,\nStefano',
 ): Promise<void> {
   const pdfSizeMB = pdfBlob.size / 1024 / 1024;
-  console.log(`[openEmailWithPdf] PDF size: ${pdfSizeMB.toFixed(2)} MB`);
+  console.log(`[openEmailWithPdf] PDF ${pdfSizeMB.toFixed(2)} MB → building .eml`);
 
-  const pdfFile = new File([pdfBlob], pdfFilename, { type: 'application/pdf' });
-  const shareData: ShareData = {
-    files: [pdfFile],
-    title: subject,
-    text: body,
-  };
+  try {
+    const emlBlob = await buildEml(subject, body, pdfBlob, pdfFilename);
+    const emlFilename = sanitizeFilename(subject) + '.eml';
 
-  // Safari rifiuta share() di file > ~50MB con NotAllowedError.
-  // Skippa direttamente al fallback mailto:+download.
-  const SIZE_LIMIT_MB = 45;
-  if (pdfSizeMB > SIZE_LIMIT_MB) {
-    console.warn(`[openEmailWithPdf] PDF too large (${pdfSizeMB.toFixed(1)} MB), using mailto:+download`);
-    mailtoPlusDownload(pdfBlob, pdfFilename, subject, body, `PDF da ${pdfSizeMB.toFixed(1)} MB`);
-    return;
+    const emlUrl = URL.createObjectURL(emlBlob);
+    const a = document.createElement('a');
+    a.href = emlUrl;
+    a.download = emlFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(emlUrl), 60_000);
+
+    showEmlToast(emlFilename, subject, body);
+  } catch (err) {
+    console.error('[openEmailWithPdf] EML generation failed, fallback to mailto+download', err);
+    fallbackMailtoPlusDownload(pdfBlob, pdfFilename, subject, body);
   }
-
-  const canUseShare =
-    typeof navigator !== 'undefined' &&
-    typeof navigator.canShare === 'function' &&
-    navigator.canShare(shareData);
-
-  if (canUseShare) {
-    showClipboardToast(subject);
-
-    try {
-      await navigator.share(shareData);
-      return;
-    } catch (err: any) {
-      if (err && err.name === 'AbortError') return;
-
-      // Gesto utente scaduto durante il fetch → toast con retry button
-      if (err && err.name === 'NotAllowedError') {
-        showRetryShareToast(shareData, pdfBlob, pdfFilename, subject, body);
-        return;
-      }
-
-      console.warn('[openEmailWithPdf] Web Share failed, using mailto:+download', err);
-    }
-  }
-
-  // Browser senza Web Share API (es. Chrome desktop) → mailto:+download
-  mailtoPlusDownload(pdfBlob, pdfFilename, subject, body);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// mailto: (apre Mail come bozza editabile) + download PDF (da trascinare)
+// EML builder (RFC 2822 + MIME multipart/mixed)
 // ────────────────────────────────────────────────────────────────────────────
-function mailtoPlusDownload(
+
+async function buildEml(
+  subject: string,
+  body: string,
+  pdfBlob: Blob,
+  pdfFilename: string,
+): Promise<Blob> {
+  const boundary = `----=_NextPart_${Date.now().toString(16)}_${Math.random().toString(16).slice(2, 10)}`;
+
+  // RFC 2047 Base64 encoding for the subject (handles non-ASCII)
+  const encodedSubject = rfc2047B(subject);
+
+  // Body → base64 (safest encoding for non-ASCII chars)
+  const bodyB64 = toBase64Lines(new TextEncoder().encode(body));
+
+  // PDF → base64
+  const pdfBytes = new Uint8Array(await pdfBlob.arrayBuffer());
+  const pdfB64 = toBase64Lines(pdfBytes);
+
+  // Safe filename for Content-Disposition
+  const safePdfName = pdfFilename.replace(/[^\w\s\-_.()]/g, '_');
+
+  const lines = [
+    'MIME-Version: 1.0',
+    'X-Unsent: 1',                          // tells Outlook: open as draft
+    `Subject: ${encodedSubject}`,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    bodyB64,
+    '',
+    `--${boundary}`,
+    `Content-Type: application/pdf; name="${safePdfName}"`,
+    'Content-Transfer-Encoding: base64',
+    `Content-Disposition: attachment; filename="${safePdfName}"`,
+    '',
+    pdfB64,
+    '',
+    `--${boundary}--`,
+    '',
+  ];
+
+  return new Blob([lines.join('\r\n')], { type: 'message/rfc822' });
+}
+
+/** Encode a Uint8Array to a base64 string split into 76-char lines (RFC 2045). */
+function toBase64Lines(bytes: Uint8Array): string {
+  // Build binary string
+  let binary = '';
+  const chunk = 8192;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+  }
+  const b64 = btoa(binary);
+  return b64.match(/.{1,76}/g)?.join('\r\n') ?? b64;
+}
+
+/** RFC 2047 Base64 word encoding, respecting the 75-char encoded-word limit. */
+function rfc2047B(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  bytes.forEach(b => (binary += String.fromCharCode(b)));
+  // If it would exceed 75 chars in one word, split — but for typical subjects it fits
+  const encoded = btoa(binary);
+  return `=?UTF-8?B?${encoded}?=`;
+}
+
+/** Strip / replace chars illegal in filenames (macOS / Windows safe). */
+function sanitizeFilename(name: string): string {
+  return name.replace(/[/\\:*?"<>|]/g, '');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Toast: guida l'utente dopo il download del .eml
+// ────────────────────────────────────────────────────────────────────────────
+
+function showEmlToast(emlFilename: string, subject: string, body: string): void {
+  document.getElementById('__share-eml-toast__')?.remove();
+
+  const toast = document.createElement('div');
+  toast.id = '__share-eml-toast__';
+  toast.style.cssText = `
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100002;
+    width: 420px;
+    max-width: 92vw;
+    background: #1565C0;
+    color: white;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.45);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  `;
+
+  toast.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.6rem;">
+      <div style="font-weight:700;font-size:0.95rem;">📎 Email pronta con PDF allegato</div>
+      <button id="__eml-toast-close__" style="background:transparent;border:none;color:white;font-size:1.2rem;cursor:pointer;opacity:0.7;line-height:1;padding:0 0 0 0.5rem;">✕</button>
+    </div>
+    <ol style="margin:0 0 0.75rem 1.1rem;padding:0;font-size:0.82rem;opacity:0.95;line-height:1.7;">
+      <li>Fai <b>doppio click</b> sul file nella <b>download bar</b> di Safari</li>
+      <li>Outlook apre il messaggio con il PDF già allegato</li>
+      <li>Se si apre come "ricevuto" → clicca <b>Inoltra</b> e aggiungi i destinatari</li>
+    </ol>
+    <div style="background:rgba(255,255,255,0.15);padding:0.35rem 0.6rem;border-radius:5px;font-family:ui-monospace,Menlo,monospace;font-size:0.72rem;word-break:break-word;margin-bottom:0.75rem;">
+      📧 ${emlFilename.replace(/</g, '&lt;')}
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button id="__eml-toast-mailto__" style="
+        flex:1;min-width:120px;
+        padding:0.4rem 0.75rem;
+        background:rgba(255,255,255,0.15);
+        color:white;border:1px solid rgba(255,255,255,0.4);
+        border-radius:6px;font-size:0.78rem;cursor:pointer;
+        white-space:nowrap;
+      ">Apri bozza senza allegato</button>
+    </div>
+    <div style="opacity:0.55;font-size:0.68rem;margin-top:0.5rem;text-align:right;">Chiude in 60s · click per chiudere subito</div>
+  `;
+
+  document.body.appendChild(toast);
+
+  // Close on click anywhere on the toast (except buttons)
+  toast.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).tagName !== 'BUTTON') toast.remove();
+  });
+
+  document.getElementById('__eml-toast-close__')?.addEventListener('click', () => toast.remove());
+
+  // "Apri bozza senza allegato" → mailto: fallback
+  document.getElementById('__eml-toast-mailto__')?.addEventListener('click', () => {
+    toast.remove();
+    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const link = document.createElement('a');
+    link.href = mailtoUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+
+  setTimeout(() => toast.remove(), 60_000);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Fallback: mailto: (bozza editabile) + download PDF separato
+// Usato solo se la generazione .eml fallisce per qualche motivo.
+// ────────────────────────────────────────────────────────────────────────────
+
+function fallbackMailtoPlusDownload(
   pdfBlob: Blob,
   pdfFilename: string,
   subject: string,
   body: string,
-  sizeNote: string = '',
 ): void {
-  // 1. Mostra il toast PRIMA (Safari sta per perdere focus a favore di Mail)
-  showDragPdfToast(pdfFilename, sizeNote);
-
-  // 2. Scarica il PDF (parte per primo così è in Downloads quando l'utente
-  //    torna su Mail per fare il drag)
+  // Download PDF
   const pdfUrl = URL.createObjectURL(pdfBlob);
   const pdfLink = document.createElement('a');
   pdfLink.href = pdfUrl;
@@ -86,10 +215,9 @@ function mailtoPlusDownload(
   document.body.appendChild(pdfLink);
   pdfLink.click();
   document.body.removeChild(pdfLink);
-  setTimeout(() => URL.revokeObjectURL(pdfUrl), 30000);
+  setTimeout(() => URL.revokeObjectURL(pdfUrl), 30_000);
 
-  // 3. Apri Mail via mailto: (apre una BOZZA editabile con oggetto + corpo)
-  //    Piccolo delay per non sovrapporsi al download
+  // Open mailto: after short delay
   setTimeout(() => {
     const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     const mailtoLink = document.createElement('a');
@@ -97,172 +225,5 @@ function mailtoPlusDownload(
     document.body.appendChild(mailtoLink);
     mailtoLink.click();
     document.body.removeChild(mailtoLink);
-  }, 200);
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Toast: oggetto copiato negli appunti
-// ────────────────────────────────────────────────────────────────────────────
-function showClipboardToast(subject: string): void {
-  document.getElementById('__share-toast__')?.remove();
-
-  const toast = document.createElement('div');
-  toast.id = '__share-toast__';
-  toast.style.cssText = `
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    z-index: 100000;
-    max-width: 360px;
-    background: #1a1a1a;
-    color: #fff;
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    font-size: 0.875rem;
-    line-height: 1.4;
-    cursor: pointer;
-  `;
-  toast.innerHTML = `
-    <div style="font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">
-      <span>📋</span><span>Oggetto copiato negli appunti</span>
-    </div>
-    <div style="opacity:0.8;font-size:0.8125rem;margin-bottom:0.5rem;">
-      Fai ⌘V nel campo <b>Oggetto</b> di Mail per incollarlo:
-    </div>
-    <div style="background:rgba(255,255,255,0.1);padding:0.5rem 0.75rem;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:0.8125rem;word-break:break-word;">
-      ${subject.replace(/</g, '&lt;')}
-    </div>
-    <div style="opacity:0.5;font-size:0.6875rem;margin-top:0.5rem;text-align:right;">
-      Click per chiudere
-    </div>
-  `;
-  toast.addEventListener('click', () => toast.remove());
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 12000);
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Toast con bottone "Apri Mail" — usato quando il gesto utente è scaduto
-// ────────────────────────────────────────────────────────────────────────────
-function showRetryShareToast(
-  shareData: ShareData,
-  pdfBlob: Blob,
-  pdfFilename: string,
-  subject: string,
-  body: string,
-): void {
-  document.getElementById('__share-retry-toast__')?.remove();
-
-  const toast = document.createElement('div');
-  toast.id = '__share-retry-toast__';
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100001;
-    background: #2E7D32;
-    color: white;
-    border-radius: 10px;
-    padding: 1rem 1.5rem;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    max-width: 90vw;
-  `;
-
-  const text = document.createElement('div');
-  text.innerHTML = '✉️ <b>PDF pronto</b> — clicca per aprire Mail';
-  toast.appendChild(text);
-
-  const btn = document.createElement('button');
-  btn.textContent = 'Apri Mail';
-  btn.style.cssText = `
-    padding: 0.625rem 1.25rem;
-    border-radius: 6px;
-    background: white;
-    color: #2E7D32;
-    border: none;
-    font-weight: 700;
-    cursor: pointer;
-    font-size: 0.95rem;
-    white-space: nowrap;
-  `;
-  btn.onclick = async () => {
-    toast.remove();
-    try {
-      await navigator.share(shareData);
-    } catch (err: any) {
-      if (err && err.name === 'AbortError') return;
-      // Anche il retry fallisce → mailto+download (Mail come BOZZA editabile)
-      console.warn('[openEmailWithPdf] Retry share failed, using mailto:+download:', err);
-      mailtoPlusDownload(pdfBlob, pdfFilename, subject, body);
-    }
-  };
-  toast.appendChild(btn);
-
-  const closeBtn = document.createElement('button');
-  closeBtn.innerHTML = '✕';
-  closeBtn.style.cssText = `
-    background: transparent;
-    color: white;
-    border: none;
-    font-size: 1.25rem;
-    cursor: pointer;
-    opacity: 0.7;
-    padding: 0 0.25rem;
-  `;
-  closeBtn.onclick = () => toast.remove();
-  toast.appendChild(closeBtn);
-
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 60000);
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Toast: spiega all'utente di trascinare il PDF dalla download bar in Mail
-// ────────────────────────────────────────────────────────────────────────────
-function showDragPdfToast(pdfFilename: string, sizeNote: string): void {
-  document.getElementById('__share-drag-toast__')?.remove();
-
-  const toast = document.createElement('div');
-  toast.id = '__share-drag-toast__';
-  toast.style.cssText = `
-    position: fixed;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100002;
-    max-width: 480px;
-    background: #2E7D32;
-    color: white;
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    cursor: pointer;
-  `;
-  const sizeLine = sizeNote ? `<div style="opacity:0.85;font-size:0.75rem;margin-bottom:0.5rem;">${sizeNote}</div>` : '';
-  toast.innerHTML = `
-    ${sizeLine}
-    <div style="font-weight:700;margin-bottom:0.5rem;">✉️ Mail si apre come bozza editabile</div>
-    <div style="opacity:0.95;font-size:0.85rem;">
-      Oggetto e corpo sono già compilati. <b>Trascina il PDF</b> dalla download bar
-      di Safari nella finestra di Mail per allegarlo.
-    </div>
-    <div style="background:rgba(255,255,255,0.15);padding:0.4rem 0.6rem;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:0.75rem;margin-top:0.5rem;word-break:break-word;">
-      📎 ${pdfFilename.replace(/</g, '&lt;')}
-    </div>
-    <div style="opacity:0.7;font-size:0.7rem;margin-top:0.5rem;text-align:right;">Click per chiudere</div>
-  `;
-  toast.addEventListener('click', () => toast.remove());
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 30000);
+  }, 250);
 }
