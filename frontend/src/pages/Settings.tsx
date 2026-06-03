@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { apiService } from '../services/api';
@@ -48,11 +47,14 @@ type Tab = 'users' | 'companies' | 'clients' | 'outlook';
 
 // ─── Component ────────────────────────────────────────
 export const Settings: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { isOnline } = useOnlineStatus();
 
-  const [activeTab, setActiveTab] = useState<Tab>('users');
+  const isMasterAdmin = user?.role === 'master_admin';
+  const isAdminLevel = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
+
+  // I non-admin possono accedere solo alla tab Outlook (collegamento account personale)
+  const [activeTab, setActiveTab] = useState<Tab>(isAdminLevel ? 'users' : 'outlook');
 
   // Dopo il redirect OAuth Microsoft (?ms=connected|error) apri la tab Outlook
   useEffect(() => {
@@ -60,13 +62,10 @@ export const Settings: React.FC = () => {
     if (params.get('ms')) setActiveTab('outlook');
   }, []);
 
-  const isMasterAdmin = user?.role === 'master_admin';
-
+  // Se l'utente non è admin/manager, forza la tab Outlook (le tab amministrative sono nascoste)
   useEffect(() => {
-    if (user && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'master_admin') {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
+    if (user && !isAdminLevel) setActiveTab('outlook');
+  }, [user, isAdminLevel]);
 
   if (!isOnline) {
     return (
@@ -84,24 +83,28 @@ export const Settings: React.FC = () => {
       <h1>Settings</h1>
 
       <div className="settings-tabs">
-        <button
-          className={`settings-tab ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          Users
-        </button>
-        <button
-          className={`settings-tab ${activeTab === 'companies' ? 'active' : ''}`}
-          onClick={() => setActiveTab('companies')}
-        >
-          Suppliers
-        </button>
-        <button
-          className={`settings-tab ${activeTab === 'clients' ? 'active' : ''}`}
-          onClick={() => setActiveTab('clients')}
-        >
-          Countries & Access
-        </button>
+        {isAdminLevel && (
+          <>
+            <button
+              className={`settings-tab ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => setActiveTab('users')}
+            >
+              Users
+            </button>
+            <button
+              className={`settings-tab ${activeTab === 'companies' ? 'active' : ''}`}
+              onClick={() => setActiveTab('companies')}
+            >
+              Suppliers
+            </button>
+            <button
+              className={`settings-tab ${activeTab === 'clients' ? 'active' : ''}`}
+              onClick={() => setActiveTab('clients')}
+            >
+              Countries & Access
+            </button>
+          </>
+        )}
         <button
           className={`settings-tab ${activeTab === 'outlook' ? 'active' : ''}`}
           onClick={() => setActiveTab('outlook')}
@@ -111,9 +114,9 @@ export const Settings: React.FC = () => {
       </div>
 
       <div className="settings-content">
-        {activeTab === 'users' && <UsersTab isMasterAdmin={!!isMasterAdmin} />}
-        {activeTab === 'companies' && <CompanyAccessTab />}
-        {activeTab === 'clients' && <ClientPermissionsTab />}
+        {isAdminLevel && activeTab === 'users' && <UsersTab isMasterAdmin={!!isMasterAdmin} />}
+        {isAdminLevel && activeTab === 'companies' && <CompanyAccessTab />}
+        {isAdminLevel && activeTab === 'clients' && <ClientPermissionsTab />}
         {activeTab === 'outlook' && <OutlookTab />}
       </div>
     </div>
