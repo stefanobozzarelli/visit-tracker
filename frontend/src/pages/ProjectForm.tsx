@@ -41,6 +41,7 @@ interface FormData {
   estimated_delivery_date: string;
   estimated_arrival_date: string;
   project_value: string;
+  project_value_manual: boolean;
   total_value_shipped: string;
 }
 
@@ -50,7 +51,7 @@ const emptyForm: FormData = {
   project_address: '', project_type: '', detail_of_project_type: '', designated_area: '',
   architect_designer: '', developer: '', contractor: '', item: '', quantity: '',
   note: '', estimated_order_date: '', estimated_delivery_date: '',
-  estimated_arrival_date: '', project_value: '', total_value_shipped: '',
+  estimated_arrival_date: '', project_value: '', project_value_manual: false, total_value_shipped: '',
 };
 
 const toDateInput = (d?: string) => {
@@ -117,6 +118,7 @@ export const ProjectForm: React.FC = () => {
             estimated_delivery_date: toDateInput(p.estimated_delivery_date),
             estimated_arrival_date: toDateInput(p.estimated_arrival_date),
             project_value: p.project_value != null ? String(p.project_value) : '',
+            project_value_manual: !!p.project_value_manual,
             total_value_shipped: p.total_value_shipped != null ? String(p.total_value_shipped) : '',
           });
         }
@@ -154,8 +156,14 @@ export const ProjectForm: React.FC = () => {
       setSaving(true);
       setError('');
       const payload: any = { ...form };
-      if (payload.project_value) payload.project_value = parseFloat(payload.project_value);
-      else payload.project_value = null;
+      payload.project_value_manual = !!form.project_value_manual;
+      if (form.project_value_manual) {
+        // Manual override: persist the entered value
+        payload.project_value = payload.project_value ? parseFloat(payload.project_value) : null;
+      } else {
+        // Auto mode: backend recomputes from linked offers; don't overwrite with stale value
+        delete payload.project_value;
+      }
       if (payload.total_value_shipped) payload.total_value_shipped = parseFloat(payload.total_value_shipped);
       else payload.total_value_shipped = null;
       if (!payload.supplier_id) payload.supplier_id = null;
@@ -497,8 +505,25 @@ export const ProjectForm: React.FC = () => {
                   <label>Project Value (EUR)</label>
                   <div className="pf-input-with-prefix">
                     <span className="pf-prefix">EUR</span>
-                    <input type="number" step="0.01" value={form.project_value} onChange={e => handleChange('project_value', e.target.value)} placeholder="0.00" />
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.project_value}
+                      onChange={e => handleChange('project_value', e.target.value)}
+                      placeholder="0.00"
+                      disabled={!form.project_value_manual}
+                      style={!form.project_value_manual ? { background: '#f3f1ec', cursor: 'not-allowed' } : undefined}
+                    />
                   </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.4rem', fontSize: '0.8rem', fontWeight: 400, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.project_value_manual}
+                      onChange={e => setForm(prev => ({ ...prev, project_value_manual: e.target.checked }))}
+                      style={{ width: 'auto', cursor: 'pointer' }}
+                    />
+                    Imposta manualmente (altrimenti = somma delle offerte)
+                  </label>
                 </div>
                 <div className="pf-field">
                   <label>Total Value Shipped (EUR)</label>

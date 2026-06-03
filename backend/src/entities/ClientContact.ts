@@ -24,6 +24,7 @@ export class ClientContact {
   @Column({ nullable: true, type: 'text' })
   notes: string;
 
+  // Biglietto da visita — fronte
   @Column({ nullable: true })
   business_card_filename: string;
 
@@ -32,6 +33,16 @@ export class ClientContact {
 
   @Column({ nullable: true, type: 'int' })
   business_card_file_size: number;
+
+  // Biglietto da visita — retro
+  @Column({ nullable: true })
+  business_card_back_filename: string;
+
+  @Column({ nullable: true })
+  business_card_back_s3_key: string;
+
+  @Column({ nullable: true, type: 'int' })
+  business_card_back_file_size: number;
 
   @Column()
   client_id: string;

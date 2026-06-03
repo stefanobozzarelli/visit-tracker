@@ -13,6 +13,7 @@ export const TodoForm = () => {
   const isEdit = !!editId;
 
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState(user?.id || '');
@@ -92,6 +93,7 @@ export const TodoForm = () => {
           const todo = all.find((t: any) => t.id === editId);
           if (todo) {
             setTitle(todo.title || '');
+            setDescription(todo.description || '');
             setClientId(todo.client_id || '');
             setCompanyId(todo.company_id || '');
             setAssignedToUserId(todo.assigned_to_user_id || '');
@@ -203,6 +205,7 @@ export const TodoForm = () => {
       if (isEdit) {
         const response = await apiService.updateTodo(editId!, {
           title,
+          description,
           clientId: clientId,
           companyId: companyId,
           assignedToUserId,
@@ -228,7 +231,8 @@ export const TodoForm = () => {
           companyVisitId || undefined,
           priority,
           opportunityId || undefined,
-          category
+          category,
+          description || undefined
         );
         if (response.success && response.data?.id) {
           // Upload pending files to the newly created task
@@ -284,6 +288,17 @@ export const TodoForm = () => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              placeholder="Add more details..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
             />
           </div>
 

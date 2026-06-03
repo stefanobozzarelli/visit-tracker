@@ -6,9 +6,12 @@ import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
 import { OrderService } from '../services/OrderService';
+import { MicrosoftGraphService } from '../services/MicrosoftGraphService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateVisitRequest, CreateVisitReportRequest } from '../types';
+import { AppDataSource } from '../config/database';
+import { User } from '../entities/User';
 
 const router = Router();
 const visitService = new VisitService();
@@ -17,6 +20,7 @@ const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
 const orderService = new OrderService();
+const msGraph = new MicrosoftGraphService();
 
 // Helper function to generate S3 presigned URL
 async function generateS3Url(s3Key: string, filename: string, forceDownload: boolean = false) {
@@ -219,11 +223,12 @@ router.put('/:id', async (req: Request, res: Response) => {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) return res.status(404).json({ success: false, error: 'Visit not found' });
 
-    const { status, preparation, visit_date, meeting_type } = req.body;
+    const { status, preparation, participants, visit_date, meeting_type } = req.body;
     const updateData: any = {};
 
     if (status !== undefined) updateData.status = status;
     if (preparation !== undefined) updateData.preparation = preparation || null;
+    if (participants !== undefined) updateData.participants = participants || null;
     if (visit_date) updateData.visit_date = new Date(visit_date);
     if (meeting_type !== undefined) updateData.meeting_type = meeting_type;
 
@@ -569,6 +574,47 @@ router.get('/:id/email-pdf', async (req: Request, res: Response) => {
     res.send(pdfBuffer);
   } catch (error) {
     console.error('email-pdf error:', error);
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Crea una BOZZA in Outlook con il PDF report già allegato (via Microsoft Graph).
+// POST /visits/:id/outlook-draft   body: { reportId?, subject?, body?, to? }
+router.post('/:id/outlook-draft', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId } });
+    if (!user) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    if (!user.ms_refresh_token) {
+      return res.status(409).json({ success: false, error: 'OUTLOOK_NOT_CONNECTED' });
+    }
+
+    const visit = await visitService.getVisitById(req.params.id);
+    if (!visit) return res.status(404).json({ success: false, error: 'Visita non trovata' });
+
+    const reportId = typeof req.body.reportId === 'string' && req.body.reportId.length > 0
+      ? req.body.reportId
+      : undefined;
+    if (reportId && !(visit.reports || []).some(r => r.id === reportId)) {
+      return res.status(404).json({ success: false, error: 'Sezione non trovata in questa visita' });
+    }
+
+    const orders = await orderService.getOrdersByVisit(visit.id);
+    const pdfBuffer = await pdfService.generateVisitEmailPdf(visit, orders, { reportId });
+
+    const clientName = visit.client?.name || 'Cliente';
+    const visitDateISO = new Date(visit.visit_date).toISOString().slice(0, 10);
+    const subject = (typeof req.body.subject === 'string' && req.body.subject.trim())
+      || `${visitDateISO} Report "${clientName}"`;
+    const body = (typeof req.body.body === 'string' && req.body.body)
+      || 'Buongiorno,\n\nin allegato il report in oggetto.\n\nCordiali saluti,\nStefano';
+    const filename = `${subject.replace(/[/\\:*?<>|]/g, '')}.pdf`;
+    const to = Array.isArray(req.body.to) ? req.body.to.filter((x: any) => typeof x === 'string') : undefined;
+
+    const draft = await msGraph.createDraftWithPdf(user, { subject, body, filename, pdf: pdfBuffer, to });
+    res.json({ success: true, data: { webLink: draft.webLink } });
+  } catch (error) {
+    console.error('outlook-draft error:', error);
     res.status(500).json({ success: false, error: (error as Error).message });
   }
 });

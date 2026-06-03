@@ -4,6 +4,7 @@ import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
 import { PermissionService } from '../services/PermissionService';
+import { ProjectService } from '../services/ProjectService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,7 +17,20 @@ const permissionService = new PermissionService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
+const projectService = new ProjectService();
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Recompute the linked project's auto value (if any) after an offer's total changes.
+async function recalcLinkedProject(offerId: string): Promise<void> {
+  try {
+    const offer = await offerService.getOfferById(offerId);
+    if (offer?.project_id) {
+      await projectService.recalcValue(offer.project_id);
+    }
+  } catch {
+    // non-fatal
+  }
+}
 
 // ─── Export endpoints (must be before /:id routes) ───────────────────────────
 
@@ -107,6 +121,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       created_by_user_id,
     });
 
+    if (offer?.project_id) await projectService.recalcValue(offer.project_id);
+
     res.status(201).json({ success: true, data: offer });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
@@ -181,7 +197,11 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     if (req.body.offer_date) updateData.offer_date = new Date(req.body.offer_date);
     if (req.body.valid_until) updateData.valid_until = new Date(req.body.valid_until);
 
+    const oldProjectId = offer.project_id;
     const updated = await offerService.updateOffer(req.params.id, updateData);
+    // Recalc both the previously-linked and newly-linked project values
+    if (oldProjectId) await projectService.recalcValue(oldProjectId);
+    if (updated?.project_id && updated.project_id !== oldProjectId) await projectService.recalcValue(updated.project_id);
     res.json({ success: true, data: updated });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
@@ -198,7 +218,9 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
     if (!offer) {
       return res.status(404).json({ success: false, error: 'Offer not found' });
     }
+    const linkedProjectId = offer.project_id;
     await offerService.deleteOffer(req.params.id);
+    if (linkedProjectId) await projectService.recalcValue(linkedProjectId);
     res.json({ success: true, message: 'Offer deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
@@ -226,9 +248,12 @@ router.post('/:id/items', authMiddleware, async (req: Request, res: Response) =>
       project_id, consegna_prevista, note
     } = req.body;
 
+    const computedTotal = (Number(prezzo_unitario) || 0) * (Number(quantita) || 0);
+
     const item = await offerService.addItem(req.params.id, {
       serie, articolo, finitura, formato, spessore_mm,
-      prezzo_unitario, unita_misura, quantita, total_amount,
+      prezzo_unitario, unita_misura, quantita,
+      total_amount: total_amount != null ? total_amount : computedTotal,
       data: data ? new Date(data) : undefined,
       tipo_offerta, promozionale, numero_progetto,
       progetto_nome, fase_progetto, sviluppo_progetto,
@@ -238,6 +263,7 @@ router.post('/:id/items', authMiddleware, async (req: Request, res: Response) =>
     });
 
     await offerService.recalculateTotal(req.params.id);
+    await recalcLinkedProject(req.params.id);
 
     res.status(201).json({ success: true, data: item });
   } catch (error) {
@@ -265,8 +291,17 @@ router.put('/:id/items/:itemId', authMiddleware, async (req: Request, res: Respo
     if (req.body.data) updateData.data = new Date(req.body.data);
     if (req.body.consegna_prevista) updateData.consegna_prevista = new Date(req.body.consegna_prevista);
 
+    // Recompute total_amount from price * quantity when either changes
+    if (req.body.prezzo_unitario !== undefined || req.body.quantita !== undefined) {
+      const existing = await offerService.getItem(req.params.itemId);
+      const price = req.body.prezzo_unitario !== undefined ? Number(req.body.prezzo_unitario) : Number(existing?.prezzo_unitario || 0);
+      const qty = req.body.quantita !== undefined ? Number(req.body.quantita) : Number(existing?.quantita || 0);
+      updateData.total_amount = (price || 0) * (qty || 0);
+    }
+
     await offerService.updateItem(req.params.itemId, updateData);
     await offerService.recalculateTotal(req.params.id);
+    await recalcLinkedProject(req.params.id);
 
     res.json({ success: true, message: 'Item updated' });
   } catch (error) {
@@ -282,6 +317,7 @@ router.delete('/:id/items/:itemId', authMiddleware, async (req: Request, res: Re
   try {
     await offerService.deleteItem(req.params.itemId);
     await offerService.recalculateTotal(req.params.id);
+    await recalcLinkedProject(req.params.id);
     res.json({ success: true, message: 'Item deleted' });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });

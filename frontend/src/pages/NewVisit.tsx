@@ -44,8 +44,12 @@ export const NewVisit: React.FC = () => {
     status: 'scheduled',
     meeting_type: 'in_person',
     preparation: '',
+    participants: '',
     reports: [{ companyId: '', section: '', content: '' }],
   });
+
+  // Client search filter (for the client select)
+  const [clientSearch, setClientSearch] = useState('');
 
   const [metadata, setMetadata] = useState<VisitMetadata>({
     location: '',
@@ -219,6 +223,7 @@ export const NewVisit: React.FC = () => {
           status: visit.status || 'scheduled',
           meeting_type: visit.meeting_type || 'in_person',
           preparation: visit.preparation || '',
+          participants: visit.participants || '',
           reports: existingReportsList.map(r => ({
             companyId: r.companyId,
             section: r.section,
@@ -477,6 +482,7 @@ export const NewVisit: React.FC = () => {
             status: formData.status,
             preparation: formData.preparation || undefined,
             meeting_type: formData.meeting_type,
+            participants: formData.participants || undefined,
           });
           if (!updateRes.success) {
             errors.push('Failed to update visit information');
@@ -629,6 +635,7 @@ export const NewVisit: React.FC = () => {
           status: formData.status,
           preparation: formData.preparation || undefined,
           meeting_type: formData.meeting_type,
+          participants: formData.participants || undefined,
         });
         if (!response.success) {
           throw new Error('Error creating visit');
@@ -706,6 +713,15 @@ export const NewVisit: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Client *</label>
+            {!isEditMode && (
+              <input
+                type="text"
+                placeholder="🔍 Search client..."
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                style={{ marginBottom: '8px', width: '100%' }}
+              />
+            )}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
               <select
                 value={formData.clientId}
@@ -715,11 +731,20 @@ export const NewVisit: React.FC = () => {
                 style={{ flex: '1 1 auto', minWidth: 0, width: 'auto' }}
               >
                 <option value="">Select a client</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name} ({client.country})
-                  </option>
-                ))}
+                {clients
+                  .filter((client) => {
+                    const q = clientSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return (
+                      client.name.toLowerCase().includes(q) ||
+                      (client.country || '').toLowerCase().includes(q)
+                    );
+                  })
+                  .map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name} ({client.country})
+                    </option>
+                  ))}
               </select>
               <button
                 type="button"
@@ -846,6 +871,16 @@ export const NewVisit: React.FC = () => {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Meeting Participants</label>
+            <input
+              type="text"
+              value={formData.participants}
+              onChange={(e) => setFormData(prev => ({ ...prev, participants: e.target.value }))}
+              placeholder="Names of people attending the meeting..."
+            />
           </div>
 
           <div className="form-group">

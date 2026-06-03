@@ -79,7 +79,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { title, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority, opportunityId, category } = req.body;
+    const { title, description, clientId, companyId, assignedToUserId, dueDate, visitReportId, claimId, visitId, companyVisitId, priority, opportunityId, category } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!title || !assignedToUserId) {
@@ -102,7 +102,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       companyVisitId,
       priority ? parseInt(priority, 10) : undefined,
       opportunityId,
-      category
+      category,
+      description
     );
 
     // Fire-and-forget: send task assignment email
@@ -313,7 +314,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, dueDate, assignedToUserId, priority, category } = req.body;
+    const { title, description, status, dueDate, assignedToUserId, priority, category } = req.body;
 
     const todo = await todoService.getTodoById(id);
     if (!todo) {
@@ -342,6 +343,8 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     const oldAssignedToUserId = todo.assigned_to_user_id;
 
     const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description || null;
     if (status) updateData.status = status;
     if (dueDate) updateData.due_date = new Date(dueDate);
     if (assignedToUserId) updateData.assigned_to_user_id = assignedToUserId;

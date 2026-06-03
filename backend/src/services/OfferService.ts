@@ -67,6 +67,10 @@ export class OfferService {
     return this.itemRepo.save(item) as unknown as Promise<OfferItem>;
   }
 
+  async getItem(itemId: string): Promise<OfferItem | null> {
+    return this.itemRepo.findOne({ where: { id: itemId } });
+  }
+
   async updateItem(itemId: string, data: any): Promise<void> {
     await this.itemRepo.update(itemId, data);
   }

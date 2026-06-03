@@ -32,6 +32,9 @@ export class Visit {
   @Column({ type: 'text', nullable: true })
   preparation: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  participants: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

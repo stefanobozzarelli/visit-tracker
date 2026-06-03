@@ -43,6 +43,9 @@ export interface ClientContact {
   business_card_filename?: string;
   business_card_s3_key?: string;
   business_card_file_size?: number;
+  business_card_back_filename?: string;
+  business_card_back_s3_key?: string;
+  business_card_back_file_size?: number;
   client_id: string;
 }
 

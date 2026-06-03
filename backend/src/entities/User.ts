@@ -31,6 +31,20 @@ export class User {
   @Column({ type: 'simple-json', nullable: true })
   sidebar_menu_order: string[] | null;
 
+  // Microsoft 365 / Outlook OAuth (per creare bozze con allegato via Graph)
+  @Column({ type: 'text', nullable: true })
+  ms_refresh_token: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  ms_access_token: string | null;
+
+  // epoch ms di scadenza dell'access token
+  @Column({ type: 'bigint', nullable: true })
+  ms_token_expiry: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  ms_email: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

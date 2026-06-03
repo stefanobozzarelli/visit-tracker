@@ -16,6 +16,9 @@ export class TodoItem {
   @Column()
   title: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
   @Column({ type: 'enum', enum: ['todo', 'in_progress', 'done'], default: 'todo' })
   status: 'todo' | 'in_progress' | 'done';
 

@@ -42,6 +42,9 @@ import { OpportunityAdvance } from '../entities/OpportunityAdvance';
 import { OpportunityAttachment } from '../entities/OpportunityAttachment';
 import { OpportunityAdvanceAttachment } from '../entities/OpportunityAdvanceAttachment';
 import { Trip } from '../entities/Trip';
+import { ProjectAttachment } from '../entities/ProjectAttachment';
+import { ProjectMovement } from '../entities/ProjectMovement';
+import { ProjectMovementAttachment } from '../entities/ProjectMovementAttachment';
 
 require('dotenv').config();
 
@@ -56,7 +59,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'visit_tracker',
   synchronize: true,
   logging: isDevelopment,
-  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany, Showroom, ShowroomPhotoAlbum, ShowroomPhoto, Offer, OfferItem, OfferAttachment, OfferItemAttachment, UserLoginLog, Opportunity, OpportunityAdvance, OpportunityAttachment, OpportunityAdvanceAttachment, Trip],
+  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany, Showroom, ShowroomPhotoAlbum, ShowroomPhoto, Offer, OfferItem, OfferAttachment, OfferItemAttachment, UserLoginLog, Opportunity, OpportunityAdvance, OpportunityAttachment, OpportunityAdvanceAttachment, Trip, ProjectAttachment, ProjectMovement, ProjectMovementAttachment],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: ['src/subscribers/**/*.ts'],
 });

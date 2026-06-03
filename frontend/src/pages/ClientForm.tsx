@@ -29,7 +29,10 @@ export const ClientForm: React.FC = () => {
   const [showContactForm, setShowContactForm] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState(EMPTY_CONTACT);
-  const [pendingBusinessCard, setPendingBusinessCard] = useState<File | null>(null);
+  const [pendingCardFront, setPendingCardFront] = useState<File | null>(null);
+  const [pendingCardBack, setPendingCardBack] = useState<File | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrInfo, setOcrInfo] = useState('');
   const [editContacts, setEditContacts] = useState<ClientContact[]>([]);
 
   // UI
@@ -134,29 +137,60 @@ export const ClientForm: React.FC = () => {
     }
   };
 
+  // Quando si seleziona il FRONTE: salva il file e lancia l'OCR per precompilare i campi.
+  const handleFrontCardSelected = async (file: File | null) => {
+    setPendingCardFront(file);
+    setOcrInfo('');
+    if (!file) return;
+    try {
+      setOcrLoading(true);
+      const res = await apiService.ocrBusinessCard(file);
+      if (res.success && res.data) {
+        const d = res.data;
+        // Precompila SOLO i campi vuoti, così non sovrascrive ciò che hai già scritto a mano.
+        setContactForm(prev => ({
+          name: prev.name || d.name || '',
+          role: prev.role || d.role || '',
+          email: prev.email || d.email || '',
+          phone: prev.phone || d.phone || '',
+          wechat: prev.wechat || d.wechat || '',
+          notes: prev.notes || d.notes || '',
+        }));
+        setOcrInfo('Campi compilati dal biglietto — controlla e modifica se serve.');
+      } else {
+        setOcrInfo('OCR non riuscito: compila i campi a mano.');
+      }
+    } catch {
+      setOcrInfo('OCR non riuscito: compila i campi a mano.');
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !contactForm.name.trim()) return;
     try {
+      let contactId = editingContactId;
       if (editingContactId) {
         await apiService.updateClientContact(editingContactId, contactForm);
         setSuccess('Contact updated');
       } else {
         await apiService.addClientContact(id, contactForm);
         setSuccess('Contact added');
-      }
-      if (!editingContactId && pendingBusinessCard) {
+        // Trova l'id del contatto appena creato per caricare i biglietti
         const reloadRes = await apiService.getClient(id);
-        if (reloadRes.success && reloadRes.data) {
-          const newContacts = reloadRes.data.contacts || [];
-          const newContact = newContacts.find((c: any) => c.name === contactForm.name.trim());
-          if (newContact) {
-            await apiService.uploadBusinessCard(id, newContact.id, pendingBusinessCard);
-          }
-        }
+        const newContact = (reloadRes.data?.contacts || []).find((c: any) => c.name === contactForm.name.trim());
+        contactId = newContact?.id || null;
+      }
+      if (contactId) {
+        if (pendingCardFront) await apiService.uploadBusinessCard(id, contactId, pendingCardFront, 'front');
+        if (pendingCardBack) await apiService.uploadBusinessCard(id, contactId, pendingCardBack, 'back');
       }
       setContactForm(EMPTY_CONTACT);
-      setPendingBusinessCard(null);
+      setPendingCardFront(null);
+      setPendingCardBack(null);
+      setOcrInfo('');
       setEditingContactId(null);
       setShowContactForm(false);
       const r = await apiService.getClient(id);
@@ -177,13 +211,13 @@ export const ClientForm: React.FC = () => {
     }
   };
 
-  const handleBusinessCardUpload = async (contactId: string, file: File) => {
+  const handleBusinessCardUpload = async (contactId: string, file: File, side: 'front' | 'back' = 'front') => {
     if (!id) return;
     try {
-      await apiService.uploadBusinessCard(id, contactId, file);
+      await apiService.uploadBusinessCard(id, contactId, file, side);
       const r = await apiService.getClient(id);
       if (r.success && r.data) setEditContacts(r.data.contacts || []);
-      setSuccess('Business card uploaded');
+      setSuccess(side === 'back' ? 'Retro biglietto caricato' : 'Fronte biglietto caricato');
     } catch {
       setError('Error uploading business card');
     }
@@ -444,19 +478,32 @@ export const ClientForm: React.FC = () => {
                     />
                   </div>
                 </div>
-                {!editingContactId && (
+                <div className="cf-contact-form-grid">
                   <div className="cf-form-group">
-                    <label>Business Card (PDF or image)</label>
+                    <label>Biglietto da visita — Fronte (OCR automatico)</label>
                     <input
                       type="file"
                       accept="image/*,.pdf"
-                      onChange={e => setPendingBusinessCard(e.target.files?.[0] || null)}
+                      onChange={e => handleFrontCardSelected(e.target.files?.[0] || null)}
                     />
-                    {pendingBusinessCard && (
-                      <div className="cf-file-attached">📎 {pendingBusinessCard.name}</div>
+                    {ocrLoading && <div className="cf-file-attached">⏳ Lettura biglietto in corso…</div>}
+                    {!ocrLoading && pendingCardFront && (
+                      <div className="cf-file-attached">📎 {pendingCardFront.name}</div>
+                    )}
+                    {ocrInfo && <div className="cf-file-attached" style={{ color: 'var(--color-info, #1a73e8)' }}>{ocrInfo}</div>}
+                  </div>
+                  <div className="cf-form-group">
+                    <label>Biglietto da visita — Retro</label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={e => setPendingCardBack(e.target.files?.[0] || null)}
+                    />
+                    {pendingCardBack && (
+                      <div className="cf-file-attached">📎 {pendingCardBack.name}</div>
                     )}
                   </div>
-                )}
+                </div>
                 <div className="cf-form-actions">
                   <button type="submit" className="cf-btn-save">
                     {editingContactId ? 'Save' : 'Add'}
@@ -488,20 +535,38 @@ export const ClientForm: React.FC = () => {
                     </div>
                     {(contact as any).business_card_filename && (
                       <div className="cf-contact-card">
-                        📎 {(contact as any).business_card_filename}
+                        📎 Fronte: {(contact as any).business_card_filename}
+                      </div>
+                    )}
+                    {(contact as any).business_card_back_filename && (
+                      <div className="cf-contact-card">
+                        📎 Retro: {(contact as any).business_card_back_filename}
                       </div>
                     )}
                   </div>
                   <div className="cf-contact-actions">
                     <label className="cf-contact-action-btn upload">
-                      📎 Card
+                      📎 Fronte
                       <input
                         type="file"
                         accept="image/*,.pdf"
                         style={{ display: 'none' }}
                         onChange={e => {
                           if (e.target.files?.[0])
-                            handleBusinessCardUpload(contact.id, e.target.files[0]);
+                            handleBusinessCardUpload(contact.id, e.target.files[0], 'front');
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    <label className="cf-contact-action-btn upload">
+                      📎 Retro
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          if (e.target.files?.[0])
+                            handleBusinessCardUpload(contact.id, e.target.files[0], 'back');
                           e.target.value = '';
                         }}
                       />

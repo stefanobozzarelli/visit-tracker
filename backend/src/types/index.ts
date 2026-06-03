@@ -48,6 +48,7 @@ export interface CreateVisitRequest {
   status?: 'scheduled' | 'completed' | 'cancelled';
   meeting_type?: 'in_person' | 'call' | 'video_call';
   preparation?: string;
+  participants?: string;
 }
 
 export interface CreateVisitReportRequest {

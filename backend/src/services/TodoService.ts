@@ -32,10 +32,12 @@ export class TodoService {
     companyVisitId?: string,
     priority?: number,
     opportunityId?: string,
-    category?: string
+    category?: string,
+    description?: string
   ): Promise<TodoItem> {
     const todo = this.todoRepository.create({
       title,
+      description: description || null,
       client_id: clientId || null,
       company_id: companyId || null,
       assigned_to_user_id: assignedToUserId,
@@ -192,6 +194,7 @@ export class TodoService {
     id: string,
     data: Partial<{
       title: string;
+      description: string | null;
       status: 'todo' | 'in_progress' | 'done';
       due_date: Date;
       assigned_to_user_id: string;

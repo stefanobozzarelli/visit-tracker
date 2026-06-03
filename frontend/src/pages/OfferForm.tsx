@@ -82,7 +82,17 @@ export const OfferForm: React.FC = () => {
         if (clientIdFromUrl) setFormData(prev => ({ ...prev, client_id: clientIdFromUrl }));
         if (companyIdFromUrl) setFormData(prev => ({ ...prev, company_id: companyIdFromUrl }));
         if (visitIdFromUrl) setFormData(prev => ({ ...prev, visit_id: visitIdFromUrl }));
-        if (projectIdFromUrl) setFormData(prev => ({ ...prev, project_id: projectIdFromUrl }));
+        if (projectIdFromUrl) {
+          // Auto-fill client & supplier from the linked project
+          const projList = (projectsRes.success && projectsRes.data) ? projectsRes.data : [];
+          const proj = projList.find((p: Project) => p.id === projectIdFromUrl);
+          setFormData(prev => ({
+            ...prev,
+            project_id: projectIdFromUrl,
+            client_id: proj?.client_id || prev.client_id,
+            company_id: proj?.supplier_id || prev.company_id,
+          }));
+        }
         if (companyVisitIdFromUrl) setFormData(prev => ({ ...prev, company_visit_id: companyVisitIdFromUrl }));
 
         // Edit mode: load existing offer
@@ -120,6 +130,17 @@ export const OfferForm: React.FC = () => {
   // Handle form changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    // When a project is selected, auto-fill client & supplier from that project
+    if (name === 'project_id') {
+      const proj = projects.find(p => p.id === value);
+      setFormData(prev => ({
+        ...prev,
+        project_id: value,
+        client_id: proj?.client_id || prev.client_id,
+        company_id: proj?.supplier_id || prev.company_id,
+      }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 

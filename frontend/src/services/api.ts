@@ -488,24 +488,36 @@ class ApiService {
     return response.data;
   }
 
-  async uploadBusinessCard(clientId: string, contactId: string, file: File) {
+  async uploadBusinessCard(clientId: string, contactId: string, file: File, side: 'front' | 'back' = 'front') {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await this.api.post(`/clients/${clientId}/contacts/${contactId}/business-card`, formData, {
+    formData.append('side', side);
+    const response = await this.api.post(`/clients/${clientId}/contacts/${contactId}/business-card?side=${side}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     this.memoryCache.clear();
     return response.data;
   }
 
-  async downloadBusinessCard(clientId: string, contactId: string) {
-    const response = await this.api.get(`/clients/${clientId}/contacts/${contactId}/business-card/download`);
+  async downloadBusinessCard(clientId: string, contactId: string, side: 'front' | 'back' = 'front') {
+    const response = await this.api.get(`/clients/${clientId}/contacts/${contactId}/business-card/download?side=${side}`);
     return response.data;
   }
 
-  async deleteBusinessCard(clientId: string, contactId: string) {
-    const response = await this.api.delete(`/clients/${clientId}/contacts/${contactId}/business-card`);
+  async deleteBusinessCard(clientId: string, contactId: string, side: 'front' | 'back' = 'front') {
+    const response = await this.api.delete(`/clients/${clientId}/contacts/${contactId}/business-card?side=${side}`);
     this.memoryCache.clear();
+    return response.data;
+  }
+
+  /** OCR del fronte del biglietto da visita → estrae i campi del contatto. */
+  async ocrBusinessCard(file: File): Promise<ApiResponse<{ name: string; role: string; email: string; phone: string; wechat: string; notes: string }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/clients/contacts/ocr-business-card`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000, // l'OCR può richiedere più tempo
+    });
     return response.data;
   }
 
@@ -540,7 +552,7 @@ class ApiService {
   }
 
   // Visits
-  async createVisit(clientId: string, visitDate: string, reports: any[], options?: { status?: string; preparation?: string; meeting_type?: string }) {
+  async createVisit(clientId: string, visitDate: string, reports: any[], options?: { status?: string; preparation?: string; meeting_type?: string; participants?: string }) {
     const response = await this.api.post<ApiResponse<any>>('/visits', {
       client_id: clientId,
       visit_date: visitDate,
@@ -548,11 +560,12 @@ class ApiService {
       ...(options?.status && { status: options.status }),
       ...(options?.preparation && { preparation: options.preparation }),
       ...(options?.meeting_type && { meeting_type: options.meeting_type }),
+      ...(options?.participants && { participants: options.participants }),
     });
     return response.data;
   }
 
-  async updateVisit(visitId: string, data: { status?: string; preparation?: string | null; visit_date?: string; meeting_type?: string }) {
+  async updateVisit(visitId: string, data: { status?: string; preparation?: string | null; visit_date?: string; meeting_type?: string; participants?: string }) {
     const response = await this.api.put<ApiResponse<any>>(`/visits/${visitId}`, data);
     return response.data;
   }
@@ -722,9 +735,10 @@ class ApiService {
   }
 
   // Todos
-  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string, priority?: number, opportunityId?: string, category?: string) {
+  async createTodo(title: string, clientId: string, companyId: string, assignedToUserId: string, dueDate?: string, visitReportId?: string, claimId?: string, visitId?: string, companyVisitId?: string, priority?: number, opportunityId?: string, category?: string, description?: string) {
     const response = await this.api.post<ApiResponse<any>>('/todos', {
       title,
+      description,
       clientId,
       companyId,
       assignedToUserId,
@@ -756,7 +770,7 @@ class ApiService {
     return response.data;
   }
 
-  async updateTodo(id: string, data: { title?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string; priority?: number; category?: string }) {
+  async updateTodo(id: string, data: { title?: string; description?: string; status?: string; dueDate?: string; assignedToUserId?: string; clientId?: string; companyId?: string; priority?: number; category?: string }) {
     const response = await this.api.put<ApiResponse<any>>(`/todos/${id}`, data);
     this.memoryCache.clear();
     return response.data;
@@ -1519,6 +1533,68 @@ class ApiService {
   }
   async getProjectStats() {
     const response = await this.cachedGet<ApiResponse<any>>('/projects/stats/summary');
+    return response.data;
+  }
+
+  // ---- Project offers total ----
+  async getProjectOffersTotal(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/projects/${id}/offers-total`);
+    return response.data;
+  }
+
+  // ---- Project Attachments ----
+  async uploadProjectAttachment(projectId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/projects/${projectId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+  async getProjectAttachments(projectId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/projects/${projectId}/attachments`);
+    return response.data;
+  }
+  async downloadProjectAttachment(projectId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/projects/${projectId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+  async deleteProjectAttachment(projectId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/projects/${projectId}/attachments/${attachmentId}`);
+    return response.data;
+  }
+
+  // ---- Project Movements ----
+  async getProjectMovements(projectId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/projects/${projectId}/movements`);
+    return response.data;
+  }
+  async addProjectMovement(projectId: string, data: { date: string; action: string }) {
+    const response = await this.api.post<ApiResponse<any>>(`/projects/${projectId}/movements`, data);
+    return response.data;
+  }
+  async updateProjectMovement(projectId: string, movementId: string, data: { date?: string; action?: string }) {
+    const response = await this.api.put<ApiResponse<any>>(`/projects/${projectId}/movements/${movementId}`, data);
+    return response.data;
+  }
+  async deleteProjectMovement(projectId: string, movementId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/projects/${projectId}/movements/${movementId}`);
+    return response.data;
+  }
+  async uploadProjectMovementAttachment(projectId: string, movementId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post<ApiResponse<any>>(`/projects/${projectId}/movements/${movementId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+  async downloadProjectMovementAttachment(projectId: string, movementId: string, attachmentId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/projects/${projectId}/movements/${movementId}/attachments/${attachmentId}/download`);
+    return response.data;
+  }
+  async deleteProjectMovementAttachment(projectId: string, movementId: string, attachmentId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/projects/${projectId}/movements/${movementId}/attachments/${attachmentId}`);
     return response.data;
   }
 

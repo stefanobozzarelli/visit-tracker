@@ -120,6 +120,11 @@ export class Project {
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
   project_value: number;
 
+  // When false, project_value is auto-computed from the sum of linked offers.
+  // When true, the user has manually overridden the value.
+  @Column({ type: 'boolean', default: false })
+  project_value_manual: boolean;
+
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
   total_value_shipped: number;
 

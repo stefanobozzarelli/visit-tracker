@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import Anthropic from '@anthropic-ai/sdk';
 import { ClientService } from '../services/ClientService';
 import { PermissionService } from '../services/PermissionService';
 import { CompanyService } from '../services/CompanyService';
@@ -230,10 +231,11 @@ router.delete('/contacts/:contactId', async (req: Request, res: Response) => {
   }
 });
 
-// Business card upload
+// Business card upload (side = 'front' | 'back', default 'front')
 router.post('/:clientId/contacts/:contactId/business-card', upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { contactId } = req.params;
+    const side = (req.query.side === 'back' || req.body?.side === 'back') ? 'back' : 'front';
     const file = req.file;
     if (!file) {
       return res.status(400).json({ success: false, error: 'No file uploaded' });
@@ -244,14 +246,22 @@ router.post('/:clientId/contacts/:contactId/business-card', upload.single('file'
       return res.status(400).json({ success: false, error: 'Only image files and PDFs are accepted' });
     }
 
-    const s3Key = `business-cards/${contactId}/${Date.now()}-${file.originalname}`;
+    const s3Key = `business-cards/${contactId}/${side}-${Date.now()}-${file.originalname}`;
     await s3Service.uploadFile(s3Key, file.buffer, file.mimetype);
 
-    const contact = await clientService.updateContact(contactId, {
-      business_card_filename: file.originalname,
-      business_card_s3_key: s3Key,
-      business_card_file_size: file.size,
-    } as any);
+    const update = side === 'back'
+      ? {
+          business_card_back_filename: file.originalname,
+          business_card_back_s3_key: s3Key,
+          business_card_back_file_size: file.size,
+        }
+      : {
+          business_card_filename: file.originalname,
+          business_card_s3_key: s3Key,
+          business_card_file_size: file.size,
+        };
+
+    const contact = await clientService.updateContact(contactId, update as any);
 
     const response: ApiResponse<any> = { success: true, data: contact };
     res.json(response);
@@ -260,17 +270,102 @@ router.post('/:clientId/contacts/:contactId/business-card', upload.single('file'
   }
 });
 
-// Business card download (presigned URL)
+// OCR del biglietto da visita (fronte): estrae i campi del contatto via Claude.
+// Non richiede un contatto già esistente — serve a precompilare il form.
+router.post('/contacts/ocr-business-card', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ success: false, error: 'ANTHROPIC_API_KEY non configurata' });
+    }
+
+    const base64 = file.buffer.toString('base64');
+    let contentBlock: any;
+    if (file.mimetype === 'application/pdf') {
+      contentBlock = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } };
+    } else if (['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(file.mimetype)) {
+      const imageType = file.mimetype === 'image/jpg' ? 'image/jpeg' : file.mimetype;
+      contentBlock = { type: 'image', source: { type: 'base64', media_type: imageType, data: base64 } };
+    } else {
+      return res.status(400).json({ success: false, error: `Tipo file non supportato: ${file.mimetype}` });
+    }
+
+    const prompt = `You are a business card data extractor. Analyze this business card image and extract the contact details.
+Return ONLY a JSON object — no explanation, no markdown, no code fences — in exactly this structure:
+{
+  "name": "full person name or empty string",
+  "role": "job title / role or empty string",
+  "email": "email address or empty string",
+  "phone": "primary phone number (keep + and digits) or empty string",
+  "wechat": "WeChat ID or empty string",
+  "notes": "company name and any other useful info (address, website) or empty string"
+}
+Rules:
+- name: the person's name, not the company.
+- If there are multiple phones, pick the mobile/primary one for "phone".
+- Put the COMPANY NAME and address/website into "notes".
+- Leave a field as "" if not present. Do not invent data.
+- Return valid JSON only.`;
+
+    const MODELS = ['claude-opus-4-5', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-haiku-20240307'];
+    const client = new Anthropic({ apiKey });
+    let response: any = null;
+    let lastError: any = null;
+    for (const model of MODELS) {
+      try {
+        response = await client.messages.create({
+          model,
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }],
+        });
+        break;
+      } catch (modelErr: any) {
+        lastError = modelErr;
+        if (modelErr?.status === 404 || modelErr?.error?.error?.type === 'not_found_error') continue;
+        throw modelErr;
+      }
+    }
+    if (!response) throw lastError;
+
+    const text = response.content[0]?.type === 'text' ? response.content[0].text.trim() : '';
+    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return res.status(500).json({ success: false, error: 'OCR: risposta non valida' });
+    }
+    const parsed = JSON.parse(jsonMatch[0]);
+    const fields = {
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      role: typeof parsed.role === 'string' ? parsed.role : '',
+      email: typeof parsed.email === 'string' ? parsed.email : '',
+      phone: typeof parsed.phone === 'string' ? parsed.phone : '',
+      wechat: typeof parsed.wechat === 'string' ? parsed.wechat : '',
+      notes: typeof parsed.notes === 'string' ? parsed.notes : '',
+    };
+    res.json({ success: true, data: fields });
+  } catch (error) {
+    console.error('ocr-business-card error:', error);
+    res.status(500).json({ success: false, error: 'Errore OCR: ' + (error as Error).message });
+  }
+});
+
+// Business card download (presigned URL) — side = 'front' | 'back'
 router.get('/:clientId/contacts/:contactId/business-card/download', async (req: Request, res: Response) => {
   try {
     const { contactId } = req.params;
+    const side = req.query.side === 'back' ? 'back' : 'front';
     const contacts = await clientService.getClientContacts(req.params.clientId);
     const contact = contacts.find(c => c.id === contactId);
-    if (!contact || !contact.business_card_s3_key) {
+    const s3Key = side === 'back' ? (contact as any)?.business_card_back_s3_key : contact?.business_card_s3_key;
+    if (!contact || !s3Key) {
       return res.status(404).json({ success: false, error: 'Business card not found' });
     }
 
-    const presignedUrl = await s3Service.getDownloadUrl(contact.business_card_s3_key);
+    const presignedUrl = await s3Service.getDownloadUrl(s3Key);
     const response: ApiResponse<any> = { success: true, data: { url: presignedUrl } };
     res.json(response);
   } catch (error) {
@@ -278,22 +373,28 @@ router.get('/:clientId/contacts/:contactId/business-card/download', async (req: 
   }
 });
 
-// Business card delete
+// Business card delete — side = 'front' | 'back'
 router.delete('/:clientId/contacts/:contactId/business-card', async (req: Request, res: Response) => {
   try {
     const { contactId, clientId } = req.params;
+    const side = req.query.side === 'back' ? 'back' : 'front';
     const contacts = await clientService.getClientContacts(clientId);
     const contact = contacts.find(c => c.id === contactId);
-    if (!contact || !contact.business_card_s3_key) {
+    const s3Key = side === 'back' ? (contact as any)?.business_card_back_s3_key : contact?.business_card_s3_key;
+    if (!contact || !s3Key) {
       return res.status(404).json({ success: false, error: 'Business card not found' });
     }
 
-    await s3Service.deleteFile(contact.business_card_s3_key);
-    await clientService.updateContact(contactId, {
+    await s3Service.deleteFile(s3Key);
+    await clientService.updateContact(contactId, (side === 'back' ? {
+      business_card_back_filename: null,
+      business_card_back_s3_key: null,
+      business_card_back_file_size: null,
+    } : {
       business_card_filename: null,
       business_card_s3_key: null,
       business_card_file_size: null,
-    } as any);
+    }) as any);
 
     const response: ApiResponse<any> = { success: true, message: 'Business card deleted' };
     res.json(response);

@@ -131,6 +131,7 @@ export const OfferItemForm: React.FC = () => {
         prezzo_unitario: Number(formData.prezzo_unitario || 0),
         unita_misura: formData.unita_misura || undefined,
         quantita: Number(formData.quantita || 0),
+        total_amount: Number(formData.prezzo_unitario || 0) * Number(formData.quantita || 0),
         data: formData.data || undefined,
         tipo_offerta: formData.tipo_offerta || 'retail',
         promozionale: !!formData.promozionale,
