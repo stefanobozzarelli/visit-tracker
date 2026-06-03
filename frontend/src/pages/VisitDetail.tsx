@@ -88,6 +88,7 @@ export const VisitDetail: React.FC = () => {
   const [reportOpportunities, setReportOpportunities] = useState<Record<string, any[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [pasteTargetReportId, setPasteTargetReportId] = useState<string | null>(null);
   const [uploadingReportId, setUploadingReportId] = useState<string | null>(null);
   const [emailLoading, setEmailLoading] = useState<string | null>(null); // 'all' | reportId | null
@@ -161,11 +162,13 @@ export const VisitDetail: React.FC = () => {
   const handleOutlookDraft = async (reportId?: string) => {
     if (!visit) return;
     const key = `outlook-${reportId || 'all'}`;
+    setError('');
+    setSuccessMsg('');
     setEmailLoading(key);
     try {
       const res = await apiService.createOutlookDraft(visit.id, reportId ? { reportId } : {});
-      if (res.success && res.data?.webLink) {
-        window.open(res.data.webLink, '_blank');
+      if (res.success) {
+        setSuccessMsg('✓ Bozza creata in Outlook con il PDF allegato. La trovi nella cartella "Bozze" (anche nell’app desktop).');
       } else {
         setError(res.error || 'Errore creazione bozza Outlook');
       }
@@ -231,6 +234,10 @@ export const VisitDetail: React.FC = () => {
   }, [pasteTargetReportId, visit]);
 
   useEffect(() => { loadVisit(); }, [id, location.key]);
+
+  useEffect(() => {
+    if (successMsg) { const t = setTimeout(() => setSuccessMsg(''), 6000); return () => clearTimeout(t); }
+  }, [successMsg]);
 
   const loadVisit = async () => {
     if (!id) return;
@@ -350,6 +357,7 @@ export const VisitDetail: React.FC = () => {
       </div>
 
       {error && <div style={{ padding: '0.75rem', marginBottom: '1rem', background: '#fee', border: '1px solid #fcc', borderRadius: '4px', color: '#c00' }}>{error}</div>}
+      {successMsg && <div style={{ padding: '0.75rem', marginBottom: '1rem', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '4px', color: '#2E7D32' }}>{successMsg}</div>}
 
       <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
