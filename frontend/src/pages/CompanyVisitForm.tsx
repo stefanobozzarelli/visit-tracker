@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -88,6 +88,8 @@ export const CompanyVisitForm: React.FC = () => {
   const [subject, setSubject] = useState('');
   const [status, setStatus] = useState<string>('scheduled');
   const [meetingType, setMeetingType] = useState<string>('in_person');
+  const [zone, setZone] = useState('');
+  const [userAreaCountries, setUserAreaCountries] = useState<string[]>([]);
   const [participantsUserIds, setParticipantsUserIds] = useState<string[]>([]);
   const [participantsExternal, setParticipantsExternal] = useState('');
   const [report, setReport] = useState('');
@@ -147,6 +149,14 @@ export const CompanyVisitForm: React.FC = () => {
         }
       } catch {}
 
+      // Load user's assigned countries (for the zone selector)
+      try {
+        const r = await apiService.getMyAreas();
+        if (r.success && r.data) {
+          setUserAreaCountries(r.data.countries || []);
+        }
+      } catch {}
+
       // Load company visit in edit mode
       if (isEdit && id) {
         try {
@@ -158,6 +168,7 @@ export const CompanyVisitForm: React.FC = () => {
             setSubject(visit.subject || '');
             setStatus(visit.status || 'scheduled');
             setMeetingType(visit.meeting_type || 'in_person');
+            setZone(visit.zone || '');
             setReport(visit.report || '');
             setPreparation(visit.preparation || '');
             setParticipantsExternal(visit.participants_external || '');
@@ -198,6 +209,18 @@ export const CompanyVisitForm: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Countries for the zone selector
+  const isAdminLevel = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
+  const zoneCountries = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of userAreaCountries) set.add(c);
+    if (isAdminLevel) {
+      ['China', 'South Korea', 'Japan', 'Taiwan', 'Hong Kong', 'Singapore', 'Thailand', 'Vietnam', 'Malaysia', 'Indonesia', 'Philippines', 'India', 'Cambodia', 'Myanmar', 'Laos', 'Australia', 'New Zealand', 'Mongolia', 'Bangladesh', 'Sri Lanka', 'Nepal', 'Pakistan', 'UAE', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman', 'Italy', 'USA', 'UK', 'Germany', 'France', 'Spain', 'Brazil', 'Mexico', 'Canada', 'Russia', 'Turkey'].forEach(c => set.add(c));
+    }
+    if (zone && !set.has(zone)) set.add(zone);
+    return Array.from(set).sort();
+  }, [userAreaCountries, zone, isAdminLevel]);
 
   // ---- Participants toggle ----
   const toggleParticipant = (userId: string) => {
@@ -284,6 +307,7 @@ export const CompanyVisitForm: React.FC = () => {
         participantsExternal: participantsExternal || undefined,
         status,
         meeting_type: meetingType,
+        zone: zone || undefined,
       };
 
       if (isEdit && id) {
@@ -393,6 +417,15 @@ export const CompanyVisitForm: React.FC = () => {
                 <option value="scheduled">Scheduled</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Zone / Sales Area</label>
+              <select value={zone} onChange={e => setZone(e.target.value)}>
+                <option value="">No zone (all areas)</option>
+                {zoneCountries.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
             </div>
           </div>

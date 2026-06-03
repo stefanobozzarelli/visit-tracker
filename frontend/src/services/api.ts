@@ -894,7 +894,7 @@ class ApiService {
   }
 
   // Company Visits
-  async createCompanyVisit(data: { companyId: string; date: string; subject: string; report?: string; preparation?: string; participantsUserIds?: string[]; participantsExternal?: string; status?: string; meeting_type?: string }) {
+  async createCompanyVisit(data: { companyId: string; date: string; subject: string; report?: string; preparation?: string; participantsUserIds?: string[]; participantsExternal?: string; status?: string; meeting_type?: string; zone?: string }) {
     const response = await this.api.post<ApiResponse<any>>('/company-visits', data);
     return response.data;
   }

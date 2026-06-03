@@ -39,6 +39,9 @@ export class CompanyVisit {
   @Column({ default: 'in_person' })
   meeting_type: 'in_person' | 'call' | 'video_call';
 
+  @Column({ type: 'varchar', nullable: true })
+  zone: string | null; // Sales territory/country this meeting refers to (for visibility)
+
   @Column()
   created_by_user_id: string;
 

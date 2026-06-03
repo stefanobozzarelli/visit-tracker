@@ -192,6 +192,12 @@ export const CompanyVisitDetail: React.FC = () => {
               {visit.meeting_type === 'call' ? '\uD83D\uDCDE Call' : visit.meeting_type === 'video_call' ? '\uD83D\uDCF9 Video Call' : '\uD83C\uDFE2 In Person'}
             </p>
           </div>
+          {visit.zone && (
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Zone / Sales Area</label>
+              <p style={{ margin: 0, fontSize: '1rem' }}>{visit.zone}</p>
+            </div>
+          )}
         </div>
 
         <div style={{ marginBottom: '2rem' }}>

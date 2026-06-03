@@ -25,6 +25,7 @@ export class CompanyVisitService {
     participants_external?: string;
     status?: 'scheduled' | 'completed' | 'cancelled';
     meeting_type?: 'in_person' | 'call' | 'video_call';
+    zone?: string | null;
     created_by_user_id: string;
   }): Promise<CompanyVisit> {
     const visit = this.visitRepository.create(data);
@@ -70,6 +71,7 @@ export class CompanyVisitService {
     participants_external: string;
     status: 'scheduled' | 'completed' | 'cancelled';
     meeting_type: 'in_person' | 'call' | 'video_call';
+    zone: string | null;
   }>): Promise<CompanyVisit> {
     await this.visitRepository.update(id, data as any);
     const updated = await this.getVisitById(id);

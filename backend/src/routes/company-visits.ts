@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { CompanyVisitService } from '../services/CompanyVisitService';
+import { PermissionService } from '../services/PermissionService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
@@ -8,7 +9,29 @@ import multer from 'multer';
 
 const router = Router();
 const visitService = new CompanyVisitService();
+const permissionService = new PermissionService();
 const s3Service = new S3Service();
+
+/**
+ * Filter supplier meetings for non-admin users using the "supplier + zone" rule:
+ * a meeting is visible if (company is in the user's assigned suppliers AND
+ * the meeting's zone is in the user's assigned countries). Meetings with no
+ * zone fall back to a supplier-only match so legacy data stays visible, and a
+ * user always sees the meetings they created.
+ */
+async function filterVisitsForUser(visits: any[], userId: string, userRole: string): Promise<any[]> {
+  if (userRole === 'master_admin' || userRole === 'admin' || userRole === 'manager') {
+    return visits;
+  }
+  const { companies, countries } = await permissionService.getUserAreas(userId);
+  const companyIdSet = new Set(companies.map((c: any) => c.id));
+  return visits.filter((cv: any) => {
+    if (cv.created_by_user_id === userId) return true;
+    if (!cv.company_id || !companyIdSet.has(cv.company_id)) return false;
+    if (!cv.zone) return true; // no zone set => supplier-only match (legacy fallback)
+    return countries.includes(cv.zone);
+  });
+}
 const pdfService = new PdfService();
 const excelService = new ExcelService();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -72,10 +95,8 @@ router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) =
     let visits = await visitService.getVisits(filters);
     if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
     if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
-    // Permission-based filtering for non-admin users
-    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
-      visits = visits.filter((cv: any) => cv.created_by_user_id === userId);
-    }
+    // Permission-based filtering for non-admin users (supplier + zone)
+    visits = await filterVisitsForUser(visits, userId, userRole);
     const buffer = await pdfService.generateCompanyVisitsPdf(visits, { title: 'Company Visits Report', generatedAt: new Date() });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=company-visits-report.pdf');
@@ -105,10 +126,8 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
     let visits = await visitService.getVisits(filters);
     if (startDate) visits = visits.filter((v: any) => new Date(v.date) >= new Date(startDate));
     if (endDate) visits = visits.filter((v: any) => new Date(v.date) <= new Date(endDate));
-    // Permission-based filtering for non-admin users
-    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
-      visits = visits.filter((cv: any) => cv.created_by_user_id === userId);
-    }
+    // Permission-based filtering for non-admin users (supplier + zone)
+    visits = await filterVisitsForUser(visits, userId, userRole);
     const buffer = excelService.generateCompanyVisitsExcel(visits);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=company-visits-report.xlsx');
@@ -124,7 +143,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status, meeting_type } = req.body;
+    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status, meeting_type, zone } = req.body;
     const createdByUserId = (req.user as any).id;
 
     if (!companyId || !date || !subject) {
@@ -144,6 +163,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
       participants_external: participantsExternal || null,
       status: status || 'scheduled',
       meeting_type: meeting_type || 'in_person',
+      zone: zone || null,
       created_by_user_id: createdByUserId,
     });
 
@@ -171,7 +191,12 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
     if (status) filters.status = status as string;
     if (country) filters.country = country as string;
 
-    const visits = await visitService.getVisits(filters);
+    let visits = await visitService.getVisits(filters);
+
+    // Permission-based filtering for non-admin users (supplier + zone)
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+    visits = await filterVisitsForUser(visits, userId, userRole);
 
     res.json({ success: true, data: visits });
   } catch (error) {
@@ -206,7 +231,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Company visit not found' });
     }
 
-    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status, meeting_type } = req.body;
+    const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status, meeting_type, zone } = req.body;
     const updateData: any = {};
 
     if (companyId) updateData.company_id = companyId;
@@ -218,6 +243,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     if (participantsExternal !== undefined) updateData.participants_external = participantsExternal;
     if (status) updateData.status = status;
     if (meeting_type !== undefined) updateData.meeting_type = meeting_type;
+    if (zone !== undefined) updateData.zone = zone || null;
 
     const updated = await visitService.updateVisit(req.params.id, updateData);
     res.json({ success: true, data: updated });

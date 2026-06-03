@@ -98,12 +98,21 @@ router.post('/export-excel', async (req: Request, res: Response) => {
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const filters = {
       visit_id: req.query.visit_id as string,
       client_id: req.query.client_id as string,
       status: req.query.status as any,
     };
-    const orders = await orderService.getOrders(filters);
+    let orders = await orderService.getOrders(filters);
+    // Permission-based filtering for non-admin users
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(userId);
+      if (!visibleClientIds.includes('*')) {
+        orders = orders.filter((o: any) => o.client_id && visibleClientIds.includes(o.client_id));
+      }
+    }
     const response: ApiResponse<any> = { success: true, data: orders };
     res.json(response);
   } catch (error) {
