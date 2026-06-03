@@ -44,7 +44,7 @@ interface FormData {
   role: string;
 }
 
-type Tab = 'users' | 'companies' | 'clients';
+type Tab = 'users' | 'companies' | 'clients' | 'outlook';
 
 // ─── Component ────────────────────────────────────────
 export const Settings: React.FC = () => {
@@ -53,6 +53,12 @@ export const Settings: React.FC = () => {
   const { isOnline } = useOnlineStatus();
 
   const [activeTab, setActiveTab] = useState<Tab>('users');
+
+  // Dopo il redirect OAuth Microsoft (?ms=connected|error) apri la tab Outlook
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('ms')) setActiveTab('outlook');
+  }, []);
 
   const isMasterAdmin = user?.role === 'master_admin';
 
@@ -96,12 +102,19 @@ export const Settings: React.FC = () => {
         >
           Countries & Access
         </button>
+        <button
+          className={`settings-tab ${activeTab === 'outlook' ? 'active' : ''}`}
+          onClick={() => setActiveTab('outlook')}
+        >
+          Outlook
+        </button>
       </div>
 
       <div className="settings-content">
         {activeTab === 'users' && <UsersTab isMasterAdmin={!!isMasterAdmin} />}
         {activeTab === 'companies' && <CompanyAccessTab />}
         {activeTab === 'clients' && <ClientPermissionsTab />}
+        {activeTab === 'outlook' && <OutlookTab />}
       </div>
     </div>
   );
@@ -716,6 +729,113 @@ const ClientPermissionsTab: React.FC = () => {
           )}
         </>
       )}
+    </>
+  );
+};
+
+// ─── Outlook Tab ──────────────────────────────────────
+const OutlookTab: React.FC = () => {
+  const [status, setStatus] = useState<{ connected: boolean; email: string | null; configured: boolean } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const loadStatus = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiService.getMicrosoftStatus();
+      if (res.success && res.data) setStatus(res.data);
+      else setError(res.error || 'Errore nel caricamento dello stato');
+    } catch {
+      setError('Errore nel caricamento dello stato Outlook');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadStatus(); }, [loadStatus]);
+
+  // Feedback dal redirect OAuth (?ms=connected | ?ms=error&reason=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ms = params.get('ms');
+    if (ms === 'connected') setSuccess('Account Outlook collegato con successo');
+    else if (ms === 'error') setError(`Collegamento fallito: ${decodeURIComponent(params.get('reason') || 'errore sconosciuto')}`);
+    if (ms) window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
+  const handleConnect = async () => {
+    setError(''); setSuccess(''); setWorking(true);
+    try {
+      const res = await apiService.connectMicrosoft();
+      if (res.success && res.data?.url) {
+        window.location.href = res.data.url; // redirect al login Microsoft
+      } else {
+        setError(res.error || 'Impossibile avviare il collegamento');
+        setWorking(false);
+      }
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Integrazione Microsoft non configurata sul server');
+      setWorking(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Scollegare l’account Outlook?')) return;
+    setError(''); setSuccess(''); setWorking(true);
+    try {
+      const res = await apiService.disconnectMicrosoft();
+      if (res.success) { setSuccess('Account Outlook scollegato'); await loadStatus(); }
+      else setError(res.error || 'Errore durante lo scollegamento');
+    } catch {
+      setError('Errore durante lo scollegamento');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  if (loading) return <p className="settings-loading">Caricamento...</p>;
+
+  return (
+    <>
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      <div style={{ maxWidth: 640 }}>
+        <h3 style={{ marginTop: 0 }}>Integrazione Outlook</h3>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+          Collega il tuo account Microsoft per creare automaticamente <strong>bozze in Outlook</strong> con
+          il PDF del report già allegato. La bozza non viene inviata: la apri, controlli il destinatario e invii tu.
+        </p>
+
+        {status && !status.configured && (
+          <div className="alert alert-error" style={{ marginTop: '1rem' }}>
+            L'integrazione Microsoft non è ancora configurata sul server (mancano le credenziali). Contatta l'amministratore.
+          </div>
+        )}
+
+        <div style={{ marginTop: '1.5rem', padding: '1.25rem', border: '1px solid var(--color-border, #e0e0e0)', borderRadius: 8, background: 'var(--color-surface, #fff)' }}>
+          {status?.connected ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 600, color: '#2E7D32' }}>✓ Collegato</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{status.email || 'Account Microsoft'}</div>
+              </div>
+              <button className="btn btn-danger-outline" onClick={handleDisconnect} disabled={working}>
+                {working ? 'Attendere...' : 'Scollega'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Nessun account collegato.</div>
+              <button className="btn btn-primary" onClick={handleConnect} disabled={working || !status?.configured}>
+                {working ? 'Reindirizzamento...' : 'Collega Outlook'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 };

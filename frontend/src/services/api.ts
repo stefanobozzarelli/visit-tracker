@@ -434,6 +434,27 @@ class ApiService {
     return response.data;
   }
 
+  // ---- Microsoft / Outlook integration ----
+  async getMicrosoftStatus() {
+    const response = await this.api.get<ApiResponse<{ connected: boolean; email: string | null; configured: boolean }>>('/auth/microsoft/status');
+    return response.data;
+  }
+
+  async connectMicrosoft() {
+    const response = await this.api.get<ApiResponse<{ url: string }>>('/auth/microsoft/connect');
+    return response.data;
+  }
+
+  async disconnectMicrosoft() {
+    const response = await this.api.post<ApiResponse<any>>('/auth/microsoft/disconnect');
+    return response.data;
+  }
+
+  async createOutlookDraft(visitId: string, data: { reportId?: string; subject?: string; body?: string; to?: string[] }) {
+    const response = await this.api.post<ApiResponse<{ webLink: string }>>(`/visits/${visitId}/outlook-draft`, data);
+    return response.data;
+  }
+
   // Clients
   async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[], city?: string, has_showroom?: boolean) {
     const response = await this.api.post<ApiResponse<any>>('/clients', {

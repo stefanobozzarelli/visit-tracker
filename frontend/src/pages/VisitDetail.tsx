@@ -157,6 +157,32 @@ export const VisitDetail: React.FC = () => {
     }
   };
 
+  /** Crea una bozza in Outlook con il PDF del report allegato, poi apre la bozza. */
+  const handleOutlookDraft = async (reportId?: string) => {
+    if (!visit) return;
+    const key = `outlook-${reportId || 'all'}`;
+    setEmailLoading(key);
+    try {
+      const res = await apiService.createOutlookDraft(visit.id, reportId ? { reportId } : {});
+      if (res.success && res.data?.webLink) {
+        window.open(res.data.webLink, '_blank');
+      } else {
+        setError(res.error || 'Errore creazione bozza Outlook');
+      }
+    } catch (e: any) {
+      const errCode = e?.response?.data?.error;
+      if (errCode === 'OUTLOOK_NOT_CONNECTED' || e?.response?.status === 409) {
+        if (window.confirm('Outlook non è collegato. Vuoi collegarlo ora nelle impostazioni?')) {
+          navigate('/settings');
+        }
+      } else {
+        setError(`Errore bozza Outlook: ${errCode || e?.message || 'Errore sconosciuto'}`);
+      }
+    } finally {
+      setEmailLoading(null);
+    }
+  };
+
   // Upload files to a specific report (images are compressed client-side first)
   const uploadFilesToReport = async (reportId: string, files: File[]) => {
     if (!visit || files.length === 0) return;
@@ -307,6 +333,14 @@ export const VisitDetail: React.FC = () => {
             {emailLoading === 'eml-all' ? '⏳…' : '✉️ Condividi'}
           </button>
           <button
+            onClick={() => handleOutlookDraft()}
+            disabled={emailLoading !== null}
+            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'outlook-all' ? '#999' : '#0F6CBD', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            title="Crea una bozza in Outlook con il PDF allegato"
+          >
+            {emailLoading === 'outlook-all' ? '⏳…' : '📧 Bozza Outlook'}
+          </button>
+          <button
             onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}&returnTo=/visits/${id}`)}
             style={{ padding: '0.6rem 1.2rem', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
           >
@@ -436,6 +470,14 @@ export const VisitDetail: React.FC = () => {
                           title="Condividi PDF (apre il share sheet di sistema)"
                         >
                           {emailLoading === `eml-${report.id}` ? '⏳…' : '✉️ Condividi'}
+                        </button>
+                        <button
+                          onClick={() => handleOutlookDraft(report.id)}
+                          disabled={emailLoading !== null}
+                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === `outlook-${report.id}` ? '#999' : '#0F6CBD', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          title="Crea una bozza in Outlook con questa sezione in PDF"
+                        >
+                          {emailLoading === `outlook-${report.id}` ? '⏳…' : '📧 Bozza Outlook'}
                         </button>
                         <button
                           onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}&returnTo=/visits/${id}`)}
