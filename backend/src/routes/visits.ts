@@ -89,7 +89,8 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.post('/export-excel', async (req: Request, res: Response) => {
   try {
-    const { clientId, userId, startDate, endDate, status, visitIds } = req.body;
+    const { clientId, userId, startDate, endDate, status, visitIds, companyIds, companyId } = req.body;
+    const effectiveCompanyIds = companyIds || (companyId ? [companyId] : null);
     const filters: any = {};
     if (clientId) filters.client_id = clientId;
     if (userId) filters.user_id = userId;
@@ -101,6 +102,16 @@ router.post('/export-excel', async (req: Request, res: Response) => {
     if (Array.isArray(visitIds) && visitIds.length > 0) {
       const idSet = new Set(visitIds);
       visits = visits.filter((v: any) => idSet.has(v.id));
+    }
+    // Company (supplier) filter: trim each visit's reports to the selected company,
+    // applied even with row selection so other suppliers' reports don't leak in.
+    if (effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds)) {
+      const companyIdArray = Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds : [effectiveCompanyIds];
+      visits = visits.map((v: any) => ({
+        ...v,
+        reports: v.reports?.filter((r: any) => companyIdArray.includes(r.company_id)) || [],
+      })) as any;
+      visits = visits.filter((v: any) => v.reports && v.reports.length > 0);
     }
     const buffer = excelService.generateVisitsExcel(visits);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -492,28 +503,30 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
     }
 
     // If specific visit IDs are provided (row-level selection from Reports page),
-    // use ONLY those IDs — skip date/company filters so deselected rows don't sneak back
+    // use ONLY those IDs so deselected rows don't sneak back. Otherwise apply the
+    // date filter. The company filter below is ALWAYS applied (see next block).
     if (Array.isArray(visitIds) && visitIds.length > 0) {
       const idSet = new Set(visitIds);
       visits = visits.filter(v => idSet.has(v.id));
-    } else {
-      // No explicit selection: apply date and company filters
-      if (startDate || endDate) {
-        const start = startDate ? new Date(startDate) : new Date('1900-01-01');
-        const end = endDate ? new Date(endDate) : new Date('2099-12-31');
-        visits = visits.filter(
-          v => new Date(v.visit_date) >= start && new Date(v.visit_date) <= end
-        );
-      }
+    } else if (startDate || endDate) {
+      const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+      const end = endDate ? new Date(endDate) : new Date('2099-12-31');
+      visits = visits.filter(
+        v => new Date(v.visit_date) >= start && new Date(v.visit_date) <= end
+      );
+    }
 
-      if (effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds)) {
-        const companyIdArray = Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds : [effectiveCompanyIds];
-        visits = visits.map(v => ({
-          ...v,
-          reports: v.reports?.filter(r => companyIdArray.includes(r.company_id)) || [],
-        })) as any;
-        visits = visits.filter(v => v.reports && v.reports.length > 0);
-      }
+    // Company (supplier) filter: trim each visit's reports to the selected
+    // company. This must run even when visitIds are selected, otherwise a
+    // selected visit would be exported with ALL its reports (including reports
+    // of other suppliers) instead of just the filtered company's report.
+    if (effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds)) {
+      const companyIdArray = Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds : [effectiveCompanyIds];
+      visits = visits.map(v => ({
+        ...v,
+        reports: v.reports?.filter(r => companyIdArray.includes(r.company_id)) || [],
+      })) as any;
+      visits = visits.filter(v => v.reports && v.reports.length > 0);
     }
 
     if (visits.length === 0) {
