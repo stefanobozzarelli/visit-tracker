@@ -63,6 +63,7 @@ export const Trips: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<TripData | null>(null);
+  const [showPast, setShowPast] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -153,12 +154,69 @@ export const Trips: React.FC = () => {
     }
   };
 
+  // Partition trips into upcoming/ongoing vs. past (end date already elapsed).
+  // endDate is a 'YYYY-MM-DD' string, so direct string comparison is safe.
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const upcomingTrips = trips
+    .filter(t => t.endDate >= todayStr)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const pastTrips = trips
+    .filter(t => t.endDate < todayStr)
+    .sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+  const renderTripCard = (trip: TripData) => {
+    const stats = countStats(trip);
+    return (
+      <div key={trip.id} className="trip-card" onClick={() => navigate(`/trips/${trip.id}`)}>
+        <div className="trip-card-left">
+          <div className="trip-card-icon">✈</div>
+          <div className="trip-card-info">
+            <h3 className="trip-card-name">{trip.name}</h3>
+            <p className="trip-card-dates">{formatDateRange(trip.startDate, trip.endDate)}</p>
+            {trip.destination && <p className="trip-card-destination">{trip.destination}</p>}
+            {isAdmin && trip.user && (
+              <p className="trip-card-owner">👤 {trip.user.name}</p>
+            )}
+          </div>
+        </div>
+        <div className="trip-card-right">
+          <div className="trip-card-stats">
+            <div className="trip-stat">
+              <div className="trip-stat-value">{trip.days.length}</div>
+              <div className="trip-stat-label">giorni</div>
+            </div>
+            <div className="trip-stat">
+              <div className="trip-stat-value">{stats.flights}</div>
+              <div className="trip-stat-label">voli</div>
+            </div>
+            <div className="trip-stat">
+              <div className="trip-stat-value">{stats.hotels}</div>
+              <div className="trip-stat-label">hotel</div>
+            </div>
+            <div className="trip-stat">
+              <div className="trip-stat-value">{stats.apts}</div>
+              <div className="trip-stat-label">appunt.</div>
+            </div>
+          </div>
+          <div className="trip-card-actions">
+            <button className="trip-action-btn" onClick={e => openEdit(e, trip)} title="Modifica">✏</button>
+            <button className="trip-action-btn delete" onClick={e => handleDelete(e, trip.id)} title="Elimina">🗑</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="trips-page">
       <div className="trips-header">
         <div>
           <h1 className="trips-title">✈ Viaggi</h1>
-          <p className="trips-subtitle">{trips.length} {trips.length === 1 ? 'viaggio' : 'viaggi'}</p>
+          <p className="trips-subtitle">
+            {upcomingTrips.length} {upcomingTrips.length === 1 ? 'viaggio in programma' : 'viaggi in programma'}
+            {pastTrips.length > 0 && ` · ${pastTrips.length} passat${pastTrips.length === 1 ? 'o' : 'i'}`}
+          </p>
         </div>
         <button className="trip-btn-primary" onClick={openNew}>
           + Nuovo Viaggio
@@ -175,50 +233,33 @@ export const Trips: React.FC = () => {
           <button className="trip-btn-primary" onClick={openNew}>+ Nuovo Viaggio</button>
         </div>
       ) : (
-        <div className="trips-grid">
-          {trips.map(trip => {
-            const stats = countStats(trip);
-            return (
-              <div key={trip.id} className="trip-card" onClick={() => navigate(`/trips/${trip.id}`)}>
-                <div className="trip-card-left">
-                  <div className="trip-card-icon">✈</div>
-                  <div className="trip-card-info">
-                    <h3 className="trip-card-name">{trip.name}</h3>
-                    <p className="trip-card-dates">{formatDateRange(trip.startDate, trip.endDate)}</p>
-                    {trip.destination && <p className="trip-card-destination">{trip.destination}</p>}
-                    {isAdmin && trip.user && (
-                      <p className="trip-card-owner">👤 {trip.user.name}</p>
-                    )}
-                  </div>
+        <>
+          {upcomingTrips.length > 0 ? (
+            <div className="trips-grid">
+              {upcomingTrips.map(renderTripCard)}
+            </div>
+          ) : (
+            <div className="trips-empty-inline">Nessun viaggio in programma</div>
+          )}
+
+          {pastTrips.length > 0 && (
+            <div className="trips-past-section">
+              <button
+                className="trips-past-toggle"
+                onClick={() => setShowPast(s => !s)}
+                aria-expanded={showPast}
+              >
+                <span className={`trips-past-chevron ${showPast ? 'open' : ''}`}>▶</span>
+                Viaggi passati ({pastTrips.length})
+              </button>
+              {showPast && (
+                <div className="trips-grid trips-grid-past">
+                  {pastTrips.map(renderTripCard)}
                 </div>
-                <div className="trip-card-right">
-                  <div className="trip-card-stats">
-                    <div className="trip-stat">
-                      <div className="trip-stat-value">{trip.days.length}</div>
-                      <div className="trip-stat-label">giorni</div>
-                    </div>
-                    <div className="trip-stat">
-                      <div className="trip-stat-value">{stats.flights}</div>
-                      <div className="trip-stat-label">voli</div>
-                    </div>
-                    <div className="trip-stat">
-                      <div className="trip-stat-value">{stats.hotels}</div>
-                      <div className="trip-stat-label">hotel</div>
-                    </div>
-                    <div className="trip-stat">
-                      <div className="trip-stat-value">{stats.apts}</div>
-                      <div className="trip-stat-label">appunt.</div>
-                    </div>
-                  </div>
-                  <div className="trip-card-actions">
-                    <button className="trip-action-btn" onClick={e => openEdit(e, trip)} title="Modifica">✏</button>
-                    <button className="trip-action-btn delete" onClick={e => handleDelete(e, trip.id)} title="Elimina">🗑</button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* New / Edit Trip Modal */}

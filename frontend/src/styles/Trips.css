@@ -366,3 +366,49 @@
     gap: 0.5rem;
   }
 }
+
+/* ---- Past trips section ---- */
+.trips-empty-inline {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.trips-past-section {
+  margin-top: 2rem;
+  border-top: 1px solid var(--color-border, #e2e2dd);
+  padding-top: 1.25rem;
+}
+
+.trips-past-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 0.25rem 0;
+}
+
+.trips-past-toggle:hover {
+  color: var(--color-text, #1a1a1a);
+}
+
+.trips-past-chevron {
+  display: inline-block;
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+
+.trips-past-chevron.open {
+  transform: rotate(90deg);
+}
+
+.trips-grid-past {
+  margin-top: 1rem;
+  opacity: 0.85;
+}
