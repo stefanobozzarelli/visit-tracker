@@ -58,6 +58,37 @@
   flex-wrap: wrap;
 }
 
+.td-save-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  border: none;
+}
+
+.td-save-status.saving {
+  color: #6e6e73;
+  background: rgba(110, 110, 115, 0.12);
+}
+
+.td-save-status.saved {
+  color: #4a7653;
+  background: rgba(74, 118, 83, 0.12);
+}
+
+.td-save-status.error {
+  color: #fff;
+  background: #c0392b;
+  cursor: pointer;
+}
+
+.td-save-status.error:hover {
+  background: #a93226;
+}
+
 .td-btn-upload {
   display: inline-flex;
   align-items: center;

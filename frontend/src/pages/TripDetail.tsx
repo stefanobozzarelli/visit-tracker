@@ -164,6 +164,10 @@ export const TripDetail: React.FC = () => {
   // Usata per mostrare lo stato di consegna nel badge dell'appuntamento (riga "Hafary", "Hirata"...).
   const [visitDeliveryMap, setVisitDeliveryMap] = useState<Map<string, 'ready' | 'partial' | 'fully' | null>>(new Map());
   const [loading, setLoading] = useState(true);
+  // Save status for the trip auto-save (see saveTrip/flushSave below)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const pendingTripRef = useRef<Trip | null>(null);
+  const savingInFlightRef = useRef(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'list' | 'report'>('list');
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [highlightDayId, setHighlightDayId] = useState<string | null>(null);
@@ -269,14 +273,60 @@ export const TripDetail: React.FC = () => {
 
   useEffect(() => { if (id) loadTrip(); }, [id]);
 
-  const saveTrip = useCallback(async (updated: Trip) => {
-    setTrip(updated);
+  // Serialized auto-save: always sends the LATEST trip state, retries on
+  // failure, and surfaces the outcome via saveStatus. This prevents two
+  // problems with the old fire-and-forget save: (1) silent data loss when a
+  // request failed (the user was never told), and (2) a fast second edit
+  // overwriting the first with a stale snapshot.
+  const flushSave = useCallback(async () => {
+    if (savingInFlightRef.current) return; // a flush loop is already running
+    savingInFlightRef.current = true;
     try {
-      await (apiService as any).updateTrip(updated.id, { days: updated.days, hotels: updated.hotels || [] });
-    } catch (e) {
-      console.error('Save trip failed:', e);
+      while (pendingTripRef.current) {
+        const toSave = pendingTripRef.current;
+        pendingTripRef.current = null; // claim the latest state
+        setSaveStatus('saving');
+        let ok = false;
+        for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+          try {
+            await (apiService as any).updateTrip(toSave.id, { days: toSave.days, hotels: toSave.hotels || [] });
+            ok = true;
+          } catch (e) {
+            console.error(`Save trip failed (tentativo ${attempt + 1}/3):`, e);
+            if (attempt < 2) await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+          }
+        }
+        if (!ok) {
+          // Keep the unsaved snapshot so the next edit (or a manual retry)
+          // resends it instead of losing it.
+          if (!pendingTripRef.current) pendingTripRef.current = toSave;
+          setSaveStatus('error');
+          return;
+        }
+      }
+      setSaveStatus('saved');
+    } finally {
+      savingInFlightRef.current = false;
     }
   }, []);
+
+  const saveTrip = useCallback((updated: Trip) => {
+    setTrip(updated);
+    pendingTripRef.current = updated;
+    flushSave();
+  }, [flushSave]);
+
+  // Warn before leaving the page if there are still unsaved changes.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (pendingTripRef.current || savingInFlightRef.current || saveStatus === 'error') {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [saveStatus]);
 
   const toggleDay = (dayId: string) => {
     setExpandedDays(prev => {
@@ -452,6 +502,13 @@ export const TripDetail: React.FC = () => {
             </p>
           </div>
           <div className="td-header-actions">
+            {saveStatus === 'saving' && <span className="td-save-status saving">Salvataggio…</span>}
+            {saveStatus === 'saved' && <span className="td-save-status saved">Salvato ✓</span>}
+            {saveStatus === 'error' && (
+              <button className="td-save-status error" onClick={() => flushSave()} title="Riprova a salvare">
+                ⚠ Salvataggio non riuscito — Riprova
+              </button>
+            )}
             <button className="td-btn-upload" onClick={() => setShowPdfUpload(true)}>↑ Carica file prenotazione</button>
             <div className="td-export-wrap" ref={exportMenuRef}>
               <button className="td-btn-export" onClick={() => setShowExportMenu(v => !v)}>↓ Esporta ▾</button>
