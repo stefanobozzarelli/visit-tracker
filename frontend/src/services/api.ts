@@ -455,6 +455,11 @@ class ApiService {
     return response.data;
   }
 
+  async createOutlookDraftMulti(data: { visitIds?: string[]; companyId?: string; companyIds?: string[]; startDate?: string; endDate?: string; clientId?: string; userId?: string; subject?: string; body?: string; to?: string[] }) {
+    const response = await this.api.post<ApiResponse<{ webLink: string; count: number }>>(`/visits/outlook-draft-multi`, data);
+    return response.data;
+  }
+
   // Clients
   async createClient(name: string, country: string, notes?: string, role?: string, company_ids?: string[], city?: string, has_showroom?: boolean) {
     const response = await this.api.post<ApiResponse<any>>('/clients', {

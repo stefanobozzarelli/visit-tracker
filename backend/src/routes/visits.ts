@@ -554,6 +554,82 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
   }
 });
 
+// Outlook draft from MULTIPLE selected visits (Reports page).
+// Builds the same combined PDF as /export-pdf and attaches it to a new draft.
+// POST /visits/outlook-draft-multi   body: { visitIds?, companyId?, companyIds?, startDate?, endDate?, clientId?, userId?, subject?, body?, to? }
+router.post('/outlook-draft-multi', async (req: Request, res: Response) => {
+  try {
+    const authUserId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+
+    const user = await AppDataSource.getRepository(User).findOne({ where: { id: authUserId } });
+    if (!user) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    if (!user.ms_refresh_token) {
+      return res.status(409).json({ success: false, error: 'OUTLOOK_NOT_CONNECTED' });
+    }
+
+    const { startDate, endDate, clientId, companyIds, companyId, userId, visitIds } = req.body;
+    const effectiveCompanyIds = companyIds || (companyId ? [companyId] : null);
+
+    let visits = await visitService.getVisits({ client_id: clientId, user_id: userId });
+
+    // Permission filter (non-admin)
+    if (userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager') {
+      const visibleClientIds = await permissionService.getVisibleClients(authUserId);
+      if (!visibleClientIds.includes('*')) {
+        visits = visits.filter(v => visibleClientIds.includes(v.client_id));
+      }
+    }
+
+    // Row selection takes precedence; otherwise date filter.
+    if (Array.isArray(visitIds) && visitIds.length > 0) {
+      const idSet = new Set(visitIds);
+      visits = visits.filter(v => idSet.has(v.id));
+    } else if (startDate || endDate) {
+      const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+      const end = endDate ? new Date(endDate) : new Date('2099-12-31');
+      visits = visits.filter(v => new Date(v.visit_date) >= start && new Date(v.visit_date) <= end);
+    }
+
+    // Company filter: trim reports to the selected supplier (always applied).
+    const hasCompanyFilter = !!(effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds));
+    if (hasCompanyFilter) {
+      const companyIdArray = Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds : [effectiveCompanyIds];
+      visits = visits.map(v => ({
+        ...v,
+        reports: v.reports?.filter(r => companyIdArray.includes(r.company_id)) || [],
+      })) as any;
+      visits = visits.filter(v => v.reports && v.reports.length > 0);
+    }
+
+    if (visits.length === 0) {
+      return res.status(404).json({ success: false, error: 'Nessuna visita trovata con i filtri specificati' });
+    }
+
+    const ordersMap = await orderService.getOrdersByVisitIds(visits.map(v => v.id));
+    const pdfBuffer = await pdfService.generateVisitsPdfDetailed(visits, ordersMap, {
+      title: 'Report Visite',
+      includeDirectAtts: !hasCompanyFilter,
+    });
+
+    const count = visits.length;
+    const subject = (typeof req.body.subject === 'string' && req.body.subject.trim())
+      || (count === 1
+        ? `Report "${visits[0].client?.name || 'Cliente'}"`
+        : `Report visite (${count})`);
+    const body = (typeof req.body.body === 'string' && req.body.body)
+      || 'Buongiorno,\n\nin allegato i report in oggetto.\n\nCordiali saluti,\nStefano';
+    const filename = `${subject.replace(/[/\\:*?<>|]/g, '')}.pdf`;
+    const to = Array.isArray(req.body.to) ? req.body.to.filter((x: any) => typeof x === 'string') : undefined;
+
+    const draft = await msGraph.createDraftWithPdf(user, { subject, body, filename, pdf: pdfBuffer, to });
+    res.json({ success: true, data: { webLink: draft.webLink, count } });
+  } catch (error) {
+    console.error('outlook-draft-multi error:', error);
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
 // Email PDF for a single visit (full visit or a single section)
 // GET /visits/:id/email-pdf?reportId=<optional>
 router.get('/:id/email-pdf', async (req: Request, res: Response) => {

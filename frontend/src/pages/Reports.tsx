@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { downloadBlob } from '../utils/downloadBlob';
 import { openEmailWithPdf } from '../utils/openEmailWithPdf';
@@ -24,6 +25,7 @@ const formatDate = (d: string) => {
 
 export const Reports: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin' || user?.role === 'master_admin';
 
   const [activeTab, setActiveTab] = useState<TabKey>('visits');
@@ -32,6 +34,8 @@ export const Reports: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [emailExporting, setEmailExporting] = useState(false);
+  const [outlookExporting, setOutlookExporting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
   const [error, setError] = useState('');
 
   // Reference data for filters
@@ -41,6 +45,12 @@ export const Reports: React.FC = () => {
 
   // Filters per tab
   const [filters, setFilters] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!successMsg) return;
+    const t = setTimeout(() => setSuccessMsg(''), 7000);
+    return () => clearTimeout(t);
+  }, [successMsg]);
 
   useEffect(() => {
     const loadRefs = async () => {
@@ -275,6 +285,39 @@ export const Reports: React.FC = () => {
       setError('Errore condivisione');
     } finally {
       setEmailExporting(false);
+    }
+  };
+
+  // Create an Outlook draft from the selected visits (combined PDF attached).
+  const handleOutlookDraftMulti = async () => {
+    if (activeTab !== 'visits' || selectedIds.size === 0) return;
+    setOutlookExporting(true);
+    setError('');
+    setSuccessMsg('');
+    try {
+      const ids = Array.from(selectedIds);
+      const res = await apiService.createOutlookDraftMulti({
+        visitIds: ids,
+        clientId: filters.clientId || undefined,
+        companyId: filters.companyId || undefined,
+        userId: filters.userId || undefined,
+      });
+      if (res.success) {
+        setSuccessMsg(`✓ Bozza creata in Outlook con il PDF di ${res.data?.count ?? ids.length} visit${(res.data?.count ?? ids.length) === 1 ? 'a' : 'e'} allegato. La trovi nella cartella "Bozze".`);
+      } else {
+        setError(res.error || 'Errore creazione bozza Outlook');
+      }
+    } catch (err: any) {
+      const serverError = err?.response?.data?.error;
+      if (err?.response?.status === 409 || serverError === 'OUTLOOK_NOT_CONNECTED') {
+        if (window.confirm('Outlook non è ancora collegato. Vuoi collegarlo ora nelle Impostazioni?')) {
+          navigate('/settings');
+        }
+      } else {
+        setError(serverError || 'Errore creazione bozza Outlook');
+      }
+    } finally {
+      setOutlookExporting(false);
     }
   };
 
@@ -718,6 +761,11 @@ export const Reports: React.FC = () => {
       </div>
 
       {error && <div className="rpt-alert rpt-alert-error">{error}</div>}
+      {successMsg && (
+        <div className="rpt-alert rpt-alert-error" style={{ background: '#e8f5e9', color: '#2e7d32', borderColor: '#a5d6a7' }}>
+          {successMsg}
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="rpt-tabs">
@@ -769,6 +817,17 @@ export const Reports: React.FC = () => {
               title="Condividi PDF (apre il share sheet di sistema)"
             >
               {emailExporting ? '⏳…' : '✉️ Condividi'}
+            </button>
+          )}
+          {activeTab === 'visits' && (
+            <button
+              className="rpt-btn"
+              onClick={handleOutlookDraftMulti}
+              disabled={exporting || emailExporting || outlookExporting || selectedIds.size === 0}
+              style={{ background: outlookExporting ? '#999' : '#0F6CBD', color: 'white' }}
+              title="Crea una bozza in Outlook con il PDF delle visite selezionate allegato"
+            >
+              {outlookExporting ? '⏳…' : '📧 Bozza Outlook'}
             </button>
           )}
           <button
