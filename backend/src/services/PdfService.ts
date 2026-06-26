@@ -97,6 +97,11 @@ export class PdfService {
             ? new Date(visit.visit_date).toLocaleDateString('en-US')
             : visit.visit_date.toLocaleDateString('en-US');
           doc.text(`${visitDate} — ${visit.visited_by_user?.name || 'N/A'}`);
+          if ((visit as any).participants) {
+            doc.fontSize(9).font('Helvetica').fillColor('#555555')
+              .text(`Partecipanti: ${String((visit as any).participants)}`, { width: 480 });
+            doc.fontSize(10).fillColor('#333333');
+          }
           doc.moveDown(0.2);
 
           if (report) {
@@ -412,6 +417,9 @@ export class PdfService {
       doc.fontSize(11).font('Helvetica').fillColor('#444444')
         .text(`Data: ${visitDate}`, { align: 'center' });
       doc.text(`Sales rep: ${visit.visited_by_user?.name || 'N/A'}`, { align: 'center' });
+      if ((visit as any).participants) {
+        doc.text(`Partecipanti: ${String((visit as any).participants)}`, { align: 'center' });
+      }
       doc.text(`Generato il: ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
       doc.moveDown(1);
 
@@ -464,6 +472,11 @@ export class PdfService {
       // Date + Sales rep
       doc.fontSize(11).font('Helvetica').fillColor('#666666')
         .text(`${visitDate}   ·   ${visit.visited_by_user?.name || ''}`, { align: 'center' });
+      if ((visit as any).participants) {
+        doc.moveDown(0.3);
+        doc.fontSize(11).font('Helvetica').fillColor('#666666')
+          .text(`Partecipanti: ${String((visit as any).participants)}`, { align: 'center' });
+      }
       doc.moveDown(0.4);
       doc.fontSize(8).font('Helvetica-Oblique').fillColor('#999999')
         .text(`Generato il: ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
@@ -809,6 +822,10 @@ export class PdfService {
             : visit.visit_date.toLocaleDateString('it-IT');
           doc.fontSize(10).font('Helvetica').fillColor('#333333')
             .text(`${visitDate} — ${visit.visited_by_user?.name || 'N/A'}`);
+          if ((visit as any).participants) {
+            doc.fontSize(9).font('Helvetica').fillColor('#555555')
+              .text(`Partecipanti: ${String((visit as any).participants)}`, { width: 480 });
+          }
           doc.moveDown(0.2);
 
           // Section label + content

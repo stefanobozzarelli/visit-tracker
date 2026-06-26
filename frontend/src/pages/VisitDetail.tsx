@@ -386,6 +386,12 @@ export const VisitDetail: React.FC = () => {
               {visit.meeting_type === 'call' ? '\uD83D\uDCDE Call' : visit.meeting_type === 'video_call' ? '\uD83D\uDCF9 Video Call' : '\uD83C\uDFE2 In Person'}
             </p>
           </div>
+          {visit.participants && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Meeting Participants</label>
+              <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.participants}</p>
+            </div>
+          )}
         </div>
         {visitMetadata && (
           <div style={{ paddingTop: '1.5rem', borderTop: '1px solid #e0e0e0' }}>
