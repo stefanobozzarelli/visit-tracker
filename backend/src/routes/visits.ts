@@ -539,10 +539,10 @@ router.post('/export-pdf', async (req: Request, res: Response) => {
     // Load orders for all visits in one batch query
     const ordersMap = await orderService.getOrdersByVisitIds(visits.map(v => v.id));
 
-    // Use the detailed PDF (includes attachments names + orders)
+    // Combined report: each visit rendered like its single-visit report, so
+    // section attachments (images, PDFs, file links) and orders are embedded.
     const hasCompanyFilter = !!(effectiveCompanyIds && (Array.isArray(effectiveCompanyIds) ? effectiveCompanyIds.length > 0 : effectiveCompanyIds));
-    const pdfBuffer = await pdfService.generateVisitsPdfDetailed(visits, ordersMap, {
-      title: 'Report Visite',
+    const pdfBuffer = await pdfService.generateVisitsCombinedEmailPdf(visits, ordersMap, {
       includeDirectAtts: !hasCompanyFilter,
     });
 
@@ -607,8 +607,7 @@ router.post('/outlook-draft-multi', async (req: Request, res: Response) => {
     }
 
     const ordersMap = await orderService.getOrdersByVisitIds(visits.map(v => v.id));
-    const pdfBuffer = await pdfService.generateVisitsPdfDetailed(visits, ordersMap, {
-      title: 'Report Visite',
+    const pdfBuffer = await pdfService.generateVisitsCombinedEmailPdf(visits, ordersMap, {
       includeDirectAtts: !hasCompanyFilter,
     });
 

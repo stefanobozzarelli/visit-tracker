@@ -346,7 +346,7 @@ export class PdfService {
   async generateVisitEmailPdf(
     visit: Visit,
     orders: any[],
-    opts: { reportId?: string } = {},
+    opts: { reportId?: string; includeDirectAtts?: boolean } = {},
   ): Promise<Buffer> {
     const s3 = new S3Service();
     const singleSection = !!opts.reportId;
@@ -371,8 +371,9 @@ export class PdfService {
       parts.push(...sectionParts);
     }
 
-    // Visit-level direct attachments (general mode only)
-    if (!singleSection) {
+    // Visit-level direct attachments (general mode only; can be disabled when a
+    // supplier filter is active so unrelated visit-wide files aren't included)
+    if (!singleSection && opts.includeDirectAtts !== false) {
       const directs = visit.direct_attachments || [];
       if (directs.length > 0) {
         const directParts = await this._buildDirectAttachmentsParts(visit, directs, s3);
@@ -380,6 +381,28 @@ export class PdfService {
       }
     }
 
+    return await this._mergePdfBuffers(parts);
+  }
+
+  /**
+   * Combined report for MULTIPLE visits (Reports page: Export PDF / Condividi /
+   * Bozza Outlook). Each visit contributes its full email PDF — same rich output
+   * as the single-visit report, so section attachments (images, PDFs, file
+   * links) and linked orders are included, not just their filenames.
+   */
+  async generateVisitsCombinedEmailPdf(
+    visits: Visit[],
+    ordersMap: Map<string, any[]>,
+    opts: { includeDirectAtts?: boolean } = {},
+  ): Promise<Buffer> {
+    const parts: Buffer[] = [];
+    for (const visit of visits) {
+      const orders = ordersMap.get(visit.id) || [];
+      const perVisit = await this.generateVisitEmailPdf(visit, orders, {
+        includeDirectAtts: opts.includeDirectAtts,
+      });
+      parts.push(perVisit);
+    }
     return await this._mergePdfBuffers(parts);
   }
 
