@@ -159,6 +159,13 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response) => {
   } catch (error) { res.status(500).json({ success: false, error: (error as Error).message }); }
 });
 
+router.put('/:id/client', async (req: Request, res: Response) => {
+  try {
+    await invoiceService.updateInvoiceClient(req.params.id, req.body.client_id || null);
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ success: false, error: (error as Error).message }); }
+});
+
 router.put('/:id/total', async (req: Request, res: Response) => {
   try {
     await invoiceService.updateInvoiceTotal(req.params.id, req.body.total);
