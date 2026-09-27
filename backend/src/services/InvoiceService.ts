@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/database';
 import { Invoice, InvoiceStatus } from '../entities/Invoice';
 import { InvoiceLineItem } from '../entities/InvoiceLineItem';
+import { Client } from '../entities/Client';
 import { S3Service } from './S3Service';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -28,6 +29,7 @@ const getS3Client = () => new S3Client({
 export class InvoiceService {
   private invoiceRepo = AppDataSource.getRepository(Invoice);
   private lineItemRepo = AppDataSource.getRepository(InvoiceLineItem);
+  private clientRepo = AppDataSource.getRepository(Client);
   private s3Service = new S3Service();
 
   async uploadAndProcess(
@@ -94,6 +96,14 @@ export class InvoiceService {
       invoice.raw_extracted_text = extractedText;
       await this.invoiceRepo.save(invoice);
 
+      // Known clients, so the AI can match the invoice recipient (only if none was chosen at upload)
+      const knownClients = invoice.client_id
+        ? []
+        : await this.clientRepo.find({ select: ['id', 'name', 'city', 'country'] });
+      const clientList = knownClients
+        .map(c => `${c.id} | ${c.name} | ${c.city || ''} | ${c.country || ''}`)
+        .join('\n');
+
       // AI extraction
       const client = getAnthropicClient();
       if (!client) {
@@ -118,6 +128,8 @@ Extract and return ONLY valid JSON with this structure:
   "invoice_date": "YYYY-MM-DD or null",
   "total_amount": number or null,
   "currency": "EUR",
+  "customer_name": "string or null",
+  "customer_client_id": "string or null",
   "line_items": [
     {
       "line_number": 1,
@@ -151,6 +163,13 @@ CRITICAL — how to identify quantity and unit_price:
 - If your extracted quantity × unit_price does NOT match the line_total, you probably swapped them — fix it
 - The quantity often has the unit written next to it (e.g. "87,84 M2" or "3,36 M2")
 
+CUSTOMER:
+- "customer_name" is the invoice RECIPIENT (the buyer: "Cliente", "Destinatario", "Spett.le", "Intestatario"), NOT the issuer/seller of the invoice.
+- "customer_client_id": pick the id from the KNOWN CLIENTS list below ONLY if the recipient is clearly the same business (same name, ignoring legal suffixes like srl/spa/ltd, case and punctuation). If unsure, or the list is empty, use null. Never guess.
+
+KNOWN CLIENTS (id | name | city | country):
+${clientList || '(none)'}
+
 - Return ONLY the JSON, no explanation or markdown`
         }]
       });
@@ -173,6 +192,10 @@ CRITICAL — how to identify quantity and unit_price:
       if (parsed.invoice_date) invoice.invoice_date = parsed.invoice_date;
       if (parsed.total_amount) invoice.total_amount = parsed.total_amount;
       if (parsed.currency) invoice.currency = parsed.currency;
+      if (!invoice.client_id && parsed.customer_client_id && knownClients.some(c => c.id === parsed.customer_client_id)) {
+        invoice.client_id = parsed.customer_client_id;
+        console.log(`[INVOICE] Matched customer "${parsed.customer_name}" to client ${parsed.customer_client_id}`);
+      }
 
       // Save line items
       if (parsed.line_items && Array.isArray(parsed.line_items)) {
@@ -489,6 +512,16 @@ Se non hai abbastanza dati per rispondere, dillo chiaramente.`
   async deleteLineItem(invoiceId: string, itemId: string): Promise<void> {
     await this.lineItemRepo.delete({ id: itemId, invoice_id: invoiceId });
     await this.recalcInvoiceTotal(invoiceId);
+  }
+
+  async updateInvoiceClient(invoiceId: string, clientId: string | null): Promise<void> {
+    await this.invoiceRepo.update(invoiceId, { client_id: clientId as any });
+    // Recalculate commission (rates can depend on client and country)
+    try {
+      const { CommissionService } = require('./CommissionService');
+      const commService = new CommissionService();
+      await commService.calculateInvoiceCommission(invoiceId);
+    } catch (e) { /* ignore */ }
   }
 
   async updateInvoiceTotal(invoiceId: string, total: number): Promise<void> {

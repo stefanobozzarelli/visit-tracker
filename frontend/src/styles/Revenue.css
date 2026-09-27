@@ -272,6 +272,17 @@
   color: var(--color-text-secondary);
 }
 
+.detail-client-select {
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-text-primary, inherit);
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--color-border, #ccc);
+  border-radius: 4px;
+  background: var(--color-white, #fff);
+  max-width: 100%;
+}
+
 /* Line items table */
 .line-items-table {
   width: 100%;

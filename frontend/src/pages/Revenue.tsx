@@ -320,7 +320,7 @@ export const InvoicesTab: React.FC = () => {
                     {isExpanded && expandedInvoice && (
                       <tr className="invoice-detail-row">
                         <td colSpan={7}>
-                          <InvoiceDetail invoice={expandedInvoice} onUpdate={async () => {
+                          <InvoiceDetail invoice={expandedInvoice} clients={clients} onUpdate={async () => {
                             const res = await apiService.getInvoice(expandedId!);
                             setExpandedInvoice(res.data);
                             await loadData();
@@ -340,7 +340,7 @@ export const InvoicesTab: React.FC = () => {
 };
 
 /* Invoice Detail (expanded row) — EDITABLE */
-const InvoiceDetail: React.FC<{ invoice: InvoiceItem; onUpdate?: () => void }> = ({ invoice, onUpdate }) => {
+const InvoiceDetail: React.FC<{ invoice: InvoiceItem; clients: any[]; onUpdate?: () => void }> = ({ invoice, clients, onUpdate }) => {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
 
@@ -408,6 +408,15 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; onUpdate?: () => void }> =
     setSaving(false);
   };
 
+  const saveClient = async (clientId: string) => {
+    setSaving(true);
+    try {
+      await apiService.updateInvoiceClient(invoice.id, clientId || null);
+      onUpdate?.();
+    } catch (err) { console.error(err); }
+    setSaving(false);
+  };
+
   const saveTotal = async () => {
     if (!newTotal) return;
     setSaving(true);
@@ -431,7 +440,18 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; onUpdate?: () => void }> =
         <div className="detail-meta">
           <span>Fattura #{invoice.invoice_number || 'N/D'}</span>
           <span>Azienda: <strong>{invoice.company?.name || '–'}</strong></span>
-          <span>Cliente: <strong>{invoice.client?.name || '–'}</strong></span>
+          <span>
+            Cliente:{' '}
+            <select
+              className="detail-client-select"
+              value={invoice.client_id || ''}
+              disabled={saving}
+              onChange={e => saveClient(e.target.value)}
+            >
+              <option value="">– Nessun cliente –</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </span>
           {invoice.client?.country && <span>Nazione: <strong>{invoice.client.country}</strong></span>}
           <span>Caricata da: {invoice.uploaded_by_user?.name || '–'}</span>
         </div>
