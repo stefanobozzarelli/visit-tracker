@@ -58,6 +58,13 @@ export class Invoice {
   @Column({ type: 'text', nullable: true })
   raw_extracted_text: string;
 
+  // Recipient as written on the invoice, and a client the AI thinks is probably it (to be confirmed)
+  @Column({ type: 'varchar', nullable: true })
+  customer_name: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  suggested_client_id: string;
+
   @CreateDateColumn()
   created_at: Date;
 
