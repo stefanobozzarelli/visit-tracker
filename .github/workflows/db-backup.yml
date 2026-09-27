@@ -1,0 +1,54 @@
+name: Database backup
+
+# Nightly dump of the Railway Postgres database to S3 (db-backups/).
+# Old backups are removed by an S3 lifecycle rule on the db-backups/ prefix.
+on:
+  schedule:
+    - cron: '17 2 * * *' # every night at 02:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  S3_BUCKET: visittrackerprod
+  AWS_REGION: eu-north-1
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Dump database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Secret DATABASE_PUBLIC_URL is not set"
+            exit 1
+          fi
+          FILE="visit-tracker-$(date -u +%Y-%m-%d_%H%M).dump"
+          # pg_dump from a recent major version can dump older servers
+          docker run --rm -e DATABASE_URL -v "$PWD:/out" postgres:18 \
+            sh -c 'pg_dump --format=custom --no-owner --no-privileges --dbname="$DATABASE_URL" --file="/out/'"$FILE"'"'
+          SIZE=$(stat -c%s "$FILE")
+          echo "Dump size: $SIZE bytes"
+          if [ "$SIZE" -lt 1024 ]; then
+            echo "::error::Dump is suspiciously small"
+            exit 1
+          fi
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_BACKUP_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          aws s3 cp "$FILE" "s3://$S3_BUCKET/db-backups/$FILE" --region "$AWS_REGION" --only-show-errors
+          echo "Uploaded s3://$S3_BUCKET/db-backups/$FILE"
