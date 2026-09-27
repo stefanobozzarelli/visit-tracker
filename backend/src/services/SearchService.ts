@@ -23,6 +23,7 @@ interface SearchFilters {
   endDate?: string;
   userId?: string;
   keywords?: string[];
+  country?: string; // client country, English name as stored on clients (e.g. "Vietnam")
   relativeDate?: boolean; // Flag: true if dates came from relative pattern extraction
 }
 
@@ -194,6 +195,21 @@ export class SearchService {
     return { startDate, endDate, cleanQuery };
   }
 
+  private static GENERIC_WORDS = new Set([
+    'cerca', 'trova', 'mostra', 'mostrami', 'visite', 'visita', 'clienti', 'cliente', 'task', 'attività',
+    'progetti', 'progetto', 'offerte', 'offerta', 'search', 'find', 'show', 'visits', 'visit', 'clients',
+    'client', 'tasks', 'projects', 'project', 'offers', 'offer', 'con', 'per', 'del', 'della', 'delle',
+    'dei', 'degli', 'with', 'the', 'and', 'tutte', 'tutti', 'all',
+  ]);
+
+  private removeGenericWords(keywords: string[]): string[] {
+    return keywords.filter(k => k && !SearchService.GENERIC_WORDS.has(k.trim().toLowerCase()));
+  }
+
+  private hasMeaningfulWords(text: string): boolean {
+    return this.removeGenericWords(text.split(/\s+/).filter(w => w.length > 2)).length > 0;
+  }
+
   /**
    * Interpret a natural query and extract smart filters
    */
@@ -218,7 +234,7 @@ export class SearchService {
 
     try {
       // IF relative dates were already extracted, return immediately!
-      if (relativeStartDate || relativeEndDate) {
+      if ((relativeStartDate || relativeEndDate) && !this.hasMeaningfulWords(cleanQuery)) {
         console.log('⚡ RELATIVE DATES ALREADY EXTRACTED! Claude not needed');
         const result: SearchFilters = {
           relativeDate: true // Flag that dates came from relative pattern
@@ -264,8 +280,18 @@ OUTPUT JSON (extract ONLY the fields present):
 {
   "startDate": "YYYY-MM-DD",
   "endDate": "YYYY-MM-DD",
+  "country": "English country name",
   "keywords": ["keyword1", "keyword2"]
 }
+
+COUNTRY:
+- If the query refers to a country or a nationality (in any language), put the English country name in "country" and NOT in keywords.
+- Examples: "vietnamiti"/"Vietnamese"/"in Vietnam" → "Vietnam"; "cinesi" → "China"; "coreani" → "South Korea"; "thailandesi" → "Thailand"; "italiani" → "Italy"; "Emirati" → "UAE"; "americani" → "USA".
+
+KEYWORDS:
+- Only specific terms to look for: client/company/person names, product names, topics (e.g. "Rossi", "Abk", "reclamo", "campioni").
+- NEVER include generic words describing the search itself: cerca, trova, mostra, visite, visita, clienti, cliente, task, attività, progetti, offerte, search, find, show, visits, clients, tasks, projects, offers, with, con, di, a, per, the.
+- If nothing specific remains, omit "keywords".
 
 ABSOLUTE RULES FOR DATES (CRITICAL!):
 1. IF you see specific date (09/03/2026, "9 March 2026") → EXTRACT in startDate/endDate
@@ -282,6 +308,8 @@ EXAMPLES:
 - Query: "visits in March" → {"startDate": "2026-03-01", "endDate": "2026-03-31"}
 - Query: "todo today" → {"startDate": "${formattedToday}", "endDate": "${formattedToday}"}
 - Query: "13/03/2026 client Pippo" → {"startDate": "2026-03-13", "endDate": "2026-03-13", "keywords": ["Pippo"]}
+- Query: "cerca le visite a clienti vietnamiti" → {"country": "Vietnam"}
+- Query: "visite ai clienti cinesi con reclami" → {"country": "China", "keywords": ["reclam"]}
 
 RESPONSE ONLY JSON, no text!`,
           },
@@ -317,6 +345,9 @@ RESPONSE ONLY JSON, no text!`,
                 }
               }
             }
+            if (relativeStartDate) filters.startDate = relativeStartDate;
+            if (relativeEndDate) filters.endDate = relativeEndDate;
+            if (filters.keywords) filters.keywords = this.removeGenericWords(filters.keywords);
             console.log('✨ FINAL FILTERS RETURNED:', JSON.stringify(filters, null, 2));
             return filters;
           }
@@ -376,6 +407,10 @@ RESPONSE ONLY JSON, no text!`,
       queryBuilder = queryBuilder.andWhere('reports.company_id = :companyId', {
         companyId: filters.companyId,
       });
+    }
+
+    if (filters.country) {
+      queryBuilder = queryBuilder.andWhere('client.country ILIKE :country', { country: filters.country });
     }
 
     if (filters.startDate) {
@@ -485,6 +520,10 @@ RESPONSE ONLY JSON, no text!`,
       });
     }
 
+    if (filters.country) {
+      queryBuilder = queryBuilder.andWhere('client.country ILIKE :country', { country: filters.country });
+    }
+
     if (filters.startDate) {
       queryBuilder = queryBuilder.andWhere('todo.due_date >= :startDate', {
         startDate: filters.startDate,
@@ -558,6 +597,10 @@ RESPONSE ONLY JSON, no text!`,
       .distinct(true);
 
     // Date filters on registration_date
+    if (filters.country) {
+      queryBuilder = queryBuilder.andWhere('(project.country ILIKE :country OR client.country ILIKE :country)', { country: filters.country });
+    }
+
     if (filters.startDate) {
       queryBuilder = queryBuilder.andWhere('project.registration_date >= :startDate', {
         startDate: filters.startDate,
@@ -655,6 +698,10 @@ RESPONSE ONLY JSON, no text!`,
       .distinct(true);
 
     // Date filters on offer_date
+    if (filters.country) {
+      queryBuilder = queryBuilder.andWhere('client.country ILIKE :country', { country: filters.country });
+    }
+
     if (filters.startDate) {
       queryBuilder = queryBuilder.andWhere('offer.offer_date >= :startDate', {
         startDate: filters.startDate,
