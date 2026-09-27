@@ -249,8 +249,9 @@ export class SearchService {
 
       // Send Claude only the CLEAN query (without relative dates)
       const message = await client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 500,
+        model: 'claude-opus-5',
+        max_tokens: 16000,
+        output_config: { effort: 'low' },
         messages: [
           {
             role: 'user',
@@ -288,7 +289,7 @@ RESPONSE ONLY JSON, no text!`,
       });
 
       try {
-        const content = message.content[0];
+        const content = message.content.find((b) => b.type === 'text');
         if (content.type === 'text') {
           console.log('📝 CLAUDE RAW RESPONSE:\n', content.text);
           // Extract JSON from response

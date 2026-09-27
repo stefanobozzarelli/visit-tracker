@@ -82,10 +82,9 @@ router.post('/', authMiddleware, upload.single('file'), async (req: Request, res
 
   // Try models in order until one works (API key may not have access to all models)
   const MODELS = [
-    'claude-opus-4-5',
-    'claude-3-5-sonnet-20241022',
-    'claude-3-5-haiku-20241022',
-    'claude-3-haiku-20240307',
+    'claude-opus-5',
+    'claude-sonnet-5',
+    'claude-haiku-4-5',
   ];
 
   try {
@@ -96,7 +95,7 @@ router.post('/', authMiddleware, upload.single('file'), async (req: Request, res
       try {
         response = await client.messages.create({
           model,
-          max_tokens: 2048,
+          max_tokens: 16000,
           messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: buildPrompt() }] }],
         });
         console.log(`parse-booking: used model ${model}`);
@@ -112,7 +111,8 @@ router.post('/', authMiddleware, upload.single('file'), async (req: Request, res
     }
     if (!response) throw lastError;
 
-    const text = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+    const textBlock = response.content.find((b: any) => b.type === 'text');
+    const text = textBlock ? textBlock.text.trim() : '';
 
     // Strip markdown code fences if model added them anyway
     const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();

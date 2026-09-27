@@ -101,8 +101,8 @@ export class InvoiceService {
       }
 
       const aiResponse = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+        model: 'claude-opus-5',
+        max_tokens: 16000,
         messages: [{
           role: 'user',
           content: `You are an invoice data extraction system for an Italian sales agency. Extract structured data from this invoice text.
@@ -156,7 +156,8 @@ CRITICAL — how to identify quantity and unit_price:
       });
 
       // Parse AI response
-      const responseText = aiResponse.content[0].type === 'text' ? aiResponse.content[0].text : '';
+      const textBlock = aiResponse.content.find((b) => b.type === 'text');
+      const responseText = textBlock?.type === 'text' ? textBlock.text : '';
       let parsed: any;
       try {
         // Try to extract JSON from response (may have markdown wrappers)
@@ -427,8 +428,8 @@ CRITICAL — how to identify quantity and unit_price:
     }, null, 2);
 
     const aiResponse = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
+      model: 'claude-opus-5',
+      max_tokens: 16000,
       messages: [{
         role: 'user',
         content: `Sei un assistente di analisi vendite per un'agenzia di rappresentanza italiana (Primula).
@@ -445,7 +446,8 @@ Se non hai abbastanza dati per rispondere, dillo chiaramente.`
       }]
     });
 
-    return aiResponse.content[0].type === 'text' ? aiResponse.content[0].text : 'Risposta non disponibile.';
+    const textBlock = aiResponse.content.find((b) => b.type === 'text');
+    return textBlock?.type === 'text' ? textBlock.text : 'Risposta non disponibile.';
   }
 
   async getDownloadUrl(id: string): Promise<string> {

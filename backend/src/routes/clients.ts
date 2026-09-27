@@ -311,7 +311,7 @@ Rules:
 - Leave a field as "" if not present. Do not invent data.
 - Return valid JSON only.`;
 
-    const MODELS = ['claude-opus-4-5', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-haiku-20240307'];
+    const MODELS = ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'];
     const client = new Anthropic({ apiKey });
     let response: any = null;
     let lastError: any = null;
@@ -319,7 +319,7 @@ Rules:
       try {
         response = await client.messages.create({
           model,
-          max_tokens: 1024,
+          max_tokens: 16000,
           messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }],
         });
         break;
@@ -331,7 +331,8 @@ Rules:
     }
     if (!response) throw lastError;
 
-    const text = response.content[0]?.type === 'text' ? response.content[0].text.trim() : '';
+    const textBlock = response.content.find((b: any) => b.type === 'text');
+    const text = textBlock ? textBlock.text.trim() : '';
     const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
