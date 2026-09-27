@@ -283,6 +283,40 @@
   max-width: 100%;
 }
 
+.client-suggestion {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+.suggestion-btn {
+  font: inherit;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  color: var(--color-text-primary, inherit);
+  cursor: pointer;
+}
+.suggestion-btn:disabled { opacity: 0.6; cursor: default; }
+.suggestion-btn-primary {
+  background: var(--color-accent, #2f4a6d);
+  border-color: var(--color-accent, #2f4a6d);
+  color: #fff;
+}
+.client-suggestion-error { color: #b3261e; }
+.client-to-confirm {
+  font-style: italic;
+  color: var(--color-accent, inherit);
+}
+
 /* Line items table */
 .line-items-table {
   width: 100%;

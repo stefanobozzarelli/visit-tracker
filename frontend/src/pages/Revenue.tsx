@@ -10,6 +10,8 @@ interface InvoiceItem {
   id: string;
   company_id: string;
   client_id?: string;
+  customer_name?: string;
+  suggested_client_id?: string;
   invoice_number?: string;
   invoice_date?: string;
   total_amount: number;
@@ -299,7 +301,11 @@ export const InvoicesTab: React.FC = () => {
                         <div className="invoice-cell-secondary">{inv.original_filename}</div>
                       </td>
                       <td>{inv.company?.name || '–'}</td>
-                      <td>{inv.client?.name || '–'}</td>
+                      <td>
+                        {inv.client?.name || (inv.suggested_client_id
+                          ? <span className="client-to-confirm">Da confermare</span>
+                          : '–')}
+                      </td>
                       <td>{formatDate(inv.invoice_date)}</td>
                       <td className="invoice-amount">{formatCurrency(inv.total_amount)}</td>
                       <td><span className={`invoice-status ${sc.cls}`}>{sc.label}</span></td>
@@ -408,6 +414,25 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; clients: any[]; onUpdate?:
     setSaving(false);
   };
 
+  const [matching, setMatching] = useState(false);
+  const [matchError, setMatchError] = useState('');
+  const suggestedClient = !invoice.client_id && invoice.suggested_client_id
+    ? clients.find(c => c.id === invoice.suggested_client_id)
+    : null;
+
+  const findClient = async () => {
+    setMatching(true);
+    setMatchError('');
+    try {
+      await apiService.matchInvoiceClient(invoice.id);
+      onUpdate?.();
+    } catch (err) {
+      console.error(err);
+      setMatchError('Ricerca non riuscita, riprova.');
+    }
+    setMatching(false);
+  };
+
   const saveClient = async (clientId: string) => {
     setSaving(true);
     try {
@@ -455,6 +480,34 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; clients: any[]; onUpdate?:
           {invoice.client?.country && <span>Nazione: <strong>{invoice.client.country}</strong></span>}
           <span>Caricata da: {invoice.uploaded_by_user?.name || '–'}</span>
         </div>
+        {!invoice.client_id && invoice.status === 'processed' && (
+          <div className="client-suggestion">
+            {suggestedClient ? (
+              <>
+                <span>
+                  Sulla fattura: <strong>{invoice.customer_name || '?'}</strong> — forse è{' '}
+                  <strong>{suggestedClient.name}</strong>
+                  {suggestedClient.city ? ` (${suggestedClient.city})` : ''}?
+                </span>
+                <button className="suggestion-btn suggestion-btn-primary" disabled={saving} onClick={() => saveClient(suggestedClient.id)}>Conferma</button>
+                <button className="suggestion-btn" disabled={saving} onClick={() => saveClient('')}>No</button>
+              </>
+            ) : invoice.customer_name ? (
+              <>
+                <span>
+                  Sulla fattura: <strong>{invoice.customer_name}</strong> — nessun cliente simile trovato. Sceglilo dal menu o crealo tra i clienti.
+                </span>
+                <button className="suggestion-btn" disabled={matching} onClick={findClient}>{matching ? 'Ricerca…' : 'Cerca di nuovo'}</button>
+              </>
+            ) : (
+              <>
+                <span>Cliente non impostato.</span>
+                <button className="suggestion-btn suggestion-btn-primary" disabled={matching} onClick={findClient}>{matching ? 'Ricerca…' : 'Trova cliente con AI'}</button>
+              </>
+            )}
+            {matchError && <span className="client-suggestion-error">{matchError}</span>}
+          </div>
+        )}
       </div>
 
       {invoice.items && invoice.items.length > 0 ? (

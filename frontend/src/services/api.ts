@@ -1520,6 +1520,11 @@ class ApiService {
     const response = await this.api.delete<ApiResponse<any>>(`/invoices/${invoiceId}/items/${itemId}`);
     return response.data;
   }
+  async matchInvoiceClient(invoiceId: string) {
+    const response = await this.api.post<ApiResponse<any>>(`/invoices/${invoiceId}/match-client`);
+    return response.data;
+  }
+
   async updateInvoiceClient(invoiceId: string, clientId: string | null) {
     const response = await this.api.put<ApiResponse<any>>(`/invoices/${invoiceId}/client`, { client_id: clientId });
     return response.data;

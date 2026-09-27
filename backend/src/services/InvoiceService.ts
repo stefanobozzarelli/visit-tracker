@@ -96,14 +96,6 @@ export class InvoiceService {
       invoice.raw_extracted_text = extractedText;
       await this.invoiceRepo.save(invoice);
 
-      // Known clients, so the AI can match the invoice recipient (only if none was chosen at upload)
-      const knownClients = invoice.client_id
-        ? []
-        : await this.clientRepo.find({ select: ['id', 'name', 'city', 'country'] });
-      const clientList = knownClients
-        .map(c => `${c.id} | ${c.name} | ${c.city || ''} | ${c.country || ''}`)
-        .join('\n');
-
       // AI extraction
       const client = getAnthropicClient();
       if (!client) {
@@ -128,8 +120,6 @@ Extract and return ONLY valid JSON with this structure:
   "invoice_date": "YYYY-MM-DD or null",
   "total_amount": number or null,
   "currency": "EUR",
-  "customer_name": "string or null",
-  "customer_client_id": "string or null",
   "line_items": [
     {
       "line_number": 1,
@@ -163,13 +153,6 @@ CRITICAL — how to identify quantity and unit_price:
 - If your extracted quantity × unit_price does NOT match the line_total, you probably swapped them — fix it
 - The quantity often has the unit written next to it (e.g. "87,84 M2" or "3,36 M2")
 
-CUSTOMER:
-- "customer_name" is the invoice RECIPIENT (the buyer: "Cliente", "Destinatario", "Spett.le", "Intestatario"), NOT the issuer/seller of the invoice.
-- "customer_client_id": pick the id from the KNOWN CLIENTS list below ONLY if the recipient is clearly the same business (same name, ignoring legal suffixes like srl/spa/ltd, case and punctuation). If unsure, or the list is empty, use null. Never guess.
-
-KNOWN CLIENTS (id | name | city | country):
-${clientList || '(none)'}
-
 - Return ONLY the JSON, no explanation or markdown`
         }]
       });
@@ -192,10 +175,6 @@ ${clientList || '(none)'}
       if (parsed.invoice_date) invoice.invoice_date = parsed.invoice_date;
       if (parsed.total_amount) invoice.total_amount = parsed.total_amount;
       if (parsed.currency) invoice.currency = parsed.currency;
-      if (!invoice.client_id && parsed.customer_client_id && knownClients.some(c => c.id === parsed.customer_client_id)) {
-        invoice.client_id = parsed.customer_client_id;
-        console.log(`[INVOICE] Matched customer "${parsed.customer_name}" to client ${parsed.customer_client_id}`);
-      }
 
       // Save line items
       if (parsed.line_items && Array.isArray(parsed.line_items)) {
@@ -225,6 +204,15 @@ ${clientList || '(none)'}
       invoice.error_message = null as any;
       await this.invoiceRepo.save(invoice);
       console.log(`[INVOICE] ✅ Processed ${invoice.id}: ${parsed.line_items?.length || 0} line items`);
+
+      // Find the customer among existing clients (never overrides a client chosen at upload)
+      if (!invoice.client_id) {
+        try {
+          await this.matchClient(invoice.id);
+        } catch (matchErr) {
+          console.warn(`[INVOICE] ⚠️ Client match failed for ${invoice.id}:`, (matchErr as Error).message);
+        }
+      }
 
       // Auto-calculate commission
       try {
@@ -514,8 +502,82 @@ Se non hai abbastanza dati per rispondere, dillo chiaramente.`
     await this.recalcInvoiceTotal(invoiceId);
   }
 
+  /**
+   * Reads the invoice recipient from the extracted text and compares it with existing clients.
+   * An unambiguous match is assigned directly; a plausible one is stored as a suggestion
+   * for the user to confirm.
+   */
+  async matchClient(invoiceId: string): Promise<Invoice> {
+    const invoice = await this.invoiceRepo.findOneBy({ id: invoiceId });
+    if (!invoice) throw new Error('Invoice not found');
+    if (!invoice.raw_extracted_text) throw new Error('Invoice text not available');
+
+    const client = getAnthropicClient();
+    if (!client) throw new Error('Anthropic API key not configured');
+
+    const knownClients = await this.clientRepo.find({ select: ['id', 'name', 'city', 'country'] });
+    const clientList = knownClients
+      .map(c => `${c.id} | ${c.name} | ${c.city || ''} | ${c.country || ''}`)
+      .join('\n');
+
+    const aiResponse = await client.messages.create({
+      model: 'claude-opus-5',
+      max_tokens: 16000,
+      output_config: { effort: 'low' },
+      messages: [{
+        role: 'user',
+        content: `Find the customer of this invoice among our known clients.
+
+The customer is the invoice RECIPIENT (the buyer: "Cliente", "Destinatario", "Spett.le", "Intestatario", "Sede legale" of the buyer, "Destinazione merce"), NOT the issuer/seller that prints its own name and logo at the top.
+
+INVOICE TEXT:
+"""
+${invoice.raw_extracted_text.substring(0, 8000)}
+"""
+
+KNOWN CLIENTS (id | name | city | country):
+${clientList || '(none)'}
+
+Return ONLY valid JSON:
+{
+  "customer_name": "recipient name as written on the invoice, or null",
+  "match_id": "id from KNOWN CLIENTS or null",
+  "confidence": "exact" | "likely" | "none"
+}
+
+- "exact": clearly the same business (same name ignoring legal suffixes like srl/spa/snc/ltd, case, punctuation, abbreviations).
+- "likely": the most similar known client is plausibly the same business but not certain (e.g. partial name, different branch, spelling variant, same city). Use it so a human can confirm.
+- "none": no known client is plausibly the recipient; match_id must be null.`
+      }]
+    });
+
+    const textBlock = aiResponse.content.find((b) => b.type === 'text');
+    const responseText = textBlock?.type === 'text' ? textBlock.text : '';
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in AI response');
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const matchId = knownClients.some(c => c.id === parsed.match_id) ? parsed.match_id : null;
+    invoice.customer_name = parsed.customer_name || null;
+    invoice.suggested_client_id = null as any;
+
+    if (matchId && parsed.confidence === 'exact') {
+      invoice.client_id = matchId;
+      await this.invoiceRepo.save(invoice);
+      console.log(`[INVOICE] Matched customer "${parsed.customer_name}" to client ${matchId}`);
+      try {
+        const { CommissionService } = require('./CommissionService');
+        await new CommissionService().calculateInvoiceCommission(invoice.id);
+      } catch (e) { /* ignore */ }
+    } else {
+      if (matchId && parsed.confidence === 'likely') invoice.suggested_client_id = matchId;
+      await this.invoiceRepo.save(invoice);
+    }
+    return invoice;
+  }
+
   async updateInvoiceClient(invoiceId: string, clientId: string | null): Promise<void> {
-    await this.invoiceRepo.update(invoiceId, { client_id: clientId as any });
+    await this.invoiceRepo.update(invoiceId, { client_id: clientId as any, suggested_client_id: null as any });
     // Recalculate commission (rates can depend on client and country)
     try {
       const { CommissionService } = require('./CommissionService');
