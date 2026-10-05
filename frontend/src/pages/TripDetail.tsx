@@ -177,6 +177,9 @@ export const TripDetail: React.FC = () => {
   const [showPdfUpload, setShowPdfUpload] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const [showExportModal, setShowExportModal] = useState<'pdf' | 'excel' | null>(null);
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
 
   // Modals
   const [showEditTripModal, setShowEditTripModal] = useState(false);
@@ -514,8 +517,14 @@ export const TripDetail: React.FC = () => {
               <button className="td-btn-export" onClick={() => setShowExportMenu(v => !v)}>↓ Esporta ▾</button>
               {showExportMenu && (
                 <div className="td-export-menu">
-                  <button onClick={() => { exportTripPdf(trip); setShowExportMenu(false); }}>📄 Esporta PDF</button>
-                  <button onClick={() => { exportTripExcel(trip); setShowExportMenu(false); }}>📊 Esporta Excel</button>
+                  <button onClick={() => {
+                    setExportFrom(trip.startDate); setExportTo(trip.endDate);
+                    setShowExportModal('pdf'); setShowExportMenu(false);
+                  }}>📄 Esporta PDF</button>
+                  <button onClick={() => {
+                    setExportFrom(trip.startDate); setExportTo(trip.endDate);
+                    setShowExportModal('excel'); setShowExportMenu(false);
+                  }}>📊 Esporta Excel</button>
                 </div>
               )}
             </div>
@@ -974,6 +983,58 @@ export const TripDetail: React.FC = () => {
           onSave={(updatedDays: any[], updatedHotels?: any[], newEndDate?: string) => saveTrip({ ...trip, days: updatedDays, hotels: updatedHotels ?? trip.hotels, ...(newEndDate ? { endDate: newEndDate } : {}) })}
           onClose={() => setShowPdfUpload(false)}
         />
+      )}
+
+      {/* Export date-range modal */}
+      {showExportModal && (
+        <div className="modal-overlay" onClick={() => setShowExportModal(null)}>
+          <div className="modal-box" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title">
+              {showExportModal === 'pdf' ? '📄 Esporta PDF' : '📊 Esporta Excel'}
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '1rem' }}>
+              Seleziona il periodo da includere nell'export.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Dal</label>
+                <input
+                  type="date"
+                  className="modal-input"
+                  value={exportFrom}
+                  min={trip.startDate}
+                  max={exportTo || trip.endDate}
+                  onChange={e => setExportFrom(e.target.value)}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Al</label>
+                <input
+                  type="date"
+                  className="modal-input"
+                  value={exportTo}
+                  min={exportFrom || trip.startDate}
+                  max={trip.endDate}
+                  onChange={e => setExportTo(e.target.value)}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button className="modal-btn-secondary" onClick={() => setShowExportModal(null)}>Annulla</button>
+              <button
+                className="modal-btn-primary"
+                disabled={!exportFrom || !exportTo || exportFrom > exportTo}
+                onClick={() => {
+                  if (showExportModal === 'pdf') exportTripPdf(trip, exportFrom, exportTo);
+                  else exportTripExcel(trip, exportFrom, exportTo);
+                  setShowExportModal(null);
+                }}
+              >
+                Esporta
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Trip */}

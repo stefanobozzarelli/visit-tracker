@@ -17,11 +17,15 @@ const STATUS_LABELS: Record<string, string> = {
   da_modificare: 'Da modificare', rifiutato: 'Rifiutato', fatto_report: 'Fatto report',
 };
 
-export function exportTripPdf(trip: any) {
+export function exportTripPdf(trip: any, dateFrom?: string, dateTo?: string) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const locale = 'it-IT';
+
+  const from = dateFrom || trip.startDate;
+  const to   = dateTo   || trip.endDate;
+  const isPeriod = from !== trip.startDate || to !== trip.endDate;
 
   // Cover
   doc.setFillColor(...COLORS.blueFusion);
@@ -32,15 +36,24 @@ export function exportTripPdf(trip: any) {
   doc.setFontSize(36); doc.setFont('helvetica', 'bold');
   doc.text(trip.name, W / 2, 70, { align: 'center' });
   doc.setFontSize(16); doc.setFont('helvetica', 'normal');
-  const s = new Date(trip.startDate + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
-  const e = new Date(trip.endDate + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  const s = new Date(from + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  const e = new Date(to   + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   doc.text(`${s} — ${e}`, W / 2, 85, { align: 'center' });
-  doc.setFontSize(12);
-  const totalApts = trip.days.reduce((s: number, d: any) => s + d.appointments.length, 0);
-  const totalFlights = trip.days.reduce((s: number, d: any) => s + d.flights.length, 0);
-  const hotels = (trip.hotels || []).length;
-  doc.text(`${trip.days.length} giorni · ${totalFlights} voli · ${hotels} hotel · ${totalApts} appuntamenti`, W / 2, 95, { align: 'center' });
-  const locations = [...new Set(trip.days.map((d: any) => d.location).filter(Boolean))];
+  if (isPeriod) {
+    doc.setFontSize(11); doc.setTextColor(180, 210, 240);
+    doc.text('Estratto per periodo', W / 2, 78, { align: 'center' });
+  }
+
+  // filter days and hotels to the selected period
+  const allSorted = [...trip.days].sort((a: any, b: any) => a.date.localeCompare(b.date));
+  const sorted = allSorted.filter((d: any) => d.date >= from && d.date <= to);
+  const filteredHotels = (trip.hotels || []).filter((h: any) => h.checkIn <= to && h.checkOut >= from);
+
+  doc.setFontSize(12); doc.setTextColor(...COLORS.white);
+  const totalApts = sorted.reduce((s: number, d: any) => s + d.appointments.length, 0);
+  const totalFlights = sorted.reduce((s: number, d: any) => s + d.flights.length, 0);
+  doc.text(`${sorted.length} giorni · ${totalFlights} voli · ${filteredHotels.length} hotel · ${totalApts} appuntamenti`, W / 2, 95, { align: 'center' });
+  const locations = [...new Set(sorted.map((d: any) => d.location).filter(Boolean))];
   doc.setFontSize(10); doc.setTextColor(200, 220, 240);
   doc.text((locations as string[]).join('  ·  '), W / 2, 115, { align: 'center', maxWidth: W - 40 });
 
@@ -49,10 +62,8 @@ export function exportTripPdf(trip: any) {
   doc.setFillColor(...COLORS.blueFusion);
   doc.rect(0, 0, W, 18, 'F');
   doc.setTextColor(...COLORS.white); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-  doc.text('ITINERARIO COMPLETO', 14, 12);
-
-  const sorted = [...trip.days].sort((a: any, b: any) => a.date.localeCompare(b.date));
-  const tableData = sorted.map((day: any) => {
+  doc.text(isPeriod ? `ITINERARIO  ${s.toUpperCase()} — ${e.toUpperCase()}` : 'ITINERARIO COMPLETO', 14, 12);
+  const tableData = sorted.map((day: any) => {  // sorted is already filtered
     const d = new Date(day.date + 'T00:00:00');
     const dateStr = d.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: 'short' });
     const flightStr = day.flights.map((f: any) => `${f.route}\n${f.details}`).join('\n\n');
@@ -60,7 +71,7 @@ export function exportTripPdf(trip: any) {
       const t = a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '—';
       return `${t} ${a.client} [${STATUS_LABELS[a.status] || a.status}]`;
     }).join('\n');
-    const hotelsForDay = (trip.hotels || []).filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
+    const hotelsForDay = filteredHotels.filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
     const hotelStr = hotelsForDay.map((h: any) => h.name).join(', ');
     return [dateStr, day.location, flightStr, hotelStr, aptsStr, day.notes];
   });
@@ -104,7 +115,7 @@ export function exportTripPdf(trip: any) {
   }
 
   // Hotels
-  const tripHotels = (trip.hotels || []).slice().sort((a: any, b: any) => a.checkIn.localeCompare(b.checkIn));
+  const tripHotels = filteredHotels.slice().sort((a: any, b: any) => a.checkIn.localeCompare(b.checkIn));
   if (tripHotels.length > 0) {
     doc.addPage();
     doc.setFillColor(...COLORS.quietViolet); doc.rect(0, 0, W, 18, 'F');
@@ -164,5 +175,6 @@ export function exportTripPdf(trip: any) {
     doc.text(`${trip.name} — Pagina ${i}/${total}`, W / 2, H - 5, { align: 'center' });
   }
 
-  doc.save(`${trip.name.replace(/\s+/g, '_')}.pdf`);
+  const suffix = isPeriod ? `_${from}_${to}` : '';
+  doc.save(`${trip.name.replace(/\s+/g, '_')}${suffix}.pdf`);
 }

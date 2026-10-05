@@ -6,10 +6,17 @@ const STATUS_LABELS: Record<string, string> = {
   da_modificare: 'Da modificare', rifiutato: 'Rifiutato', fatto_report: 'Fatto report',
 };
 
-export function exportTripExcel(trip: any) {
+export function exportTripExcel(trip: any, dateFrom?: string, dateTo?: string) {
   const locale = 'it-IT';
   const wb = XLSX.utils.book_new();
-  const sorted = [...trip.days].sort((a: any, b: any) => a.date.localeCompare(b.date));
+  const from = dateFrom || trip.startDate;
+  const to   = dateTo   || trip.endDate;
+  const isPeriod = from !== trip.startDate || to !== trip.endDate;
+
+  const sorted = [...trip.days]
+    .sort((a: any, b: any) => a.date.localeCompare(b.date))
+    .filter((d: any) => d.date >= from && d.date <= to);
+  const filteredHotels = (trip.hotels || []).filter((h: any) => h.checkIn <= to && h.checkOut >= from);
 
   // Itinerary sheet
   const maxFlights = Math.max(...sorted.map((d: any) => d.flights.length), 0);
@@ -35,7 +42,7 @@ export function exportTripExcel(trip: any) {
     for (let i = 0; i < maxFlights; i++) {
       row.push(day.flights[i]?.route || '', day.flights[i]?.details || '');
     }
-    const hotelsForDay = (trip.hotels || []).filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
+    const hotelsForDay = filteredHotels.filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
     row.push(hotelsForDay.map((h: any) => h.name).join(', '), day.notes || '');
     for (let i = 0; i < maxApts; i++) {
       const a = day.appointments[i];
@@ -69,7 +76,7 @@ export function exportTripExcel(trip: any) {
   }
 
   // Hotels sheet
-  const tripHotels = (trip.hotels || []).slice().sort((a: any, b: any) => a.checkIn.localeCompare(b.checkIn));
+  const tripHotels = filteredHotels.slice().sort((a: any, b: any) => a.checkIn.localeCompare(b.checkIn));
   if (tripHotels.length > 0) {
     const ws3 = XLSX.utils.aoa_to_sheet([
       ['Hotel', 'Check-in', 'Check-out', 'Notti', 'Stato'],
@@ -106,5 +113,6 @@ export function exportTripExcel(trip: any) {
     XLSX.utils.book_append_sheet(wb, ws4, 'Appuntamenti');
   }
 
-  XLSX.writeFile(wb, `${trip.name.replace(/\s+/g, '_')}.xlsx`);
+  const suffix = isPeriod ? `_${from}_${to}` : '';
+  XLSX.writeFile(wb, `${trip.name.replace(/\s+/g, '_')}${suffix}.xlsx`);
 }
