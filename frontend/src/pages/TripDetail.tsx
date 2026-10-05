@@ -21,6 +21,7 @@ interface Flight {
   details: string;
   status: 'programmato' | 'confermato';
   type: 'volo' | 'treno' | 'traghetto';
+  endDate?: string;
 }
 
 interface Appointment {
@@ -30,6 +31,8 @@ interface Appointment {
   client: string;
   status: string;
   notes: string;
+  allDay?: boolean;
+  endDate?: string;
 }
 
 interface TravelDay {
@@ -190,7 +193,7 @@ export const TripDetail: React.FC = () => {
 
   // Inline flight form
   const [showFlightForm, setShowFlightForm] = useState<string | null>(null); // dayId
-  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato', type: 'volo' });
+  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' });
   const [editingFlight, setEditingFlight] = useState<{ dayId: string; flight: Flight } | null>(null);
 
   // Inline hotel form
@@ -200,8 +203,9 @@ export const TripDetail: React.FC = () => {
 
   // Forms
   const [tripForm, setTripForm] = useState({ name: '', destination: '', startDate: '', endDate: '', notes: '' });
-  const [dayForm, setDayForm] = useState({ date: '', location: '', notes: '' });
-  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '' });
+  const [dayForm, setDayForm] = useState({ date: '', dateTo: '', location: '', notes: '' });
+  const [dayMultiMode, setDayMultiMode] = useState(false);
+  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '' });
 
   // Client autocomplete
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
@@ -361,39 +365,68 @@ export const TripDetail: React.FC = () => {
   };
   const saveDay = () => {
     if (!trip || !dayForm.date) return;
-    const d = new Date(dayForm.date + 'T00:00:00');
     if (editingDay) {
-      saveTrip({ ...trip, days: trip.days.map(day => day.id === editingDay.id ? { ...day, ...dayForm } : day) });
+      saveTrip({ ...trip, days: trip.days.map(day => day.id === editingDay.id ? { ...day, date: dayForm.date, location: dayForm.location, notes: dayForm.notes } : day) });
+    } else if (dayMultiMode && dayForm.dateTo && dayForm.dateTo >= dayForm.date) {
+      const newDays: TravelDay[] = [];
+      const addedIds: string[] = [];
+      const cur = new Date(dayForm.date + 'T00:00:00');
+      const end = new Date(dayForm.dateTo + 'T00:00:00');
+      while (cur <= end) {
+        const dateStr = cur.toISOString().slice(0, 10);
+        if (!trip.days.find(d => d.date === dateStr)) {
+          const dObj = new Date(dateStr + 'T00:00:00');
+          const newDay: TravelDay = { id: `d${uid()}`, date: dateStr, dayOfWeek: DAY_NAMES_IT[dObj.getDay()], location: dayForm.location, notes: dayForm.notes, flights: [], appointments: [] };
+          newDays.push(newDay);
+          addedIds.push(newDay.id);
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      if (newDays.length > 0) {
+        setExpandedDays(prev => new Set([...prev, ...addedIds]));
+        saveTrip({ ...trip, days: [...trip.days, ...newDays] });
+      }
     } else {
-      const newDay: TravelDay = {
-        id: `d${uid()}`, date: dayForm.date, dayOfWeek: DAY_NAMES_IT[d.getDay()],
-        location: dayForm.location,
-        notes: dayForm.notes, flights: [], appointments: [],
-      };
+      const d = new Date(dayForm.date + 'T00:00:00');
+      const newDay: TravelDay = { id: `d${uid()}`, date: dayForm.date, dayOfWeek: DAY_NAMES_IT[d.getDay()], location: dayForm.location, notes: dayForm.notes, flights: [], appointments: [] };
       setExpandedDays(prev => new Set([...prev, newDay.id]));
       saveTrip({ ...trip, days: [...trip.days, newDay] });
     }
     setShowDayModal(false);
+    setDayMultiMode(false);
   };
 
   // ---- Flight ops ----
   const saveFlight = (dayId: string) => {
     if (!trip || !flightForm.route.trim()) return;
+    const { flightDate, flightEndDate, ...flightData } = flightForm;
+    const flightPayload = { ...flightData, ...(flightEndDate ? { endDate: flightEndDate } : { endDate: undefined }) };
     let days;
     if (editingFlight && editingFlight.dayId === dayId) {
-      days = trip.days.map(d => {
-        if (d.id !== dayId) return d;
-        return { ...d, flights: d.flights.map(f => f.id === editingFlight.flight.id ? { ...f, ...flightForm } : f) };
-      });
+      const targetDate = flightDate || trip.days.find(d => d.id === dayId)?.date || '';
+      const currentDate = trip.days.find(d => d.id === dayId)?.date || '';
+      const targetDay = trip.days.find(d => d.date === targetDate);
+      if (targetDate && targetDate !== currentDate && targetDay) {
+        days = trip.days.map(d => {
+          if (d.id === dayId) return { ...d, flights: d.flights.filter(f => f.id !== editingFlight.flight.id) };
+          if (d.id === targetDay.id) return { ...d, flights: [...d.flights, { ...editingFlight.flight, ...flightPayload }] };
+          return d;
+        });
+      } else {
+        days = trip.days.map(d => {
+          if (d.id !== dayId) return d;
+          return { ...d, flights: d.flights.map(f => f.id === editingFlight.flight.id ? { ...f, ...flightPayload } : f) };
+        });
+      }
       setEditingFlight(null);
     } else {
       days = trip.days.map(d => {
         if (d.id !== dayId) return d;
-        return { ...d, flights: [...d.flights, { id: `f${uid()}`, ...flightForm } as Flight] };
+        return { ...d, flights: [...d.flights, { id: `f${uid()}`, ...flightPayload } as Flight] };
       });
     }
     saveTrip({ ...trip, days });
-    setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' });
+    setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' });
     setShowFlightForm(null);
   };
   const deleteFlight = (dayId: string, flightId: string) => {
@@ -438,14 +471,40 @@ export const TripDetail: React.FC = () => {
   // ---- Appointment ops ----
   const saveApt = () => {
     if (!trip || !aptContext) return;
-    const days = trip.days.map(d => {
-      if (d.id !== aptContext.dayId) return d;
-      if (aptContext.apt) {
-        return { ...d, appointments: d.appointments.map(a => a.id === aptContext.apt!.id ? { ...a, ...aptForm } : a) };
+    const aptData = {
+      ...aptForm,
+      time: aptForm.allDay ? '' : aptForm.time,
+      endTime: aptForm.allDay ? '' : aptForm.endTime,
+    };
+    const baseDay = trip.days.find(d => d.id === aptContext.dayId);
+    const isMultiDay = !aptContext.apt && aptForm.endDate && baseDay && aptForm.endDate > baseDay.date;
+
+    if (isMultiDay && baseDay) {
+      let updatedDays = [...trip.days];
+      const cur = new Date(baseDay.date + 'T00:00:00');
+      const end = new Date(aptForm.endDate + 'T00:00:00');
+      while (cur <= end) {
+        const dateStr = cur.toISOString().slice(0, 10);
+        const idx = updatedDays.findIndex(d => d.date === dateStr);
+        if (idx >= 0) {
+          updatedDays[idx] = { ...updatedDays[idx], appointments: [...updatedDays[idx].appointments, { id: `a${uid()}`, ...aptData, endDate: undefined }] };
+        } else {
+          const dObj = new Date(dateStr + 'T00:00:00');
+          updatedDays.push({ id: `d${uid()}`, date: dateStr, dayOfWeek: DAY_NAMES_IT[dObj.getDay()], location: baseDay.location, notes: '', flights: [], appointments: [{ id: `a${uid()}`, ...aptData, endDate: undefined }] });
+        }
+        cur.setDate(cur.getDate() + 1);
       }
-      return { ...d, appointments: [...d.appointments, { id: `a${uid()}`, ...aptForm }] };
-    });
-    saveTrip({ ...trip, days });
+      saveTrip({ ...trip, days: updatedDays });
+    } else {
+      const days = trip.days.map(d => {
+        if (d.id !== aptContext.dayId) return d;
+        if (aptContext.apt) {
+          return { ...d, appointments: d.appointments.map(a => a.id === aptContext.apt!.id ? { ...a, ...aptData } : a) };
+        }
+        return { ...d, appointments: [...d.appointments, { id: `a${uid()}`, ...aptData }] };
+      });
+      saveTrip({ ...trip, days });
+    }
     setShowAptModal(false);
   };
   const deleteApt = (dayId: string, aptId: string) => {
@@ -705,8 +764,18 @@ export const TripDetail: React.FC = () => {
                     {showFlightForm === day.id && (
                       <div className="td-flight-form">
                         <div className="td-flight-form-fields">
+                          {editingFlight && (
+                            <select className="td-select" value={flightForm.flightDate || day.date} onChange={e => setFlightForm(f => ({ ...f, flightDate: e.target.value }))}>
+                              {sortedDays.map(sd => (
+                                <option key={sd.date} value={sd.date}>
+                                  {new Date(sd.date + 'T00:00:00').toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })}{sd.location ? ` — ${sd.location}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                           <input className="td-input" value={flightForm.route} onChange={e => setFlightForm(f => ({ ...f, route: e.target.value }))} placeholder="Tratta (es. BLQ-IST)" autoFocus />
                           <input className="td-input" value={flightForm.details} onChange={e => setFlightForm(f => ({ ...f, details: e.target.value }))} placeholder="Dettagli (es. TK1322 10:55)" />
+                          <input className="td-input" type="date" value={flightForm.flightEndDate} min={flightForm.flightDate || day.date} onChange={e => setFlightForm(f => ({ ...f, flightEndDate: e.target.value }))} title="Data fine (opzionale, es. traghetto notte)" />
                           <select className="td-select" value={flightForm.type} onChange={e => setFlightForm(f => ({ ...f, type: e.target.value as Flight['type'] }))}>
                             <option value="volo">✈ Volo</option>
                             <option value="treno">🚆 Treno</option>
@@ -718,7 +787,7 @@ export const TripDetail: React.FC = () => {
                           </select>
                         </div>
                         <div className="td-flight-form-actions">
-                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); }}>Annulla</button>
+                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' }); }}>Annulla</button>
                           <button className="td-small-btn-primary" onClick={() => saveFlight(day.id)}>Salva</button>
                         </div>
                       </div>
@@ -733,11 +802,12 @@ export const TripDetail: React.FC = () => {
                         <span className="td-flight-icon">{TRANSPORT_ICONS[item.f.type || 'volo']}</span>
                         <div className="td-flight-info">
                           <span className="td-flight-route">{item.f.route}</span>
+                          {item.f.endDate && <span style={{ fontSize: '0.7rem', color: '#6AAED6', marginLeft: 4 }}>→ {fmtMed(item.f.endDate)}</span>}
                           {item.f.details && <span className="td-flight-details">{item.f.details}</span>}
                         </div>
                         <StatusDropdown status={item.f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, item.f!.id, s)} type="flight" />
                         <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: item.f!.route, details: item.f!.details, status: item.f!.status, type: item.f!.type || 'volo' }); setEditingFlight({ dayId: day.id, flight: item.f! }); setShowFlightForm(day.id); }}>
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: item.f!.route, details: item.f!.details, status: item.f!.status, type: item.f!.type || 'volo', flightDate: day.date, flightEndDate: item.f!.endDate || '' }); setEditingFlight({ dayId: day.id, flight: item.f! }); setShowFlightForm(day.id); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                           </button>
                           <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteFlight(day.id, item.f!.id); }}>
@@ -747,7 +817,9 @@ export const TripDetail: React.FC = () => {
                       </div>
                     ) : item.a ? (
                       <div key={item.a.id} className="td-apt-item">
-                        <div className="td-apt-time">{item.a.time || '—'}{item.a.endTime ? `–${item.a.endTime}` : ''}</div>
+                        <div className="td-apt-time">
+                          {item.a.allDay ? <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>Giornata intera</span> : (item.a.time || '—')}{!item.a.allDay && item.a.endTime ? `–${item.a.endTime}` : ''}
+                        </div>
                         <div className="td-apt-main">
                           <div className="td-apt-client">{item.a.client}</div>
                           {item.a.notes && <div className="td-apt-notes">{item.a.notes}</div>}
@@ -781,7 +853,7 @@ export const TripDetail: React.FC = () => {
                         })()}
                         <StatusDropdown status={item.a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, item.a!.id, s)} type="apt" />
                         <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: item.a! }); setAptForm({ time: item.a!.time, endTime: item.a!.endTime, client: item.a!.client, status: item.a!.status, notes: item.a!.notes }); setShowAptModal(true); }}>
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: item.a! }); setAptForm({ time: item.a!.time, endTime: item.a!.endTime, client: item.a!.client, status: item.a!.status, notes: item.a!.notes, allDay: item.a!.allDay || false, endDate: '' }); setShowAptModal(true); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                           </button>
                           <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteApt(day.id, item.a!.id); }}>
@@ -796,10 +868,10 @@ export const TripDetail: React.FC = () => {
 
                     {/* Day actions */}
                     <div className="td-day-actions">
-                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Trasporto</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Trasporto</button>
                       <button className="td-action-link purple" onClick={e => { e.stopPropagation(); setHotelForm({ name: '', checkIn: day.date, checkOut: day.date, status: 'programmato' }); setEditingHotel(null); setShowHotelForm(day.id); }}>+ Hotel</button>
-                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '' }); setShowAptModal(true); }}>+ Appuntamento</button>
-                      <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, location: day.location, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '' }); setShowAptModal(true); }}>+ Appuntamento</button>
+                      <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, dateTo: '', location: day.location, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
                       <button className="td-action-link red" onClick={e => { e.stopPropagation(); deleteDay(day.id); }}>🗑 Elimina</button>
                     </div>
                   </div>
@@ -808,7 +880,7 @@ export const TripDetail: React.FC = () => {
             );
           })}
 
-          <button className="td-add-day-btn" onClick={() => { setEditingDay(null); setDayForm({ date: '', location: '', notes: '' }); setShowDayModal(true); }}>
+          <button className="td-add-day-btn" onClick={() => { setEditingDay(null); setDayForm({ date: '', dateTo: '', location: '', notes: '' }); setShowDayModal(true); }}>
             + Aggiungi Giorno
           </button>
         </div>
@@ -1074,13 +1146,40 @@ export const TripDetail: React.FC = () => {
 
       {/* Day Modal */}
       {showDayModal && (
-        <div className="modal-overlay" onClick={() => setShowDayModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowDayModal(false); setDayMultiMode(false); }}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <h2 className="modal-title">{editingDay ? 'Modifica Giorno' : 'Nuovo Giorno'}</h2>
-            <div className="form-group">
-              <label>Data *</label>
-              <input type="date" value={dayForm.date} onChange={e => setDayForm(f => ({ ...f, date: e.target.value }))} />
-            </div>
+            {!editingDay && (
+              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" onClick={() => setDayMultiMode(false)}
+                    style={{ flex: 1, padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid rgba(160,154,150,0.4)', fontSize: '0.82rem', cursor: 'pointer', background: !dayMultiMode ? '#506A7E' : 'transparent', color: !dayMultiMode ? '#fff' : '#506A7E', fontWeight: !dayMultiMode ? 600 : 400 }}>
+                    Giorno singolo
+                  </button>
+                  <button type="button" onClick={() => setDayMultiMode(true)}
+                    style={{ flex: 1, padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid rgba(160,154,150,0.4)', fontSize: '0.82rem', cursor: 'pointer', background: dayMultiMode ? '#506A7E' : 'transparent', color: dayMultiMode ? '#fff' : '#506A7E', fontWeight: dayMultiMode ? 600 : 400 }}>
+                    Più giorni (Dal → Al)
+                  </button>
+                </div>
+              </div>
+            )}
+            {!dayMultiMode ? (
+              <div className="form-group">
+                <label>Data *</label>
+                <input type="date" value={dayForm.date} onChange={e => setDayForm(f => ({ ...f, date: e.target.value }))} />
+              </div>
+            ) : (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Dal *</label>
+                  <input type="date" value={dayForm.date} onChange={e => setDayForm(f => ({ ...f, date: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label>Al *</label>
+                  <input type="date" value={dayForm.dateTo} min={dayForm.date || undefined} onChange={e => setDayForm(f => ({ ...f, dateTo: e.target.value }))} />
+                </div>
+              </div>
+            )}
             <div className="form-group">
               <label>Localita</label>
               <input value={dayForm.location} onChange={e => setDayForm(f => ({ ...f, location: e.target.value }))} placeholder="es. Seoul" />
@@ -1090,8 +1189,12 @@ export const TripDetail: React.FC = () => {
               <textarea rows={2} value={dayForm.notes} onChange={e => setDayForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
             <div className="modal-actions">
-              <button className="trip-btn-secondary" onClick={() => setShowDayModal(false)}>Annulla</button>
-              <button className="trip-btn-primary" onClick={saveDay}>{editingDay ? 'Salva' : 'Aggiungi'}</button>
+              <button className="trip-btn-secondary" onClick={() => { setShowDayModal(false); setDayMultiMode(false); }}>Annulla</button>
+              <button className="trip-btn-primary"
+                disabled={!dayForm.date || (dayMultiMode && (!dayForm.dateTo || dayForm.dateTo < dayForm.date))}
+                onClick={saveDay}>
+                {editingDay ? 'Salva' : dayMultiMode ? 'Aggiungi giorni' : 'Aggiungi'}
+              </button>
             </div>
           </div>
         </div>
@@ -1136,16 +1239,35 @@ export const TripDetail: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Ora inizio</label>
-                <input value={aptForm.time} onChange={e => setAptForm(f => ({ ...f, time: e.target.value }))} onBlur={e => setAptForm(f => ({ ...f, time: formatTime(e.target.value) }))} placeholder="10:30" />
-              </div>
-              <div className="form-group">
-                <label>Ora fine</label>
-                <input value={aptForm.endTime} onChange={e => setAptForm(f => ({ ...f, endTime: e.target.value }))} onBlur={e => setAptForm(f => ({ ...f, endTime: formatTime(e.target.value) }))} placeholder="12:00" />
-              </div>
+            <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 400 }}>
+                <input type="checkbox" checked={aptForm.allDay} onChange={e => setAptForm(f => ({ ...f, allDay: e.target.checked, time: '', endTime: '' }))} />
+                Giornata intera (senza orari)
+              </label>
             </div>
+            {!aptForm.allDay && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Ora inizio</label>
+                  <input value={aptForm.time} onChange={e => setAptForm(f => ({ ...f, time: e.target.value }))} onBlur={e => setAptForm(f => ({ ...f, time: formatTime(e.target.value) }))} placeholder="10:30" />
+                </div>
+                <div className="form-group">
+                  <label>Ora fine</label>
+                  <input value={aptForm.endTime} onChange={e => setAptForm(f => ({ ...f, endTime: e.target.value }))} onBlur={e => setAptForm(f => ({ ...f, endTime: formatTime(e.target.value) }))} placeholder="12:00" />
+                </div>
+              </div>
+            )}
+            {!aptContext?.apt && (() => {
+              const baseDate = trip?.days.find(d => d.id === aptContext?.dayId)?.date || '';
+              return (
+                <div className="form-group">
+                  <label>Fino al (se più giorni)</label>
+                  <input type="date" value={aptForm.endDate} min={baseDate || undefined}
+                    onChange={e => setAptForm(f => ({ ...f, endDate: e.target.value }))}
+                    placeholder="Lascia vuoto per giorno singolo" />
+                </div>
+              );
+            })()}
             <div className="form-group">
               <label>Stato</label>
               <select value={aptForm.status} onChange={e => setAptForm(f => ({ ...f, status: e.target.value }))}>
