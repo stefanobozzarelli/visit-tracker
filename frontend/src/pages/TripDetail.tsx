@@ -21,6 +21,7 @@ interface Flight {
   details: string;
   status: 'programmato' | 'confermato';
   type: 'volo' | 'treno' | 'traghetto';
+  departureTime?: string;
   endDate?: string;
 }
 
@@ -99,6 +100,11 @@ function extractTime(details: string): string {
   const m = details.match(/\b(\d{1,2}:\d{2})\b/);
   if (!m) return '00:00';
   return m[1].length === 4 ? `0${m[1]}` : m[1];
+}
+function flightSortTime(f: Flight): string {
+  if (f.departureTime) return f.departureTime;
+  const extracted = extractTime(f.details);
+  return extracted;
 }
 
 // ---- Status Dropdown ----
@@ -193,7 +199,7 @@ export const TripDetail: React.FC = () => {
 
   // Inline flight form
   const [showFlightForm, setShowFlightForm] = useState<string | null>(null); // dayId
-  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' });
+  const [flightForm, setFlightForm] = useState({ route: '', details: '', status: 'programmato', type: 'volo', departureTime: '', flightDate: '', flightEndDate: '' });
   const [editingFlight, setEditingFlight] = useState<{ dayId: string; flight: Flight } | null>(null);
 
   // Inline hotel form
@@ -426,7 +432,7 @@ export const TripDetail: React.FC = () => {
       });
     }
     saveTrip({ ...trip, days });
-    setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' });
+    setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', departureTime: '', flightDate: '', flightEndDate: '' });
     setShowFlightForm(null);
   };
   const deleteFlight = (dayId: string, flightId: string) => {
@@ -774,6 +780,7 @@ export const TripDetail: React.FC = () => {
                             </select>
                           )}
                           <input className="td-input" value={flightForm.route} onChange={e => setFlightForm(f => ({ ...f, route: e.target.value }))} placeholder="Tratta (es. BLQ-IST)" autoFocus />
+                          <input className="td-input" type="time" value={flightForm.departureTime} onChange={e => setFlightForm(f => ({ ...f, departureTime: e.target.value }))} title="Ora partenza (usata per ordinare)" />
                           <input className="td-input" value={flightForm.details} onChange={e => setFlightForm(f => ({ ...f, details: e.target.value }))} placeholder="Dettagli (es. TK1322 10:55)" />
                           <input className="td-input" type="date" value={flightForm.flightEndDate} min={flightForm.flightDate || day.date} onChange={e => setFlightForm(f => ({ ...f, flightEndDate: e.target.value }))} title="Data fine (opzionale, es. traghetto notte)" />
                           <select className="td-select" value={flightForm.type} onChange={e => setFlightForm(f => ({ ...f, type: e.target.value as Flight['type'] }))}>
@@ -787,7 +794,7 @@ export const TripDetail: React.FC = () => {
                           </select>
                         </div>
                         <div className="td-flight-form-actions">
-                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' }); }}>Annulla</button>
+                          <button className="td-link-btn" onClick={() => { setShowFlightForm(null); setEditingFlight(null); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', departureTime: '', flightDate: '', flightEndDate: '' }); }}>Annulla</button>
                           <button className="td-small-btn-primary" onClick={() => saveFlight(day.id)}>Salva</button>
                         </div>
                       </div>
@@ -795,7 +802,7 @@ export const TripDetail: React.FC = () => {
 
                     {/* Trasporti + Appuntamenti unificati, ordinati per orario */}
                     {[
-                      ...day.flights.map(f => ({ kind: 'flight' as const, sortTime: extractTime(f.details), f, a: null as Appointment | null })),
+                      ...day.flights.map(f => ({ kind: 'flight' as const, sortTime: flightSortTime(f), f, a: null as Appointment | null })),
                       ...day.appointments.map(a => ({ kind: 'apt' as const, sortTime: a.time || '00:00', f: null as Flight | null, a })),
                     ].sort((x, y) => x.sortTime.localeCompare(y.sortTime)).map(item => item.f ? (
                       <div key={item.f.id} className="td-flight-item">
@@ -807,7 +814,7 @@ export const TripDetail: React.FC = () => {
                         </div>
                         <StatusDropdown status={item.f.status} statuses={FLIGHT_STATUSES} onChange={s => updateFlightStatus(day.id, item.f!.id, s)} type="flight" />
                         <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: item.f!.route, details: item.f!.details, status: item.f!.status, type: item.f!.type || 'volo', flightDate: day.date, flightEndDate: item.f!.endDate || '' }); setEditingFlight({ dayId: day.id, flight: item.f! }); setShowFlightForm(day.id); }}>
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setFlightForm({ route: item.f!.route, details: item.f!.details, status: item.f!.status, type: item.f!.type || 'volo', departureTime: item.f!.departureTime || '', flightDate: day.date, flightEndDate: item.f!.endDate || '' }); setEditingFlight({ dayId: day.id, flight: item.f! }); setShowFlightForm(day.id); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                           </button>
                           <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteFlight(day.id, item.f!.id); }}>
@@ -868,7 +875,7 @@ export const TripDetail: React.FC = () => {
 
                     {/* Day actions */}
                     <div className="td-day-actions">
-                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', flightDate: '', flightEndDate: '' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Trasporto</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', departureTime: '', flightDate: '', flightEndDate: '' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Trasporto</button>
                       <button className="td-action-link purple" onClick={e => { e.stopPropagation(); setHotelForm({ name: '', checkIn: day.date, checkOut: day.date, status: 'programmato' }); setEditingHotel(null); setShowHotelForm(day.id); }}>+ Hotel</button>
                       <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '' }); setShowAptModal(true); }}>+ Appuntamento</button>
                       <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, dateTo: '', location: day.location, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
@@ -913,7 +920,7 @@ export const TripDetail: React.FC = () => {
                       <td style={{ whiteSpace: 'nowrap', color: '#6AAED6', fontWeight: 600 }}>{fmtShort(day.date)}</td>
                       <td style={{ fontWeight: 600 }}>{day.location}</td>
                       <td>
-                        {[...day.flights].sort((a, b) => extractTime(a.details).localeCompare(extractTime(b.details))).map(f => (
+                        {[...day.flights].sort((a, b) => flightSortTime(a).localeCompare(flightSortTime(b))).map(f => (
                           <div key={f.id} className="td-rpt-row">
                             <div className="td-rpt-main">
                               <span style={{ marginRight: '4px' }}>{TRANSPORT_ICONS[f.type || 'volo']}</span>
@@ -964,7 +971,7 @@ export const TripDetail: React.FC = () => {
                 </colgroup>
                 <thead><tr><th>Data</th><th></th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
                 <tbody>
-                  {sortedDays.flatMap(day => [...day.flights].sort((a, b) => extractTime(a.details).localeCompare(extractTime(b.details))).map(f => (
+                  {sortedDays.flatMap(day => [...day.flights].sort((a, b) => flightSortTime(a).localeCompare(flightSortTime(b))).map(f => (
                     <tr key={f.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
                       <td style={{ fontSize: '1.1rem', textAlign: 'center' }}>{TRANSPORT_ICONS[f.type || 'volo']}</td>
