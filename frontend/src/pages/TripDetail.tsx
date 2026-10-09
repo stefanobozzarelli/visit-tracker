@@ -95,9 +95,9 @@ function checkOutDisplay(dateStr: string) {
   return d.toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' });
 }
 function extractTime(details: string): string {
-  if (!details) return '99:99';
+  if (!details) return '00:00';
   const m = details.match(/\b(\d{1,2}:\d{2})\b/);
-  if (!m) return '99:99';
+  if (!m) return '00:00';
   return m[1].length === 4 ? `0${m[1]}` : m[1];
 }
 
@@ -796,7 +796,7 @@ export const TripDetail: React.FC = () => {
                     {/* Trasporti + Appuntamenti unificati, ordinati per orario */}
                     {[
                       ...day.flights.map(f => ({ kind: 'flight' as const, sortTime: extractTime(f.details), f, a: null as Appointment | null })),
-                      ...day.appointments.map(a => ({ kind: 'apt' as const, sortTime: a.time || '99:99', f: null as Flight | null, a })),
+                      ...day.appointments.map(a => ({ kind: 'apt' as const, sortTime: a.time || '00:00', f: null as Flight | null, a })),
                     ].sort((x, y) => x.sortTime.localeCompare(y.sortTime)).map(item => item.f ? (
                       <div key={item.f.id} className="td-flight-item">
                         <span className="td-flight-icon">{TRANSPORT_ICONS[item.f.type || 'volo']}</span>
@@ -913,7 +913,7 @@ export const TripDetail: React.FC = () => {
                       <td style={{ whiteSpace: 'nowrap', color: '#6AAED6', fontWeight: 600 }}>{fmtShort(day.date)}</td>
                       <td style={{ fontWeight: 600 }}>{day.location}</td>
                       <td>
-                        {day.flights.map(f => (
+                        {[...day.flights].sort((a, b) => extractTime(a.details).localeCompare(extractTime(b.details))).map(f => (
                           <div key={f.id} className="td-rpt-row">
                             <div className="td-rpt-main">
                               <span style={{ marginRight: '4px' }}>{TRANSPORT_ICONS[f.type || 'volo']}</span>
@@ -933,7 +933,7 @@ export const TripDetail: React.FC = () => {
                         ))}
                       </td>
                       <td>
-                        {[...day.appointments].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99')).map(a => (
+                        {[...day.appointments].sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00')).map(a => (
                           <div key={a.id} className="td-rpt-row">
                             <span className="td-rpt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
                             <span className="td-rpt-client">{a.client}</span>
@@ -964,7 +964,7 @@ export const TripDetail: React.FC = () => {
                 </colgroup>
                 <thead><tr><th>Data</th><th></th><th>Tratta</th><th>Dettagli</th><th>Stato</th></tr></thead>
                 <tbody>
-                  {sortedDays.flatMap(day => day.flights.map(f => (
+                  {sortedDays.flatMap(day => [...day.flights].sort((a, b) => extractTime(a.details).localeCompare(extractTime(b.details))).map(f => (
                     <tr key={f.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
                       <td style={{ fontSize: '1.1rem', textAlign: 'center' }}>{TRANSPORT_ICONS[f.type || 'volo']}</td>
@@ -1028,7 +1028,7 @@ export const TripDetail: React.FC = () => {
                 </colgroup>
                 <thead><tr><th>Data</th><th>Localita</th><th>Ora Inizio</th><th>Ora Fine</th><th>Cliente</th><th>Stato</th></tr></thead>
                 <tbody>
-                  {sortedDays.flatMap(day => day.appointments.map(a => (
+                  {sortedDays.flatMap(day => [...day.appointments].sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00')).map(a => (
                     <tr key={a.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
                       <td>{day.location}</td>
