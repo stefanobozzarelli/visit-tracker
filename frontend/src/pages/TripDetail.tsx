@@ -212,7 +212,7 @@ export const TripDetail: React.FC = () => {
   const [tripForm, setTripForm] = useState({ name: '', destination: '', startDate: '', endDate: '', notes: '' });
   const [dayForm, setDayForm] = useState({ date: '', dateTo: '', location: '', notes: '' });
   const [dayMultiMode, setDayMultiMode] = useState(false);
-  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '' });
+  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '', targetDayId: '' });
 
   // Client autocomplete
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
@@ -503,11 +503,23 @@ export const TripDetail: React.FC = () => {
       }
       saveTrip({ ...trip, days: updatedDays });
     } else {
+      const movingToDay = aptContext.apt && aptForm.targetDayId && aptForm.targetDayId !== aptContext.dayId;
       const days = trip.days.map(d => {
-        if (d.id !== aptContext.dayId) return d;
         if (aptContext.apt) {
-          return { ...d, appointments: d.appointments.map(a => a.id === aptContext.apt!.id ? { ...a, ...aptData } : a) };
+          if (!movingToDay) {
+            // same day: update in place
+            if (d.id !== aptContext.dayId) return d;
+            return { ...d, appointments: d.appointments.map(a => a.id === aptContext.apt!.id ? { ...a, ...aptData } : a) };
+          }
+          // moving to a different day
+          if (d.id === aptContext.dayId)
+            return { ...d, appointments: d.appointments.filter(a => a.id !== aptContext.apt!.id) };
+          if (d.id === aptForm.targetDayId)
+            return { ...d, appointments: [...d.appointments, { ...aptContext.apt!, ...aptData }] };
+          return d;
         }
+        // new appointment
+        if (d.id !== aptContext.dayId) return d;
         return { ...d, appointments: [...d.appointments, { id: `a${uid()}`, ...aptData }] };
       });
       saveTrip({ ...trip, days });
@@ -866,7 +878,7 @@ export const TripDetail: React.FC = () => {
                         })()}
                         <StatusDropdown status={item.a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, item.a!.id, s)} type="apt" />
                         <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: item.a! }); setAptForm({ time: item.a!.time, endTime: item.a!.endTime, client: item.a!.client, status: item.a!.status, notes: item.a!.notes, allDay: item.a!.allDay || false, endDate: '' }); setShowAptModal(true); }}>
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: item.a! }); setAptForm({ time: item.a!.time, endTime: item.a!.endTime, client: item.a!.client, status: item.a!.status, notes: item.a!.notes, allDay: item.a!.allDay || false, endDate: '', targetDayId: day.id }); setShowAptModal(true); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                           </button>
                           <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteApt(day.id, item.a!.id); }}>
@@ -883,7 +895,7 @@ export const TripDetail: React.FC = () => {
                     <div className="td-day-actions">
                       <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', departureTime: '', arrivalTime: '', flightDate: '', flightEndDate: '' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Trasporto</button>
                       <button className="td-action-link purple" onClick={e => { e.stopPropagation(); setHotelForm({ name: '', checkIn: day.date, checkOut: day.date, status: 'programmato' }); setEditingHotel(null); setShowHotelForm(day.id); }}>+ Hotel</button>
-                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '' }); setShowAptModal(true); }}>+ Appuntamento</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '', targetDayId: day.id }); setShowAptModal(true); }}>+ Appuntamento</button>
                       <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, dateTo: '', location: day.location, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
                       <button className="td-action-link red" onClick={e => { e.stopPropagation(); deleteDay(day.id); }}>🗑 Elimina</button>
                     </div>
@@ -1219,6 +1231,18 @@ export const TripDetail: React.FC = () => {
         <div className="modal-overlay" onClick={() => setShowAptModal(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <h2 className="modal-title">{aptContext?.apt ? 'Modifica Appuntamento' : 'Nuovo Appuntamento'}</h2>
+            {aptContext?.apt && (
+              <div className="form-group">
+                <label>Giorno</label>
+                <select value={aptForm.targetDayId} onChange={e => setAptForm(f => ({ ...f, targetDayId: e.target.value }))}>
+                  {sortedDays.map(sd => (
+                    <option key={sd.id} value={sd.id}>
+                      {new Date(sd.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}{sd.location ? ` — ${sd.location}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="form-group">
               <label>Cliente *</label>
               <div style={{ position: 'relative' }}>
