@@ -40,7 +40,8 @@ Al primo accesso crei la "famiglia": nelle impostazioni (**Altro → Famiglia**)
 Sono file statici: basta qualsiasi hosting della cartella `casa-manutenzione/`.
 
 - **Firebase Hosting** (consigliato, stesso progetto): `npm i -g firebase-tools && firebase login && firebase init hosting` (public directory: `casa-manutenzione`, single-page: no) e `firebase deploy`.
-- **Netlify / Vercel / Cloudflare Pages**: collega il repo e indica `casa-manutenzione` come cartella da pubblicare (nessun build).
+- **Vercel** (gratis): [vercel.com/new](https://vercel.com/new) → importa il repo `visit-tracker` → **Root Directory: `casa-manutenzione`** → Framework Preset: *Other*, nessun build command → Deploy. Selezionare il branch `claude/upbeat-euler-qg1528` in *Production Branch* (Settings → Git) finché non è nel ramo principale.
+- **Netlify / Cloudflare Pages**: collega il repo e indica `casa-manutenzione` come cartella da pubblicare (nessun build).
 - **GitHub Pages**: il repo ha già un workflow Pages per `injection-tracker`; Pages è uno solo per repository, quindi per usarlo con questa app serve un workflow che pubblichi entrambe le cartelle.
 
 Sul telefono: apri il sito → *Aggiungi a schermata Home* e si comporta come un'app.
