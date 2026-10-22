@@ -22,7 +22,8 @@
   }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; }
+html, body { margin: 0; max-width: 100%; overflow-x: hidden; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg); color: var(--text); min-height: 100vh;
@@ -33,7 +34,7 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 .hidden { display: none !important; }
 
 /* ---------- Layout ---------- */
-.shell { display: grid; grid-template-columns: 1fr; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100vh; }
 .side { display: none; }
 .main { padding: 16px 16px calc(var(--nav-h) + 96px + env(safe-area-inset-bottom)); max-width: 1000px; width: 100%; margin: 0 auto; }
 .tabbar {
@@ -55,7 +56,7 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 }
 .fab:active { transform: scale(.96); }
 @media (min-width: 900px) {
-  .shell { grid-template-columns: 250px 1fr; }
+  .shell { grid-template-columns: 250px minmax(0, 1fr); }
   .side { display: flex; flex-direction: column; gap: 6px; padding: 22px 16px; position: sticky; top: 0; height: 100vh;
     background: var(--card); border-right: 1px solid var(--line); }
   .tabbar { display: none; }
@@ -187,3 +188,20 @@ input[type=date] { min-width: 0; -webkit-appearance: none; appearance: none; min
   padding: 11px 18px; border-radius: 99px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: .25s; z-index: 100; max-width: 90vw; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (min-width: 900px) { #toast { bottom: 30px; } }
+
+/* ---------- Contenimento (nessuno scroll orizzontale su iPhone) ---------- */
+.main, .main > *, .grid > *, .card, .row, .devcard, .kpi, .field, .two-col > *, .sticky-filters > *, .hb > * { min-width: 0; }
+.kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 700px) { .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.sticky-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 700px) { .sticky-filters { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hb { grid-template-columns: minmax(64px, 110px) minmax(0, 1fr) auto; }
+.hb > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill { max-width: 100%; }
+.devcard .pill, .row .body .pill { white-space: normal; }
+.kpi .v { overflow-wrap: anywhere; }
+input, select, textarea { max-width: 100%; }
+.catgrid { grid-template-columns: repeat(auto-fill, minmax(min(118px, 100%), 1fr)); }
+.dlg .content { overflow-x: hidden; }
+.row .t, .row .s { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
