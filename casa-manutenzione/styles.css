@@ -205,3 +205,5 @@ input, select, textarea { max-width: 100%; }
 .catgrid { grid-template-columns: repeat(auto-fill, minmax(min(118px, 100%), 1fr)); }
 .dlg .content { overflow-x: hidden; }
 .row .t, .row .s { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+.taskpick .btn.sm { flex: none; }

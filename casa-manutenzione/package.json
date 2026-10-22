@@ -1,0 +1,11 @@
+{
+  "name": "casa-manutenzione",
+  "private": true,
+  "type": "module",
+  "description": "Promemoria email per Casa Manutenzione (funzione Vercel eseguita ogni mattina)",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "nodemailer": "^6.9.16"
+  }
+}
