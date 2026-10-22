@@ -13,6 +13,31 @@ const parse = (iso) => { const [y, m, d] = iso.split('-').map(Number); return ne
 const todayISO = () => toISO(new Date());
 const fmtDate = (iso, long) => iso ? parse(iso).toLocaleDateString('it-IT', long ? { day: 'numeric', month: 'long', year: 'numeric' } : { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 const daysUntil = (iso) => Math.round((parse(iso) - parse(todayISO())) / 864e5);
+const fmtSize = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+const MAX_PDF = 3 * 1048576;
+// Le foto vengono ridotte (max 1600px, JPEG) per stare nei limiti gratuiti del database.
+async function prepareFile(file) {
+  if (file.type.startsWith('image/')) {
+    const bmp = await createImageBitmap(file); const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.72));
+    return { blob, name: file.name.replace(/\.[^.]+$/, '') + '.jpg' };
+  }
+  if (file.type === 'application/pdf') {
+    if (file.size > MAX_PDF) throw new Error(`“${file.name}” supera 3 MB: comprimilo o scattagli una foto`);
+    return { blob: file, name: file.name };
+  }
+  throw new Error(`“${file.name}”: sono ammessi solo foto e PDF`);
+}
+async function openAtt(att) {
+  try {
+    const blob = await S.store.getFile(att); if (!blob) throw new Error('vuoto');
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener'; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  } catch (e) { console.error(e); toast('Impossibile aprire il file'); }
+}
 const MONTHS = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
 function addInterval(iso, n, u) {
@@ -46,7 +71,7 @@ const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(pr
 
 const S = {
   db: emptyDb(), store: null, view: 'home', prop: '', hf: { prop: '', dev: '', type: '', year: '', q: '' },
-  ready: false, hhName: '', members: [], remindedDay: null,
+  ready: false, hhName: '', members: [], hh: {}, remindedDay: null,
 };
 const ACCENTS = [['#4f46e5', '#a855f7'], ['#0d9488', '#2dd4bf'], ['#ea580c', '#f59e0b'], ['#e11d48', '#fb7185'], ['#16a34a', '#84cc16'], ['#0284c7', '#38bdf8']];
 
@@ -149,10 +174,18 @@ function logRow(l) {
     <div class="body" data-act="editlog" data-id="${l.id}">
       <div class="t">${esc(l.title)}</div>
       <div class="s">${esc(dev?.name || l.deviceName || 'Generico')}${prop ? ' · ' + esc(prop.name) : ''} · ${fmtDate(l.date)}${l.by ? ' · ' + esc(l.by) : ''}</div>
-      <span class="pill ${ty.color}">${ty.icon} ${ty.label}</span>${l.provider ? ` <span class="pill">🔧 ${esc(l.provider)}</span>` : ''}
+      <span class="pill ${ty.color}">${ty.icon} ${ty.label}</span>${l.provider ? ` <span class="pill">🔧 ${esc(l.provider)}</span>` : ''}${l.attachments?.length ? ` <span class="pill">📎 ${l.attachments.length}</span>` : ''}
     </div>
     <div class="amt">${l.cost ? fmtEUR(l.cost) : ''}</div>
   </div>`;
+}
+
+function todoRow(x) {
+  const di = x.due ? dueInfo(x.due) : null; const p = P(x.propertyId);
+  return `<div class="row"><div class="ico">📝</div>
+    <div class="body" data-act="edittodo" data-id="${x.id}"><div class="t">${esc(x.title)}</div>
+      <div class="s">${p ? esc(p.name) + ' · ' : ''}${esc(x.notes || 'To-do')}${x.by ? ' · ' + esc(x.by) : ''}</div>${di ? `<span class="pill ${di.cls}">${esc(di.txt)}</span>` : ''}</div>
+    <button class="done" title="Fatto" data-act="todoDone" data-id="${x.id}">✓</button></div>`;
 }
 
 function emptyState(icon, title, text, btn) {
@@ -174,7 +207,10 @@ function vHome() {
   const inYear = logs.filter((l) => l.date?.startsWith(String(y)));
   const spendYear = inYear.reduce((s, l) => s + (+l.cost || 0), 0);
   const spendMonth = inYear.filter((l) => +l.date.slice(5, 7) === m + 1).reduce((s, l) => s + (+l.cost || 0), 0);
-  const todo = sched.filter((t) => daysUntil(t.nextDue) <= 45);
+  const dueNow = sched.filter((t) => daysUntil(t.nextDue) <= 0);
+  const upcoming = sched.filter((t) => { const d = daysUntil(t.nextDue); return d > 0 && d <= 45; });
+  const manual = (S.db.todos || []).filter((x) => !x.done && (!S.prop || !x.propertyId || x.propertyId === S.prop))
+    .sort((a, b) => (a.due || '9').localeCompare(b.due || '9'));
   const msg = over.length ? `Hai ${over.length} ${over.length === 1 ? 'attività scaduta' : 'attività scadute'} da sistemare.`
     : soon.length ? `${soon.length} ${soon.length === 1 ? 'attività' : 'attività'} nei prossimi 30 giorni.` : 'Tutto in ordine, nessuna scadenza imminente. 🎉';
 
@@ -193,9 +229,12 @@ function vHome() {
       <div class="kpi"><div class="v">${fmtEUR(spendMonth)}</div><div class="l">Spesa ${MONTHS[m]}</div></div>
       <div class="kpi"><div class="v">${fmtEUR(spendYear)}</div><div class="l">Spesa ${y}</div></div>
     </div>
-    <div class="sec"><h2>Da fare</h2><button class="btn sm" data-act="nav" data-v="piano">Tutto il piano</button></div>
-    ${todo.length ? todo.slice(0, 8).map((t) => taskRow(t)).join('') :
-      emptyState('✅', 'Niente da fare per ora', 'Aggiungi dispositivi e manutenzioni programmate per vedere qui le prossime scadenze.',
+    <div class="sec"><h2>To-do <span class="muted" style="font-weight:600">${dueNow.length + manual.length || ''}</span></h2><button class="btn sm" data-act="addtodo">＋ To-do</button></div>
+    ${dueNow.length || manual.length ? dueNow.map((t) => taskRow(t)).join('') + manual.map(todoRow).join('') :
+      emptyState('✅', 'Nessun to-do', 'Quando una manutenzione scade compare qui da sola e la famiglia riceve un\'email. Puoi aggiungere anche to-do tuoi.')}
+    <div class="sec"><h2>In arrivo</h2><button class="btn sm" data-act="nav" data-v="piano">Tutto il piano</button></div>
+    ${upcoming.length ? upcoming.slice(0, 6).map((t) => taskRow(t)).join('') :
+      emptyState('🗓️', 'Nessuna scadenza nei prossimi 45 giorni', 'Aggiungi dispositivi e manutenzioni programmate per vedere qui le prossime scadenze.',
         `<button class="btn primary" data-act="adddev">Aggiungi dispositivo</button>`)}
     <div class="grid two">
       <div><div class="sec"><h2>Spesa mensile ${y}</h2></div><div class="card">
@@ -328,6 +367,12 @@ function vSettings() {
       <div class="btnrow" style="margin-top:14px"><button class="btn" data-act="signout">Esci</button><button class="btn danger" data-act="leavehh">Lascia la famiglia</button></div>`
     : `<p style="margin-top:0">Ora i dati sono salvati <b>solo in questo browser</b>. Per condividerli con la famiglia online serve collegare un database Firebase (gratuito, 5 minuti): vedi <code>README.md</code> nella cartella dell'app.</p>`}</div>
 
+  <div class="sec"><h2>Email di promemoria</h2></div>
+  <div class="card">${cloud ? `<p style="margin-top:0">Ogni mattina, se una manutenzione è scaduta, parte un'email a questi indirizzi (uno per riga). Se lasci vuoto vengono usate le email dei membri.</p>
+    <textarea id="emails" rows="3" placeholder="mamma@esempio.it&#10;papà@esempio.it">${esc((S.hh.notifyEmails?.length ? S.hh.notifyEmails : S.members.map((m) => m.email).filter(Boolean)).join('\n'))}</textarea>
+    <div class="btnrow" style="margin-top:10px"><button class="btn primary" data-act="saveemails">Salva indirizzi</button><button class="btn" data-act="testmail">✉️ Invia email di prova</button></div>`
+    : `<p style="margin:0">Le email automatiche funzionano con l'account famiglia online (sezione Famiglia).</p>`}</div>
+
   <div class="sec"><h2>Dati</h2></div>
   <div class="card"><div class="btnrow">
     <button class="btn" data-act="export">⬇️ Backup (JSON)</button>
@@ -356,6 +401,21 @@ const actions = {
   csv: exportCSV, export: exportJSON, ics: exportICS, sample: loadSample,
   import: () => $('#importfile').click(),
   notif: enableNotifications,
+  addtodo: () => todoForm(), edittodo: (d) => todoForm(d.id),
+  todoDone: async (d) => { const x = (S.db.todos || []).find((t) => t.id === d.id); if (x) { await save('todos', { ...x, done: true, doneAt: todayISO(), by: meName() }); toast('To-do completato'); } },
+  saveemails: async () => {
+    const list = [...new Set($('#emails').value.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean))];
+    if (list.some((e) => !/^\S+@\S+\.\S+$/.test(e))) { toast('Controlla gli indirizzi email'); return; }
+    try { await S.store.setNotifyEmails(list); S.hh.notifyEmails = list; toast(list.length ? 'Indirizzi salvati' : 'Userò le email dei membri'); } catch (e) { toast('Errore: ' + e.message); }
+  },
+  testmail: async () => {
+    toast('Invio in corso…');
+    try {
+      const res = await fetch('/api/reminders', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await S.store.idToken() }, body: JSON.stringify({ hid: S.store.hid }) });
+      const j = await res.json().catch(() => ({}));
+      toast(res.ok ? `Email di prova inviata a ${j.sent} indirizzi` : (j.error || 'Invio non riuscito'));
+    } catch { toast('Servizio email non raggiungibile'); }
+  },
   copyinvite: async () => { try { await navigator.clipboard.writeText(S.store.hid); toast('Codice copiato'); } catch { $('#invite').select(); } },
   signout: async () => { await S.store.signOut(); location.reload(); },
   leavehh: () => confirmDlg('Lasciare la famiglia?', 'Non vedrai più i dati condivisi. Gli altri membri li conservano.', 'Lascia', async () => { await S.store.leaveHousehold(); location.reload(); }),
@@ -500,6 +560,7 @@ function logForm({ id, deviceId, taskId }) {
     date: todayISO(), type: task ? (task.kind === 'consumabile' ? 'consumabile' : 'programmata') : 'programmata',
     title: task?.title || '', deviceId: task?.deviceId || deviceId || '', taskId: task?.id || '', cost: task?.cost || '',
   };
+  const atts = [...(l.attachments || [])]; const pending = []; const removed = [];
   const dev0 = D(l.deviceId);
   l.propertyId = l.propertyId || dev0?.propertyId || (S.prop || S.db.properties[0]?.id);
   const props = S.db.properties.slice().sort(byName);
@@ -513,13 +574,29 @@ function logForm({ id, deviceId, taskId }) {
       <div class="field"><label>Importo (€)</label><input type="number" step="0.01" min="0" name="cost" inputmode="decimal" value="${esc(l.cost || '')}"></div></div>
     <div class="field"><label>Ditta / dove l'hai acquistato</label><input name="provider" value="${esc(l.provider || '')}" placeholder="es. Idraulico Rossi, Leroy Merlin"></div>
     <div class="field"><label>Note</label><textarea name="notes">${esc(l.notes || '')}</textarea></div>
-    <div class="field" id="linkwrap"><label>Aggiorna la scadenza di</label><select name="taskId" id="lk"></select></div>`,
-  [...(editing ? [{ label: 'Elimina', cls: 'danger', onClick: async () => { await remove('logs', id); toast('Intervento eliminato'); } }] : []),
+    <div class="field" id="linkwrap"><label>Aggiorna la scadenza di</label><select name="taskId" id="lk"></select></div>
+    <div class="field"><label>Allegati (fattura, distinta lavori, foto…)</label><div id="attlist"></div>
+      <label class="btn sm" for="attfile" style="width:fit-content">📎 Aggiungi file</label>
+      <input type="file" id="attfile" class="vh" multiple accept="image/*,application/pdf"></div>`,
+  [...(editing ? [{ label: 'Elimina', cls: 'danger', onClick: async () => {
+      for (const a of editing.attachments || []) await S.store.delFile(a).catch(() => {});
+      await remove('logs', id); toast('Intervento eliminato'); } }] : []),
     { label: 'Annulla' }, { label: 'Salva', cls: 'primary', submit: true, onClick: async (v) => {
       const title = fd(v, 'title'); if (!title) { toast('Descrivi l\'intervento'); return false; }
       const type = $('#typeseg .on', f).dataset.k; const devId = fd(v, 'deviceId'); const dv = D(devId);
       const date = fd(v, 'date') || todayISO(); const tId = type === 'straordinaria' ? '' : fd(v, 'taskId');
-      const item = { ...l, id: l.id || uid(), type, title, date, cost: fd(v, 'cost'), provider: fd(v, 'provider'), notes: fd(v, 'notes'),
+      const newAtts = [];
+      try {
+        if (pending.length) {
+          toast('Caricamento allegati…');
+          for (const file of pending) {
+            const { blob, name } = await prepareFile(file); const aid = uid(); const { chunks } = await S.store.putFile(aid, blob);
+            newAtts.push({ id: aid, name, type: blob.type, size: blob.size, chunks });
+          }
+        }
+      } catch (e) { console.error(e); toast(e.message || 'Allegato non caricato'); return false; }
+      for (const a of removed) await S.store.delFile(a).catch(() => {});
+      const item = { ...l, attachments: [...atts, ...newAtts], id: l.id || uid(), type, title, date, cost: fd(v, 'cost'), provider: fd(v, 'provider'), notes: fd(v, 'notes'),
         propertyId: fd(v, 'propertyId'), deviceId: devId, deviceName: dv?.name || '', deviceIcon: dv?.icon || '', taskId: tId, by: l.by || meName() };
       await save('logs', item);
       const tk = tId && T(tId);
@@ -530,6 +607,23 @@ function logForm({ id, deviceId, taskId }) {
     } }]);
 
   const lp = $('#lp', f), ld = $('#ld', f), lk = $('#lk', f), lt = $('#tl', f);
+  const drawAtt = () => {
+    $('#attlist', f).innerHTML = [...atts.map((a, i) => `<div class="taskpick"><span class="tt">📄 ${esc(a.name)}<small>${fmtSize(a.size)}</small></span>
+        <button type="button" class="btn sm" data-x="open" data-i="${i}">Apri</button><button type="button" class="iconbtn danger" data-x="rm" data-i="${i}" aria-label="Rimuovi">✕</button></div>`),
+      ...pending.map((p, i) => `<div class="taskpick"><span class="tt">🆕 ${esc(p.name)}<small>${fmtSize(p.size)} · da caricare al salvataggio</small></span>
+        <button type="button" class="iconbtn danger" data-x="unp" data-i="${i}" aria-label="Rimuovi">✕</button></div>`)].join('');
+  };
+  $('#attlist', f).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-x]'); if (!b) return; const i = +b.dataset.i;
+    if (b.dataset.x === 'open') openAtt(atts[i]);
+    else if (b.dataset.x === 'rm') { removed.push(atts[i]); atts.splice(i, 1); drawAtt(); }
+    else { pending.splice(i, 1); drawAtt(); }
+  });
+  $('#attfile', f).addEventListener('change', (e) => {
+    for (const file of e.target.files) { if (atts.length + pending.length >= 10) { toast('Massimo 10 allegati'); break; } pending.push(file); }
+    e.target.value = ''; drawAtt();
+  });
+  drawAtt();
   const fillDevices = () => {
     const devs = S.db.devices.filter((d) => d.propertyId === lp.value).sort(byName);
     ld.innerHTML = `<option value="">— Generico (nessun dispositivo) —</option>` + devs.map((d) => opt(d.id, `${d.icon} ${d.name}`, d.id === l.deviceId)).join('');
@@ -547,6 +641,22 @@ function logForm({ id, deviceId, taskId }) {
   lk.addEventListener('change', () => { const t = T(lk.value); if (t) { if (!$('#lt', f).value) $('#lt', f).value = t.title; if (t.cost && !f.elements.cost.value) f.elements.cost.value = t.cost; } });
   $('#typeseg', f).addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; f.querySelectorAll('#typeseg button').forEach((x) => x.classList.toggle('on', x === b)); syncLink(); });
   fillDevices();
+}
+
+/* ---------- To-do manuali ---------- */
+function todoForm(id) {
+  const x = id ? (S.db.todos || []).find((t) => t.id === id) : { due: '' };
+  const f = modal(id ? 'Modifica to-do' : 'Nuovo to-do', `
+    <div class="field"><label>Cosa c'è da fare</label><input name="title" required value="${esc(x.title || '')}" placeholder="es. Chiamare l'idraulico"></div>
+    <div class="two-col"><div class="field"><label>Entro il (facoltativo)</label><input type="date" name="due" value="${esc(x.due || '')}"></div>
+      <div class="field"><label>Abitazione</label><select name="propertyId"><option value="">Tutte</option>${S.db.properties.map((p) => opt(p.id, p.name, p.id === x.propertyId)).join('')}</select></div></div>
+    <div class="field"><label>Note</label><textarea name="notes">${esc(x.notes || '')}</textarea></div>`,
+  [...(id ? [{ label: 'Elimina', cls: 'danger', onClick: async () => { await remove('todos', id); toast('To-do eliminato'); } }] : []),
+    { label: 'Annulla' }, { label: 'Salva', cls: 'primary', submit: true, onClick: async (v) => {
+      if (!fd(v, 'title')) { toast('Scrivi cosa c\'è da fare'); return false; }
+      await save('todos', { ...x, id: x.id || uid(), title: fd(v, 'title'), due: fd(v, 'due'), propertyId: fd(v, 'propertyId'), notes: fd(v, 'notes'), done: false, by: x.by || meName() });
+      toast('To-do salvato'); } }]);
+  setTimeout(() => $('[name=title]', f)?.focus(), 50);
 }
 
 /* ============================== import / export ============================== */
@@ -688,6 +798,7 @@ async function startCloud() {
   S.store.unsub?.();
   S.hhName = await S.store.householdName().catch(() => '');
   S.members = await S.store.members().catch(() => []);
+  S.hh = await S.store.household().catch(() => ({}));
   S.store.subscribe((db) => { S.db = db; S.ready = true; render(); remind(); });
 }
 

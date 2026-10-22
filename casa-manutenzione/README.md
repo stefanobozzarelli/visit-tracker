@@ -35,6 +35,22 @@ Al primo accesso crei la "famiglia": nelle impostazioni (**Altro → Famiglia**)
 
 > La `apiKey` Firebase non è un segreto: la sicurezza è nelle regole Firestore. Solo chi conosce il codice famiglia (10 caratteri casuali) può unirsi.
 
+## Allegati, to-do ed email di scadenza
+
+- **Allegati**: in ogni intervento puoi aggiungere fino a 10 file (foto di fattura e distinta lavori, PDF). Le foto vengono ridotte automaticamente; i PDF possono pesare fino a 3 MB. I file sono salvati in Firestore (nessun costo extra). Dopo l'aggiornamento **ripubblica `firestore.rules`** (nuova sezione `files`).
+- **To-do**: quando una manutenzione scade compare da sola nella lista To-do della Home; puoi aggiungere anche to-do tuoi. Completando la manutenzione con ✓ la scadenza avanza.
+- **Email**: ogni mattina (06:00 UTC, circa le 7-8 in Italia) Vercel Cron esegue `api/reminders.js`, che manda un'email riassuntiva agli indirizzi della famiglia (impostabili in *Altro → Email di promemoria*). Ogni scadenza viene segnalata una volta sola. Variabili da impostare su Vercel (*Settings → Environment Variables*):
+
+| Variabile | Contenuto |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | tutto il file JSON della chiave dell'account di servizio (Firebase → Impostazioni progetto → Account di servizio → Genera nuova chiave privata) |
+| `SMTP_USER` | indirizzo Gmail da cui partono le email |
+| `SMTP_PASS` | *password per le app* di quell'account Gmail (richiede la verifica in due passaggi) |
+| `CRON_SECRET` | una stringa casuale lunga: Vercel la usa per autorizzare il cron |
+| `APP_URL` (facoltativa) | indirizzo dell'app, usato nel link dell'email |
+
+Il pulsante **Invia email di prova** in *Altro → Email di promemoria* verifica che tutto sia configurato. Non incollare mai queste chiavi in chat o nel codice.
+
 ## Pubblicazione online
 
 Sono file statici: basta qualsiasi hosting della cartella `casa-manutenzione/`.
@@ -55,3 +71,4 @@ Sul telefono: apri il sito → *Aggiungi a schermata Home* e si comporta come un
 | `catalog.js` | catalogo apparecchiature e manutenzioni suggerite — aggiungine di tue |
 | `firebase-config.js` | configurazione Firebase (vuota = modalità locale) |
 | `firestore.rules` | regole di sicurezza |
+| `api/reminders.js`, `lib/reminders.js` | funzione Vercel con l'invio delle email di scadenza |

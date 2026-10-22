@@ -25,6 +25,11 @@ service cloud.firestore {
       match /items/{id} {
         allow read, write: if isMember(hid);
       }
+
+      // Allegati (fatture, distinte lavori), a blocchi
+      match /files/{id} {
+        allow read, write: if isMember(hid);
+      }
     }
   }
 }

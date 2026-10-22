@@ -1,12 +1,27 @@
 // Livello dati: due backend con la stessa interfaccia.
 //   LocalStore  -> localStorage, solo su questo dispositivo
 //   CloudStore  -> Firebase (Auth + Firestore), condiviso con la famiglia
-// db = { properties: [], devices: [], tasks: [], logs: [] }
-export const COLS = ['properties', 'devices', 'tasks', 'logs'];
-export const emptyDb = () => ({ properties: [], devices: [], tasks: [], logs: [] });
+// db = { properties: [], devices: [], tasks: [], logs: [], todos: [] }
+export const COLS = ['properties', 'devices', 'tasks', 'logs', 'todos'];
+export const emptyDb = () => ({ properties: [], devices: [], tasks: [], logs: [], todos: [] });
 export const uid = () =>
   (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').slice(0, 20)
     : Math.random().toString(36).slice(2) + Date.now().toString(36));
+
+// ---- allegati: i file stanno fuori dal db principale, caricati solo quando servono ----
+const blobToB64 = (blob) => new Promise((res, rej) => {
+  const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(r.error); r.readAsDataURL(blob);
+});
+const b64ToBlob = (b64, type) => {
+  const bin = atob(b64); const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new Blob([u8], { type });
+};
+const idbTx = async (mode, fn) => {
+  const d = await new Promise((res, rej) => { const r = indexedDB.open('casa-files', 1); r.onupgradeneeded = () => r.result.createObjectStore('f'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  return new Promise((res, rej) => { const t = d.transaction('f', mode); const q = fn(t.objectStore('f')); t.oncomplete = () => { d.close(); res(q?.result); }; t.onerror = () => rej(t.error); });
+};
+const CHUNK = 600000; // caratteri base64 per documento Firestore (limite 1 MiB)
 
 const KEY = 'casa.db.v1';
 
@@ -28,6 +43,9 @@ export class LocalStore {
   }
   async del(col, id) { this.db[col] = this.db[col].filter((x) => x.id !== id); this._save(); }
   async replaceAll(db) { this.db = { ...emptyDb(), ...db }; this._save(); }
+  async putFile(id, blob) { await idbTx('readwrite', (st) => st.put(blob, id)); return { chunks: 1 }; }
+  async getFile(att) { return idbTx('readonly', (st) => st.get(att.id)); }
+  async delFile(att) { await idbTx('readwrite', (st) => st.delete(att.id)); }
 }
 
 const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
@@ -113,6 +131,22 @@ export class CloudStore {
   _item(col, id) { return this._doc('households', this.hid, 'items', id); }
   async put(col, item) { const { id, ...rest } = item; await this.F.setDoc(this._item(col, id), { ...rest, col }); }
   async del(col, id) { await this.F.deleteDoc(this._item(col, id)); }
+  async household() { const s = await this.F.getDoc(this._doc('households', this.hid)); return s.exists() ? s.data() : {}; }
+  async setNotifyEmails(list) { await this.F.updateDoc(this._doc('households', this.hid), { notifyEmails: list }); }
+  idToken() { return this.user.getIdToken(); }
+  async putFile(id, blob) {
+    const b64 = await blobToB64(blob); const n = Math.max(1, Math.ceil(b64.length / CHUNK));
+    for (let i = 0; i < n; i++) await this.F.setDoc(this._doc('households', this.hid, 'files', `${id}_${i}`), { d: b64.slice(i * CHUNK, (i + 1) * CHUNK), i });
+    return { chunks: n };
+  }
+  async getFile(att) {
+    const parts = await Promise.all(Array.from({ length: att.chunks || 1 }, (_, i) => this.F.getDoc(this._doc('households', this.hid, 'files', `${att.id}_${i}`))));
+    if (parts.some((p) => !p.exists())) throw new Error('File non trovato');
+    return b64ToBlob(parts.map((p) => p.data().d).join(''), att.type);
+  }
+  async delFile(att) {
+    await Promise.all(Array.from({ length: att.chunks || 1 }, (_, i) => this.F.deleteDoc(this._doc('households', this.hid, 'files', `${att.id}_${i}`))));
+  }
   async replaceAll(db) {
     const jobs = [];
     for (const c of COLS) for (const x of this.db[c]) jobs.push(this.del(c, x.id));
