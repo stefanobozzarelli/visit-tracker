@@ -44,6 +44,7 @@ const warrantiesOf = (d) => d?.warranties?.length ? d.warranties
   : (d?.warranty ? [{ id: 'legacy', type: 'legale', endDate: d.warranty, legacy: true }] : []);
 const warrEnd = (w) => w.endDate || (w.startDate && +w.duration ? addInterval(w.startDate, +w.duration, w.unit || 'months') : '');
 const durText = (w) => +w.duration ? `${w.duration} ${+w.duration === 1 ? UNIT_LABEL[w.unit || 'months'][0] : UNIT_LABEL[w.unit || 'months'][1]}` : '';
+const legalHint = (p) => (isCompany(p) ? WARRANTY_TYPES.legale.hintAzienda : WARRANTY_TYPES.legale.hint);
 function warrInfo(w) {
   const end = warrEnd(w); if (!end) return { cls: '', txt: 'Senza scadenza', d: null, state: 'none', end };
   const d = daysUntil(end);
@@ -147,6 +148,10 @@ const P = (id) => S.db.properties.find((x) => x.id === id);
 const D = (id) => S.db.devices.find((x) => x.id === id);
 const T = (id) => S.db.tasks.find((x) => x.id === id);
 const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'it');
+// "properties" contiene case, persone, famiglia e aziende: tutto ciò a cui un prodotto può appartenere.
+const isCompany = (p) => p?.type === 'azienda';
+const legalMonths = (p, cat) => (isCompany(p) ? 12 : (cat?.w || 24));   // azienda: di norma 1 anno (Codice civile)
+const PERSONAL_GROUPS = ['Elettronica personale', 'Persona e salute', 'Mobilità', 'Lavoro e azienda'];
 const propIcon = (p) => p?.icon || PROPERTY_TYPES.find((t) => t.id === p?.type)?.icon || '🏡';
 const meName = () => (S.store?.mode === 'cloud' && S.store.user ? (S.store.user.displayName || (S.store.user.email || '').split('@')[0]) : '') || prefs.name || '';
 const inProp = (propertyId) => !S.prop || propertyId === S.prop;
@@ -317,10 +322,10 @@ function vHome() {
 function vWelcome() {
   return `<div class="hero"><h2>Benvenuto in Casa Manutenzione</h2><p>Tieni sotto controllo manutenzioni, consumabili e spese di casa tua.</p></div>
     <div class="sec"><h2>Da dove iniziamo?</h2></div>
-    <div class="card"><p class="muted" style="margin-top:0">Aggiungi la tua prima abitazione:</p>
+    <div class="card"><p class="muted" style="margin-top:0">Aggiungi la tua prima casa, oppure una persona, la famiglia o un'azienda:</p>
       <div class="catgrid">${PROPERTY_TYPES.map((t) => `<button class="catitem" data-act="addprop" data-type="${t.id}"><span class="e">${t.icon}</span>${t.label}</button>`).join('')}</div>
       <p class="muted">Poi aggiungerai i prodotti e dispositivi (addolcitore, caldaia, smartphone, TV…) con manutenzioni e garanzie già suggerite.</p>
-      <button class="btn" data-act="sample">✨ Prova con dati di esempio</button></div>`;
+      <div class="btnrow"><button class="btn" data-act="addpeople">👪 Aggiungi più persone insieme</button><button class="btn" data-act="sample">✨ Prova con dati di esempio</button></div></div>`;
 }
 
 /* ---------- Piano ---------- */
@@ -343,7 +348,7 @@ function vDevices() {
       const devs = S.db.devices.filter((d) => d.propertyId === p.id && wfOk(d)).sort(byName);
       if (S.wf && !devs.length) return '';
       return `<div class="prophead"><span class="pi">${propIcon(p)}</span><div><h2>${esc(p.name)}</h2><div class="muted" style="font-size:13px">${esc(p.address || PROPERTY_TYPES.find((t) => t.id === p.type)?.label || '')}</div></div></div>
-        ${devs.length ? `<div class="grid cards">${devs.map(devCard).join('')}</div>` : emptyState('🧰', 'Nessun prodotto', 'Aggiungi i dispositivi e i prodotti di questa abitazione: manutenzioni e garanzie.', `<button class="btn primary" data-act="adddev" data-prop="${p.id}">Aggiungi prodotto</button>`)}`;
+        ${devs.length ? `<div class="grid cards">${devs.map(devCard).join('')}</div>` : emptyState('🧰', 'Nessun prodotto', 'Aggiungi i prodotti: manutenzioni e garanzie.', `<button class="btn primary" data-act="adddev" data-prop="${p.id}">Aggiungi prodotto</button>`)}`;
     }).join('')}`;
 }
 
@@ -371,7 +376,7 @@ function vHistory() {
   const f = S.hf;
   return `<div class="top"><h1>Storico interventi</h1><button class="btn sm" data-act="csv">⬇️ CSV</button></div>
     <div class="sticky-filters">
-      <select id="hf-prop" data-hf="prop"><option value="">Tutte le case</option>${S.db.properties.map((p) => opt(p.id, p.name, f.prop === p.id)).join('')}</select>
+      <select id="hf-prop" data-hf="prop"><option value="">Tutti (case e persone)</option>${S.db.properties.map((p) => opt(p.id, p.name, f.prop === p.id)).join('')}</select>
       <select id="hf-dev" data-hf="dev"><option value="">Tutti i dispositivi</option>${S.db.devices.slice().sort(byName).map((d) => opt(d.id, d.name, f.dev === d.id)).join('')}</select>
       <select id="hf-type" data-hf="type"><option value="">Tutti i tipi</option>${Object.entries(LOG_TYPES).map(([k, v]) => opt(k, v.label, f.type === k)).join('')}</select>
       <select id="hf-year" data-hf="year"><option value="">Tutti gli anni</option>${years.map((y) => opt(y, y, f.year === y)).join('')}</select>
@@ -412,10 +417,10 @@ function vSettings() {
     <input id="pname" value="${esc(prefs.name)}" placeholder="es. Stefano" ${cloud ? 'disabled' : ''}></div>
     ${cloud ? `<p class="muted">Account: ${esc(S.store.user?.email || '')}</p>` : ''}</div>
 
-  <div class="sec"><h2>Abitazioni</h2><button class="btn sm" data-act="addprop">＋ Aggiungi</button></div>
+  <div class="sec"><h2>Case, persone e famiglia</h2><div class="btnrow"><button class="btn sm" data-act="addprop">＋ Casa</button><button class="btn sm" data-act="addpeople">＋ Persone</button></div></div>
   ${S.db.properties.slice().sort(byName).map((p) => `<div class="row"><div class="ico">${propIcon(p)}</div>
     <div class="body" data-act="editprop" data-id="${p.id}"><div class="t">${esc(p.name)}</div><div class="s">${esc(p.address || PROPERTY_TYPES.find((t) => t.id === p.type)?.label || '')} · ${S.db.devices.filter((d) => d.propertyId === p.id).length} prodotti</div></div>
-    <button class="iconbtn" data-act="editprop" data-id="${p.id}">✎</button></div>`).join('') || '<p class="muted">Nessuna abitazione.</p>'}
+    <button class="iconbtn" data-act="editprop" data-id="${p.id}">✎</button></div>`).join('') || '<p class="muted">Nessuna casa o persona.</p>'}
 
   <div class="sec"><h2>Aspetto</h2></div>
   <div class="card">
@@ -474,6 +479,7 @@ const actions = {
   devsheet: (d) => d.id && deviceSheet(d.id),
   adddev: (d) => deviceCatalog(d.prop),
   addprop: (d) => propForm(null, d.type),
+  addpeople: () => peopleForm(),
   editprop: (d) => propForm(d.id),
   editlog: (d) => logForm({ id: d.id }),
   csv: exportCSV, export: exportJSON, ics: exportICS, sample: loadSample,
@@ -497,7 +503,7 @@ const actions = {
   copyinvite: async () => { try { await navigator.clipboard.writeText(S.store.hid); toast('Codice copiato'); } catch { $('#invite').select(); } },
   signout: async () => { await S.store.signOut(); location.reload(); },
   leavehh: () => confirmDlg('Lasciare la famiglia?', 'Non vedrai più i dati condivisi. Gli altri membri li conservano.', 'Lascia', async () => { await S.store.leaveHousehold(); location.reload(); }),
-  wipe: () => confirmDlg('Cancellare tutto?', 'Verranno eliminati abitazioni, dispositivi, piani e storico' + (S.store.mode === 'cloud' ? ' <b>per tutta la famiglia</b>' : '') + '. Operazione irreversibile: fai prima un backup.', 'Cancella tutto', async () => {
+  wipe: () => confirmDlg('Cancellare tutto?', 'Verranno eliminati case, persone, prodotti, garanzie, piani e storico' + (S.store.mode === 'cloud' ? ' <b>per tutta la famiglia</b>' : '') + '. Operazione irreversibile: fai prima un backup.', 'Cancella tutto', async () => {
     for (const c of COLS) for (const x of [...S.db[c]]) await remove(c, x.id);
     toast('Dati cancellati');
   }),
@@ -514,28 +520,56 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('input', (e) => { if (e.target.id === 'hf-q') { S.hf.q = e.target.value; renderHistoryList(); } });
 
-/* ---------- Abitazioni ---------- */
+/* ---------- Case, persone, famiglia, aziende ---------- */
+const OWNER_TXT = { persona: ['persona', 'Nuova persona', 'es. Stefano'], famiglia: ['famiglia', 'Nuova famiglia', 'es. Famiglia (oggetti in comune)'],
+  azienda: ['azienda', 'Nuova azienda', 'es. Primula'] };
 function propForm(id, type) {
   const p = id ? P(id) : { type: type || 'casa' };
-  const f = modal(id ? 'Modifica abitazione' : 'Nuova abitazione', `
-    <div class="field"><label>Nome</label><input name="name" required placeholder="es. Casa di Milano" value="${esc(p.name || '')}"></div>
-    <div class="field"><label>Tipo</label><select name="type">${PROPERTY_TYPES.map((t) => opt(t.id, `${t.icon} ${t.label}`, p.type === t.id)).join('')}</select></div>
-    <div class="field"><label>Indirizzo (facoltativo)</label><input name="address" value="${esc(p.address || '')}"></div>`,
-  [...(id ? [{ label: 'Elimina', cls: 'danger', onClick: () => { setTimeout(() => confirmDlg('Eliminare l\'abitazione?', 'Verranno eliminati anche i suoi dispositivi e i piani di manutenzione. Lo storico resta.', 'Elimina', async () => {
-      for (const d of S.db.devices.filter((x) => x.propertyId === id)) { for (const t of S.db.tasks.filter((x) => x.deviceId === d.id)) await remove('tasks', t.id); await remove('devices', d.id); }
+  const kind = OWNER_TXT[p.type] || ['abitazione', 'Nuova abitazione', 'es. Casa di Milano'];
+  const f = modal(id ? `Modifica ${kind[0]}` : kind[1], `
+    <div class="two-col"><div class="field"><label>Icona (facoltativa)</label><input name="icon" value="${esc(p.icon || '')}" maxlength="4" style="text-align:center;font-size:22px" placeholder="${esc(propIcon(p))}"></div>
+      <div class="field"><label>Tipo</label><select name="type">${PROPERTY_TYPES.map((t) => opt(t.id, `${t.icon} ${t.label}`, p.type === t.id)).join('')}</select></div></div>
+    <div class="field"><label>Nome</label><input name="name" required placeholder="${esc(kind[2])}" value="${esc(p.name || '')}"></div>
+    <div class="field"><label>Indirizzo o note (facoltativo)</label><input name="address" value="${esc(p.address || '')}"></div>
+    ${p.type === 'azienda' ? '<p class="muted" style="font-size:13px">Per i prodotti di un\'azienda la garanzia legale suggerita è di 1 anno.</p>' : ''}`,
+  [...(id ? [{ label: 'Elimina', cls: 'danger', onClick: () => { setTimeout(() => confirmDlg(`Eliminare “${p.name}”?`, 'Verranno eliminati anche i suoi prodotti, le garanzie, i documenti e i piani di manutenzione. Lo storico resta.', 'Elimina', async () => {
+      for (const d of S.db.devices.filter((x) => x.propertyId === id)) {
+        for (const a of d.attachments || []) await S.store.delFile(a).catch(() => {});
+        for (const t of S.db.tasks.filter((x) => x.deviceId === d.id)) await remove('tasks', t.id); await remove('devices', d.id); }
       await remove('properties', id); if (S.prop === id) S.prop = ''; }), 0); } }] : []),
   { label: 'Annulla' }, { label: 'Salva', cls: 'primary', submit: true, onClick: async (v) => {
     if (!fd(v, 'name')) { toast('Inserisci un nome'); return false; }
-    await save('properties', { ...p, id: p.id || uid(), name: fd(v, 'name'), type: fd(v, 'type'), address: fd(v, 'address') });
-    toast('Abitazione salvata'); } }]);
+    await save('properties', { ...p, id: p.id || uid(), name: fd(v, 'name'), type: fd(v, 'type'), address: fd(v, 'address'), icon: fd(v, 'icon') });
+    toast('Salvato'); } }]);
   setTimeout(() => $('[name=name]', f)?.focus(), 50);
+}
+
+// Aggiunge in un colpo solo più persone (o aziende) a partire da un elenco di nomi.
+function peopleForm() {
+  const f = modal('Aggiungi persone', `
+    <div class="field"><label>Nomi (separati da virgola o a capo)</label><textarea name="names" rows="3" placeholder="es. Stefano, Eliana, Alessandro, Francesco"></textarea></div>
+    <div class="field"><label>Cosa sono</label><select name="type">${['persona', 'azienda', 'famiglia'].map((k) => opt(k, `${PROPERTY_TYPES.find((t) => t.id === k).icon} ${PROPERTY_TYPES.find((t) => t.id === k).label}`, k === 'persona')).join('')}</select></div>
+    <p class="muted" style="font-size:13px">Per la famiglia (oggetti in comune non legati a una casa) scrivi “Famiglia” e scegli <b>Famiglia</b>. Le aziende hanno garanzia legale suggerita di 1 anno.</p>`,
+  [{ label: 'Annulla' }, { label: 'Aggiungi', cls: 'primary', submit: true, onClick: async (v) => {
+    const names = [...new Set(fd(v, 'names').split(/[,;\n]+/).map((x) => x.trim()).filter(Boolean))];
+    if (!names.length) { toast('Scrivi almeno un nome'); return false; }
+    const type = fd(v, 'type'); let n = 0;
+    for (const name of names) {
+      if (S.db.properties.some((p) => p.name.toLowerCase() === name.toLowerCase() && p.type === type)) continue;
+      await save('properties', { id: uid(), name, type, address: '', icon: '' }); n++;
+    }
+    toast(n ? `Aggiunti: ${n}` : 'Erano già presenti');
+  } }]);
+  setTimeout(() => $('[name=names]', f)?.focus(), 50);
 }
 
 /* ---------- Dispositivi ---------- */
 function deviceCatalog(propId) {
-  if (!S.db.properties.length) { toast('Aggiungi prima un\'abitazione'); return propForm(); }
+  if (!S.db.properties.length) { toast('Aggiungi prima una casa o una persona'); return propForm(); }
+  const owner = P(propId || S.prop); const personal = owner && ['persona', 'azienda', 'famiglia'].includes(owner.type);
+  const groups = CATALOG.slice().sort((a, b) => (PERSONAL_GROUPS.includes(a.group) === personal ? 0 : 1) - (PERSONAL_GROUPS.includes(b.group) === personal ? 0 : 1));
   const body = `<input type="search" id="catq" placeholder="Cerca (es. addolcitore, smartphone, auto…)" style="margin-bottom:6px">
-    <div id="catlist">${CATALOG.map((g) => `<div class="month"><span>${g.group}</span></div><div class="catgrid">${g.items.map((i) => `<button type="button" class="catitem" data-cat="${i.id}" data-q="${esc((i.name + ' ' + g.group).toLowerCase())}"><span class="e">${i.icon}</span>${esc(i.name)}</button>`).join('')}</div>`).join('')}</div>`;
+    <div id="catlist">${groups.map((g) => `<div class="month"><span>${g.group}</span></div><div class="catgrid">${g.items.map((i) => `<button type="button" class="catitem" data-cat="${i.id}" data-q="${esc((i.name + ' ' + g.group).toLowerCase())}"><span class="e">${i.icon}</span>${esc(i.name)}</button>`).join('')}</div>`).join('')}</div>`;
   const f = modal('Che prodotto vuoi aggiungere?', body, [{ label: 'Chiudi' }]);
   $('#catq', f).addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase();
@@ -551,7 +585,7 @@ function deviceForm(dev, cat, propId) {
   const tasks = !dev && cat ? cat.tasks : [];
   const f = modal(dev ? 'Modifica prodotto' : 'Nuovo prodotto', `
     <div class="two-col"><div class="field"><label>Icona</label><input name="icon" value="${esc(d.icon)}" maxlength="4" style="text-align:center;font-size:22px"></div>
-      <div class="field"><label>Abitazione</label><select name="propertyId">${S.db.properties.slice().sort(byName).map((p) => opt(p.id, `${propIcon(p)} ${p.name}`, p.id === d.propertyId)).join('')}</select></div></div>
+      <div class="field"><label>Appartiene a</label><select name="propertyId">${S.db.properties.slice().sort(byName).map((p) => opt(p.id, `${propIcon(p)} ${p.name}`, p.id === d.propertyId)).join('')}</select></div></div>
     <div class="field"><label>Nome</label><input name="name" required value="${esc(d.name)}" placeholder="es. Addolcitore cucina, iPhone di Anna"></div>
     <div class="two-col"><div class="field"><label>Marca</label><input name="brand" value="${esc(d.brand || '')}"></div>
       <div class="field"><label>Modello</label><input name="model" value="${esc(d.model || '')}"></div></div>
@@ -562,7 +596,7 @@ function deviceForm(dev, cat, propId) {
     <div class="field"><label>Data di installazione (se diversa)</label><input type="date" name="installDate" value="${esc(d.installDate || '')}"></div>
     <div class="field"><label>Note (posizione, fornitore, codici…)</label><textarea name="notes">${esc(d.notes || '')}</textarea></div>
     ${attField('Documenti (scontrino, fattura, certificato di garanzia, manuale…)')}
-    ${dev ? '' : `<label class="taskpick"><input type="checkbox" name="legalw" ${cat?.w ? 'checked' : ''}><span class="tt">Registra la garanzia legale di ${cat?.w || 24} mesi dalla data di acquisto<small>${esc(WARRANTY_TYPES.legale.hint)} Potrai aggiungere altre garanzie e i loro termini dopo.</small></span></label>`}
+    ${dev ? '' : `<label class="taskpick"><input type="checkbox" name="legalw" ${cat?.w ? 'checked' : ''}><span class="tt">Registra la garanzia legale di <b id="legalm">${legalMonths(P(d.propertyId), cat)}</b> mesi dalla data di acquisto<small id="legalh">${esc(legalHint(P(d.propertyId)))}</small></span></label>`}
     ${tasks.length ? `<div class="lbl" style="margin-top:16px">Manutenzioni suggerite — spunta quelle che vuoi</div>
       ${tasks.map((t, i) => `<label class="taskpick"><input type="checkbox" name="task${i}" checked><span class="tt">${esc(t.t)}<small>${LOG_TYPES[t.k].icon} ${LOG_TYPES[t.k].label} · ${esc(recurText({ every: t.n, unit: t.u }))}</small></span></label>`).join('')}
       <div class="field"><label>Prima scadenza</label><select name="start"><option value="later">Tra un intervallo da oggi (l'ho appena fatto / è nuovo)</option><option value="today">Subito, scade oggi</option></select></div>
@@ -577,7 +611,7 @@ function deviceForm(dev, cat, propId) {
       brand: fd(v, 'brand'), model: fd(v, 'model'), installDate: fd(v, 'installDate'), notes: fd(v, 'notes'),
       purchaseDate: fd(v, 'purchaseDate'), purchasePrice: fd(v, 'purchasePrice'), store: fd(v, 'store'), serial: fd(v, 'serial'), attachments: docs };
     if (!dev && v.get('legalw')) {
-      const months = cat?.w || 24; const start = item.purchaseDate || todayISO();
+      const months = legalMonths(P(item.propertyId), cat); const start = item.purchaseDate || todayISO();
       item.warranties = [{ id: uid(), type: 'legale', provider: item.store, policy: '', startDate: start, duration: months, unit: 'months',
         endDate: addInterval(start, months, 'months'), terms: '', contact: '', cost: '' }];
     }
@@ -595,6 +629,10 @@ function deviceForm(dev, cat, propId) {
     if (!dev) setTimeout(() => deviceSheet(item.id), 150);
   } }]);
   const att = attachments(f, d.attachments);
+  $('[name=propertyId]', f).addEventListener('change', (e) => {
+    const o = P(e.target.value); const m = $('#legalm', f); if (!m) return;
+    m.textContent = legalMonths(o, cat); $('#legalh', f).textContent = legalHint(o);
+  });
   setTimeout(() => $('[name=name]', f)?.focus(), 50);
 }
 
@@ -630,7 +668,7 @@ function deviceSheet(id) {
 function warrantyForm(deviceId, wid) {
   const dev = D(deviceId); if (!dev) return; const list = warrantiesOf(dev);
   const w = wid ? list.find((x) => x.id === wid) : { type: dev.warranties?.length || dev.warranty ? 'estesa' : 'legale', provider: '', policy: '',
-    startDate: dev.purchaseDate || todayISO(), duration: 24, unit: 'months', endDate: '', terms: '', contact: '', cost: '' };
+    startDate: dev.purchaseDate || todayISO(), duration: isCompany(P(dev.propertyId)) ? 12 : 24, unit: 'months', endDate: '', terms: '', contact: '', cost: '' };
   if (!w) return;
   const f = modal(wid ? 'Modifica garanzia' : 'Nuova garanzia', `
     <div class="muted" style="margin-bottom:6px">${esc(dev.icon)} ${esc(dev.name)}</div>
@@ -657,7 +695,7 @@ function warrantyForm(deviceId, wid) {
       await save('devices', { ...dev, warranties: next, warranty: '' }); toast('Garanzia salvata');
     } }]);
   const wt = $('#wt', f), ws = $('#ws', f), wd = $('#wd', f), wu = $('#wu', f), we = $('#we', f);
-  const hint = () => { $('#whint', f).textContent = (WARRANTY_TYPES[wt.value] || {}).hint || ''; };
+  const hint = () => { $('#whint', f).textContent = wt.value === 'legale' ? legalHint(P(dev.propertyId)) : (WARRANTY_TYPES[wt.value] || {}).hint || ''; };
   const calc = () => { if (ws.value && +wd.value > 0) we.value = addInterval(ws.value, +wd.value, wu.value); };
   wt.addEventListener('change', hint); [ws, wd, wu].forEach((el) => el.addEventListener('change', calc)); wd.addEventListener('input', calc);
   hint();
@@ -705,7 +743,7 @@ function logForm({ id, deviceId, taskId }) {
   const f = modal(editing ? 'Modifica intervento' : task ? 'Segna come fatto' : 'Registra intervento', `
     <div class="field"><label>Tipo di intervento</label><div class="seg" id="typeseg">
       ${Object.entries(LOG_TYPES).map(([k, v]) => `<button type="button" data-k="${k}" class="${l.type === k ? 'on' : ''}">${v.icon} ${v.label}</button>`).join('')}</div></div>
-    <div class="two-col"><div class="field"><label>Abitazione</label><select name="propertyId" id="lp">${props.map((p) => opt(p.id, `${propIcon(p)} ${p.name}`, p.id === l.propertyId)).join('')}</select></div>
+    <div class="two-col"><div class="field"><label>Casa / persona</label><select name="propertyId" id="lp">${props.map((p) => opt(p.id, `${propIcon(p)} ${p.name}`, p.id === l.propertyId)).join('')}</select></div>
       <div class="field"><label>Dispositivo</label><select name="deviceId" id="ld"></select></div></div>
     <div class="field"><label>Cosa è stato fatto</label><input name="title" id="lt" list="tl" required value="${esc(l.title)}" placeholder="es. Cambio sale addolcitore"><datalist id="tl"></datalist></div>
     <div class="two-col"><div class="field"><label>Data</label><input type="date" name="date" value="${esc(l.date)}"></div>
@@ -759,7 +797,7 @@ function todoForm(id) {
   const f = modal(id ? 'Modifica to-do' : 'Nuovo to-do', `
     <div class="field"><label>Cosa c'è da fare</label><input name="title" required value="${esc(x.title || '')}" placeholder="es. Chiamare l'idraulico"></div>
     <div class="two-col"><div class="field"><label>Entro il (facoltativo)</label><input type="date" name="due" value="${esc(x.due || '')}"></div>
-      <div class="field"><label>Abitazione</label><select name="propertyId"><option value="">Tutte</option>${S.db.properties.map((p) => opt(p.id, p.name, p.id === x.propertyId)).join('')}</select></div></div>
+      <div class="field"><label>Casa / persona</label><select name="propertyId"><option value="">Tutte</option>${S.db.properties.map((p) => opt(p.id, p.name, p.id === x.propertyId)).join('')}</select></div></div>
     <div class="field"><label>Note</label><textarea name="notes">${esc(x.notes || '')}</textarea></div>`,
   [...(id ? [{ label: 'Elimina', cls: 'danger', onClick: async () => { await remove('todos', id); toast('To-do eliminato'); } }] : []),
     { label: 'Annulla' }, { label: 'Salva', cls: 'primary', submit: true, onClick: async (v) => {
@@ -778,7 +816,7 @@ function exportJSON() { download(`casa-manutenzione-${todayISO()}.json`, JSON.st
 
 function exportCSV() {
   const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const rows = [['Data', 'Abitazione', 'Dispositivo', 'Tipo', 'Intervento', 'Importo', 'Ditta', 'Chi', 'Note']];
+  const rows = [['Data', 'Appartiene a', 'Dispositivo', 'Tipo', 'Intervento', 'Importo', 'Ditta', 'Chi', 'Note']];
   S.db.logs.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach((l) => rows.push([l.date, P(l.propertyId)?.name || '', D(l.deviceId)?.name || l.deviceName || '',
     LOG_TYPES[l.type]?.label || l.type, l.title, String(l.cost || '').replace('.', ','), l.provider, l.by, l.notes]));
   download(`spese-casa-${todayISO()}.csv`, '\ufeff' + rows.map((r) => r.map(q).join(';')).join('\r\n'), 'text/csv');
@@ -786,7 +824,7 @@ function exportCSV() {
 
 function exportWarrantiesCSV() {
   const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const rows = [['Prodotto', 'Abitazione', 'Marca', 'Modello', 'N. serie', 'Acquistato il', 'Negozio', 'Prezzo', 'Tipo garanzia', 'Garante', 'N. polizza', 'Decorrenza', 'Durata', 'Scadenza', 'Stato', 'Termini e coperture', 'Assistenza', 'Costo garanzia']];
+  const rows = [['Prodotto', 'Appartiene a', 'Marca', 'Modello', 'N. serie', 'Acquistato il', 'Negozio', 'Prezzo', 'Tipo garanzia', 'Garante', 'N. polizza', 'Decorrenza', 'Durata', 'Scadenza', 'Stato', 'Termini e coperture', 'Assistenza', 'Costo garanzia']];
   S.db.devices.slice().sort(byName).forEach((d) => {
     const ws = warrantiesOf(d);
     if (!ws.length) rows.push([d.name, P(d.propertyId)?.name || '', d.brand, d.model, d.serial, d.purchaseDate, d.store, String(d.purchasePrice || '').replace('.', ','), 'Nessuna', '', '', '', '', '', '', '', '', '']);
@@ -801,7 +839,7 @@ async function importJSON(file) {
   try {
     const data = JSON.parse(await file.text());
     if (!COLS.some((c) => Array.isArray(data[c]))) throw new Error('File non valido');
-    confirmDlg('Ripristinare il backup?', `Contiene ${data.properties?.length || 0} abitazioni, ${data.devices?.length || 0} dispositivi, ${data.logs?.length || 0} interventi. <b>I dati attuali verranno sostituiti.</b>`, 'Ripristina', async () => {
+    confirmDlg('Ripristinare il backup?', `Contiene ${data.properties?.length || 0} case e persone, ${data.devices?.length || 0} prodotti, ${data.logs?.length || 0} interventi. <b>I dati attuali verranno sostituiti.</b>`, 'Ripristina', async () => {
       await S.store.replaceAll(Object.fromEntries(COLS.map((c) => [c, data[c] || []]))); toast('Backup ripristinato');
     });
   } catch (e) { toast('Impossibile leggere il file'); }
