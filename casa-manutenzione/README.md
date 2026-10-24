@@ -2,7 +2,7 @@
 
 PWA per registrare e programmare la manutenzione di casa (addolcitore, caldaia, lavatrice, stampante…), con spese, storico e condivisione con la famiglia.
 
-- **Abitazioni multiple** (casa, appartamento, villa, casa al mare…)
+- **Case, persone, famiglia e aziende**: ogni prodotto appartiene a una casa, a una persona (es. gli oggetti personali di ciascuno), alla famiglia (oggetti in comune) o a un'azienda; si possono aggiungere più persone in un colpo solo. Per le aziende la garanzia legale suggerita è di 1 anno (Codice civile), per le persone 24 mesi. È un suggerimento, non consulenza legale
 - **Garanzie dei prodotti**: ogni prodotto (anche senza manutenzione: smartphone, TV, arredi, auto…) può avere più garanzie (legale, del produttore, estesa) con decorrenza, durata, scadenza, garante, n. polizza, **termini/coperture/esclusioni**, assistenza e costo; documenti allegati (scontrino, fattura, certificato); avvisi in Home 60 giorni prima, filtri, export CSV e scadenze nel calendario (.ics, avviso a 30 giorni)
 - **Catalogo di 80+ prodotti e apparecchiature** con manutenzioni e garanzia legale suggerite (es. addolcitore → sale ogni 2 mesi, pulizia salamoia, resine) — tutto modificabile, più dispositivi personalizzati
 - **Tre tipi di intervento**: consumabile, programmata, straordinaria

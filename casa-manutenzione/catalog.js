@@ -189,6 +189,19 @@ export const CATALOG = [
     { id: 'orologio', name: 'Orologio / gioiello', icon: '💍', w: 24, tasks: [] },
     { id: 'valigia', name: 'Valigia / zaino', icon: '🧳', w: 24, tasks: [] },
   ] },
+  { group: 'Lavoro e azienda', items: [
+    { id: 'attrezzatura', name: 'Attrezzatura professionale', icon: '🛠️', w: 12, tasks: [
+      { t: 'Controllo e manutenzione periodica', k: 'programmata', n: 1, u: 'years' } ] },
+    { id: 'veicolo-az', name: 'Veicolo aziendale', icon: '🚚', w: 12, tasks: [
+      { t: 'Tagliando', k: 'programmata', n: 1, u: 'years' },
+      { t: 'Revisione', k: 'programmata', n: 2, u: 'years' },
+      { t: 'Rinnovo assicurazione', k: 'programmata', n: 1, u: 'years' } ] },
+    { id: 'macchinario', name: 'Macchinario / impianto', icon: '🏭', w: 12, tasks: [
+      { t: 'Manutenzione programmata', k: 'programmata', n: 6, u: 'months' } ] },
+    { id: 'pos', name: 'POS / registratore di cassa', icon: '🧾', w: 12, tasks: [] },
+    { id: 'server', name: 'Server / apparati di rete', icon: '🗄️', w: 12, tasks: [
+      { t: 'Verifica backup', k: 'programmata', n: 3, u: 'months' } ] },
+  ] },
   { group: 'Altro', items: [
     { id: 'prodotto', name: 'Altro prodotto (con garanzia)', icon: '🎁', w: 24, tasks: [] },
     { id: 'custom', name: 'Altro (personalizzato)', icon: '🧰', tasks: [] },
@@ -207,6 +220,9 @@ export const PROPERTY_TYPES = [
   { id: 'montagna', label: 'Casa in montagna', icon: '🏔️' },
   { id: 'mare', label: 'Casa al mare', icon: '🏖️' },
   { id: 'garage', label: 'Garage / box', icon: '🚗' },
+  { id: 'persona', label: 'Persona', icon: '🧑' },
+  { id: 'famiglia', label: 'Famiglia', icon: '👪' },
+  { id: 'azienda', label: 'Azienda', icon: '💼' },
   { id: 'altro', label: 'Altro', icon: '📍' },
 ];
 
@@ -218,7 +234,8 @@ export const LOG_TYPES = {
 
 // Tipi di garanzia registrabili per ogni prodotto (un prodotto può averne più d'una).
 export const WARRANTY_TYPES = {
-  legale: { label: 'Legale', icon: '⚖️', hint: 'In Italia la garanzia legale di conformità dura di norma 24 mesi dalla consegna del bene.' },
+  legale: { label: 'Legale', icon: '⚖️', hint: 'In Italia la garanzia legale di conformità dura di norma 24 mesi dalla consegna del bene.',
+    hintAzienda: 'Per acquisti aziendali (con partita IVA) di norma si applica il Codice civile: garanzia per vizi di 1 anno dalla consegna, con obbligo di denunciare il difetto entro 8 giorni dalla scoperta. Contratto o garanzia del produttore possono prevedere di più. Non è consulenza legale.' },
   produttore: { label: 'Del produttore', icon: '🏭', hint: 'Garanzia commerciale offerta dal produttore: durata e coperture sono quelle del suo certificato.' },
   estesa: { label: 'Estesa / assicurativa', icon: '🛡️', hint: 'Estensione a pagamento: riporta numero di polizza, compagnia e condizioni.' },
   altro: { label: 'Altra', icon: '📄', hint: '' },
