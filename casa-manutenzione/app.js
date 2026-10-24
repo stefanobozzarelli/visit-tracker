@@ -155,7 +155,9 @@ const PERSONAL_GROUPS = ['Elettronica personale', 'Persona e salute', 'Mobilità
 const propIcon = (p) => p?.icon || PROPERTY_TYPES.find((t) => t.id === p?.type)?.icon || '🏡';
 const meName = () => (S.store?.mode === 'cloud' && S.store.user ? (S.store.user.displayName || (S.store.user.email || '').split('@')[0]) : '') || prefs.name || '';
 const inProp = (propertyId) => !S.prop || propertyId === S.prop;
-const tasksScheduled = () => S.db.tasks.filter((t) => t.nextDue && D(t.deviceId) && inProp(D(t.deviceId).propertyId))
+// Flag "Richiede manutenzione": se spento, il prodotto non ha piani, scadenze, interventi né email. I dati restano salvati.
+const needsMaint = (d) => d?.maintenance !== false;   // senza flag (prodotti già esistenti) = richiede manutenzione
+const tasksScheduled = () => S.db.tasks.filter((t) => t.nextDue && D(t.deviceId) && needsMaint(D(t.deviceId)) && inProp(D(t.deviceId).propertyId))
   .sort((a, b) => a.nextDue.localeCompare(b.nextDue));
 const logsFiltered = () => S.db.logs.filter((l) => inProp(l.propertyId));
 
@@ -333,7 +335,7 @@ function vPiano() {
   const sched = tasksScheduled();
   const groups = [['Scadute', (d) => d < 0], ['Questa settimana', (d) => d >= 0 && d <= 7], ['Entro 30 giorni', (d) => d > 7 && d <= 30],
     ['Entro 3 mesi', (d) => d > 30 && d <= 92], ['Più avanti', (d) => d > 92]];
-  const unscheduled = S.db.tasks.filter((t) => !t.nextDue && D(t.deviceId) && inProp(D(t.deviceId).propertyId));
+  const unscheduled = S.db.tasks.filter((t) => !t.nextDue && D(t.deviceId) && needsMaint(D(t.deviceId)) && inProp(D(t.deviceId).propertyId));
   return `<div class="top"><h1>Piano di manutenzione</h1></div>${propChips()}
     ${sched.length || unscheduled.length ? '' : emptyState('🗓️', 'Nessuna attività programmata', 'Aggiungi un dispositivo: ti proporremo le manutenzioni tipiche con le relative scadenze.', `<button class="btn primary" data-act="adddev">Aggiungi dispositivo</button>`)}
     ${groups.map(([name, fn]) => { const list = sched.filter((t) => fn(daysUntil(t.nextDue))); return list.length ? `<div class="month"><span>${name}</span><span>${list.length}</span></div>${list.map((t) => taskRow(t)).join('')}` : ''; }).join('')}
@@ -360,13 +362,14 @@ const warrChips = () => S.db.devices.some((d) => warrantiesOf(d).length)
 
 function devCard(d) {
   const tasks = S.db.tasks.filter((t) => t.deviceId === d.id && t.nextDue).sort((a, b) => a.nextDue.localeCompare(b.nextDue));
-  const next = tasks[0]; const di = next && dueInfo(next.nextDue); const dw = devWarr(d);
+  const m = needsMaint(d); const next = m ? tasks[0] : null; const di = next && dueInfo(next.nextDue); const dw = devWarr(d);
   const spent = S.db.logs.filter((l) => l.deviceId === d.id).reduce((s, l) => s + (+l.cost || 0), 0);
   return `<div class="devcard" data-act="devsheet" data-id="${d.id}">
     <div class="devhead"><div class="ico">${esc(d.icon)}</div><div><div class="n">${esc(d.name)}</div><div class="m">${esc([d.brand, d.model].filter(Boolean).join(' ') || 'Nessun modello indicato')}</div></div></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">${next ? `<span class="pill ${di.cls}">${esc(next.title)} · ${esc(di.txt)}</span>` : (dw ? '' : '<span class="pill">Nessuna scadenza</span>')}
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${next ? `<span class="pill ${di.cls}">${esc(next.title)} · ${esc(di.txt)}</span>` : (dw ? '' : `<span class="pill">${m ? 'Nessuna scadenza' : 'Nessuna garanzia'}</span>`)}
       ${dw ? `<span class="pill ${dw.cls}">🛡️ ${dw.state === 'expired' ? 'Garanzia scaduta' : esc(dw.txt)}</span>` : ''}</div>
-    <div class="muted" style="font-size:13px">Speso in totale: <b>${fmtEUR(spent)}</b></div>
+    ${m ? `<div class="muted" style="font-size:13px">Speso in totale: <b>${fmtEUR(spent)}</b></div>`
+      : (d.purchasePrice ? `<div class="muted" style="font-size:13px">Acquistato a <b>${fmtEUR(d.purchasePrice)}</b></div>` : '')}
   </div>`;
 }
 
@@ -583,10 +586,12 @@ function deviceCatalog(propId) {
 function deviceForm(dev, cat, propId) {
   const d = dev || { name: cat.name === 'Altro (personalizzato)' ? '' : cat.name, icon: cat.icon, propertyId: propId || S.prop || S.db.properties[0]?.id };
   const tasks = !dev && cat ? cat.tasks : [];
+  const maintOn = dev ? needsMaint(dev) : !!(cat && (cat.tasks.length || cat.id === 'custom'));
   const f = modal(dev ? 'Modifica prodotto' : 'Nuovo prodotto', `
     <div class="two-col"><div class="field"><label>Icona</label><input name="icon" value="${esc(d.icon)}" maxlength="4" style="text-align:center;font-size:22px"></div>
       <div class="field"><label>Appartiene a</label><select name="propertyId">${S.db.properties.slice().sort(byName).map((p) => opt(p.id, `${propIcon(p)} ${p.name}`, p.id === d.propertyId)).join('')}</select></div></div>
     <div class="field"><label>Nome</label><input name="name" required value="${esc(d.name)}" placeholder="es. Addolcitore cucina, iPhone di Anna"></div>
+    <label class="taskpick"><input type="checkbox" name="maint" ${maintOn ? 'checked' : ''}><span class="tt">Richiede manutenzione<small>Spegnilo per i prodotti senza manutenzione (smartphone, mobili…): spariscono piani, scadenze, interventi ed email. Puoi cambiarlo quando vuoi.</small></span></label>
     <div class="two-col"><div class="field"><label>Marca</label><input name="brand" value="${esc(d.brand || '')}"></div>
       <div class="field"><label>Modello</label><input name="model" value="${esc(d.model || '')}"></div></div>
     <div class="two-col"><div class="field"><label>Data di acquisto</label><input type="date" name="purchaseDate" value="${esc(d.purchaseDate || '')}"></div>
@@ -597,10 +602,10 @@ function deviceForm(dev, cat, propId) {
     <div class="field"><label>Note (posizione, fornitore, codici…)</label><textarea name="notes">${esc(d.notes || '')}</textarea></div>
     ${attField('Documenti (scontrino, fattura, certificato di garanzia, manuale…)')}
     ${dev ? '' : `<label class="taskpick"><input type="checkbox" name="legalw" ${cat?.w ? 'checked' : ''}><span class="tt">Registra la garanzia legale di <b id="legalm">${legalMonths(P(d.propertyId), cat)}</b> mesi dalla data di acquisto<small id="legalh">${esc(legalHint(P(d.propertyId)))}</small></span></label>`}
-    ${tasks.length ? `<div class="lbl" style="margin-top:16px">Manutenzioni suggerite — spunta quelle che vuoi</div>
+    <div id="maintblock" class="${maintOn ? '' : 'hidden'}">${tasks.length ? `<div class="lbl" style="margin-top:16px">Manutenzioni suggerite — spunta quelle che vuoi</div>
       ${tasks.map((t, i) => `<label class="taskpick"><input type="checkbox" name="task${i}" checked><span class="tt">${esc(t.t)}<small>${LOG_TYPES[t.k].icon} ${LOG_TYPES[t.k].label} · ${esc(recurText({ every: t.n, unit: t.u }))}</small></span></label>`).join('')}
       <div class="field"><label>Prima scadenza</label><select name="start"><option value="later">Tra un intervallo da oggi (l'ho appena fatto / è nuovo)</option><option value="today">Subito, scade oggi</option></select></div>
-      <p class="muted" style="font-size:13px">Potrai cambiare frequenze e scadenze quando vuoi.</p>` : ''}`,
+      <p class="muted" style="font-size:13px">Potrai cambiare frequenze e scadenze quando vuoi.</p>` : ''}</div>`,
   [...(dev ? [{ label: 'Elimina', cls: 'danger', onClick: () => { setTimeout(() => confirmDlg('Eliminare il prodotto?', 'Verranno eliminati anche i suoi piani di manutenzione, le garanzie e i documenti allegati. Lo storico degli interventi resta.', 'Elimina', async () => {
       for (const a of dev.attachments || []) await S.store.delFile(a).catch(() => {});
       for (const t of S.db.tasks.filter((x) => x.deviceId === dev.id)) await remove('tasks', t.id); await remove('devices', dev.id); toast('Prodotto eliminato'); }), 0); } }] : []),
@@ -609,7 +614,8 @@ function deviceForm(dev, cat, propId) {
     let docs; try { docs = await att.commit(); } catch (e) { console.error(e); toast(e.message || 'Allegato non caricato'); return false; }
     const item = { ...d, id: d.id || uid(), name: fd(v, 'name'), icon: fd(v, 'icon') || '🧰', propertyId: fd(v, 'propertyId'),
       brand: fd(v, 'brand'), model: fd(v, 'model'), installDate: fd(v, 'installDate'), notes: fd(v, 'notes'),
-      purchaseDate: fd(v, 'purchaseDate'), purchasePrice: fd(v, 'purchasePrice'), store: fd(v, 'store'), serial: fd(v, 'serial'), attachments: docs };
+      purchaseDate: fd(v, 'purchaseDate'), purchasePrice: fd(v, 'purchasePrice'), store: fd(v, 'store'), serial: fd(v, 'serial'), attachments: docs,
+      maintenance: !!v.get('maint') };
     if (!dev && v.get('legalw')) {
       const months = legalMonths(P(item.propertyId), cat); const start = item.purchaseDate || todayISO();
       item.warranties = [{ id: uid(), type: 'legale', provider: item.store, policy: '', startDate: start, duration: months, unit: 'months',
@@ -621,7 +627,7 @@ function deviceForm(dev, cat, propId) {
     }
     const now = todayISO();
     for (let i = 0; i < tasks.length; i++) {
-      if (!v.get('task' + i)) continue; const t = tasks[i];
+      if (!item.maintenance || !v.get('task' + i)) continue; const t = tasks[i];
       const due = t.n && t.u ? (fd(v, 'start') === 'today' ? now : addInterval(now, t.n, t.u)) : '';
       await save('tasks', { id: uid(), deviceId: item.id, title: t.t, kind: t.k, every: t.n, unit: t.u, nextDue: due, lastDone: '', cost: '', notes: '' });
     }
@@ -629,6 +635,7 @@ function deviceForm(dev, cat, propId) {
     if (!dev) setTimeout(() => deviceSheet(item.id), 150);
   } }]);
   const att = attachments(f, d.attachments);
+  $('[name=maint]', f).addEventListener('change', (e) => $('#maintblock', f).classList.toggle('hidden', !e.target.checked));
   $('[name=propertyId]', f).addEventListener('change', (e) => {
     const o = P(e.target.value); const m = $('#legalm', f); if (!m) return;
     m.textContent = legalMonths(o, cat); $('#legalh', f).textContent = legalHint(o);
@@ -640,12 +647,12 @@ function deviceSheet(id) {
   const d = D(id); if (!d) return;
   const tasks = S.db.tasks.filter((t) => t.deviceId === id).sort((a, b) => (a.nextDue || '9').localeCompare(b.nextDue || '9'));
   const logs = S.db.logs.filter((l) => l.deviceId === id).sort((a, b) => b.date.localeCompare(a.date));
-  const spent = logs.reduce((s, l) => s + (+l.cost || 0), 0); const prop = P(d.propertyId);
+  const spent = logs.reduce((s, l) => s + (+l.cost || 0), 0); const prop = P(d.propertyId); const m = needsMaint(d);
   const f = modal(`${esc(d.icon)} ${esc(d.name)}`, `
     <div class="muted" style="margin-bottom:10px">${prop ? propIcon(prop) + ' ' + esc(prop.name) : ''}${d.brand || d.model ? ' · ' + esc([d.brand, d.model].filter(Boolean).join(' ')) : ''}
       ${d.purchaseDate || d.store || d.purchasePrice ? '<br>Acquistato' + (d.purchaseDate ? ' il ' + fmtDate(d.purchaseDate) : '') + (d.store ? ' da ' + esc(d.store) : '') + (d.purchasePrice ? ' · ' + fmtEUR(d.purchasePrice) : '') : ''}
       ${d.serial ? '<br>N. di serie: ' + esc(d.serial) : ''}${d.installDate ? '<br>Installato il ' + fmtDate(d.installDate) : ''}${d.notes ? '<br>' + esc(d.notes) : ''}</div>
-    <div class="btnrow"><button type="button" class="btn sm primary" data-x="log">＋ Registra intervento</button><button type="button" class="btn sm" data-x="edit">✎ Modifica</button></div>
+    <div class="btnrow">${m ? '<button type="button" class="btn sm primary" data-x="log">＋ Registra intervento</button>' : ''}<button type="button" class="btn sm ${m ? '' : 'primary'}" data-x="edit">✎ Modifica</button></div>
     <div class="sec"><h2>Garanzie</h2><button type="button" class="btn sm" data-x="addwarr">＋ Garanzia</button></div>
     ${warrantiesOf(d).length ? warrantiesOf(d).map((w) => { const i = warrInfo(w); const t = wTypeOf(w);
       return `<div class="row"><div class="ico">${t.icon}</div><div class="body" data-act="editwarr" data-dev="${d.id}" data-id="${w.id}">
@@ -654,14 +661,16 @@ function deviceSheet(id) {
         ${w.terms ? `<div class="s">📋 ${esc(w.terms.length > 110 ? w.terms.slice(0, 110) + '…' : w.terms)}</div>` : ''}
         <span class="pill ${i.cls}">${esc(i.txt)}</span></div></div>`; }).join('') : '<p class="muted">Nessuna garanzia registrata. Aggiungila con i suoi termini.</p>'}
     ${d.attachments?.length ? `<div class="sec"><h2>Documenti</h2></div>${d.attachments.map((a, i) => `<div class="taskpick"><span class="tt">📄 ${esc(a.name)}<small>${fmtSize(a.size)}</small></span><button type="button" class="btn sm" data-act="openatt" data-dev="${d.id}" data-i="${i}">Apri</button></div>`).join('')}` : ''}
-    <div class="sec"><h2>Manutenzioni programmate</h2><button type="button" class="btn sm" data-x="addtask">＋ Aggiungi</button></div>
+    ${m ? `<div class="sec"><h2>Manutenzioni programmate</h2><button type="button" class="btn sm" data-x="addtask">＋ Aggiungi</button></div>
     ${tasks.length ? tasks.map((t) => taskRow(t, { showDevice: false })).join('') : '<p class="muted">Nessuna manutenzione programmata.</p>'}
     <div class="sec"><h2>Storico (${fmtEUR(spent)})</h2></div>
-    ${logs.length ? logs.slice(0, 8).map(logRow).join('') : '<p class="muted">Ancora nessun intervento.</p>'}`, [{ label: 'Chiudi' }]);
-  $('[data-x=log]', f).onclick = () => logForm({ deviceId: id });
-  $('[data-x=edit]', f).onclick = () => deviceForm(d);
-  $('[data-x=addtask]', f).onclick = () => taskForm(id);
-  $('[data-x=addwarr]', f).onclick = () => warrantyForm(id);
+    ${logs.length ? logs.slice(0, 8).map(logRow).join('') : '<p class="muted">Ancora nessun intervento.</p>'}`
+    : `<p class="muted" style="margin-top:18px">🔧 Questo prodotto non richiede manutenzione.${tasks.length || logs.length ? ` ${tasks.length} manutenzioni e ${logs.length} interventi già registrati restano salvati e tornano visibili se riattivi “Richiede manutenzione” in Modifica.` : ' Puoi attivarla in Modifica quando serve.'}</p>`}`, [{ label: 'Chiudi' }]);
+  const bind = (sel, fn) => { const el = $(sel, f); if (el) el.onclick = fn; };
+  bind('[data-x=log]', () => logForm({ deviceId: id }));
+  bind('[data-x=edit]', () => deviceForm(d));
+  bind('[data-x=addtask]', () => taskForm(id));
+  bind('[data-x=addwarr]', () => warrantyForm(id));
 }
 
 /* ---------- Garanzie ---------- */
@@ -773,7 +782,7 @@ function logForm({ id, deviceId, taskId }) {
   const lp = $('#lp', f), ld = $('#ld', f), lk = $('#lk', f), lt = $('#tl', f);
   const att = attachments(f, l.attachments);
   const fillDevices = () => {
-    const devs = S.db.devices.filter((d) => d.propertyId === lp.value).sort(byName);
+    const devs = S.db.devices.filter((d) => d.propertyId === lp.value && (needsMaint(d) || d.id === l.deviceId)).sort(byName);
     ld.innerHTML = `<option value="">— Generico (nessun dispositivo) —</option>` + devs.map((d) => opt(d.id, `${d.icon} ${d.name}`, d.id === l.deviceId)).join('');
     fillTasks();
   };
@@ -847,7 +856,7 @@ async function importJSON(file) {
 }
 
 function exportICS() {
-  const sched = S.db.tasks.filter((t) => t.nextDue && D(t.deviceId));
+  const sched = S.db.tasks.filter((t) => t.nextDue && D(t.deviceId) && needsMaint(D(t.deviceId)));
   const warrs = S.db.devices.flatMap((d) => warrantiesOf(d).map((w) => ({ d, w, end: warrEnd(w) }))).filter((x) => x.end && daysUntil(x.end) >= 0);
   if (!sched.length && !warrs.length) { toast('Nessuna scadenza da esportare'); return; }
   const fold = (s) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
@@ -877,7 +886,7 @@ async function enableNotifications() {
 async function remind(force) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const day = todayISO(); if (!force && S.remindedDay === day) return;
-  const due = S.db.tasks.filter((t) => t.nextDue && daysUntil(t.nextDue) <= 0 && D(t.deviceId));
+  const due = S.db.tasks.filter((t) => t.nextDue && daysUntil(t.nextDue) <= 0 && D(t.deviceId) && needsMaint(D(t.deviceId)));
   if (!due.length) return; S.remindedDay = day;
   const body = due.slice(0, 4).map((t) => `${D(t.deviceId).name}: ${t.title}`).join('\n');
   const reg = await navigator.serviceWorker?.getRegistration();
@@ -891,7 +900,7 @@ async function loadSample() {
   await save('properties', { id: pid, name: 'Casa di famiglia', type: 'casa', address: '' });
   const mk = async (catId, extra = {}) => {
     const c = CATALOG.flatMap((g) => g.items).find((i) => i.id === catId); const did = uid();
-    await save('devices', { id: did, propertyId: pid, name: c.name, icon: c.icon, brand: extra.brand || '', model: '', installDate: '', warranty: '', notes: '', ...(extra.fields || {}) });
+    await save('devices', { id: did, propertyId: pid, name: c.name, icon: c.icon, brand: extra.brand || '', model: '', installDate: '', warranty: '', notes: '', maintenance: c.tasks.length > 0, ...(extra.fields || {}) });
     const out = [];
     for (const [i, t] of c.tasks.entries()) {
       const off = extra.offsets?.[i];
@@ -914,6 +923,9 @@ async function loadSample() {
   await mk('stampante', { brand: 'HP', fields: { purchaseDate: pd, purchasePrice: '129', store: 'MediaWorld', serial: 'CN8821AB', warranties: [
     { id: uid(), type: 'legale', provider: 'MediaWorld', policy: '', startDate: pd, duration: 24, unit: 'months', endDate: addInterval(pd, 24, 'months'),
       terms: 'Difetti di conformità: riparazione o sostituzione gratuita. Esclusi cartucce, danni accidentali e usura.', contact: '', cost: '' }] } });
+  const sp = addInterval(now, -4, 'months');
+  await mk('smartphone', { brand: 'Samsung', fields: { purchaseDate: sp, purchasePrice: '699', store: 'Amazon', warranties: [
+    { id: uid(), type: 'legale', provider: 'Amazon', policy: '', startDate: sp, duration: 24, unit: 'months', endDate: addInterval(sp, 24, 'months'), terms: '', contact: '', cost: '' }] } });
   await log(add, 'consumabile', 'Cambio sale rigenerante (3 sacchi)', 62, 18.9, 'Brico');
   await log(add, 'consumabile', 'Cambio sale rigenerante (3 sacchi)', 124, 18.9, 'Brico');
   await log(cal, 'programmata', 'Manutenzione annuale e analisi fumi', 150, 95, 'Termoidraulica Bianchi');
