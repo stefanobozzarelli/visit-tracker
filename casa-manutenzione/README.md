@@ -3,7 +3,8 @@
 PWA per registrare e programmare la manutenzione di casa (addolcitore, caldaia, lavatrice, stampante…), con spese, storico e condivisione con la famiglia.
 
 - **Abitazioni multiple** (casa, appartamento, villa, casa al mare…)
-- **Catalogo di ~50 apparecchiature** con manutenzioni suggerite (es. addolcitore → sale ogni 2 mesi, pulizia salamoia, resine) — tutto modificabile, più dispositivi personalizzati
+- **Garanzie dei prodotti**: ogni prodotto (anche senza manutenzione: smartphone, TV, arredi, auto…) può avere più garanzie (legale, del produttore, estesa) con decorrenza, durata, scadenza, garante, n. polizza, **termini/coperture/esclusioni**, assistenza e costo; documenti allegati (scontrino, fattura, certificato); avvisi in Home 60 giorni prima, filtri, export CSV e scadenze nel calendario (.ics, avviso a 30 giorni)
+- **Catalogo di 80+ prodotti e apparecchiature** con manutenzioni e garanzia legale suggerite (es. addolcitore → sale ogni 2 mesi, pulizia salamoia, resine) — tutto modificabile, più dispositivi personalizzati
 - **Tre tipi di intervento**: consumabile, programmata, straordinaria
 - **Piani ricorrenti** (ogni N giorni/settimane/mesi/anni) o "a consumo" (toner…); con ✓ registri l'intervento e la scadenza successiva si ricalcola da sola
 - **Importi e ditta** per ogni intervento, grafici di spesa, storico filtrabile, export CSV / backup JSON
