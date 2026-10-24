@@ -40,6 +40,7 @@ export async function runReminders({ db, send, today = romeToday(), appUrl }) {
     const toSend = []; // { kind, id, due, title, icon, where }
     for (const t of tasks) {
       if (!t.nextDue || t.nextDue > today || t.notifiedDue === t.nextDue || !dev[t.deviceId]) continue;
+      if (dev[t.deviceId].maintenance === false) continue; // prodotto senza manutenzione: nessun avviso
       const d = dev[t.deviceId];
       toSend.push({ col: 'tasks', id: t.id, field: t.nextDue, due: t.nextDue, title: `${d.name}: ${t.title}`, icon: d.icon, where: prop[d.propertyId]?.name });
     }
