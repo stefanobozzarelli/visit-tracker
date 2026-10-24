@@ -1,4 +1,4 @@
-import { CATALOG, UNIT_LABEL, PROPERTY_TYPES, LOG_TYPES } from './catalog.js';
+import { CATALOG, UNIT_LABEL, PROPERTY_TYPES, LOG_TYPES, WARRANTY_TYPES } from './catalog.js';
 import { LocalStore, CloudStore, uid, emptyDb, COLS } from './store.js';
 import { firebaseConfig } from './firebase-config.js';
 
@@ -38,6 +38,65 @@ async function openAtt(att) {
     setTimeout(() => URL.revokeObjectURL(url), 120000);
   } catch (e) { console.error(e); toast('Impossibile aprire il file'); }
 }
+// ---- garanzie: un prodotto può avere più garanzie (legale, produttore, estesa…) ----
+// `warranty` (data singola) è il vecchio campo: se non ci sono garanzie dettagliate viene mostrato come garanzia legale.
+const warrantiesOf = (d) => d?.warranties?.length ? d.warranties
+  : (d?.warranty ? [{ id: 'legacy', type: 'legale', endDate: d.warranty, legacy: true }] : []);
+const warrEnd = (w) => w.endDate || (w.startDate && +w.duration ? addInterval(w.startDate, +w.duration, w.unit || 'months') : '');
+const durText = (w) => +w.duration ? `${w.duration} ${+w.duration === 1 ? UNIT_LABEL[w.unit || 'months'][0] : UNIT_LABEL[w.unit || 'months'][1]}` : '';
+function warrInfo(w) {
+  const end = warrEnd(w); if (!end) return { cls: '', txt: 'Senza scadenza', d: null, state: 'none', end };
+  const d = daysUntil(end);
+  if (d < 0) return { cls: 'red', txt: `Scaduta da ${-d} ${-d === 1 ? 'giorno' : 'giorni'}`, d, state: 'expired', end };
+  if (d === 0) return { cls: 'amber', txt: 'Scade oggi', d, state: 'expiring', end };
+  if (d <= 60) return { cls: 'amber', txt: `Scade tra ${d} ${d === 1 ? 'giorno' : 'giorni'}`, d, state: 'expiring', end };
+  return { cls: 'green', txt: `Attiva fino al ${fmtDate(end)}`, d, state: 'active', end };
+}
+// Stato complessivo del prodotto = la garanzia che dura più a lungo.
+function devWarr(d) {
+  const all = warrantiesOf(d).map((w) => ({ w, ...warrInfo(w) })).filter((x) => x.d !== null).sort((a, b) => b.d - a.d);
+  return all[0] || null;
+}
+const wTypeOf = (w) => WARRANTY_TYPES[w.type] || WARRANTY_TYPES.altro;
+
+const attField = (label) => `<div class="field"><label>${label}</label><div id="attlist"></div>
+  <label class="btn sm" for="attfile" style="width:fit-content">📎 Aggiungi file</label>
+  <input type="file" id="attfile" class="vh" multiple accept="image/*,application/pdf"></div>`;
+// Gestisce l'elenco allegati dentro un form: nuovi file in attesa, rimossi, esistenti.
+function attachments(f, existing) {
+  const atts = [...(existing || [])]; const pending = []; const removed = [];
+  const draw = () => {
+    $('#attlist', f).innerHTML = [...atts.map((a, i) => `<div class="taskpick"><span class="tt">📄 ${esc(a.name)}<small>${fmtSize(a.size)}</small></span>
+        <button type="button" class="btn sm" data-x="open" data-i="${i}">Apri</button><button type="button" class="iconbtn danger" data-x="rm" data-i="${i}" aria-label="Rimuovi">✕</button></div>`),
+      ...pending.map((p, i) => `<div class="taskpick"><span class="tt">🆕 ${esc(p.name)}<small>${fmtSize(p.size)} · da caricare al salvataggio</small></span>
+        <button type="button" class="iconbtn danger" data-x="unp" data-i="${i}" aria-label="Rimuovi">✕</button></div>`)].join('');
+  };
+  $('#attlist', f).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-x]'); if (!b) return; const i = +b.dataset.i;
+    if (b.dataset.x === 'open') openAtt(atts[i]);
+    else if (b.dataset.x === 'rm') { removed.push(atts[i]); atts.splice(i, 1); draw(); }
+    else { pending.splice(i, 1); draw(); }
+  });
+  $('#attfile', f).addEventListener('change', (e) => {
+    for (const file of e.target.files) { if (atts.length + pending.length >= 10) { toast('Massimo 10 allegati'); break; } pending.push(file); }
+    e.target.value = ''; draw();
+  });
+  draw();
+  return {
+    // Carica i nuovi file e cancella quelli rimossi; restituisce l'elenco finale. Lancia un errore se un file non è valido.
+    async commit() {
+      const added = [];
+      if (pending.length) toast('Caricamento allegati…');
+      for (const file of pending) {
+        const { blob, name } = await prepareFile(file); const id = uid(); const { chunks } = await S.store.putFile(id, blob);
+        added.push({ id, name, type: blob.type, size: blob.size, chunks });
+      }
+      for (const a of removed) await S.store.delFile(a).catch(() => {});
+      return [...atts, ...added];
+    },
+  };
+}
+
 const MONTHS = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
 function addInterval(iso, n, u) {
@@ -71,7 +130,7 @@ const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(pr
 
 const S = {
   db: emptyDb(), store: null, view: 'home', prop: '', hf: { prop: '', dev: '', type: '', year: '', q: '' },
-  ready: false, hhName: '', members: [], hh: {}, remindedDay: null,
+  ready: false, hhName: '', members: [], hh: {}, remindedDay: null, wf: '',
 };
 const ACCENTS = [['#4f46e5', '#a855f7'], ['#0d9488', '#2dd4bf'], ['#ea580c', '#f59e0b'], ['#e11d48', '#fb7185'], ['#16a34a', '#84cc16'], ['#0284c7', '#38bdf8']];
 
@@ -126,7 +185,7 @@ const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : '
 
 /* ============================== render ============================== */
 const root = $('#root');
-const NAV = [['home', '🏠', 'Home'], ['piano', '🗓️', 'Piano'], ['dev', '🧰', 'Dispositivi'], ['storico', '🧾', 'Storico'], ['set', '⚙️', 'Altro']];
+const NAV = [['home', '🏠', 'Home'], ['piano', '🗓️', 'Piano'], ['dev', '🧰', 'Prodotti'], ['storico', '🧾', 'Storico'], ['set', '⚙️', 'Altro']];
 
 function render() {
   if (!S.ready) return;
@@ -232,6 +291,12 @@ function vHome() {
     <div class="sec"><h2>To-do <span class="muted" style="font-weight:600">${dueNow.length + manual.length || ''}</span></h2><button class="btn sm" data-act="addtodo">＋ To-do</button></div>
     ${dueNow.length || manual.length ? dueNow.map((t) => taskRow(t)).join('') + manual.map(todoRow).join('') :
       emptyState('✅', 'Nessun to-do', 'Quando una manutenzione scade compare qui da sola e la famiglia riceve un\'email. Puoi aggiungere anche to-do tuoi.')}
+    ${(() => {
+      const ex = S.db.devices.filter((d) => inProp(d.propertyId)).map((d) => ({ d, w: devWarr(d) })).filter((x) => x.w?.state === 'expiring').sort((a, b) => a.w.d - b.w.d);
+      return ex.length ? `<div class="sec"><h2>Garanzie in scadenza</h2></div>${ex.map(({ d, w }) => `<div class="row"><div class="ico">${esc(d.icon)}</div>
+        <div class="body" data-act="devsheet" data-id="${d.id}"><div class="t">${esc(d.name)}</div><div class="s">${wTypeOf(w.w).icon} Garanzia ${esc(wTypeOf(w.w).label.toLowerCase())} · scade il ${fmtDate(w.end)}</div>
+        <span class="pill ${w.cls}">${esc(w.txt)}</span></div></div>`).join('')}` : '';
+    })()}
     <div class="sec"><h2>In arrivo</h2><button class="btn sm" data-act="nav" data-v="piano">Tutto il piano</button></div>
     ${upcoming.length ? upcoming.slice(0, 6).map((t) => taskRow(t)).join('') :
       emptyState('🗓️', 'Nessuna scadenza nei prossimi 45 giorni', 'Aggiungi dispositivi e manutenzioni programmate per vedere qui le prossime scadenze.',
@@ -254,7 +319,7 @@ function vWelcome() {
     <div class="sec"><h2>Da dove iniziamo?</h2></div>
     <div class="card"><p class="muted" style="margin-top:0">Aggiungi la tua prima abitazione:</p>
       <div class="catgrid">${PROPERTY_TYPES.map((t) => `<button class="catitem" data-act="addprop" data-type="${t.id}"><span class="e">${t.icon}</span>${t.label}</button>`).join('')}</div>
-      <p class="muted">Poi aggiungerai i dispositivi (addolcitore, caldaia, stampante…) con le manutenzioni già suggerite.</p>
+      <p class="muted">Poi aggiungerai i prodotti e dispositivi (addolcitore, caldaia, smartphone, TV…) con manutenzioni e garanzie già suggerite.</p>
       <button class="btn" data-act="sample">✨ Prova con dati di esempio</button></div>`;
 }
 
@@ -273,21 +338,29 @@ function vPiano() {
 /* ---------- Dispositivi ---------- */
 function vDevices() {
   const props = S.db.properties.slice().sort(byName).filter((p) => inProp(p.id));
-  return `<div class="top"><h1>Dispositivi</h1><button class="btn primary" data-act="adddev">＋ Aggiungi</button></div>${propChips()}
+  return `<div class="top"><h1>Prodotti</h1><button class="btn primary" data-act="adddev">＋ Aggiungi</button></div>${propChips()}${warrChips()}
     ${!S.db.properties.length ? vWelcome() : props.map((p) => {
-      const devs = S.db.devices.filter((d) => d.propertyId === p.id).sort(byName);
+      const devs = S.db.devices.filter((d) => d.propertyId === p.id && wfOk(d)).sort(byName);
+      if (S.wf && !devs.length) return '';
       return `<div class="prophead"><span class="pi">${propIcon(p)}</span><div><h2>${esc(p.name)}</h2><div class="muted" style="font-size:13px">${esc(p.address || PROPERTY_TYPES.find((t) => t.id === p.type)?.label || '')}</div></div></div>
-        ${devs.length ? `<div class="grid cards">${devs.map(devCard).join('')}</div>` : emptyState('🧰', 'Nessun dispositivo', 'Aggiungi i dispositivi di questa abitazione.', `<button class="btn primary" data-act="adddev" data-prop="${p.id}">Aggiungi dispositivo</button>`)}`;
+        ${devs.length ? `<div class="grid cards">${devs.map(devCard).join('')}</div>` : emptyState('🧰', 'Nessun prodotto', 'Aggiungi i dispositivi e i prodotti di questa abitazione: manutenzioni e garanzie.', `<button class="btn primary" data-act="adddev" data-prop="${p.id}">Aggiungi prodotto</button>`)}`;
     }).join('')}`;
 }
 
+const WF = [['', 'Tutti'], ['ok', '🛡️ In garanzia'], ['expiring', '⏳ In scadenza'], ['expired', 'Scadute']];
+const wfOk = (d) => { if (!S.wf) return true; const w = devWarr(d); if (!w) return false;
+  return S.wf === 'ok' ? w.state !== 'expired' : w.state === S.wf; };
+const warrChips = () => S.db.devices.some((d) => warrantiesOf(d).length)
+  ? `<div class="chips">${WF.map(([k, l]) => `<button class="chip ${S.wf === k ? 'on' : ''}" data-act="setwf" data-k="${k}">${l}</button>`).join('')}</div>` : '';
+
 function devCard(d) {
   const tasks = S.db.tasks.filter((t) => t.deviceId === d.id && t.nextDue).sort((a, b) => a.nextDue.localeCompare(b.nextDue));
-  const next = tasks[0]; const di = next && dueInfo(next.nextDue);
+  const next = tasks[0]; const di = next && dueInfo(next.nextDue); const dw = devWarr(d);
   const spent = S.db.logs.filter((l) => l.deviceId === d.id).reduce((s, l) => s + (+l.cost || 0), 0);
   return `<div class="devcard" data-act="devsheet" data-id="${d.id}">
     <div class="devhead"><div class="ico">${esc(d.icon)}</div><div><div class="n">${esc(d.name)}</div><div class="m">${esc([d.brand, d.model].filter(Boolean).join(' ') || 'Nessun modello indicato')}</div></div></div>
-    <div>${next ? `<span class="pill ${di.cls}">${esc(next.title)} · ${esc(di.txt)}</span>` : '<span class="pill">Nessuna scadenza</span>'}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${next ? `<span class="pill ${di.cls}">${esc(next.title)} · ${esc(di.txt)}</span>` : (dw ? '' : '<span class="pill">Nessuna scadenza</span>')}
+      ${dw ? `<span class="pill ${dw.cls}">🛡️ ${dw.state === 'expired' ? 'Garanzia scaduta' : esc(dw.txt)}</span>` : ''}</div>
     <div class="muted" style="font-size:13px">Speso in totale: <b>${fmtEUR(spent)}</b></div>
   </div>`;
 }
@@ -341,7 +414,7 @@ function vSettings() {
 
   <div class="sec"><h2>Abitazioni</h2><button class="btn sm" data-act="addprop">＋ Aggiungi</button></div>
   ${S.db.properties.slice().sort(byName).map((p) => `<div class="row"><div class="ico">${propIcon(p)}</div>
-    <div class="body" data-act="editprop" data-id="${p.id}"><div class="t">${esc(p.name)}</div><div class="s">${esc(p.address || PROPERTY_TYPES.find((t) => t.id === p.type)?.label || '')} · ${S.db.devices.filter((d) => d.propertyId === p.id).length} dispositivi</div></div>
+    <div class="body" data-act="editprop" data-id="${p.id}"><div class="t">${esc(p.name)}</div><div class="s">${esc(p.address || PROPERTY_TYPES.find((t) => t.id === p.type)?.label || '')} · ${S.db.devices.filter((d) => d.propertyId === p.id).length} prodotti</div></div>
     <button class="iconbtn" data-act="editprop" data-id="${p.id}">✎</button></div>`).join('') || '<p class="muted">Nessuna abitazione.</p>'}
 
   <div class="sec"><h2>Aspetto</h2></div>
@@ -378,6 +451,7 @@ function vSettings() {
     <button class="btn" data-act="export">⬇️ Backup (JSON)</button>
     <button class="btn" data-act="import">⬆️ Ripristina backup</button>
     <button class="btn" data-act="csv">🧾 Esporta spese (CSV)</button>
+    <button class="btn" data-act="csvwarr">🛡️ Esporta garanzie (CSV)</button>
     <button class="btn danger" data-act="wipe">🗑️ Cancella tutto</button></div>
     <input type="file" id="importfile" accept="application/json" class="hidden"></div>
   <p class="muted" style="text-align:center;margin-top:24px">Casa Manutenzione</p>`;
@@ -391,6 +465,10 @@ const actions = {
   theme: (d) => { prefs.theme = d.v; savePrefs(); applyPrefs(); render(); },
   accent: (d) => { prefs.accent = d.a; prefs.accent2 = d.b; savePrefs(); applyPrefs(); render(); },
   newlog: () => logForm({}),
+  setwf: (d) => { S.wf = d.k; render(); },
+  editwarr: (d) => warrantyForm(d.dev, d.id),
+  openatt: (d) => { const a = D(d.dev)?.attachments?.[+d.i]; if (a) openAtt(a); },
+  csvwarr: exportWarrantiesCSV,
   complete: (d) => { const t = T(d.id); if (t) logForm({ taskId: t.id }); },
   edittask: (d) => taskForm(d.dev, d.id),
   devsheet: (d) => d.id && deviceSheet(d.id),
@@ -456,9 +534,9 @@ function propForm(id, type) {
 /* ---------- Dispositivi ---------- */
 function deviceCatalog(propId) {
   if (!S.db.properties.length) { toast('Aggiungi prima un\'abitazione'); return propForm(); }
-  const body = `<input type="search" id="catq" placeholder="Cerca (es. addolcitore, caldaia…)" style="margin-bottom:6px">
+  const body = `<input type="search" id="catq" placeholder="Cerca (es. addolcitore, smartphone, auto…)" style="margin-bottom:6px">
     <div id="catlist">${CATALOG.map((g) => `<div class="month"><span>${g.group}</span></div><div class="catgrid">${g.items.map((i) => `<button type="button" class="catitem" data-cat="${i.id}" data-q="${esc((i.name + ' ' + g.group).toLowerCase())}"><span class="e">${i.icon}</span>${esc(i.name)}</button>`).join('')}</div>`).join('')}</div>`;
-  const f = modal('Che dispositivo vuoi aggiungere?', body, [{ label: 'Chiudi' }]);
+  const f = modal('Che prodotto vuoi aggiungere?', body, [{ label: 'Chiudi' }]);
   $('#catq', f).addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase();
     f.querySelectorAll('.catitem').forEach((b) => b.classList.toggle('hidden', !!q && !b.dataset.q.includes(q)));
@@ -471,25 +549,38 @@ function deviceCatalog(propId) {
 function deviceForm(dev, cat, propId) {
   const d = dev || { name: cat.name === 'Altro (personalizzato)' ? '' : cat.name, icon: cat.icon, propertyId: propId || S.prop || S.db.properties[0]?.id };
   const tasks = !dev && cat ? cat.tasks : [];
-  const f = modal(dev ? 'Modifica dispositivo' : 'Nuovo dispositivo', `
+  const f = modal(dev ? 'Modifica prodotto' : 'Nuovo prodotto', `
     <div class="two-col"><div class="field"><label>Icona</label><input name="icon" value="${esc(d.icon)}" maxlength="4" style="text-align:center;font-size:22px"></div>
       <div class="field"><label>Abitazione</label><select name="propertyId">${S.db.properties.slice().sort(byName).map((p) => opt(p.id, `${propIcon(p)} ${p.name}`, p.id === d.propertyId)).join('')}</select></div></div>
-    <div class="field"><label>Nome</label><input name="name" required value="${esc(d.name)}" placeholder="es. Addolcitore cucina"></div>
+    <div class="field"><label>Nome</label><input name="name" required value="${esc(d.name)}" placeholder="es. Addolcitore cucina, iPhone di Anna"></div>
     <div class="two-col"><div class="field"><label>Marca</label><input name="brand" value="${esc(d.brand || '')}"></div>
       <div class="field"><label>Modello</label><input name="model" value="${esc(d.model || '')}"></div></div>
-    <div class="two-col"><div class="field"><label>Data di installazione</label><input type="date" name="installDate" value="${esc(d.installDate || '')}"></div>
-      <div class="field"><label>Scadenza garanzia</label><input type="date" name="warranty" value="${esc(d.warranty || '')}"></div></div>
-    <div class="field"><label>Note (seriale, fornitore, posizione…)</label><textarea name="notes">${esc(d.notes || '')}</textarea></div>
+    <div class="two-col"><div class="field"><label>Data di acquisto</label><input type="date" name="purchaseDate" value="${esc(d.purchaseDate || '')}"></div>
+      <div class="field"><label>Prezzo (€)</label><input type="number" step="0.01" min="0" name="purchasePrice" inputmode="decimal" value="${esc(d.purchasePrice || '')}"></div></div>
+    <div class="two-col"><div class="field"><label>Negozio / venditore</label><input name="store" value="${esc(d.store || '')}"></div>
+      <div class="field"><label>Numero di serie</label><input name="serial" value="${esc(d.serial || '')}"></div></div>
+    <div class="field"><label>Data di installazione (se diversa)</label><input type="date" name="installDate" value="${esc(d.installDate || '')}"></div>
+    <div class="field"><label>Note (posizione, fornitore, codici…)</label><textarea name="notes">${esc(d.notes || '')}</textarea></div>
+    ${attField('Documenti (scontrino, fattura, certificato di garanzia, manuale…)')}
+    ${dev ? '' : `<label class="taskpick"><input type="checkbox" name="legalw" ${cat?.w ? 'checked' : ''}><span class="tt">Registra la garanzia legale di ${cat?.w || 24} mesi dalla data di acquisto<small>${esc(WARRANTY_TYPES.legale.hint)} Potrai aggiungere altre garanzie e i loro termini dopo.</small></span></label>`}
     ${tasks.length ? `<div class="lbl" style="margin-top:16px">Manutenzioni suggerite — spunta quelle che vuoi</div>
       ${tasks.map((t, i) => `<label class="taskpick"><input type="checkbox" name="task${i}" checked><span class="tt">${esc(t.t)}<small>${LOG_TYPES[t.k].icon} ${LOG_TYPES[t.k].label} · ${esc(recurText({ every: t.n, unit: t.u }))}</small></span></label>`).join('')}
       <div class="field"><label>Prima scadenza</label><select name="start"><option value="later">Tra un intervallo da oggi (l'ho appena fatto / è nuovo)</option><option value="today">Subito, scade oggi</option></select></div>
       <p class="muted" style="font-size:13px">Potrai cambiare frequenze e scadenze quando vuoi.</p>` : ''}`,
-  [...(dev ? [{ label: 'Elimina', cls: 'danger', onClick: () => { setTimeout(() => confirmDlg('Eliminare il dispositivo?', 'Verranno eliminati anche i suoi piani di manutenzione. Lo storico degli interventi resta.', 'Elimina', async () => {
-      for (const t of S.db.tasks.filter((x) => x.deviceId === dev.id)) await remove('tasks', t.id); await remove('devices', dev.id); toast('Dispositivo eliminato'); }), 0); } }] : []),
+  [...(dev ? [{ label: 'Elimina', cls: 'danger', onClick: () => { setTimeout(() => confirmDlg('Eliminare il prodotto?', 'Verranno eliminati anche i suoi piani di manutenzione, le garanzie e i documenti allegati. Lo storico degli interventi resta.', 'Elimina', async () => {
+      for (const a of dev.attachments || []) await S.store.delFile(a).catch(() => {});
+      for (const t of S.db.tasks.filter((x) => x.deviceId === dev.id)) await remove('tasks', t.id); await remove('devices', dev.id); toast('Prodotto eliminato'); }), 0); } }] : []),
   { label: 'Annulla' }, { label: 'Salva', cls: 'primary', submit: true, onClick: async (v) => {
     if (!fd(v, 'name')) { toast('Inserisci un nome'); return false; }
+    let docs; try { docs = await att.commit(); } catch (e) { console.error(e); toast(e.message || 'Allegato non caricato'); return false; }
     const item = { ...d, id: d.id || uid(), name: fd(v, 'name'), icon: fd(v, 'icon') || '🧰', propertyId: fd(v, 'propertyId'),
-      brand: fd(v, 'brand'), model: fd(v, 'model'), installDate: fd(v, 'installDate'), warranty: fd(v, 'warranty'), notes: fd(v, 'notes') };
+      brand: fd(v, 'brand'), model: fd(v, 'model'), installDate: fd(v, 'installDate'), notes: fd(v, 'notes'),
+      purchaseDate: fd(v, 'purchaseDate'), purchasePrice: fd(v, 'purchasePrice'), store: fd(v, 'store'), serial: fd(v, 'serial'), attachments: docs };
+    if (!dev && v.get('legalw')) {
+      const months = cat?.w || 24; const start = item.purchaseDate || todayISO();
+      item.warranties = [{ id: uid(), type: 'legale', provider: item.store, policy: '', startDate: start, duration: months, unit: 'months',
+        endDate: addInterval(start, months, 'months'), terms: '', contact: '', cost: '' }];
+    }
     await save('devices', item);
     if (dev) {
       for (const l of S.db.logs.filter((x) => x.deviceId === dev.id && x.propertyId !== item.propertyId)) await save('logs', { ...l, propertyId: item.propertyId });
@@ -500,9 +591,10 @@ function deviceForm(dev, cat, propId) {
       const due = t.n && t.u ? (fd(v, 'start') === 'today' ? now : addInterval(now, t.n, t.u)) : '';
       await save('tasks', { id: uid(), deviceId: item.id, title: t.t, kind: t.k, every: t.n, unit: t.u, nextDue: due, lastDone: '', cost: '', notes: '' });
     }
-    toast(dev ? 'Dispositivo aggiornato' : 'Dispositivo aggiunto');
+    toast(dev ? 'Prodotto aggiornato' : 'Prodotto aggiunto');
     if (!dev) setTimeout(() => deviceSheet(item.id), 150);
   } }]);
+  const att = attachments(f, d.attachments);
   setTimeout(() => $('[name=name]', f)?.focus(), 50);
 }
 
@@ -513,8 +605,17 @@ function deviceSheet(id) {
   const spent = logs.reduce((s, l) => s + (+l.cost || 0), 0); const prop = P(d.propertyId);
   const f = modal(`${esc(d.icon)} ${esc(d.name)}`, `
     <div class="muted" style="margin-bottom:10px">${prop ? propIcon(prop) + ' ' + esc(prop.name) : ''}${d.brand || d.model ? ' · ' + esc([d.brand, d.model].filter(Boolean).join(' ')) : ''}
-      ${d.installDate ? '<br>Installato il ' + fmtDate(d.installDate) : ''}${d.warranty ? ' · garanzia fino al ' + fmtDate(d.warranty) : ''}${d.notes ? '<br>' + esc(d.notes) : ''}</div>
+      ${d.purchaseDate || d.store || d.purchasePrice ? '<br>Acquistato' + (d.purchaseDate ? ' il ' + fmtDate(d.purchaseDate) : '') + (d.store ? ' da ' + esc(d.store) : '') + (d.purchasePrice ? ' · ' + fmtEUR(d.purchasePrice) : '') : ''}
+      ${d.serial ? '<br>N. di serie: ' + esc(d.serial) : ''}${d.installDate ? '<br>Installato il ' + fmtDate(d.installDate) : ''}${d.notes ? '<br>' + esc(d.notes) : ''}</div>
     <div class="btnrow"><button type="button" class="btn sm primary" data-x="log">＋ Registra intervento</button><button type="button" class="btn sm" data-x="edit">✎ Modifica</button></div>
+    <div class="sec"><h2>Garanzie</h2><button type="button" class="btn sm" data-x="addwarr">＋ Garanzia</button></div>
+    ${warrantiesOf(d).length ? warrantiesOf(d).map((w) => { const i = warrInfo(w); const t = wTypeOf(w);
+      return `<div class="row"><div class="ico">${t.icon}</div><div class="body" data-act="editwarr" data-dev="${d.id}" data-id="${w.id}">
+        <div class="t">Garanzia ${esc(t.label.toLowerCase())}${w.provider ? ' · ' + esc(w.provider) : ''}</div>
+        <div class="s">${w.startDate ? 'Dal ' + fmtDate(w.startDate) + ' ' : ''}${i.end ? 'al ' + fmtDate(i.end) : ''}${durText(w) ? ' (' + esc(durText(w)) + ')' : ''}${w.policy ? ' · N. ' + esc(w.policy) : ''}</div>
+        ${w.terms ? `<div class="s">📋 ${esc(w.terms.length > 110 ? w.terms.slice(0, 110) + '…' : w.terms)}</div>` : ''}
+        <span class="pill ${i.cls}">${esc(i.txt)}</span></div></div>`; }).join('') : '<p class="muted">Nessuna garanzia registrata. Aggiungila con i suoi termini.</p>'}
+    ${d.attachments?.length ? `<div class="sec"><h2>Documenti</h2></div>${d.attachments.map((a, i) => `<div class="taskpick"><span class="tt">📄 ${esc(a.name)}<small>${fmtSize(a.size)}</small></span><button type="button" class="btn sm" data-act="openatt" data-dev="${d.id}" data-i="${i}">Apri</button></div>`).join('')}` : ''}
     <div class="sec"><h2>Manutenzioni programmate</h2><button type="button" class="btn sm" data-x="addtask">＋ Aggiungi</button></div>
     ${tasks.length ? tasks.map((t) => taskRow(t, { showDevice: false })).join('') : '<p class="muted">Nessuna manutenzione programmata.</p>'}
     <div class="sec"><h2>Storico (${fmtEUR(spent)})</h2></div>
@@ -522,6 +623,44 @@ function deviceSheet(id) {
   $('[data-x=log]', f).onclick = () => logForm({ deviceId: id });
   $('[data-x=edit]', f).onclick = () => deviceForm(d);
   $('[data-x=addtask]', f).onclick = () => taskForm(id);
+  $('[data-x=addwarr]', f).onclick = () => warrantyForm(id);
+}
+
+/* ---------- Garanzie ---------- */
+function warrantyForm(deviceId, wid) {
+  const dev = D(deviceId); if (!dev) return; const list = warrantiesOf(dev);
+  const w = wid ? list.find((x) => x.id === wid) : { type: dev.warranties?.length || dev.warranty ? 'estesa' : 'legale', provider: '', policy: '',
+    startDate: dev.purchaseDate || todayISO(), duration: 24, unit: 'months', endDate: '', terms: '', contact: '', cost: '' };
+  if (!w) return;
+  const f = modal(wid ? 'Modifica garanzia' : 'Nuova garanzia', `
+    <div class="muted" style="margin-bottom:6px">${esc(dev.icon)} ${esc(dev.name)}</div>
+    <div class="field"><label>Tipo di garanzia</label><select name="type" id="wt">${Object.entries(WARRANTY_TYPES).map(([k, v]) => opt(k, `${v.icon} ${v.label}`, w.type === k)).join('')}</select>
+      <div class="muted" id="whint" style="font-size:13px"></div></div>
+    <div class="two-col"><div class="field"><label>Garante / compagnia</label><input name="provider" value="${esc(w.provider || '')}" placeholder="es. produttore, negozio, assicurazione"></div>
+      <div class="field"><label>N. polizza / pratica</label><input name="policy" value="${esc(w.policy || '')}"></div></div>
+    <div class="two-col"><div class="field"><label>Decorrenza</label><input type="date" name="startDate" id="ws" value="${esc(w.startDate || '')}"></div>
+      <div class="field"><label>Durata</label><div class="two-col"><input type="number" min="1" name="duration" id="wd" value="${esc(w.duration || '')}"><select name="unit" id="wu">${['months', 'years'].map((u) => opt(u, UNIT_LABEL[u][1], (w.unit || 'months') === u)).join('')}</select></div></div></div>
+    <div class="field"><label>Scadenza (si calcola da sola, puoi correggerla)</label><input type="date" name="endDate" id="we" value="${esc(warrEnd(w))}"></div>
+    <div class="field"><label>Termini, coperture ed esclusioni</label><textarea name="terms" rows="5" placeholder="es. copre difetti di fabbricazione; esclude danni accidentali e batteria; ritiro a domicilio; riparazione entro 30 giorni…">${esc(w.terms || '')}</textarea></div>
+    <div class="field"><label>Come attivarla / assistenza (telefono, email, sito)</label><input name="contact" value="${esc(w.contact || '')}"></div>
+    <div class="field"><label>Costo della garanzia (€, se a pagamento)</label><input type="number" step="0.01" min="0" name="cost" inputmode="decimal" value="${esc(w.cost || '')}"></div>`,
+  [...(wid ? [{ label: 'Elimina', cls: 'danger', onClick: async () => {
+      await save('devices', { ...dev, warranties: list.filter((x) => x.id !== wid).map(({ legacy, ...r }) => r), warranty: '' }); toast('Garanzia eliminata'); } }] : []),
+    { label: 'Annulla' }, { label: 'Salva', cls: 'primary', submit: true, onClick: async (v) => {
+      const duration = Math.max(0, parseInt(fd(v, 'duration'), 10) || 0); const unit = fd(v, 'unit') || 'months'; const startDate = fd(v, 'startDate');
+      const endDate = fd(v, 'endDate') || (startDate && duration ? addInterval(startDate, duration, unit) : '');
+      if (!endDate) { toast('Indica la scadenza oppure decorrenza e durata'); return false; }
+      const obj = { id: wid && wid !== 'legacy' ? wid : uid(), type: fd(v, 'type'), provider: fd(v, 'provider'), policy: fd(v, 'policy'), startDate, duration, unit,
+        endDate, terms: fd(v, 'terms'), contact: fd(v, 'contact'), cost: fd(v, 'cost') };
+      const base = list.map(({ legacy, ...r }) => (r.id === 'legacy' ? { ...r, id: uid() } : r));
+      const next = wid ? list.map((x, i) => (x.id === wid ? obj : base[i])) : [...base, obj];
+      await save('devices', { ...dev, warranties: next, warranty: '' }); toast('Garanzia salvata');
+    } }]);
+  const wt = $('#wt', f), ws = $('#ws', f), wd = $('#wd', f), wu = $('#wu', f), we = $('#we', f);
+  const hint = () => { $('#whint', f).textContent = (WARRANTY_TYPES[wt.value] || {}).hint || ''; };
+  const calc = () => { if (ws.value && +wd.value > 0) we.value = addInterval(ws.value, +wd.value, wu.value); };
+  wt.addEventListener('change', hint); [ws, wd, wu].forEach((el) => el.addEventListener('change', calc)); wd.addEventListener('input', calc);
+  hint();
 }
 
 /* ---------- Piani di manutenzione ---------- */
@@ -560,7 +699,6 @@ function logForm({ id, deviceId, taskId }) {
     date: todayISO(), type: task ? (task.kind === 'consumabile' ? 'consumabile' : 'programmata') : 'programmata',
     title: task?.title || '', deviceId: task?.deviceId || deviceId || '', taskId: task?.id || '', cost: task?.cost || '',
   };
-  const atts = [...(l.attachments || [])]; const pending = []; const removed = [];
   const dev0 = D(l.deviceId);
   l.propertyId = l.propertyId || dev0?.propertyId || (S.prop || S.db.properties[0]?.id);
   const props = S.db.properties.slice().sort(byName);
@@ -575,9 +713,7 @@ function logForm({ id, deviceId, taskId }) {
     <div class="field"><label>Ditta / dove l'hai acquistato</label><input name="provider" value="${esc(l.provider || '')}" placeholder="es. Idraulico Rossi, Leroy Merlin"></div>
     <div class="field"><label>Note</label><textarea name="notes">${esc(l.notes || '')}</textarea></div>
     <div class="field" id="linkwrap"><label>Aggiorna la scadenza di</label><select name="taskId" id="lk"></select></div>
-    <div class="field"><label>Allegati (fattura, distinta lavori, foto…)</label><div id="attlist"></div>
-      <label class="btn sm" for="attfile" style="width:fit-content">📎 Aggiungi file</label>
-      <input type="file" id="attfile" class="vh" multiple accept="image/*,application/pdf"></div>`,
+    ${attField('Allegati (fattura, distinta lavori, foto…)')}`,
   [...(editing ? [{ label: 'Elimina', cls: 'danger', onClick: async () => {
       for (const a of editing.attachments || []) await S.store.delFile(a).catch(() => {});
       await remove('logs', id); toast('Intervento eliminato'); } }] : []),
@@ -585,18 +721,8 @@ function logForm({ id, deviceId, taskId }) {
       const title = fd(v, 'title'); if (!title) { toast('Descrivi l\'intervento'); return false; }
       const type = $('#typeseg .on', f).dataset.k; const devId = fd(v, 'deviceId'); const dv = D(devId);
       const date = fd(v, 'date') || todayISO(); const tId = type === 'straordinaria' ? '' : fd(v, 'taskId');
-      const newAtts = [];
-      try {
-        if (pending.length) {
-          toast('Caricamento allegati…');
-          for (const file of pending) {
-            const { blob, name } = await prepareFile(file); const aid = uid(); const { chunks } = await S.store.putFile(aid, blob);
-            newAtts.push({ id: aid, name, type: blob.type, size: blob.size, chunks });
-          }
-        }
-      } catch (e) { console.error(e); toast(e.message || 'Allegato non caricato'); return false; }
-      for (const a of removed) await S.store.delFile(a).catch(() => {});
-      const item = { ...l, attachments: [...atts, ...newAtts], id: l.id || uid(), type, title, date, cost: fd(v, 'cost'), provider: fd(v, 'provider'), notes: fd(v, 'notes'),
+      let finalAtts; try { finalAtts = await att.commit(); } catch (e) { console.error(e); toast(e.message || 'Allegato non caricato'); return false; }
+      const item = { ...l, attachments: finalAtts, id: l.id || uid(), type, title, date, cost: fd(v, 'cost'), provider: fd(v, 'provider'), notes: fd(v, 'notes'),
         propertyId: fd(v, 'propertyId'), deviceId: devId, deviceName: dv?.name || '', deviceIcon: dv?.icon || '', taskId: tId, by: l.by || meName() };
       await save('logs', item);
       const tk = tId && T(tId);
@@ -607,23 +733,7 @@ function logForm({ id, deviceId, taskId }) {
     } }]);
 
   const lp = $('#lp', f), ld = $('#ld', f), lk = $('#lk', f), lt = $('#tl', f);
-  const drawAtt = () => {
-    $('#attlist', f).innerHTML = [...atts.map((a, i) => `<div class="taskpick"><span class="tt">📄 ${esc(a.name)}<small>${fmtSize(a.size)}</small></span>
-        <button type="button" class="btn sm" data-x="open" data-i="${i}">Apri</button><button type="button" class="iconbtn danger" data-x="rm" data-i="${i}" aria-label="Rimuovi">✕</button></div>`),
-      ...pending.map((p, i) => `<div class="taskpick"><span class="tt">🆕 ${esc(p.name)}<small>${fmtSize(p.size)} · da caricare al salvataggio</small></span>
-        <button type="button" class="iconbtn danger" data-x="unp" data-i="${i}" aria-label="Rimuovi">✕</button></div>`)].join('');
-  };
-  $('#attlist', f).addEventListener('click', (e) => {
-    const b = e.target.closest('[data-x]'); if (!b) return; const i = +b.dataset.i;
-    if (b.dataset.x === 'open') openAtt(atts[i]);
-    else if (b.dataset.x === 'rm') { removed.push(atts[i]); atts.splice(i, 1); drawAtt(); }
-    else { pending.splice(i, 1); drawAtt(); }
-  });
-  $('#attfile', f).addEventListener('change', (e) => {
-    for (const file of e.target.files) { if (atts.length + pending.length >= 10) { toast('Massimo 10 allegati'); break; } pending.push(file); }
-    e.target.value = ''; drawAtt();
-  });
-  drawAtt();
+  const att = attachments(f, l.attachments);
   const fillDevices = () => {
     const devs = S.db.devices.filter((d) => d.propertyId === lp.value).sort(byName);
     ld.innerHTML = `<option value="">— Generico (nessun dispositivo) —</option>` + devs.map((d) => opt(d.id, `${d.icon} ${d.name}`, d.id === l.deviceId)).join('');
@@ -674,6 +784,18 @@ function exportCSV() {
   download(`spese-casa-${todayISO()}.csv`, '\ufeff' + rows.map((r) => r.map(q).join(';')).join('\r\n'), 'text/csv');
 }
 
+function exportWarrantiesCSV() {
+  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [['Prodotto', 'Abitazione', 'Marca', 'Modello', 'N. serie', 'Acquistato il', 'Negozio', 'Prezzo', 'Tipo garanzia', 'Garante', 'N. polizza', 'Decorrenza', 'Durata', 'Scadenza', 'Stato', 'Termini e coperture', 'Assistenza', 'Costo garanzia']];
+  S.db.devices.slice().sort(byName).forEach((d) => {
+    const ws = warrantiesOf(d);
+    if (!ws.length) rows.push([d.name, P(d.propertyId)?.name || '', d.brand, d.model, d.serial, d.purchaseDate, d.store, String(d.purchasePrice || '').replace('.', ','), 'Nessuna', '', '', '', '', '', '', '', '', '']);
+    ws.forEach((w) => { const i = warrInfo(w); rows.push([d.name, P(d.propertyId)?.name || '', d.brand, d.model, d.serial, d.purchaseDate, d.store, String(d.purchasePrice || '').replace('.', ','),
+      wTypeOf(w).label, w.provider, w.policy, w.startDate, durText(w), i.end, i.txt, w.terms, w.contact, String(w.cost || '').replace('.', ',')]); });
+  });
+  download(`garanzie-${todayISO()}.csv`, '\ufeff' + rows.map((r) => r.map(q).join(';')).join('\r\n'), 'text/csv');
+}
+
 async function importJSON(file) {
   if (!file) return;
   try {
@@ -688,7 +810,8 @@ async function importJSON(file) {
 
 function exportICS() {
   const sched = S.db.tasks.filter((t) => t.nextDue && D(t.deviceId));
-  if (!sched.length) { toast('Nessuna scadenza da esportare'); return; }
+  const warrs = S.db.devices.flatMap((d) => warrantiesOf(d).map((w) => ({ d, w, end: warrEnd(w) }))).filter((x) => x.end && daysUntil(x.end) >= 0);
+  if (!sched.length && !warrs.length) { toast('Nessuna scadenza da esportare'); return; }
   const fold = (s) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
   const freq = { days: 'DAILY', weeks: 'WEEKLY', months: 'MONTHLY', years: 'YEARLY' };
   const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
@@ -699,7 +822,11 @@ function exportICS() {
       ...(t.every && t.unit ? [`RRULE:FREQ=${freq[t.unit]};INTERVAL=${t.every}`] : []),
       'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Manutenzione', 'TRIGGER:-PT15H', 'END:VALARM', 'END:VEVENT'].join('\r\n');
   });
-  download('manutenzioni-casa.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Casa Manutenzione//IT', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar');
+  const wev = warrs.map(({ d, w, end }) => ['BEGIN:VEVENT', `UID:${d.id}-${w.id}@casa-manutenzione`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${end.replace(/-/g, '')}`,
+    `DTEND;VALUE=DATE:${addInterval(end, 1, 'days').replace(/-/g, '')}`, `SUMMARY:${fold(`🛡️ Scade la garanzia: ${d.name}`)}`,
+    `DESCRIPTION:${fold(`${wTypeOf(w).label}${w.provider ? ' — ' + w.provider : ''}${w.contact ? ' — Assistenza: ' + w.contact : ''}`)}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Garanzia in scadenza', 'TRIGGER:-P30D', 'END:VALARM', 'END:VEVENT'].join('\r\n'));
+  download('manutenzioni-casa.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Casa Manutenzione//IT', 'CALSCALE:GREGORIAN', ...ev, ...wev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar');
   toast('Apri il file per aggiungere le scadenze al calendario');
 }
 
@@ -726,7 +853,7 @@ async function loadSample() {
   await save('properties', { id: pid, name: 'Casa di famiglia', type: 'casa', address: '' });
   const mk = async (catId, extra = {}) => {
     const c = CATALOG.flatMap((g) => g.items).find((i) => i.id === catId); const did = uid();
-    await save('devices', { id: did, propertyId: pid, name: c.name, icon: c.icon, brand: extra.brand || '', model: '', installDate: '', warranty: '', notes: '' });
+    await save('devices', { id: did, propertyId: pid, name: c.name, icon: c.icon, brand: extra.brand || '', model: '', installDate: '', warranty: '', notes: '', ...(extra.fields || {}) });
     const out = [];
     for (const [i, t] of c.tasks.entries()) {
       const off = extra.offsets?.[i];
@@ -739,8 +866,16 @@ async function loadSample() {
     notes: '', propertyId: pid, deviceId: dev.did, deviceName: dev.c.name, deviceIcon: dev.c.icon, taskId: '', by: meName() });
   const add = await mk('addolcitore', { brand: 'Culligan', offsets: [-3, 60, 200] });
   const cal = await mk('caldaia', { brand: 'Vaillant', offsets: [12, 40] });
-  const lav = await mk('lavatrice', { offsets: [25, 25] });
-  await mk('stampante', { brand: 'HP' });
+  const lp0 = addInterval(now, -10, 'months');
+  const lav = await mk('lavatrice', { brand: 'Bosch', offsets: [25, 25], fields: { purchaseDate: lp0, purchasePrice: '549', store: 'Euronics', warranties: [
+    { id: uid(), type: 'legale', provider: 'Euronics', policy: '', startDate: lp0, duration: 24, unit: 'months', endDate: addInterval(lp0, 24, 'months'),
+      terms: 'Garanzia legale di conformità 24 mesi dalla consegna.', contact: '', cost: '' },
+    { id: uid(), type: 'estesa', provider: 'Bosch Home Care', policy: 'BH-55021', startDate: addInterval(lp0, 24, 'months'), duration: 3, unit: 'years', endDate: addInterval(lp0, 60, 'months'),
+      terms: 'Copre motore, scheda e cuscinetti fino a 5 anni dall\'acquisto. Esclusi guarnizioni e filtri. Intervento a domicilio entro 5 giorni lavorativi.', contact: '800 123 456', cost: '89' }] } });
+  const pd = addInterval(now, -23, 'months');
+  await mk('stampante', { brand: 'HP', fields: { purchaseDate: pd, purchasePrice: '129', store: 'MediaWorld', serial: 'CN8821AB', warranties: [
+    { id: uid(), type: 'legale', provider: 'MediaWorld', policy: '', startDate: pd, duration: 24, unit: 'months', endDate: addInterval(pd, 24, 'months'),
+      terms: 'Difetti di conformità: riparazione o sostituzione gratuita. Esclusi cartucce, danni accidentali e usura.', contact: '', cost: '' }] } });
   await log(add, 'consumabile', 'Cambio sale rigenerante (3 sacchi)', 62, 18.9, 'Brico');
   await log(add, 'consumabile', 'Cambio sale rigenerante (3 sacchi)', 124, 18.9, 'Brico');
   await log(cal, 'programmata', 'Manutenzione annuale e analisi fumi', 150, 95, 'Termoidraulica Bianchi');
