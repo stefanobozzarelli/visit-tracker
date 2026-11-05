@@ -29,7 +29,7 @@ export function exportTripExcel(trip: any, dateFrom?: string, dateTo?: string) {
   }
   header.push('Hotel', 'Note');
   for (let i = 1; i <= maxApts; i++) {
-    header.push(`Ora Inizio ${i}`, `Ora Fine ${i}`, `Cliente ${i}`, `Stato ${i}`);
+    header.push(`Orario ${i}`, `Cliente ${i}`, `Note ${i}`, `Stato ${i}`);
   }
 
   const rows = sorted.map((day: any) => {
@@ -44,9 +44,11 @@ export function exportTripExcel(trip: any, dateFrom?: string, dateTo?: string) {
     }
     const hotelsForDay = filteredHotels.filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
     row.push(hotelsForDay.map((h: any) => h.name).join(', '), day.notes || '');
+    const PERIOD_LABELS_XLS: Record<string, string> = { mattina: 'Mattina', pranzo: 'Pranzo', pomeriggio: 'Pomeriggio', sera: 'Sera' };
+    const fmtAptTimeXls = (a: any) => a.allDay ? 'Giornata intera' : a.period ? (PERIOD_LABELS_XLS[a.period] || a.period) : (a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '');
     for (let i = 0; i < maxApts; i++) {
       const a = day.appointments[i];
-      row.push(a?.time || '', a?.endTime || '', a?.client || '', a ? (STATUS_LABELS[a.status] || a.status) : '');
+      row.push(a ? fmtAptTimeXls(a) : '', a?.client || '', a?.notes || '', a ? (STATUS_LABELS[a.status] || a.status) : '');
     }
     return row;
   });
@@ -55,7 +57,7 @@ export function exportTripExcel(trip: any, dateFrom?: string, dateTo?: string) {
   ws1['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 22 },
     ...Array(maxFlights * 2).fill(null).map((_: any, i: number) => ({ wch: i % 2 === 0 ? 20 : 30 })),
     { wch: 35 }, { wch: 20 },
-    ...Array(maxApts * 4).fill(null).map((_: any, i: number) => ({ wch: i % 4 < 2 ? 10 : i % 4 === 2 ? 25 : 16 })),
+    ...Array(maxApts * 4).fill(null).map((_: any, i: number) => ({ wch: i % 4 === 0 ? 14 : i % 4 === 1 ? 28 : i % 4 === 2 ? 22 : 16 })),
   ];
   XLSX.utils.book_append_sheet(wb, ws1, 'Itinerario');
 
@@ -102,14 +104,16 @@ export function exportTripExcel(trip: any, dateFrom?: string, dateTo?: string) {
   const aptDays = sorted.filter((d: any) => d.appointments.length > 0);
   if (aptDays.length > 0) {
     const aptRows: any[][] = [];
+    const PERIOD_LABELS_SH: Record<string, string> = { mattina: 'Mattina', pranzo: 'Pranzo', pomeriggio: 'Pomeriggio', sera: 'Sera' };
+    const fmtAptTimeSh = (a: any) => a.allDay ? 'Giornata intera' : a.period ? (PERIOD_LABELS_SH[a.period] || a.period) : (a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '—');
     for (const d of aptDays) {
       const ds = new Date(d.date + 'T00:00:00').toLocaleDateString(locale);
       for (const a of d.appointments) {
-        aptRows.push([ds, d.location, a.time || '—', a.endTime || '', a.client, STATUS_LABELS[a.status] || a.status, a.notes || '']);
+        aptRows.push([ds, d.location, fmtAptTimeSh(a), a.client, a.notes || '', STATUS_LABELS[a.status] || a.status]);
       }
     }
-    const ws4 = XLSX.utils.aoa_to_sheet([['Data', 'Localita', 'Ora Inizio', 'Ora Fine', 'Cliente', 'Stato', 'Note'], ...aptRows]);
-    ws4['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 16 }, { wch: 25 }];
+    const ws4 = XLSX.utils.aoa_to_sheet([['Data', 'Localita', 'Orario', 'Cliente / Descrizione', 'Note', 'Stato'], ...aptRows]);
+    ws4['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 16 }, { wch: 30 }, { wch: 25 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, ws4, 'Appuntamenti');
   }
 

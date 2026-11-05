@@ -26,6 +26,8 @@ interface Flight {
   endDate?: string;
 }
 
+type AptPeriod = 'mattina' | 'pranzo' | 'pomeriggio' | 'sera';
+
 interface Appointment {
   id: string;
   time: string;
@@ -35,6 +37,8 @@ interface Appointment {
   notes: string;
   allDay?: boolean;
   endDate?: string;
+  period?: AptPeriod;
+  aptType?: 'cliente' | 'impegno';
 }
 
 interface TravelDay {
@@ -106,6 +110,23 @@ function flightSortTime(f: Flight): string {
   if (f.departureTime) return f.departureTime;
   const extracted = extractTime(f.details);
   return extracted;
+}
+
+const PERIOD_SORT: Record<AptPeriod, string> = { mattina: '07:00', pranzo: '12:00', pomeriggio: '14:30', sera: '20:00' };
+const PERIOD_LABELS: Record<AptPeriod, string> = { mattina: 'Mattina', pranzo: 'Pranzo', pomeriggio: 'Pomeriggio', sera: 'Sera' };
+
+function aptSortKey(a: Appointment): string {
+  if (a.allDay) return '00:00';
+  if (a.time) return a.time;
+  if (a.period) return PERIOD_SORT[a.period] || '00:00';
+  return '00:00';
+}
+
+function fmtAptTime(a: Appointment): string {
+  if (a.allDay) return 'Giornata intera';
+  if (a.time) return a.time + (a.endTime ? `–${a.endTime}` : '');
+  if (a.period) return PERIOD_LABELS[a.period];
+  return '—';
 }
 
 // ---- Status Dropdown ----
@@ -212,7 +233,7 @@ export const TripDetail: React.FC = () => {
   const [tripForm, setTripForm] = useState({ name: '', destination: '', startDate: '', endDate: '', notes: '' });
   const [dayForm, setDayForm] = useState({ date: '', dateTo: '', location: '', notes: '' });
   const [dayMultiMode, setDayMultiMode] = useState(false);
-  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '', targetDayId: '' });
+  const [aptForm, setAptForm] = useState({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '', targetDayId: '', period: '' as string, aptType: 'cliente' as string, timingMode: 'orario' as string });
 
   // Client autocomplete
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
@@ -478,10 +499,13 @@ export const TripDetail: React.FC = () => {
   // ---- Appointment ops ----
   const saveApt = () => {
     if (!trip || !aptContext) return;
+    const isPeriodMode = aptForm.timingMode !== 'orario' && aptForm.timingMode !== 'allday';
     const aptData = {
       ...aptForm,
-      time: aptForm.allDay ? '' : aptForm.time,
-      endTime: aptForm.allDay ? '' : aptForm.endTime,
+      time: (aptForm.timingMode === 'allday' || isPeriodMode) ? '' : aptForm.time,
+      endTime: (aptForm.timingMode === 'allday' || isPeriodMode) ? '' : aptForm.endTime,
+      allDay: aptForm.timingMode === 'allday',
+      period: isPeriodMode ? aptForm.timingMode as AptPeriod : undefined,
     };
     const baseDay = trip.days.find(d => d.id === aptContext.dayId);
     const isMultiDay = !aptContext.apt && aptForm.endDate && baseDay && aptForm.endDate > baseDay.date;
@@ -820,7 +844,7 @@ export const TripDetail: React.FC = () => {
                     {/* Trasporti + Appuntamenti unificati, ordinati per orario */}
                     {[
                       ...day.flights.map(f => ({ kind: 'flight' as const, sortTime: flightSortTime(f), f, a: null as Appointment | null })),
-                      ...day.appointments.map(a => ({ kind: 'apt' as const, sortTime: a.time || '00:00', f: null as Flight | null, a })),
+                      ...day.appointments.map(a => ({ kind: 'apt' as const, sortTime: aptSortKey(a), f: null as Flight | null, a })),
                     ].sort((x, y) => x.sortTime.localeCompare(y.sortTime)).map(item => item.f ? (
                       <div key={item.f.id} className="td-flight-item">
                         <span className="td-flight-icon">{TRANSPORT_ICONS[item.f.type || 'volo']}</span>
@@ -843,13 +867,13 @@ export const TripDetail: React.FC = () => {
                     ) : item.a ? (
                       <div key={item.a.id} className="td-apt-item">
                         <div className="td-apt-time">
-                          {item.a.allDay ? <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>Giornata intera</span> : (item.a.time || '—')}{!item.a.allDay && item.a.endTime ? `–${item.a.endTime}` : ''}
+                          <span style={{ fontSize: item.a.allDay || item.a.period ? '0.7rem' : undefined, opacity: item.a.allDay ? 0.7 : 1 }}>{fmtAptTime(item.a)}</span>
                         </div>
                         <div className="td-apt-main">
                           <div className="td-apt-client">{item.a.client}</div>
                           {item.a.notes && <div className="td-apt-notes">{item.a.notes}</div>}
                         </div>
-                        {item.a.status === 'confermato' && (
+                        {item.a.status === 'confermato' && item.a.aptType !== 'impegno' && (
                           <button
                             className="td-visit-link"
                             title="Crea visita e segna come Fatto/Report"
@@ -859,7 +883,7 @@ export const TripDetail: React.FC = () => {
                             }}
                           >+ Visita</button>
                         )}
-                        {item.a.status === 'fatto_report' && (() => {
+                        {item.a.status === 'fatto_report' && item.a.aptType !== 'impegno' && (() => {
                           // Cerca lo stato di consegna della visita corrispondente
                           // matching per "client|date" — fallback al badge generico se non trovata
                           const key = `${(item.a.client || '').trim().toLowerCase()}|${day.date}`;
@@ -878,7 +902,7 @@ export const TripDetail: React.FC = () => {
                         })()}
                         <StatusDropdown status={item.a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, item.a!.id, s)} type="apt" />
                         <div className="td-item-actions">
-                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id, apt: item.a! }); setAptForm({ time: item.a!.time, endTime: item.a!.endTime, client: item.a!.client, status: item.a!.status, notes: item.a!.notes, allDay: item.a!.allDay || false, endDate: '', targetDayId: day.id }); setShowAptModal(true); }}>
+                          <button className="td-icon-btn-sm" title="Modifica" onClick={e => { e.stopPropagation(); const a = item.a!; const tm = a.allDay ? 'allday' : a.period ? a.period : 'orario'; setAptContext({ dayId: day.id, apt: a }); setAptForm({ time: a.time, endTime: a.endTime, client: a.client, status: a.status, notes: a.notes, allDay: a.allDay || false, endDate: '', targetDayId: day.id, period: a.period || '', aptType: a.aptType || 'cliente', timingMode: tm }); setShowAptModal(true); }}>
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                           </button>
                           <button className="td-icon-btn-sm danger" title="Elimina" onClick={e => { e.stopPropagation(); deleteApt(day.id, item.a!.id); }}>
@@ -895,7 +919,7 @@ export const TripDetail: React.FC = () => {
                     <div className="td-day-actions">
                       <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setFlightForm({ route: '', details: '', status: 'programmato', type: 'volo', departureTime: '', arrivalTime: '', flightDate: '', flightEndDate: '' }); setEditingFlight(null); setShowFlightForm(day.id); }}>+ Trasporto</button>
                       <button className="td-action-link purple" onClick={e => { e.stopPropagation(); setHotelForm({ name: '', checkIn: day.date, checkOut: day.date, status: 'programmato' }); setEditingHotel(null); setShowHotelForm(day.id); }}>+ Hotel</button>
-                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '', targetDayId: day.id }); setShowAptModal(true); }}>+ Appuntamento</button>
+                      <button className="td-action-link teal" onClick={e => { e.stopPropagation(); setAptContext({ dayId: day.id }); setAptForm({ time: '', endTime: '', client: '', status: 'programmato', notes: '', allDay: false, endDate: '', targetDayId: day.id, period: '', aptType: 'cliente', timingMode: 'orario' }); setShowAptModal(true); }}>+ Appuntamento</button>
                       <button className="td-action-link muted" onClick={e => { e.stopPropagation(); setEditingDay(day); setDayForm({ date: day.date, dateTo: '', location: day.location, notes: day.notes }); setShowDayModal(true); }}>✏ Modifica</button>
                       <button className="td-action-link red" onClick={e => { e.stopPropagation(); deleteDay(day.id); }}>🗑 Elimina</button>
                     </div>
@@ -959,10 +983,10 @@ export const TripDetail: React.FC = () => {
                         ))}
                       </td>
                       <td>
-                        {[...day.appointments].sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00')).map(a => (
+                        {[...day.appointments].sort((a, b) => aptSortKey(a).localeCompare(aptSortKey(b))).map(a => (
                           <div key={a.id} className="td-rpt-row">
-                            <span className="td-rpt-time">{a.time || '—'}{a.endTime ? `–${a.endTime}` : ''}</span>
-                            <span className="td-rpt-client">{a.client}</span>
+                            <span className="td-rpt-time">{fmtAptTime(a)}</span>
+                            <span className="td-rpt-client">{a.client}{a.notes ? <span style={{ fontWeight: 400, opacity: 0.7 }}> · {a.notes}</span> : ''}</span>
                             <StatusDropdown status={a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, a.id, s)} type="apt" />
                           </div>
                         ))}
@@ -1052,15 +1076,15 @@ export const TripDetail: React.FC = () => {
                   <col style={{ width: 'auto' }} />
                   <col style={{ width: '110px' }} />
                 </colgroup>
-                <thead><tr><th>Data</th><th>Localita</th><th>Ora Inizio</th><th>Ora Fine</th><th>Cliente</th><th>Stato</th></tr></thead>
+                <thead><tr><th>Data</th><th>Localita</th><th>Orario</th><th>Cliente / Descrizione</th><th>Note</th><th>Stato</th></tr></thead>
                 <tbody>
-                  {sortedDays.flatMap(day => [...day.appointments].sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00')).map(a => (
+                  {sortedDays.flatMap(day => [...day.appointments].sort((a, b) => aptSortKey(a).localeCompare(aptSortKey(b))).map(a => (
                     <tr key={a.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtShort(day.date)}</td>
                       <td>{day.location}</td>
-                      <td style={{ fontFamily: 'monospace' }}>{a.time || '—'}</td>
-                      <td style={{ fontFamily: 'monospace' }}>{a.endTime || ''}</td>
+                      <td style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtAptTime(a)}</td>
                       <td style={{ fontWeight: 600 }}>{a.client}</td>
+                      <td className="td-report-muted">{a.notes || ''}</td>
                       <td><StatusDropdown status={a.status} statuses={APT_STATUSES} onChange={s => updateAptStatus(day.id, a.id, s)} type="apt" /></td>
                     </tr>
                   )))}
@@ -1231,6 +1255,23 @@ export const TripDetail: React.FC = () => {
         <div className="modal-overlay" onClick={() => setShowAptModal(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <h2 className="modal-title">{aptContext?.apt ? 'Modifica Appuntamento' : 'Nuovo Appuntamento'}</h2>
+
+            {/* Tipo toggle */}
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {(['cliente', 'impegno'] as const).map(t => (
+                  <button key={t} type="button"
+                    style={{ flex: 1, padding: '0.45rem', borderRadius: 8, border: '1.5px solid', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                      background: aptForm.aptType === t ? '#506A7E' : 'white',
+                      color: aptForm.aptType === t ? 'white' : '#506A7E',
+                      borderColor: aptForm.aptType === t ? '#506A7E' : 'rgba(160,154,150,0.4)' }}
+                    onClick={() => setAptForm(f => ({ ...f, aptType: t, client: '' }))}>
+                    {t === 'cliente' ? '👤 Cliente' : '📌 Impegno vario'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {aptContext?.apt && (
               <div className="form-group">
                 <label>Giorno</label>
@@ -1243,47 +1284,59 @@ export const TripDetail: React.FC = () => {
                 </select>
               </div>
             )}
+
             <div className="form-group">
-              <label>Cliente *</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  value={aptForm.client}
-                  autoFocus
-                  placeholder="Nome cliente o cerca..."
-                  onChange={e => {
-                    const val = e.target.value;
-                    setAptForm(f => ({ ...f, client: val }));
-                    if (val.length >= 1) {
-                      const filtered = clients.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
-                      setClientSuggestions(filtered);
-                      setShowSuggestions(filtered.length > 0);
-                    } else {
-                      setShowSuggestions(false);
-                    }
-                  }}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                />
-                {showSuggestions && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'white', border: '1px solid rgba(160,154,150,0.3)', borderRadius: '0.5rem', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' }}>
-                    {clientSuggestions.map(c => (
-                      <div key={c.id} onMouseDown={() => { setAptForm(f => ({ ...f, client: c.name })); setShowSuggestions(false); }}
-                        style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', color: '#506A7E', borderBottom: '1px solid rgba(160,154,150,0.1)' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F0EDE5')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
-                        {c.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <label>{aptForm.aptType === 'impegno' ? 'Descrizione *' : 'Cliente *'}</label>
+              {aptForm.aptType === 'impegno' ? (
+                <input value={aptForm.client} autoFocus placeholder="Descrizione impegno..." onChange={e => setAptForm(f => ({ ...f, client: e.target.value }))} />
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <input
+                    value={aptForm.client}
+                    autoFocus
+                    placeholder="Nome cliente o cerca..."
+                    onChange={e => {
+                      const val = e.target.value;
+                      setAptForm(f => ({ ...f, client: val }));
+                      if (val.length >= 1) {
+                        const filtered = clients.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
+                        setClientSuggestions(filtered);
+                        setShowSuggestions(filtered.length > 0);
+                      } else {
+                        setShowSuggestions(false);
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  />
+                  {showSuggestions && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'white', border: '1px solid rgba(160,154,150,0.3)', borderRadius: '0.5rem', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' }}>
+                      {clientSuggestions.map(c => (
+                        <div key={c.id} onMouseDown={() => { setAptForm(f => ({ ...f, client: c.name })); setShowSuggestions(false); }}
+                          style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.875rem', color: '#506A7E', borderBottom: '1px solid rgba(160,154,150,0.1)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#F0EDE5')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
+                          {c.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="form-group" style={{ marginBottom: '0.5rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 400 }}>
-                <input type="checkbox" checked={aptForm.allDay} onChange={e => setAptForm(f => ({ ...f, allDay: e.target.checked, time: '', endTime: '' }))} />
-                Giornata intera (senza orari)
-              </label>
+
+            {/* Timing selector */}
+            <div className="form-group">
+              <label>Orario</label>
+              <select value={aptForm.timingMode} onChange={e => setAptForm(f => ({ ...f, timingMode: e.target.value, time: '', endTime: '', allDay: e.target.value === 'allday', period: '' }))}>
+                <option value="orario">Orario specifico</option>
+                <option value="mattina">Mattina</option>
+                <option value="pranzo">Pranzo</option>
+                <option value="pomeriggio">Pomeriggio</option>
+                <option value="sera">Sera</option>
+                <option value="allday">Giornata intera</option>
+              </select>
             </div>
-            {!aptForm.allDay && (
+            {aptForm.timingMode === 'orario' && (
               <div className="form-row">
                 <div className="form-group">
                   <label>Ora inizio</label>

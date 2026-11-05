@@ -67,9 +67,11 @@ export function exportTripPdf(trip: any, dateFrom?: string, dateTo?: string) {
     const d = new Date(day.date + 'T00:00:00');
     const dateStr = d.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: 'short' });
     const flightStr = day.flights.map((f: any) => `${f.route}\n${f.details}`).join('\n\n');
+    const PERIOD_LABELS: Record<string, string> = { mattina: 'Mattina', pranzo: 'Pranzo', pomeriggio: 'Pomeriggio', sera: 'Sera' };
     const aptsStr = day.appointments.map((a: any) => {
-      const t = a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '—';
-      return `${t} ${a.client} [${STATUS_LABELS[a.status] || a.status}]`;
+      const t = a.allDay ? 'Giornata intera' : a.period ? PERIOD_LABELS[a.period] || a.period : (a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '—');
+      const notesPart = a.notes ? ` (${a.notes})` : '';
+      return `${t} ${a.client}${notesPart} [${STATUS_LABELS[a.status] || a.status}]`;
     }).join('\n');
     const hotelsForDay = filteredHotels.filter((h: any) => h.checkIn <= day.date && h.checkOut >= day.date);
     const hotelStr = hotelsForDay.map((h: any) => h.name).join(', ');
@@ -153,13 +155,14 @@ export function exportTripPdf(trip: any, dateFrom?: string, dateTo?: string) {
     const aptData: string[][] = [];
     for (const day of aptDays) {
       const dateStr = new Date(day.date + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: 'short' });
+      const PERIOD_LABELS_APT: Record<string, string> = { mattina: 'Mattina', pranzo: 'Pranzo', pomeriggio: 'Pomeriggio', sera: 'Sera' };
       for (const a of day.appointments) {
-        const t = a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '—';
-        aptData.push([dateStr, day.location, t, a.client, STATUS_LABELS[a.status] || a.status, a.notes]);
+        const t = a.allDay ? 'Giornata intera' : a.period ? (PERIOD_LABELS_APT[a.period] || a.period) : (a.time ? (a.endTime ? `${a.time}-${a.endTime}` : a.time) : '—');
+        aptData.push([dateStr, day.location, t, a.client, a.notes || '', STATUS_LABELS[a.status] || a.status]);
       }
     }
     autoTable(doc, {
-      startY: 22, head: [['Data', 'Localita', 'Ora', 'Cliente', 'Stato', 'Note']],
+      startY: 22, head: [['Data', 'Localita', 'Orario', 'Cliente / Descrizione', 'Note', 'Stato']],
       body: aptData, theme: 'grid',
       styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2 },
       headStyles: { fillColor: [74, 110, 72], textColor: COLORS.white, fontStyle: 'bold' },
