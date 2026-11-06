@@ -169,6 +169,116 @@ router.put('/:id', checkVisitPermission, async (req: Request, res: Response) => 
   }
 });
 
+// POST /clients/:fromId/merge-into/:toId
+// Sposta tutti i dati dal cliente "from" al cliente "to", poi elimina "from"
+router.post('/:fromId/merge-into/:toId', async (req: Request, res: Response) => {
+  try {
+    const userRole = (req.user as any)?.role;
+    if (userRole !== 'admin' && userRole !== 'manager' && userRole !== 'master_admin') {
+      return res.status(403).json({ success: false, error: 'Only administrators can merge clients' });
+    }
+
+    const { fromId, toId } = req.params;
+    if (fromId === toId) return res.status(400).json({ success: false, error: 'Cannot merge a client with itself' });
+
+    const { AppDataSource } = await import('../config/database');
+    const fromClient = await clientService.getClientById(fromId);
+    const toClient   = await clientService.getClientById(toId);
+    if (!fromClient) return res.status(404).json({ success: false, error: 'Source client not found' });
+    if (!toClient)   return res.status(404).json({ success: false, error: 'Target client not found' });
+
+    const results: Record<string, number> = {};
+
+    // Tabelle con client_id semplice — UPDATE diretto
+    const simpleTables = [
+      'visits', 'projects', 'claims', 'customer_orders',
+      'invoices', 'offers', 'opportunities', 'showrooms',
+      'todo_items', 'commission_rates', 'sub_agent_commission_rates',
+    ];
+    for (const table of simpleTables) {
+      const r = await AppDataSource.query(
+        `UPDATE ${table} SET client_id = $1 WHERE client_id = $2`,
+        [toId, fromId]
+      );
+      const count = r?.rowCount ?? r?.affectedRows ?? 0;
+      if (count > 0) results[table] = count;
+    }
+
+    // client_contacts — sposta i contatti
+    const contactsR = await AppDataSource.query(
+      `UPDATE client_contacts SET client_id = $1 WHERE client_id = $2`,
+      [toId, fromId]
+    );
+    const contactsCount = contactsR?.rowCount ?? contactsR?.affectedRows ?? 0;
+    if (contactsCount > 0) results['client_contacts'] = contactsCount;
+
+    // client_companies — sposta solo le associazioni non già presenti nel target (evita violazione UNIQUE)
+    const existing = await AppDataSource.query(
+      `SELECT company_id FROM client_companies WHERE client_id = $1`, [toId]
+    );
+    const existingIds = new Set(existing.map((r: any) => r.company_id));
+    const toMove = await AppDataSource.query(
+      `SELECT company_id FROM client_companies WHERE client_id = $1`, [fromId]
+    );
+    let movedCompanies = 0;
+    for (const row of toMove) {
+      if (!existingIds.has(row.company_id)) {
+        await AppDataSource.query(
+          `UPDATE client_companies SET client_id = $1 WHERE client_id = $2 AND company_id = $3`,
+          [toId, fromId, row.company_id]
+        );
+        movedCompanies++;
+      } else {
+        await AppDataSource.query(
+          `DELETE FROM client_companies WHERE client_id = $1 AND company_id = $2`,
+          [fromId, row.company_id]
+        );
+      }
+    }
+    if (movedCompanies > 0) results['client_companies'] = movedCompanies;
+
+    // user_permissions — sposta le permission non già esistenti nel target
+    const existingPerms = await AppDataSource.query(
+      `SELECT user_id, company_id FROM user_permissions WHERE client_id = $1`, [toId]
+    );
+    const existingPermKeys = new Set(existingPerms.map((r: any) => `${r.user_id}:${r.company_id}`));
+    const fromPerms = await AppDataSource.query(
+      `SELECT user_id, company_id FROM user_permissions WHERE client_id = $1`, [fromId]
+    );
+    let movedPerms = 0;
+    for (const row of fromPerms) {
+      const key = `${row.user_id}:${row.company_id}`;
+      if (!existingPermKeys.has(key)) {
+        await AppDataSource.query(
+          `UPDATE user_permissions SET client_id = $1 WHERE client_id = $2 AND user_id = $3 AND company_id = $4`,
+          [toId, fromId, row.user_id, row.company_id]
+        );
+        movedPerms++;
+      } else {
+        await AppDataSource.query(
+          `DELETE FROM user_permissions WHERE client_id = $1 AND user_id = $2 AND company_id = $3`,
+          [fromId, row.user_id, row.company_id]
+        );
+      }
+    }
+    if (movedPerms > 0) results['user_permissions'] = movedPerms;
+
+    // Elimina il cliente sorgente
+    await clientService.deleteClient(fromId);
+
+    res.json({
+      success: true,
+      message: `Merged "${fromClient.name}" into "${toClient.name}" and deleted source`,
+      moved: results,
+      from: { id: fromId, name: fromClient.name },
+      to:   { id: toId,   name: toClient.name },
+    });
+  } catch (error) {
+    console.error('Error merging clients:', error);
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
 router.delete('/:id', checkVisitPermission, async (req: Request, res: Response) => {
   try {
     const userRole = (req.user as any)?.role;
