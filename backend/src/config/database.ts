@@ -45,6 +45,7 @@ import { Trip } from '../entities/Trip';
 import { ProjectAttachment } from '../entities/ProjectAttachment';
 import { ProjectMovement } from '../entities/ProjectMovement';
 import { ProjectMovementAttachment } from '../entities/ProjectMovementAttachment';
+import { ClientRelationship } from '../entities/ClientRelationship';
 
 require('dotenv').config();
 
@@ -59,7 +60,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'visit_tracker',
   synchronize: true,
   logging: isDevelopment,
-  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany, Showroom, ShowroomPhotoAlbum, ShowroomPhoto, Offer, OfferItem, OfferAttachment, OfferItemAttachment, UserLoginLog, Opportunity, OpportunityAdvance, OpportunityAttachment, OpportunityAdvanceAttachment, Trip, ProjectAttachment, ProjectMovement, ProjectMovementAttachment],
+  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany, Showroom, ShowroomPhotoAlbum, ShowroomPhoto, Offer, OfferItem, OfferAttachment, OfferItemAttachment, UserLoginLog, Opportunity, OpportunityAdvance, OpportunityAttachment, OpportunityAdvanceAttachment, Trip, ProjectAttachment, ProjectMovement, ProjectMovementAttachment, ClientRelationship],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: ['src/subscribers/**/*.ts'],
 });

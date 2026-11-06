@@ -279,6 +279,65 @@ router.post('/:fromId/merge-into/:toId', async (req: Request, res: Response) => 
   }
 });
 
+// ---- Referral relationships ----
+// GET /clients/:id/referrals — returns all relationships where this client appears (as from OR to)
+router.get('/:id/referrals', async (req: Request, res: Response) => {
+  try {
+    const { AppDataSource } = await import('../config/database');
+    const rows = await AppDataSource.query(`
+      SELECT cr.id, cr.from_client_id, cr.to_client_id, cr.relationship_type, cr.notes, cr.created_at,
+             fc.name AS from_name, fc.role AS from_role,
+             tc.name AS to_name,   tc.role AS to_role
+      FROM client_relationships cr
+      JOIN clients fc ON fc.id = cr.from_client_id
+      JOIN clients tc ON tc.id = cr.to_client_id
+      WHERE cr.from_client_id = $1 OR cr.to_client_id = $1
+      ORDER BY cr.created_at DESC
+    `, [req.params.id]);
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// POST /clients/:id/referrals — link this client to another { linkedClientId, notes }
+// direction: :id = "from", linkedClientId = "to"  (can be reversed if needed)
+router.post('/:id/referrals', async (req: Request, res: Response) => {
+  try {
+    const { linkedClientId, notes, reverse } = req.body;
+    if (!linkedClientId) return res.status(400).json({ success: false, error: 'linkedClientId required' });
+    const fromId = reverse ? linkedClientId : req.params.id;
+    const toId   = reverse ? req.params.id   : linkedClientId;
+    const { AppDataSource } = await import('../config/database');
+    const existing = await AppDataSource.query(
+      `SELECT id FROM client_relationships WHERE (from_client_id = $1 AND to_client_id = $2) OR (from_client_id = $2 AND to_client_id = $1)`,
+      [fromId, toId]
+    );
+    if (existing.length > 0) return res.status(409).json({ success: false, error: 'Relationship already exists' });
+    const [row] = await AppDataSource.query(
+      `INSERT INTO client_relationships (from_client_id, to_client_id, relationship_type, notes) VALUES ($1, $2, 'referral', $3) RETURNING *`,
+      [fromId, toId, notes || null]
+    );
+    res.status(201).json({ success: true, data: row });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// DELETE /clients/:id/referrals/:relId — remove a relationship
+router.delete('/:id/referrals/:relId', async (req: Request, res: Response) => {
+  try {
+    const { AppDataSource } = await import('../config/database');
+    await AppDataSource.query(
+      `DELETE FROM client_relationships WHERE id = $1 AND (from_client_id = $2 OR to_client_id = $2)`,
+      [req.params.relId, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
 router.delete('/:id', checkVisitPermission, async (req: Request, res: Response) => {
   try {
     const userRole = (req.user as any)?.role;
