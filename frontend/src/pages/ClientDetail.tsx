@@ -377,21 +377,39 @@ export const ClientDetail: React.FC = () => {
                       {contact.phone && <div className="cd-contact-field"><span className="cd-field-label">Phone</span> <a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
                       {contact.wechat && <div className="cd-contact-field"><span className="cd-field-label">WeChat</span> {contact.wechat}</div>}
                       {contact.notes && <div className="cd-contact-field"><span className="cd-field-label">Notes</span> {contact.notes}</div>}
-                      {(contact as any).business_card_filename && (
+                      {((contact as any).business_card_filename || (contact as any).business_card_back_filename) && (
                         <div className="cd-contact-field">
                           <span className="cd-field-label">Business Card</span>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const res = await apiService.downloadBusinessCard(id!, contact.id);
-                                if (res.success && res.data?.url) window.open(res.data.url, '_blank');
-                              } catch {}
-                            }}
-                            style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline' }}
-                          >
-                            {(contact as any).business_card_filename}
-                          </button>
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {(contact as any).business_card_filename && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const res = await apiService.downloadBusinessCard(id!, contact.id, 'front');
+                                    if (res.success && res.data?.url) window.open(res.data.url, '_blank');
+                                  } catch {}
+                                }}
+                                style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline', textAlign: 'left' }}
+                              >
+                                Fronte: {(contact as any).business_card_filename}
+                              </button>
+                            )}
+                            {(contact as any).business_card_back_filename && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const res = await apiService.downloadBusinessCard(id!, contact.id, 'back');
+                                    if (res.success && res.data?.url) window.open(res.data.url, '_blank');
+                                  } catch {}
+                                }}
+                                style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline', textAlign: 'left' }}
+                              >
+                                Retro: {(contact as any).business_card_back_filename}
+                              </button>
+                            )}
+                          </span>
                         </div>
                       )}
                     </div>
