@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSessionState, useScrollRestore } from '../hooks/useSessionState';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, ClientContact, Visit, TodoItem, Company } from '../types';
@@ -47,14 +48,15 @@ export const Clients: React.FC = () => {
   const [isAddingCountry, setIsAddingCountry] = useState(false);
   const [newCountryInput, setNewCountryInput] = useState('');
 
-  // Filters
-  const [localSearch, setLocalSearch] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
+  // Filters — persisted across back navigation
+  const [localSearch, setLocalSearch] = useSessionState('clients__search', '');
+  const [countryFilter, setCountryFilter] = useSessionState('clients__country', '');
+  const [roleFilter, setRoleFilter] = useSessionState('clients__role', '');
 
   // UI
-  const [activeTab, setActiveTab] = useState<'list' | 'duplicates'>('list');
+  const [activeTab, setActiveTab] = useSessionState<'list' | 'duplicates'>('clients__tab', 'list');
   const [loading, setLoading] = useState(true);
+  useScrollRestore('clients', !loading);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);

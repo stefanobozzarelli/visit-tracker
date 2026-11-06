@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSessionState, useScrollRestore } from '../hooks/useSessionState';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -28,13 +29,13 @@ export const Projects: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Filters (initialized from URL params for back-navigation persistence)
-  const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [supplierFilter, setSupplierFilter] = useState(searchParams.get('supplier') || '');
-  const [clientFilter, setClientFilter] = useState(searchParams.get('client') || '');
-  const [countryFilter, setCountryFilter] = useState(searchParams.get('country') || '');
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
-  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || '');
+  // Filters
+  const [search, setSearch] = useSessionState('projects__search', '');
+  const [supplierFilter, setSupplierFilter] = useSessionState('projects__supplier', '');
+  const [clientFilter, setClientFilter] = useSessionState('projects__client', '');
+  const [countryFilter, setCountryFilter] = useSessionState('projects__country', '');
+  const [statusFilter, setStatusFilter] = useSessionState('projects__status', '');
+  const [typeFilter, setTypeFilter] = useSessionState('projects__type', '');
 
   // AI Search
   const [nlpQuery, setNlpQuery] = useState('');
@@ -50,6 +51,8 @@ export const Projects: React.FC = () => {
 
   // Highlight
   const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  useScrollRestore('projects', !loading);
 
   // Handle highlight from URL
   useEffect(() => {

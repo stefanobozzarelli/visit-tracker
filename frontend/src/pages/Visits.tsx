@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSessionState, useScrollRestore } from '../hooks/useSessionState';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Visit, Client, Company, User, TodoItem, VisitReport } from '../types';
@@ -86,22 +87,22 @@ export const Visits: React.FC = () => {
   const [todos, setTodos] = useState<TodoItem[]>([]);
 
   // Filters
-  const [clientId, setClientId] = useState('');
-  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
+  const [clientId, setClientId] = useSessionState('visits__clientId', '');
+  const [selectedCompanyIds, setSelectedCompanyIds] = useSessionState<string[]>('visits__companies', []);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
-  const [visitedBy, setVisitedBy] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
-  const [localSearch, setLocalSearch] = useState('');
+  const [visitedBy, setVisitedBy] = useSessionState('visits__visitedBy', '');
+  const [statusFilter, setStatusFilter] = useSessionState('visits__status', '');
+  const [countryFilter, setCountryFilter] = useSessionState('visits__country', '');
+  const [localSearch, setLocalSearch] = useSessionState('visits__search', '');
 
   // Quick filters
-  const [thisMonth, setThisMonth] = useState(false);
-  const [last30Days, setLast30Days] = useState(false);
-  const [withReport, setWithReport] = useState(false);
-  const [missingReport, setMissingReport] = useState(false);
-  const [partialDeliveredFilter, setPartialDeliveredFilter] = useState(false);
-  const [fullyDeliveredFilter, setFullyDeliveredFilter] = useState(false);
-  const [followUpNeeded, setFollowUpNeeded] = useState(false);
+  const [thisMonth, setThisMonth] = useSessionState('visits__thisMonth', false);
+  const [last30Days, setLast30Days] = useSessionState('visits__last30', false);
+  const [withReport, setWithReport] = useSessionState('visits__withReport', false);
+  const [missingReport, setMissingReport] = useSessionState('visits__missingReport', false);
+  const [partialDeliveredFilter, setPartialDeliveredFilter] = useSessionState('visits__partialDelivered', false);
+  const [fullyDeliveredFilter, setFullyDeliveredFilter] = useSessionState('visits__fullyDelivered', false);
+  const [followUpNeeded, setFollowUpNeeded] = useSessionState('visits__followUp', false);
 
   // NLP search
   const [nlpQuery, setNlpQuery] = useState('');
@@ -116,6 +117,8 @@ export const Visits: React.FC = () => {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+
+  useScrollRestore('visits', !loading);
 
   // Close menu on click outside
   useEffect(() => {

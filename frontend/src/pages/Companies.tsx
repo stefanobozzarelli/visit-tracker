@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSessionState, useScrollRestore } from '../hooks/useSessionState';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -24,7 +25,7 @@ export const Companies: React.FC = () => {
   const [formData, setFormData] = useState({ name: '', country: '', industry: '', rapporto: '' });
   const [isAddingSector, setIsAddingSector] = useState(false);
   const [newSectorInput, setNewSectorInput] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useSessionState('companies__search', '');
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
 
@@ -39,6 +40,8 @@ export const Companies: React.FC = () => {
   useEffect(() => {
     if (success) { const t = setTimeout(() => setSuccess(''), 4000); return () => clearTimeout(t); }
   }, [success]);
+
+  useScrollRestore('companies', !isLoading);
 
   useEffect(() => { loadData(); }, []);
 
