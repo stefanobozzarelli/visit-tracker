@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Client, ClientContact, Visit, TodoItem, Company, Project, Claim, Showroom } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
+import { ClientReferrals } from '../components/ClientReferrals';
 import '../styles/ClientDetail.css';
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
@@ -22,6 +23,7 @@ export const ClientDetail: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [showrooms, setShowrooms] = useState<Showroom[]>([]);
+  const [allClients, setAllClients] = useState<any[]>([]);
   const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,7 @@ export const ClientDetail: React.FC = () => {
       try { const r = await apiService.getProjects({ client_id: id }); if (r.success) setProjects(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getClaims({ client_id: id }); if (r.success) setClaims(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getShowrooms({ clientId: id }); if (r.success) setShowrooms(Array.isArray(r.data) ? r.data : []); } catch {}
+      try { const r = await apiService.getClients(); if (r.success && r.data) setAllClients(r.data); } catch {}
       if (!isAdmin) {
         try { const r = await apiService.getMyAreas(); if (r.success && r.data) setUserAreaCompanyIds(r.data.companies?.map((c: any) => c.id) || []); } catch {}
       }
@@ -302,6 +305,18 @@ export const ClientDetail: React.FC = () => {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="cd-card">
+            <div className="cd-card-header">
+              <h3>Referral</h3>
+            </div>
+            <ClientReferrals
+              clientId={id!}
+              clientName={client.name}
+              allClients={allClients}
+              isAdmin={isAdmin}
+            />
           </div>
 
           <div className="cd-card">

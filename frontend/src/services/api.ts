@@ -494,6 +494,26 @@ class ApiService {
     return response.data;
   }
 
+  async mergeClients(fromId: string, toId: string) {
+    const response = await this.api.post<ApiResponse<any>>(`/clients/${fromId}/merge-into/${toId}`);
+    return response.data;
+  }
+
+  async getClientReferrals(clientId: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/clients/${clientId}/referrals`);
+    return response.data;
+  }
+
+  async addClientReferral(clientId: string, linkedClientId: string, notes?: string) {
+    const response = await this.api.post<ApiResponse<any>>(`/clients/${clientId}/referrals`, { linkedClientId, notes });
+    return response.data;
+  }
+
+  async deleteClientReferral(clientId: string, relId: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/clients/${clientId}/referrals/${relId}`);
+    return response.data;
+  }
+
   async addClientContact(clientId: string, data: { name: string; role?: string; email?: string; phone?: string; wechat?: string; notes?: string }) {
     const response = await this.api.post<ApiResponse<any>>(`/clients/${clientId}/contacts`, data);
     return response.data;

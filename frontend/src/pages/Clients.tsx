@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import { Client, ClientContact, Visit, TodoItem, Company } from '../types';
 import { METADATA_SECTION } from '../utils/visitMetadata';
 import { downloadBlob } from '../utils/downloadBlob';
+import { ClientDuplicates } from '../components/ClientDuplicates';
 import '../styles/Clients.css';
 
 // ---- Helpers ----
@@ -52,6 +53,7 @@ export const Clients: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('');
 
   // UI
+  const [activeTab, setActiveTab] = useState<'list' | 'duplicates'>('list');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -377,6 +379,37 @@ export const Clients: React.FC = () => {
       {error && <div className="clients-alert clients-alert-error">{error}</div>}
       {success && <div className="clients-alert clients-alert-success">{success}</div>}
 
+      {/* Tab switcher (admin only) */}
+      {isAdmin && (
+        <div style={{ display: 'flex', gap: 0, marginBottom: '1rem', background: 'var(--color-bg)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+          {(['list', 'duplicates'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '0.4rem 1rem', border: 'none', borderRadius: 7, fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+                background: activeTab === tab ? 'white' : 'transparent',
+                color: activeTab === tab ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                boxShadow: activeTab === tab ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              {tab === 'list' ? '📋 Lista' : '🔍 Duplicati'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Duplicates panel */}
+      {activeTab === 'duplicates' && isAdmin && (
+        <div className="clients-form-card" style={{ padding: '1.5rem' }}>
+          <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', color: 'var(--color-primary)' }}>Ricerca duplicati</h3>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+            Confronta tutti i clienti per nome e unisci i doppioni in un click.
+          </p>
+          <ClientDuplicates allClients={clients} />
+        </div>
+      )}
+
       {/* Form */}
       {showForm && (
         <div className="clients-form-card">
@@ -511,8 +544,8 @@ export const Clients: React.FC = () => {
         </div>
       )}
 
-      {/* KPI row */}
-      <div className="clients-kpi-row">
+      {/* KPI row + list (hidden when duplicates tab active) */}
+      {activeTab === 'list' && <><div className="clients-kpi-row">
         <div className="clients-kpi">
           <div className="clients-kpi-icon blue">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
@@ -717,6 +750,8 @@ export const Clients: React.FC = () => {
           </div>
         )}
       </div>
+
+      </>}
 
       {/* Delete modal */}
       {deleteConfirm && (
