@@ -90,23 +90,30 @@ export const ClientReferrals: React.FC<Props> = ({ clientId, clientName, allClie
       ) : (
         <div className="cd-list">
           {linkedClients.map(lc => (
-            <div key={lc.id} className="cd-list-item" style={{ cursor: 'default' }}>
-              <div className="cd-list-main" onClick={() => navigate(`/clients/${lc.otherId}`)} style={{ cursor: 'pointer', flex: 1 }}>
-                <div className="cd-list-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {lc.otherName}
-                  <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: 20, background: 'var(--color-bg)', color: 'var(--color-text-secondary)' }}>
+            <div key={lc.id} className="cd-list-item" style={{ cursor: 'default', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                {/* Direction label */}
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: lc.direction === 'referral_to' ? '#3D7DAA' : '#6a7e3d', marginBottom: 4 }}>
+                  {lc.direction === 'referral_to' ? '↗ Lavora con' : '↙ Lavora per questo cliente'}
+                </div>
+                {/* Client name + role — clickable */}
+                <div
+                  onClick={() => navigate(`/clients/${lc.otherId}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                >
+                  <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>{lc.otherName}</span>
+                  <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 20, background: 'var(--color-bg)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
                     {ROLE_LABELS[lc.otherRole] || lc.otherRole || 'Client'}
                   </span>
                 </div>
-                {lc.notes && <div className="cd-list-sub">{lc.notes}</div>}
-                <div className="cd-list-sub" style={{ fontSize: '0.68rem', opacity: 0.6 }}>
-                  {lc.direction === 'referral_to' ? `↗ ${clientName} → ${lc.otherName}` : `↙ ${lc.otherName} → ${clientName}`}
-                </div>
+                {lc.notes && (
+                  <div style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)', marginTop: 3 }}>{lc.notes}</div>
+                )}
               </div>
               {isAdmin && (
                 <button
                   onClick={() => removeRel(lc.relId)}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-danger, #c0392b)', cursor: 'pointer', fontSize: '1rem', padding: '0 4px', opacity: 0.6 }}
+                  style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: '1.1rem', padding: '2px 4px', opacity: 0.5, marginTop: 2 }}
                   title="Rimuovi collegamento"
                 >×</button>
               )}
