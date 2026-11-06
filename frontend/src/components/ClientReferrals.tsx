@@ -94,7 +94,7 @@ export const ClientReferrals: React.FC<Props> = ({ clientId, clientName, allClie
               <div style={{ flex: 1 }}>
                 {/* Direction label */}
                 <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: lc.direction === 'referral_to' ? '#3D7DAA' : '#6a7e3d', marginBottom: 4 }}>
-                  {lc.direction === 'referral_to' ? '↗ Lavora con' : '↙ Cliente di riferimento per:'}
+                  {lc.direction === 'referral_to' ? '↗ Il suo cliente di riferimento è' : '↙ Cliente di riferimento per:'}
                 </div>
                 {/* Client name + role — clickable */}
                 <div
