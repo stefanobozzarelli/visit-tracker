@@ -257,6 +257,27 @@ export const TripDetail: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, [showExportMenu]);
 
+  const scrollToToday = useCallback((todayId: string) => {
+    const el = document.getElementById(`trip-day-${todayId}`);
+    if (el) {
+      const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
+      const offset = headerBar ? headerBar.offsetHeight + 12 : 80;
+      const top = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  }, []);
+
+  // Scroll to today whenever the list tab is active (tab switch or initial load)
+  const didInitialScrollRef = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'list' || !trip) return;
+    const todayDay = trip.days.find(d => d.date === todayStr);
+    if (!todayDay) return;
+    // Always scroll on tab switch; on initial load scroll once after data arrives
+    scrollToToday(todayDay.id);
+    didInitialScrollRef.current = true;
+  }, [activeTab, trip]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadTrip = async () => {
     try {
       const res = await (apiService as any).getTrip(id);
@@ -266,15 +287,6 @@ export const TripDetail: React.FC = () => {
         const today = res.data.days.find((d: TravelDay) => d.date === todayStr);
         if (today) {
           setExpandedDays(new Set([today.id]));
-          setTimeout(() => {
-            const el = document.getElementById(`trip-day-${today.id}`);
-            if (el) {
-              const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
-              const offset = headerBar ? headerBar.offsetHeight + 12 : 80;
-              const top = el.getBoundingClientRect().top + window.scrollY - offset;
-              window.scrollTo({ top, behavior: 'smooth' });
-            }
-          }, 150);
         }
         // Carica le visite del periodo per popolare la mappa delivery
         loadVisitsDeliveryStatus(res.data);
@@ -656,23 +668,7 @@ export const TripDetail: React.FC = () => {
             <button className={`td-tab${activeTab === 'overview' ? ' active' : ''}`} onClick={() => setActiveTab('overview')}>
               📊 Panoramica
             </button>
-            <button className={`td-tab${activeTab === 'list' ? ' active' : ''}`} onClick={() => {
-              setActiveTab('list');
-              if (trip) {
-                const todayDay = trip.days.find(d => d.date === todayStr);
-                if (todayDay) {
-                  setTimeout(() => {
-                    const el = document.getElementById(`trip-day-${todayDay.id}`);
-                    if (el) {
-                      const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
-                      const offset = headerBar ? headerBar.offsetHeight + 12 : 80;
-                      const top = el.getBoundingClientRect().top + window.scrollY - offset;
-                      window.scrollTo({ top, behavior: 'smooth' });
-                    }
-                  }, 50);
-                }
-              }
-            }}>
+            <button className={`td-tab${activeTab === 'list' ? ' active' : ''}`} onClick={() => setActiveTab('list')}>
               ☰ Lista
             </button>
             <button className={`td-tab${activeTab === 'report' ? ' active' : ''}`} onClick={() => setActiveTab('report')}>
