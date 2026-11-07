@@ -258,24 +258,22 @@ export const TripDetail: React.FC = () => {
   }, [showExportMenu]);
 
   const scrollToToday = useCallback((todayId: string) => {
-    const el = document.getElementById(`trip-day-${todayId}`);
-    if (el) {
+    // Use rAF to ensure DOM is painted before measuring
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`trip-day-${todayId}`);
+      if (!el) return;
       const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
       const offset = headerBar ? headerBar.offsetHeight + 12 : 80;
       const top = el.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: 'smooth' });
-    }
+      window.scrollTo({ top, behavior: 'instant' as ScrollBehavior });
+    });
   }, []);
 
   // Scroll to today whenever the list tab is active (tab switch or initial load)
-  const didInitialScrollRef = useRef(false);
   useEffect(() => {
     if (activeTab !== 'list' || !trip) return;
     const todayDay = trip.days.find(d => d.date === todayStr);
-    if (!todayDay) return;
-    // Always scroll on tab switch; on initial load scroll once after data arrives
-    scrollToToday(todayDay.id);
-    didInitialScrollRef.current = true;
+    if (todayDay) scrollToToday(todayDay.id);
   }, [activeTab, trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadTrip = async () => {
