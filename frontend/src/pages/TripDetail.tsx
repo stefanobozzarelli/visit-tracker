@@ -201,6 +201,7 @@ export const TripDetail: React.FC = () => {
   const savingInFlightRef = useRef(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'list' | 'report'>('list');
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [allExpanded, setAllExpanded] = useState(false);
   const [highlightDayId, setHighlightDayId] = useState<string | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -263,7 +264,13 @@ export const TripDetail: React.FC = () => {
         setTrip({ ...res.data, hotels: res.data.hotels || [] });
         // Auto-expand today if present
         const today = res.data.days.find((d: TravelDay) => d.date === todayStr);
-        if (today) setExpandedDays(new Set([today.id]));
+        if (today) {
+          setExpandedDays(new Set([today.id]));
+          setTimeout(() => {
+            const el = document.getElementById(`trip-day-${today.id}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 150);
+        }
         // Carica le visite del periodo per popolare la mappa delivery
         loadVisitsDeliveryStatus(res.data);
       }
@@ -643,7 +650,18 @@ export const TripDetail: React.FC = () => {
           <button className={`td-tab${activeTab === 'overview' ? ' active' : ''}`} onClick={() => setActiveTab('overview')}>
             📊 Panoramica
           </button>
-          <button className={`td-tab${activeTab === 'list' ? ' active' : ''}`} onClick={() => setActiveTab('list')}>
+          <button className={`td-tab${activeTab === 'list' ? ' active' : ''}`} onClick={() => {
+            setActiveTab('list');
+            if (trip) {
+              const todayDay = trip.days.find(d => d.date === todayStr);
+              if (todayDay) {
+                setTimeout(() => {
+                  const el = document.getElementById(`trip-day-${todayDay.id}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
+              }
+            }
+          }}>
             ☰ Lista
           </button>
           <button className={`td-tab${activeTab === 'report' ? ' active' : ''}`} onClick={() => setActiveTab('report')}>
@@ -718,6 +736,25 @@ export const TripDetail: React.FC = () => {
       {/* ===== LISTA ===== */}
       {activeTab === 'list' && (
         <div className="td-list">
+          {/* Toolbar */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+            <button
+              onClick={() => {
+                if (!trip) return;
+                if (allExpanded) {
+                  const todayDay = trip.days.find(d => d.date === todayStr);
+                  setExpandedDays(new Set(todayDay ? [todayDay.id] : []));
+                  setAllExpanded(false);
+                } else {
+                  setExpandedDays(new Set(trip.days.map(d => d.id)));
+                  setAllExpanded(true);
+                }
+              }}
+              style={{ fontSize: '0.78rem', padding: '0.3rem 0.8rem', border: '1px solid var(--color-border)', borderRadius: 7, background: 'var(--color-white)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+            >
+              {allExpanded ? '▲ Comprimi tutti' : '▼ Espandi tutti'}
+            </button>
+          </div>
           {sortedDays.map(day => {
             const isToday = day.date === todayStr;
             const isExpanded = expandedDays.has(day.id);
