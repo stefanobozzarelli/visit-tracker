@@ -258,14 +258,15 @@ export const TripDetail: React.FC = () => {
   }, [showExportMenu]);
 
   const scrollToToday = useCallback((todayId: string) => {
-    // Use rAF to ensure DOM is painted before measuring
     requestAnimationFrame(() => {
       const el = document.getElementById(`trip-day-${todayId}`);
       if (!el) return;
       const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
       const offset = headerBar ? headerBar.offsetHeight + 12 : 80;
-      const top = el.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: 'instant' as ScrollBehavior });
+      // The page scrolls inside .app-layout-content, not window
+      const scroller = document.querySelector('.app-layout-content') as HTMLElement ?? document.documentElement;
+      const top = scroller.scrollTop + el.getBoundingClientRect().top - offset;
+      scroller.scrollTo({ top, behavior: 'instant' as ScrollBehavior });
     });
   }, []);
 
