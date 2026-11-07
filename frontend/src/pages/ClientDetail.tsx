@@ -25,6 +25,7 @@ export const ClientDetail: React.FC = () => {
   const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [allClients, setAllClients] = useState<any[]>([]);
   const [developerProjects, setDeveloperProjects] = useState<Project[]>([]);
+  const [architectProjects, setArchitectProjects] = useState<Project[]>([]);
   const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
   const [referralData, setReferralData] = useState<{
     clientId: string; clientName: string; clientRole: string;
@@ -61,6 +62,7 @@ export const ClientDetail: React.FC = () => {
       try { const r = await apiService.getShowrooms({ clientId: id }); if (r.success) setShowrooms(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getClients(); if (r.success && r.data) setAllClients(r.data); } catch {}
       try { const r = await apiService.getProjects({ developer_client_id: id }); if (r.success) setDeveloperProjects(Array.isArray(r.data) ? r.data : []); } catch {}
+      try { const r = await apiService.getProjects({ architect_client_id: id }); if (r.success) setArchitectProjects(Array.isArray(r.data) ? r.data : []); } catch {}
       // Load data for related (referral) clients — only referral_from (they refer to this client)
       try {
         const relsRes = await apiService.getClientReferrals(id);
@@ -349,6 +351,40 @@ export const ClientDetail: React.FC = () => {
 
           <div className="cd-card">
             <div className="cd-card-header">
+              <h3>Showrooms ({clientShowrooms.length})</h3>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className="cd-link" onClick={() => navigate(`/showrooms/new?clientId=${id}&returnTo=/clients/${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate(`/showrooms?clientId=${id}`)}>View all</button>
+              </div>
+            </div>
+            {clientShowrooms.length === 0 ? (
+              <div className="cd-empty">No showrooms yet</div>
+            ) : (
+              <div className="cd-list">
+                {clientShowrooms.map(s => {
+                  const statusLabels: Record<string, string> = { open: 'Open', closed: 'Closed', opening: 'Opening', none: 'None' };
+                  return (
+                    <div key={s.id} className="cd-list-item" onClick={() => navigate(`/showrooms/${s.id}`)}>
+                      <div className="cd-list-main">
+                        <div className="cd-list-title">{s.name}</div>
+                        <div className="cd-list-sub">
+                          {statusLabels[s.status] || s.status}
+                          {s.city && ` · ${s.city}`}
+                          {s.sqm && ` · ${s.sqm} sqm`}
+                        </div>
+                      </div>
+                      <span className={`cd-report-badge ${s.status === 'open' ? 'ready' : s.status === 'opening' ? 'ready' : 'missing'}`}>
+                        {statusLabels[s.status] || s.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="cd-card">
+            <div className="cd-card-header">
               <h3>Referral</h3>
             </div>
             <ClientReferrals
@@ -479,48 +515,36 @@ export const ClientDetail: React.FC = () => {
             </div>
           )}
 
-          <div className="cd-card">
-            <div className="cd-card-header">
-              <h3>Showrooms ({clientShowrooms.length})</h3>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="cd-link" onClick={() => navigate(`/showrooms/new?clientId=${id}&returnTo=/clients/${id}`)}>+ Create</button>
-                <button className="cd-link" onClick={() => navigate(`/showrooms?clientId=${id}`)}>View all</button>
-              </div>
-            </div>
-            {clientShowrooms.length === 0 ? (
-              <div className="cd-empty">No showrooms yet</div>
-            ) : (
-              <div className="cd-list">
-                {clientShowrooms.map(s => {
-                  const statusLabels: Record<string, string> = { open: 'Open', closed: 'Closed', opening: 'Opening', none: 'None' };
-                  return (
-                    <div key={s.id} className="cd-list-item" onClick={() => navigate(`/showrooms/${s.id}`)}>
-                      <div className="cd-list-main">
-                        <div className="cd-list-title">{s.name}</div>
-                        <div className="cd-list-sub">
-                          {statusLabels[s.status] || s.status}
-                          {s.city && ` · ${s.city}`}
-                          {s.sqm && ` · ${s.sqm} sqm`}
-                        </div>
-                      </div>
-                      <span className={`cd-report-badge ${s.status === 'open' ? 'ready' : s.status === 'opening' ? 'ready' : 'missing'}`}>
-                        {statusLabels[s.status] || s.status}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {developerProjects.length > 0 && (
             <div className="cd-card">
               <div className="cd-card-header">
-                <h3>Progetti fatturati al cliente principale ({developerProjects.length})</h3>
+                <h3>Progetti fatturati al cliente principale — Developer ({developerProjects.length})</h3>
                 <button className="cd-link" onClick={() => navigate('/projects')}>View all</button>
               </div>
               <div className="cd-list">
                 {developerProjects.map(p => (
+                  <div key={p.id} className="cd-list-item" onClick={() => navigate(`/projects?highlight=${p.id}`)}>
+                    <div className="cd-list-main">
+                      <div className="cd-list-title">{p.project_name || `Project #${(p as any).project_number}`}</div>
+                      <div className="cd-list-sub">
+                        {(p as any).client?.name && <span>Cliente: {(p as any).client.name}</span>}
+                        {p.status && <span style={{ marginLeft: 8 }}>{p.status}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {architectProjects.length > 0 && (
+            <div className="cd-card">
+              <div className="cd-card-header">
+                <h3>Progetti fatturati al cliente principale — Architetto ({architectProjects.length})</h3>
+                <button className="cd-link" onClick={() => navigate('/projects')}>View all</button>
+              </div>
+              <div className="cd-list">
+                {architectProjects.map(p => (
                   <div key={p.id} className="cd-list-item" onClick={() => navigate(`/projects?highlight=${p.id}`)}>
                     <div className="cd-list-main">
                       <div className="cd-list-title">{p.project_name || `Project #${(p as any).project_number}`}</div>

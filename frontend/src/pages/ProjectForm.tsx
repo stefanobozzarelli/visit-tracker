@@ -32,6 +32,7 @@ interface FormData {
   detail_of_project_type: string;
   designated_area: string;
   architect_designer: string;
+  architect_client_ids: string[];
   developer: string;
   developer_client_id: string;
   contractor: string;
@@ -50,7 +51,7 @@ const emptyForm: FormData = {
   supplier_id: '', client_id: '', country: '', registration_date: '',
   project_name: '', status: 'ATTIVO', project_development: '', project_registration: '',
   project_address: '', project_type: '', detail_of_project_type: '', designated_area: '',
-  architect_designer: '', developer: '', developer_client_id: '', contractor: '', item: '', quantity: '',
+  architect_designer: '', architect_client_ids: [], developer: '', developer_client_id: '', contractor: '', item: '', quantity: '',
   note: '', estimated_order_date: '', estimated_delivery_date: '',
   estimated_arrival_date: '', project_value: '', project_value_manual: false, total_value_shipped: '',
 };
@@ -117,6 +118,7 @@ export const ProjectForm: React.FC = () => {
             detail_of_project_type: p.detail_of_project_type || '',
             designated_area: p.designated_area || '',
             architect_designer: p.architect_designer || '',
+            architect_client_ids: Array.isArray(p.architect_clients) ? p.architect_clients.map((c: any) => c.id) : [],
             developer: p.developer || '',
             developer_client_id: p.developer_client_id || '',
             contractor: p.contractor || '',
@@ -155,6 +157,15 @@ export const ProjectForm: React.FC = () => {
 
   const handleChange = (field: keyof FormData, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addArchitectClient = (clientId: string) => {
+    if (!clientId || form.architect_client_ids.includes(clientId)) return;
+    setForm(prev => ({ ...prev, architect_client_ids: [...prev.architect_client_ids, clientId] }));
+  };
+
+  const removeArchitectClient = (clientId: string) => {
+    setForm(prev => ({ ...prev, architect_client_ids: prev.architect_client_ids.filter(id => id !== clientId) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -472,6 +483,29 @@ export const ProjectForm: React.FC = () => {
               <div className="pf-field">
                 <label>Architect / Designer</label>
                 <input value={form.architect_designer} onChange={e => handleChange('architect_designer', e.target.value)} placeholder="Name" />
+                <select
+                  value=""
+                  onChange={e => addArchitectClient(e.target.value)}
+                  style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}
+                >
+                  <option value="">— Collega architetto in anagrafica —</option>
+                  {clients.filter(c => !form.architect_client_ids.includes(c.id)).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {form.architect_client_ids.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem' }}>
+                    {form.architect_client_ids.map(cid => {
+                      const linked = clients.find(c => c.id === cid);
+                      return (
+                        <span key={cid} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: '#e8f0f7', color: '#2c5282', borderRadius: 12, padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
+                          {linked?.name || cid}
+                          <button type="button" onClick={() => removeArchitectClient(cid)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 0, lineHeight: 1 }}>✕</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="pf-field">
                 <label>Developer</label>
