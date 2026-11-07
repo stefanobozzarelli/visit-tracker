@@ -17,7 +17,7 @@ export const NewVisit: React.FC = () => {
   // Pre-fill from URL params (e.g. from + Visita button in trip)
   const prefillParams = useMemo(() => {
     const p = new URLSearchParams(location.search);
-    return { client: p.get('client') || '', date: p.get('date') || '' };
+    return { client: p.get('client') || '', date: p.get('date') || '', returnTo: p.get('returnTo') || '' };
   }, [location.search]);
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -701,8 +701,8 @@ export const NewVisit: React.FC = () => {
     <div className="crud-page">
       <div className="page-header">
         <h1>{isEditMode ? 'Edit Meeting' : 'Register Visit'}</h1>
-        <button onClick={() => navigate('/visits')} className="btn-secondary">
-          ← Back to Client Meetings
+        <button onClick={() => navigate(prefillParams.returnTo || '/visits')} className="btn-secondary">
+          ← {prefillParams.returnTo ? 'Back to Client' : 'Back to Client Meetings'}
         </button>
       </div>
 

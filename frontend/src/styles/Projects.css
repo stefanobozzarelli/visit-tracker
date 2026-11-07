@@ -115,7 +115,9 @@
 .projects-table-wrapper {
   background: #F0EDE8;
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 .projects-count {
   padding: 0.75rem 1.5rem;

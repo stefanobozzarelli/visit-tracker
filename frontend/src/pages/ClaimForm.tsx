@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Claim, ClaimMovement, Client, Company, User, TodoItem } from '../types';
@@ -68,6 +68,7 @@ const ClaimTaskStatusPill: React.FC<{
 export const ClaimForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'master_admin';
@@ -135,6 +136,10 @@ export const ClaimForm: React.FC = () => {
         const r = await apiService.getClients();
         if (r.success && r.data) {
           setClients(r.data.sort((a: Client, b: Client) => a.name.localeCompare(b.name)));
+          if (!isEdit) {
+            const urlClientId = searchParams.get('clientId');
+            if (urlClientId) setClientId(urlClientId);
+          }
         }
       } catch {}
 
@@ -326,7 +331,7 @@ export const ClaimForm: React.FC = () => {
       {/* Header */}
       <div className="claim-form-header">
         <h1>{isEdit ? 'Edit Claim' : 'New Claim'}</h1>
-        <button className="claim-form-back" onClick={() => navigate('/claims')}>
+        <button className="claim-form-back" onClick={() => navigate(searchParams.get('returnTo') || '/claims')}>
           &larr; Back to Claims
         </button>
       </div>

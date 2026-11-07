@@ -146,13 +146,14 @@ router.post('/export-excel', async (req: Request, res: Response) => {
 // GET all projects (with filters + permission-based visibility)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { supplier_id, client_id, country, status, project_type, search } = req.query;
+    const { supplier_id, client_id, country, status, project_type, search, developer_client_id } = req.query;
     const userId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
 
     let qb = repo().createQueryBuilder('p')
       .leftJoinAndSelect('p.supplier', 'supplier')
       .leftJoinAndSelect('p.client', 'client')
+      .leftJoinAndSelect('p.developer_client', 'developer_client')
       .orderBy('p.project_number', 'DESC');
 
     // Permission-based filtering: admin/master_admin/manager see all, sales_rep only sees permitted clients
@@ -170,6 +171,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (supplier_id) qb = qb.andWhere('p.supplier_id = :supplier_id', { supplier_id });
     if (client_id) qb = qb.andWhere('p.client_id = :client_id', { client_id });
+    if (developer_client_id) qb = qb.andWhere('p.developer_client_id = :developer_client_id', { developer_client_id });
     if (country) qb = qb.andWhere('p.country = :country', { country });
     if (status) qb = qb.andWhere('p.status = :status', { status });
     if (project_type) qb = qb.andWhere('p.project_type = :project_type', { project_type });
@@ -196,7 +198,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const project = await repo().findOne({
       where: { id: req.params.id },
-      relations: ['supplier', 'client'],
+      relations: ['supplier', 'client', 'developer_client'],
     });
     if (!project) return res.status(404).json({ success: false, error: 'Project not found' });
 
@@ -235,7 +237,7 @@ router.post('/', async (req: Request, res: Response) => {
     const saved = await repo().save(project);
 
     // Reload with relations
-    const result = await repo().findOne({ where: { id: (saved as any).id }, relations: ['supplier', 'client'] });
+    const result = await repo().findOne({ where: { id: (saved as any).id }, relations: ['supplier', 'client', 'developer_client'] });
     const response: ApiResponse<any> = { success: true, data: result };
     res.status(201).json(response);
   } catch (error) {
@@ -258,7 +260,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       await projectService.recalcValue(req.params.id);
     }
 
-    const result = await repo().findOne({ where: { id: req.params.id }, relations: ['supplier', 'client'] });
+    const result = await repo().findOne({ where: { id: req.params.id }, relations: ['supplier', 'client', 'developer_client'] });
     const response: ApiResponse<any> = { success: true, data: result };
     res.json(response);
   } catch (error) {

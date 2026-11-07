@@ -24,7 +24,13 @@ export const ClientDetail: React.FC = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [allClients, setAllClients] = useState<any[]>([]);
+  const [developerProjects, setDeveloperProjects] = useState<Project[]>([]);
   const [userAreaCompanyIds, setUserAreaCompanyIds] = useState<string[]>([]);
+  const [referralData, setReferralData] = useState<{
+    clientId: string; clientName: string; clientRole: string;
+    direction: 'referral_to' | 'referral_from';
+    visits: Visit[]; todos: TodoItem[]; projects: Project[]; claims: Claim[]; showrooms: Showroom[];
+  }[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,6 +60,37 @@ export const ClientDetail: React.FC = () => {
       try { const r = await apiService.getClaims({ client_id: id }); if (r.success) setClaims(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getShowrooms({ clientId: id }); if (r.success) setShowrooms(Array.isArray(r.data) ? r.data : []); } catch {}
       try { const r = await apiService.getClients(); if (r.success && r.data) setAllClients(r.data); } catch {}
+      try { const r = await apiService.getProjects({ developer_client_id: id }); if (r.success) setDeveloperProjects(Array.isArray(r.data) ? r.data : []); } catch {}
+      // Load data for related (referral) clients — only referral_from (they refer to this client)
+      try {
+        const relsRes = await apiService.getClientReferrals(id);
+        if (relsRes.success && relsRes.data && relsRes.data.length > 0) {
+          // Only show clients where the CURRENT client is the main/reference client (others refer to it)
+          const fromRels = (relsRes.data as any[]).filter(rel => rel.to_client_id === id);
+          const relDataArr = await Promise.all(fromRels.map(async (rel: any) => {
+            const relClientId = rel.from_client_id;
+            const relClientName = rel.from_name;
+            const relClientRole = rel.from_role;
+            const direction: 'referral_from' = 'referral_from';
+            const [vr, tr, pr, cr, sr] = await Promise.all([
+              apiService.getVisits({ client_id: relClientId } as any).catch(() => ({ success: false, data: [] })),
+              apiService.getTodos({ clientId: relClientId } as any).catch(() => ({ success: false, data: [] })),
+              apiService.getProjects({ client_id: relClientId } as any).catch(() => ({ success: false, data: [] })),
+              apiService.getClaims({ client_id: relClientId } as any).catch(() => ({ success: false, data: [] })),
+              apiService.getShowrooms({ clientId: relClientId } as any).catch(() => ({ success: false, data: [] })),
+            ]);
+            return {
+              clientId: relClientId, clientName: relClientName, clientRole: relClientRole, direction,
+              visits: vr.success ? ([...(vr.data || [])].sort((a: any, b: any) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime()).slice(0, 5) as Visit[]) : [],
+              todos: tr.success ? ((Array.isArray(tr.data) ? tr.data : []).filter((t: any) => t.status !== 'done' && t.status !== 'completed') as TodoItem[]) : [],
+              projects: pr.success ? ([...(Array.isArray(pr.data) ? pr.data : [])].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5) as Project[]) : [],
+              claims: cr.success ? ([...(Array.isArray(cr.data) ? cr.data : [])].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5) as Claim[]) : [],
+              showrooms: sr.success ? ((Array.isArray(sr.data) ? sr.data : []) as Showroom[]) : [],
+            };
+          }));
+          setReferralData(relDataArr);
+        }
+      } catch {}
       if (!isAdmin) {
         try { const r = await apiService.getMyAreas(); if (r.success && r.data) setUserAreaCompanyIds(r.data.companies?.map((c: any) => c.id) || []); } catch {}
       }
@@ -208,7 +245,7 @@ export const ClientDetail: React.FC = () => {
             <div className="cd-card-header">
               <h3>Recent Visits</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="cd-link" onClick={() => navigate(`/visits/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate(`/visits/new?client=${encodeURIComponent(client.name)}&returnTo=/clients/${id}`)}>+ Create</button>
                 <button className="cd-link" onClick={() => navigate('/visits')}>View all</button>
               </div>
             </div>
@@ -239,7 +276,7 @@ export const ClientDetail: React.FC = () => {
             <div className="cd-card-header">
               <h3>Tasks ({openTodos.length})</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="cd-link" onClick={() => navigate(`/tasks/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate(`/todos/new?clientId=${id}&returnTo=/clients/${id}`)}>+ Create</button>
                 <button className="cd-link" onClick={() => navigate('/tasks')}>View all</button>
               </div>
             </div>
@@ -263,7 +300,7 @@ export const ClientDetail: React.FC = () => {
             <div className="cd-card-header">
               <h3>Projects ({clientProjects.length})</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="cd-link" onClick={() => navigate(`/projects/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate(`/projects/new?clientId=${id}&returnTo=/clients/${id}`)}>+ Create</button>
                 <button className="cd-link" onClick={() => navigate('/projects')}>View all</button>
               </div>
             </div>
@@ -275,7 +312,10 @@ export const ClientDetail: React.FC = () => {
                   <div key={p.id} className="cd-list-item" onClick={() => navigate(`/projects?highlight=${p.id}`)}>
                     <div className="cd-list-main">
                       <div className="cd-list-title">{p.project_name || `Project #${p.project_number}`}</div>
-                      <div className="cd-list-sub">{p.status}</div>
+                      <div className="cd-list-sub">
+                        {p.status}
+                        {(p as any).developer_client && <span style={{ marginLeft: 8, color: 'var(--color-info)' }}>Dev: {(p as any).developer_client.name}</span>}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -287,7 +327,7 @@ export const ClientDetail: React.FC = () => {
             <div className="cd-card-header">
               <h3>Claims ({clientClaims.length})</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="cd-link" onClick={() => navigate(`/claims/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate(`/claims/new?clientId=${id}&returnTo=/clients/${id}`)}>+ Create</button>
                 <button className="cd-link" onClick={() => navigate('/claims')}>View all</button>
               </div>
             </div>
@@ -319,11 +359,131 @@ export const ClientDetail: React.FC = () => {
             />
           </div>
 
+          {referralData.length > 0 && (
+            <div className="cd-card">
+              <div className="cd-card-header">
+                <h3>Clienti collegati</h3>
+              </div>
+              {referralData.map(rd => {
+                const roleLabelsIt: Record<string, string> = { cliente: 'Client', developer: 'Developer', 'architetto-designer': 'Arch/Design' };
+                const dirLabel = rd.direction === 'referral_to' ? '↗ Il suo cliente di riferimento è' : '↙ Cliente di riferimento per:';
+                const dirColor = rd.direction === 'referral_to' ? '#3D7DAA' : '#6a7e3d';
+                const hasData = rd.visits.length > 0 || rd.todos.length > 0 || rd.projects.length > 0 || rd.claims.length > 0 || rd.showrooms.length > 0;
+                return (
+                  <div key={rd.clientId} style={{ marginBottom: '1.25rem', paddingBottom: '1.25rem', borderBottom: '1px solid var(--color-border)' }}>
+                    {/* Client header */}
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: dirColor, marginBottom: 4 }}>{dirLabel}</div>
+                      <button
+                        onClick={() => navigate(`/clients/${rd.clientId}`)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>{rd.clientName}</span>
+                        <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 20, background: 'var(--color-bg)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                          {roleLabelsIt[rd.clientRole] || rd.clientRole || 'Client'}
+                        </span>
+                      </button>
+                    </div>
+                    {!hasData ? (
+                      <div className="cd-empty" style={{ fontSize: '0.82rem' }}>Nessuna attività registrata</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {rd.visits.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Visite recenti</div>
+                            <div className="cd-list" style={{ marginTop: 0 }}>
+                              {rd.visits.map(v => {
+                                const reportCount = (v.reports || []).filter((r: any) => r.section !== METADATA_SECTION).length;
+                                return (
+                                  <div key={v.id} className="cd-list-item" onClick={() => navigate(`/visits/${v.id}`)}>
+                                    <div className="cd-list-main">
+                                      <div className="cd-list-title">{formatDate(v.visit_date)}</div>
+                                      <div className="cd-list-sub">by {v.visited_by_user?.name || '-'}</div>
+                                    </div>
+                                    <span className={`cd-report-badge ${reportCount > 0 ? 'ready' : 'missing'}`}>{reportCount > 0 ? `${reportCount} report` : 'No report'}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {rd.todos.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Task aperti ({rd.todos.length})</div>
+                            <div className="cd-list" style={{ marginTop: 0 }}>
+                              {rd.todos.slice(0, 5).map(t => (
+                                <div key={t.id} className="cd-list-item" onClick={() => navigate(`/tasks?highlight=${t.id}`)}>
+                                  <div className="cd-list-main">
+                                    <div className="cd-list-title">{t.title}</div>
+                                    {t.due_date && <div className="cd-list-sub">Scadenza: {formatDate(t.due_date)}</div>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {rd.projects.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Progetti ({rd.projects.length})</div>
+                            <div className="cd-list" style={{ marginTop: 0 }}>
+                              {rd.projects.map(p => (
+                                <div key={p.id} className="cd-list-item" onClick={() => navigate(`/projects?highlight=${p.id}`)}>
+                                  <div className="cd-list-main">
+                                    <div className="cd-list-title">{p.project_name || `Project #${p.project_number}`}</div>
+                                    <div className="cd-list-sub">{p.status}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {rd.claims.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Claims ({rd.claims.length})</div>
+                            <div className="cd-list" style={{ marginTop: 0 }}>
+                              {rd.claims.map(c => (
+                                <div key={c.id} className="cd-list-item" onClick={() => navigate(`/claims?highlight=${c.id}`)}>
+                                  <div className="cd-list-main">
+                                    <div className="cd-list-title">{formatDate(c.date)}</div>
+                                    <div className="cd-list-sub">{c.status}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {rd.showrooms.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Showrooms ({rd.showrooms.length})</div>
+                            <div className="cd-list" style={{ marginTop: 0 }}>
+                              {rd.showrooms.map(s => {
+                                const statusLabels: Record<string, string> = { open: 'Open', closed: 'Closed', opening: 'Opening', none: 'None' };
+                                return (
+                                  <div key={s.id} className="cd-list-item" onClick={() => navigate(`/showrooms/${s.id}`)}>
+                                    <div className="cd-list-main">
+                                      <div className="cd-list-title">{s.name}</div>
+                                      <div className="cd-list-sub">{statusLabels[s.status] || s.status}{s.city ? ` · ${s.city}` : ''}</div>
+                                    </div>
+                                    <span className={`cd-report-badge ${s.status === 'open' || s.status === 'opening' ? 'ready' : 'missing'}`}>{statusLabels[s.status] || s.status}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="cd-card">
             <div className="cd-card-header">
               <h3>Showrooms ({clientShowrooms.length})</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="cd-link" onClick={() => navigate(`/showrooms/new?client=${id}`)}>+ Create</button>
+                <button className="cd-link" onClick={() => navigate(`/showrooms/new?clientId=${id}&returnTo=/clients/${id}`)}>+ Create</button>
                 <button className="cd-link" onClick={() => navigate(`/showrooms?clientId=${id}`)}>View all</button>
               </div>
             </div>
@@ -352,6 +512,28 @@ export const ClientDetail: React.FC = () => {
               </div>
             )}
           </div>
+
+          {developerProjects.length > 0 && (
+            <div className="cd-card">
+              <div className="cd-card-header">
+                <h3>Progetti fatturati al cliente principale ({developerProjects.length})</h3>
+                <button className="cd-link" onClick={() => navigate('/projects')}>View all</button>
+              </div>
+              <div className="cd-list">
+                {developerProjects.map(p => (
+                  <div key={p.id} className="cd-list-item" onClick={() => navigate(`/projects?highlight=${p.id}`)}>
+                    <div className="cd-list-main">
+                      <div className="cd-list-title">{p.project_name || `Project #${(p as any).project_number}`}</div>
+                      <div className="cd-list-sub">
+                        {(p as any).client?.name && <span>Cliente: {(p as any).client.name}</span>}
+                        {p.status && <span style={{ marginLeft: 8 }}>{p.status}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
       {/* Contacts Modal */}

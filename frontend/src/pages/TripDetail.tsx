@@ -204,6 +204,8 @@ export const TripDetail: React.FC = () => {
   const [allExpanded, setAllExpanded] = useState(false);
   const [highlightDayId, setHighlightDayId] = useState<string | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10);
+  const didInitialScrollRef = useRef(false);
+  const pendingScrollDayIdRef = useRef<string | null>(null);
 
   // PDF upload & export
   const [showPdfUpload, setShowPdfUpload] = useState(false);
@@ -257,24 +259,38 @@ export const TripDetail: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, [showExportMenu]);
 
-  const scrollToToday = useCallback((todayId: string) => {
+  const scrollToDay = useCallback((dayId: string) => {
     requestAnimationFrame(() => {
-      const el = document.getElementById(`trip-day-${todayId}`);
+      const el = document.getElementById(`trip-day-${dayId}`);
       if (!el) return;
       const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
       const offset = headerBar ? headerBar.offsetHeight + 12 : 80;
-      // The page scrolls inside .app-layout-content, not window
       const scroller = document.querySelector('.app-layout-content') as HTMLElement ?? document.documentElement;
       const top = scroller.scrollTop + el.getBoundingClientRect().top - offset;
       scroller.scrollTo({ top, behavior: 'instant' as ScrollBehavior });
     });
   }, []);
 
-  // Scroll to today whenever the list tab is active (tab switch or initial load)
+  // Execute pending scroll AFTER expandedDays change is committed to DOM (Comprimi/Espandi)
   useEffect(() => {
-    if (activeTab !== 'list' || !trip) return;
+    if (!pendingScrollDayIdRef.current) return;
+    const dayId = pendingScrollDayIdRef.current;
+    pendingScrollDayIdRef.current = null;
+    scrollToDay(dayId);
+  }, [expandedDays]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Initial scroll to today: fires once per list-tab visit, skipped on saves
+  useEffect(() => {
+    if (activeTab !== 'list') {
+      didInitialScrollRef.current = false;
+      return;
+    }
+    if (!trip || didInitialScrollRef.current) return;
     const todayDay = trip.days.find(d => d.date === todayStr);
-    if (todayDay) scrollToToday(todayDay.id);
+    if (todayDay) {
+      scrollToDay(todayDay.id);
+      didInitialScrollRef.current = true;
+    }
   }, [activeTab, trip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadTrip = async () => {
@@ -679,7 +695,20 @@ export const TripDetail: React.FC = () => {
               onClick={() => {
                 if (!trip) return;
                 if (allExpanded) {
+                  // Capture the topmost visible day before collapsing
+                  const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
+                  const headerBottom = headerBar ? headerBar.getBoundingClientRect().bottom + 12 : 80;
+                  const dayEls = document.querySelectorAll('[id^="trip-day-"]');
+                  let topDayId: string | null = null;
+                  for (const el of Array.from(dayEls)) {
+                    if (el.getBoundingClientRect().bottom > headerBottom) {
+                      topDayId = el.id.replace('trip-day-', '');
+                      break;
+                    }
+                  }
                   const todayDay = trip.days.find(d => d.date === todayStr);
+                  // Schedule scroll to that day AFTER collapse commits to DOM
+                  pendingScrollDayIdRef.current = topDayId ?? (todayDay ? todayDay.id : null);
                   setExpandedDays(new Set(todayDay ? [todayDay.id] : []));
                   setAllExpanded(false);
                 } else {

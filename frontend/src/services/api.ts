@@ -1560,6 +1560,7 @@ class ApiService {
     const params = new URLSearchParams();
     if (filters?.supplier_id) params.set('supplier_id', filters.supplier_id);
     if (filters?.client_id) params.set('client_id', filters.client_id);
+    if (filters?.developer_client_id) params.set('developer_client_id', filters.developer_client_id);
     if (filters?.country) params.set('country', filters.country);
     if (filters?.status) params.set('status', filters.status);
     if (filters?.project_type) params.set('project_type', filters.project_type);

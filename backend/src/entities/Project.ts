@@ -56,6 +56,14 @@ export class Project {
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
+  // Developer client (linked client from anagrafica)
+  @Column({ nullable: true })
+  developer_client_id: string;
+
+  @ManyToOne(() => Client, { nullable: true, eager: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'developer_client_id' })
+  developer_client: Client;
+
   @Column({ nullable: true })
   country: string;
 
