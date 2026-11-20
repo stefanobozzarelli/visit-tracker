@@ -81,13 +81,8 @@ AppDataSource.initialize()
       await qr.query(`
         UPDATE users SET role = 'master_admin' WHERE email = 'stefanobozzarelli@gmail.com' AND role != 'master_admin';
       `).catch(() => {});
-      // Add 'other' to clients role enum if not exists
-      await qr.query(`
-        DO $$ BEGIN
-          ALTER TYPE clients_role_enum ADD VALUE IF NOT EXISTS 'other';
-        EXCEPTION WHEN duplicate_object THEN NULL;
-        END $$;
-      `).catch(() => {});
+      // Add 'other' to clients role enum if not exists (must run outside DO block)
+      await qr.query(`ALTER TYPE clients_role_enum ADD VALUE IF NOT EXISTS 'other'`).catch(() => {});
       // Unique index for commission_rates (handles NULLs)
       await qr.query(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_commission_rates_unique
