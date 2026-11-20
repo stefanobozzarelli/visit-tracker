@@ -9,6 +9,7 @@ export enum ClientRole {
   CLIENTE = 'cliente',
   DEVELOPER = 'developer',
   ARCHITETTO_DESIGNER = 'architetto-designer',
+  OTHER = 'other',
 }
 
 @Entity('clients')
