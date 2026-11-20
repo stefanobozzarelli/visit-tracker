@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Client as PgClient } from 'pg';
 import express from 'express';
 import cors from 'cors';
 import { AppDataSource } from './config/database';
@@ -58,8 +59,33 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: '1.2.0' });
 });
 
+// Pre-migration: convert clients.role from PostgreSQL enum to varchar
+// (TypeORM synchronize cannot change enum values; varchar is simpler and flexible)
+async function runPreMigrations() {
+  const connectionString = process.env.DATABASE_URL ||
+    `postgresql://${process.env.DB_USERNAME || 'postgres'}:${process.env.DB_PASSWORD || 'password'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_DATABASE || 'visit_tracker'}`;
+  const pg = new PgClient({ connectionString });
+  try {
+    await pg.connect();
+    // Convert role column from enum to varchar (safe, idempotent)
+    await pg.query(`
+      ALTER TABLE clients
+        ALTER COLUMN role TYPE varchar
+        USING role::varchar
+    `);
+    console.log('Pre-migration: clients.role converted to varchar');
+  } catch (e: any) {
+    // Ignore if already varchar or column doesn't exist yet
+    if (!e.message?.includes('already exists') && !e.message?.includes('does not exist') && !e.message?.includes('varchar')) {
+      console.log('Pre-migration note:', e.message);
+    }
+  } finally {
+    await pg.end();
+  }
+}
+
 // Initialize database and start server
-AppDataSource.initialize()
+runPreMigrations().then(() => AppDataSource.initialize())
   .then(async () => {
     console.log('Database connection established');
 
@@ -81,8 +107,6 @@ AppDataSource.initialize()
       await qr.query(`
         UPDATE users SET role = 'master_admin' WHERE email = 'stefanobozzarelli@gmail.com' AND role != 'master_admin';
       `).catch(() => {});
-      // Add 'other' to clients role enum if not exists (must run outside DO block)
-      await qr.query(`ALTER TYPE clients_role_enum ADD VALUE IF NOT EXISTS 'other'`).catch(() => {});
       // Unique index for commission_rates (handles NULLs)
       await qr.query(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_commission_rates_unique
