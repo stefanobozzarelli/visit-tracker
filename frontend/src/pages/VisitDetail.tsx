@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { openSignedLink } from '../utils/openSignedLink';
+import { openSignedLink, downloadSignedLink } from '../utils/openSignedLink';
 import { config } from '../config';
 import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
 import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
@@ -578,7 +578,7 @@ export const VisitDetail: React.FC = () => {
                             </a>
                             <a
                               href="#"
-                              onClick={(e) => { e.preventDefault(); openSignedLink(() => apiService.getReportAttachmentLink(visit!.id, report.id, att.id, 'download')); }}
+                              onClick={(e) => { e.preventDefault(); downloadSignedLink(() => apiService.getReportAttachmentLink(visit!.id, report.id, att.id, 'download'), att.filename); }}
                               style={{ fontSize: '0.8rem', color: '#fff', textDecoration: 'none', padding: '2px 8px', backgroundColor: 'var(--color-info)', borderRadius: '4px' }}
                             >
                               Download

@@ -8,6 +8,7 @@ import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 import { canAccessCompanyVisit, deny } from '../utils/access';
 import { MAX_UPLOAD_BYTES } from '../config/uploads';
+import { contentDisposition, inlineContentType } from '../utils/attachmentLink';
 
 const router = Router();
 const visitService = new CompanyVisitService();
@@ -84,7 +85,10 @@ async function generateS3Url(s3Key: string, filename: string, forceDownload: boo
   const s3Command = new GetObjectCommand({
     Bucket: process.env.AWS_S3_BUCKET || 'visit-tracker-bucket',
     Key: s3Key,
-    ...(forceDownload && { ResponseContentDisposition: `attachment; filename="${filename}"` }),
+    // Preview: ask the browser to display the file (PDFs and images open in the
+    // tab instead of being saved). Download: always save it.
+    ResponseContentDisposition: contentDisposition(filename, forceDownload),
+    ...(!forceDownload && inlineContentType(filename) ? { ResponseContentType: inlineContentType(filename) } : {}),
   });
 
   return await getSignedUrl(s3Client, s3Command, { expiresIn: 3600 });
