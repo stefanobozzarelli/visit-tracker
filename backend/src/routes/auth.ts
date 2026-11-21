@@ -9,6 +9,7 @@ import { LoginRequest, RegisterRequest, ApiResponse } from '../types';
 import { AppDataSource } from '../config/database';
 import { UserLoginLog } from '../entities/UserLoginLog';
 import { User } from '../entities/User';
+import { getJwtSecret } from '../config/jwtSecret';
 
 const router = Router();
 const authService = new AuthService();
@@ -16,10 +17,21 @@ const userService = new UserService();
 const permissionService = new PermissionService();
 const msGraph = new MicrosoftGraphService();
 
-router.post('/register', async (req: Request, res: Response) => {
+// Only an admin can create users. Self-registration is closed: an open endpoint
+// that accepts a role would let anyone create an administrator.
+router.post('/register', authMiddleware, async (req: Request, res: Response) => {
   try {
+    const callerRole = (req.user as any)?.role;
+    if (callerRole !== 'admin' && callerRole !== 'master_admin') {
+      return res.status(403).json({ success: false, error: 'Only an admin can create users' });
+    }
     const data: RegisterRequest = req.body;
-    console.log('Registration request:', data);
+    const allowedRoles = callerRole === 'master_admin'
+      ? ['sales_rep', 'manager', 'admin', 'master_admin']
+      : ['sales_rep', 'manager', 'admin'];
+    if (data.role && !allowedRoles.includes(data.role)) {
+      return res.status(403).json({ success: false, error: 'Role not allowed' });
+    }
     const result = await authService.register(data);
     const response: ApiResponse<any> = {
       success: true,
@@ -202,7 +214,6 @@ router.post('/sidebar-menu-order', authMiddleware, async (req: Request, res: Res
 // Microsoft / Outlook OAuth — collega l'account per creare bozze con allegato
 // ──────────────────────────────────────────────────────────────────────────
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_secret';
 
 /**
  * GET /api/auth/microsoft/connect
@@ -215,7 +226,7 @@ router.get('/microsoft/connect', authMiddleware, async (req: Request, res: Respo
     }
     const userId = (req.user as any)?.id;
     // state firmato e a breve scadenza: lega il callback all'utente senza cookie
-    const state = jwt.sign({ id: userId, purpose: 'ms_oauth' }, JWT_SECRET, { expiresIn: '10m' });
+    const state = jwt.sign({ id: userId, purpose: 'ms_oauth' }, getJwtSecret(), { expiresIn: '10m' });
     res.json({ success: true, data: { url: msGraph.getAuthUrl(state) } });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
@@ -238,7 +249,7 @@ router.get('/microsoft/callback', async (req: Request, res: Response) => {
 
     let userId: string;
     try {
-      const decoded = jwt.verify(state, JWT_SECRET) as any;
+      const decoded = jwt.verify(state, getJwtSecret()) as any;
       if (decoded.purpose !== 'ms_oauth') throw new Error('state non valido');
       userId = decoded.id;
     } catch {
