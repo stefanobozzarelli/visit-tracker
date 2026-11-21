@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { CompanyVisitService } from '../services/CompanyVisitService';
 import { PermissionService } from '../services/PermissionService';
 import { S3Service } from '../services/S3Service';
@@ -6,6 +6,8 @@ import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
+import { canAccessCompanyVisit, deny } from '../utils/access';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 const visitService = new CompanyVisitService();
@@ -34,7 +36,37 @@ async function filterVisitsForUser(visits: any[], userId: string, userRole: stri
 }
 const pdfService = new PdfService();
 const excelService = new ExcelService();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
+
+
+// All routes require sign-in; routes with a meeting id also check the
+// "supplier + zone" visibility rule for that meeting.
+router.use(authMiddleware);
+router.param('id', async (req: Request, res: Response, next: NextFunction, id: string) => {
+  try {
+    const visit = await visitService.getVisitById(id);
+    if (!visit) return res.status(404).json({ success: false, error: 'Company visit not found' });
+    if (!(await canAccessCompanyVisit(req, visit as any))) return deny(res, 'Access denied to this meeting');
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** Signed link to an attachment, only if it belongs to this meeting. */
+async function attachmentLink(req: Request, res: Response, forceDownload: boolean) {
+  try {
+    const attachment = await visitService.getAttachment(req.params.attachmentId);
+    if (!attachment || attachment.company_visit_id !== req.params.id) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+    const url = await generateS3Url(attachment.s3_key, attachment.filename, forceDownload);
+    res.json({ success: true, data: { url, filename: attachment.filename } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+}
+router.get('/:id/attachments/:attachmentId/preview', (req, res) => attachmentLink(req, res, false));
 
 // Helper function to generate S3 presigned URL
 async function generateS3Url(s3Key: string, filename: string, forceDownload: boolean = false) {
@@ -59,27 +91,10 @@ async function generateS3Url(s3Key: string, filename: string, forceDownload: boo
 }
 
 /**
- * GET /api/company-visits/:id/attachments/:attachmentId/preview
- * Preview attachment (opens in browser - no content-disposition)
- */
-router.get('/:id/attachments/:attachmentId/preview', async (req: Request, res: Response) => {
-  try {
-    const attachment = await visitService.getAttachment(req.params.attachmentId);
-    if (!attachment) {
-      return res.status(404).json({ success: false, error: 'Attachment not found' });
-    }
-    const previewUrl = await generateS3Url(attachment.s3_key, attachment.filename, false);
-    res.redirect(previewUrl);
-  } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message });
-  }
-});
-
-/**
  * POST /api/company-visits/export-pdf
  * Export filtered company visits to PDF
  */
-router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) => {
+router.post('/export-pdf', async (req: Request, res: Response) => {
   try {
     const { company_id, companyIds, status, startDate, endDate, country } = req.body;
     const userId = (req.user as any)?.id;
@@ -110,7 +125,7 @@ router.post('/export-pdf', authMiddleware, async (req: Request, res: Response) =
  * POST /api/company-visits/export-excel
  * Export filtered company visits to Excel
  */
-router.post('/export-excel', authMiddleware, async (req: Request, res: Response) => {
+router.post('/export-excel', async (req: Request, res: Response) => {
   try {
     const { company_id, companyIds, status, startDate, endDate, country } = req.body;
     const userId = (req.user as any)?.id;
@@ -141,7 +156,7 @@ router.post('/export-excel', authMiddleware, async (req: Request, res: Response)
  * POST /api/company-visits
  * Create a new company visit
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { companyId, date, subject, report, preparation, participantsUserIds, participantsExternal, status, meeting_type, zone } = req.body;
     const createdByUserId = (req.user as any).id;
@@ -178,7 +193,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/company-visits
  * Get all company visits (with optional filters)
  */
-router.get('/', authMiddleware, async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { companyId, companyIds, status, country } = req.query;
 
@@ -208,7 +223,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
  * GET /api/company-visits/:id
  * Get single company visit
  */
-router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) {
@@ -224,7 +239,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
  * PUT /api/company-visits/:id
  * Update company visit
  */
-router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) {
@@ -256,7 +271,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
  * DELETE /api/company-visits/:id
  * Delete company visit
  */
-router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) {
@@ -280,7 +295,7 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
  * POST /api/company-visits/:id/attachments
  * Upload attachment
  */
-router.post('/:id/attachments', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+router.post('/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     if (!req.file) {
@@ -339,7 +354,7 @@ router.post('/:id/attachments', authMiddleware, upload.single('file'), async (re
  * GET /api/company-visits/:id/attachments
  * List attachments
  */
-router.get('/:id/attachments', authMiddleware, async (req: Request, res: Response) => {
+router.get('/:id/attachments', async (req: Request, res: Response) => {
   try {
     const attachments = await visitService.getAttachments(req.params.id);
     res.json({ success: true, data: attachments });
@@ -352,24 +367,13 @@ router.get('/:id/attachments', authMiddleware, async (req: Request, res: Respons
  * GET /api/company-visits/:id/attachments/:attachmentId/download
  * Get presigned download URL
  */
-router.get('/:id/attachments/:attachmentId/download', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const attachment = await visitService.getAttachment(req.params.attachmentId);
-    if (!attachment) {
-      return res.status(404).json({ success: false, error: 'Attachment not found' });
-    }
-    const downloadUrl = await generateS3Url(attachment.s3_key, attachment.filename, true);
-    res.json({ success: true, data: { url: downloadUrl, filename: attachment.filename } });
-  } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message });
-  }
-});
+router.get('/:id/attachments/:attachmentId/download', (req, res) => attachmentLink(req, res, true));
 
 /**
  * DELETE /api/company-visits/:id/attachments/:attachmentId
  * Delete attachment
  */
-router.delete('/:id/attachments/:attachmentId', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/:id/attachments/:attachmentId', async (req: Request, res: Response) => {
   try {
     const visit = await visitService.getVisitById(req.params.id);
     if (!visit) {

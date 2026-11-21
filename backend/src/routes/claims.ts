@@ -6,6 +6,7 @@ import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 const claimService = new ClaimService();
@@ -13,7 +14,7 @@ const s3Service = new S3Service();
 const permissionService = new PermissionService();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 router.use(authMiddleware);
 

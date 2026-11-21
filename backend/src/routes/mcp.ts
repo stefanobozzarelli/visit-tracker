@@ -235,7 +235,9 @@ router.post('/oauth/authorize', form, async (req: Request, res: Response) => {
   const { params, error } = readAuthorizeParams(req.body || {});
   if (!params) return page(res, 400, `<h1>TradeFlow</h1><p class="err">${esc(error)}</p>`);
 
-  const ip = String(req.headers['x-forwarded-for'] || req.ip || 'unknown').split(',')[0].trim();
+  // req.ip honours "trust proxy" (set in index.ts), so a client cannot dodge
+  // the limit by sending its own X-Forwarded-For header.
+  const ip = req.ip || 'unknown';
   if (tooManyAttempts(ip)) {
     return loginPage(res, 429, params, 'Troppi tentativi. Riprova tra 15 minuti.');
   }

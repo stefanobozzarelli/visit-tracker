@@ -1,10 +1,14 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { OrderService, CreateOrderRequest, UpdateOrderRequest, CreateOrderItemRequest, UpdateOrderItemRequest } from '../services/OrderService';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
 import { PermissionService } from '../services/PermissionService';
 import { authMiddleware } from '../middleware/auth';
 import { ApiResponse } from '../types';
+import { AppDataSource } from '../config/database';
+import { CustomerOrder } from '../entities/CustomerOrder';
+import { Visit } from '../entities/Visit';
+import { isPrivileged, canAccessClient, deny } from '../utils/access';
 
 const router = Router();
 const orderService = new OrderService();
@@ -15,6 +19,33 @@ const excelService = new ExcelService();
 // Proteggi tutte le route con autenticazione
 router.use(authMiddleware);
 
+// Orders are visible only to users who can see the order's client.
+async function checkOrderAccess(req: Request, res: Response, next: NextFunction, orderId: string) {
+  try {
+    if (isPrivileged(req)) return next();
+    const order = await AppDataSource.getRepository(CustomerOrder).findOne({ where: { id: orderId }, select: ['id', 'client_id'] as any });
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!(await canAccessClient(req, order.client_id))) return deny(res, 'Access denied to this order');
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+router.param('id', checkOrderAccess);
+router.param('orderId', checkOrderAccess);
+
+router.param('visitId', async (req: Request, res: Response, next: NextFunction, visitId: string) => {
+  try {
+    if (isPrivileged(req)) return next();
+    const visit = await AppDataSource.getRepository(Visit).findOne({ where: { id: visitId }, select: ['id', 'client_id'] as any });
+    if (!visit) return res.status(404).json({ success: false, error: 'Visit not found' });
+    if (!(await canAccessClient(req, visit.client_id))) return deny(res, 'Access denied to this visit');
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 /**
  * POST /api/orders
  * Crea un nuovo ordine
@@ -22,6 +53,7 @@ router.use(authMiddleware);
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data: CreateOrderRequest = req.body;
+    if (!(await canAccessClient(req, (data as any).client_id))) return deny(res, 'Access denied to this client');
     const order = await orderService.createOrder(data);
     const response: ApiResponse<any> = { success: true, data: order };
     res.status(201).json(response);
