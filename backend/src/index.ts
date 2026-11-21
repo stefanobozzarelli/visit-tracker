@@ -22,6 +22,7 @@ import opportunityRoutes from './routes/opportunities';
 import statisticsRoutes from './routes/statistics';
 import tripRoutes from './routes/trips';
 import parseBookingRoutes from './routes/parse-booking';
+import mcpRoutes from './routes/mcp';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
@@ -53,6 +54,9 @@ app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/parse-booking', parseBookingRoutes);
+
+// Claude connector: /mcp, /oauth/* and /.well-known/oauth-* (read-only)
+app.use(mcpRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
