@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { openSignedLink } from '../utils/openSignedLink';
+import { openSignedLink, downloadSignedLink } from '../utils/openSignedLink';
 import { VisitReport } from '../types';
 import '../styles/CrudPages.css';
 
@@ -197,7 +197,7 @@ export const ReportDetail: React.FC = () => {
                   <button
                     onClick={() => {
                       // Signed link with "attachment" disposition: the browser downloads it
-                      openSignedLink(() => apiService.getReportAttachmentLink(visitId!, reportId!, att.id, 'download'));
+                      downloadSignedLink(() => apiService.getReportAttachmentLink(visitId!, reportId!, att.id, 'download'), att.filename);
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
