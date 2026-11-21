@@ -30,13 +30,15 @@ export class AuthService {
 
   async login(data: LoginRequest): Promise<{ user: User; token: string }> {
     const user = await this.userRepository.findOne({ where: { email: data.email } });
-    if (!user) {
-      throw new Error('User not found');
+    // Same message whether the email or the password is wrong, so the login
+    // form cannot be used to find out which emails have an account.
+    if (!user || !data.password) {
+      throw new Error('Invalid email or password');
     }
 
     const isValidPassword = await bcrypt.compare(data.password, user.password_hash);
     if (!isValidPassword) {
-      throw new Error('Invalid password');
+      throw new Error('Invalid email or password');
     }
 
     const token = this.generateToken(user);

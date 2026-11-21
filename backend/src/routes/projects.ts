@@ -13,6 +13,7 @@ import { S3Service } from '../services/S3Service';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 router.use(authMiddleware);
@@ -23,7 +24,7 @@ const pdfService = new PdfService();
 const excelService = new ExcelService();
 const projectService = new ProjectService();
 const s3Service = new S3Service();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 // GET project stats (MUST be before /:id to avoid conflict)
 router.get('/stats/summary', async (req: Request, res: Response) => {

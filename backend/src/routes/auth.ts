@@ -10,6 +10,7 @@ import { AppDataSource } from '../config/database';
 import { UserLoginLog } from '../entities/UserLoginLog';
 import { User } from '../entities/User';
 import { getJwtSecret } from '../config/jwtSecret';
+import { isLoginBlocked, recordLoginFailure, clearLoginFailures } from '../services/loginThrottle';
 
 const router = Router();
 const authService = new AuthService();
@@ -57,9 +58,21 @@ router.post('/register', authMiddleware, async (req: Request, res: Response) => 
 });
 
 router.post('/login', async (req: Request, res: Response) => {
+  const ip = req.ip || 'unknown';
+  const email = String(req.body?.email || '');
+  if (isLoginBlocked(ip, email)) {
+    return res.status(429).json({ success: false, error: 'Too many failed attempts. Try again in 15 minutes.' });
+  }
   try {
     const data: LoginRequest = req.body;
-    const result = await authService.login(data);
+    let result;
+    try {
+      result = await authService.login(data);
+    } catch (e) {
+      recordLoginFailure(ip, email);
+      throw e;
+    }
+    clearLoginFailures(ip, email);
     const response: ApiResponse<any> = {
       success: true,
       data: {
@@ -76,7 +89,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // Fire-and-forget login log
     try {
       const repo = AppDataSource.getRepository(UserLoginLog);
-      await repo.save(repo.create({ user_id: result.user.id, ip_address: req.ip || req.headers['x-forwarded-for']?.toString() || null }));
+      await repo.save(repo.create({ user_id: result.user.id, ip_address: req.ip || null }));
       console.log('[AUTH] Login logged for user:', result.user.id);
     } catch (e: any) {
       console.error('[AUTH] Failed to log login:', e.message);

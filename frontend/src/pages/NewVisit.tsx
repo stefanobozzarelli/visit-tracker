@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { openSignedLink } from '../utils/openSignedLink';
 import { Client, Company } from '../types';
 import { encodeMetadata, VisitMetadata, decodeMetadata } from '../utils/visitMetadata';
 import { compressImages } from '../utils/compressImage';
@@ -1138,11 +1139,7 @@ export const NewVisit: React.FC = () => {
                           href="#"
                           onClick={async (e) => {
                             e.preventDefault();
-                            try {
-                              const r = await apiService.getAttachmentDownloadUrl(editId!, existingReports[index].id, att.id);
-                              const url = typeof r === 'string' ? r : (r as any)?.data?.url || (r as any)?.url;
-                              if (url) window.open(url, '_blank');
-                            } catch {}
+                            await openSignedLink(() => apiService.getReportAttachmentLink(editId!, existingReports[index].id, att.id, 'preview'));
                           }}
                           style={{ color: 'var(--color-info)', textDecoration: 'underline' }}
                         >

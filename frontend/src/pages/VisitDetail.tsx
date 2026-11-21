@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { openSignedLink } from '../utils/openSignedLink';
 import { config } from '../config';
 import { Visit, VisitReport, CustomerOrder, TodoItem } from '../types';
 import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
@@ -569,17 +570,15 @@ export const VisitDetail: React.FC = () => {
                             <span style={{ flex: 1 }}>{att.filename}</span>
                             {att.file_size && <span style={{ fontSize: '0.75rem', color: '#999' }}>({(att.file_size / 1024 / 1024).toFixed(1)} MB)</span>}
                             <a
-                              href={`${config.API_BASE_URL}/visits/${visit?.id}/reports/${report.id}/attachments/${att.id}/preview`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); openSignedLink(() => apiService.getReportAttachmentLink(visit!.id, report.id, att.id, 'preview')); }}
                               style={{ fontSize: '0.8rem', color: 'var(--color-info)', textDecoration: 'none', padding: '2px 8px', border: '1px solid var(--color-info)', borderRadius: '4px' }}
                             >
                               View
                             </a>
                             <a
-                              href={`${config.API_BASE_URL}/visits/${visit?.id}/reports/${report.id}/attachments/${att.id}/download`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); openSignedLink(() => apiService.getReportAttachmentLink(visit!.id, report.id, att.id, 'download')); }}
                               style={{ fontSize: '0.8rem', color: '#fff', textDecoration: 'none', padding: '2px 8px', backgroundColor: 'var(--color-info)', borderRadius: '4px' }}
                             >
                               Download

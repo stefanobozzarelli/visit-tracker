@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { VisitService } from '../services/VisitService';
 import { PermissionService } from '../services/PermissionService';
@@ -12,6 +12,9 @@ import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateVisitRequest, CreateVisitReportRequest } from '../types';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
+import { VisitReport } from '../entities/VisitReport';
+import { isPrivileged, canAccessClient, deny } from '../utils/access';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 const visitService = new VisitService();
@@ -44,41 +47,51 @@ async function generateS3Url(s3Key: string, filename: string, forceDownload: boo
   return await getSignedUrl(s3Client, s3Command, { expiresIn: 3600 });
 }
 
-// Public preview endpoint (opens file in browser - no auth required)
-router.get('/:visitId/reports/:reportId/attachments/:attachmentId/preview', async (req: Request, res: Response) => {
-  try {
-    const attachment = await visitService.getAttachment(req.params.attachmentId);
-    if (!attachment) {
-      return res.status(404).json({ success: false, error: 'Attachment not found' });
-    }
-
-    const previewUrl = await generateS3Url(attachment.s3_key, attachment.filename, false);
-    res.redirect(previewUrl);
-  } catch (error) {
-    res.status(400).json({ success: false, error: (error as Error).message });
-  }
-});
-
-// Public download endpoint (forces download - no auth required)
-router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', async (req: Request, res: Response) => {
-  try {
-    const attachment = await visitService.getAttachment(req.params.attachmentId);
-    if (!attachment) {
-      return res.status(404).json({ success: false, error: 'Attachment not found' });
-    }
-
-    const downloadUrl = await generateS3Url(attachment.s3_key, attachment.filename, true);
-    res.redirect(downloadUrl);
-  } catch (error) {
-    res.status(400).json({ success: false, error: (error as Error).message });
-  }
-});
-
 router.use(authMiddleware);
+
+// Every route with a visit id checks that the user may see that visit's client.
+async function checkVisitAccess(req: Request, res: Response, next: NextFunction, visitId: string) {
+  try {
+    if (isPrivileged(req)) return next();
+    const visit = await visitService.getVisitById(visitId);
+    if (!visit) return res.status(404).json({ success: false, error: 'Visit not found' });
+    if (!(await canAccessClient(req, visit.client_id))) return deny(res, 'Access denied to this visit');
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+router.param('id', checkVisitAccess);
+router.param('visitId', checkVisitAccess);
+
+/**
+ * Report attachments: returns a short-lived signed link (JSON), only to
+ * signed-in users who can see the visit. "preview" opens in the browser,
+ * "download" forces a download.
+ */
+async function reportAttachmentLink(req: Request, res: Response, forceDownload: boolean) {
+  try {
+    const attachment = await visitService.getAttachment(req.params.attachmentId);
+    if (!attachment || attachment.visit_report_id !== req.params.reportId) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+    const report = await AppDataSource.getRepository(VisitReport).findOne({ where: { id: req.params.reportId } });
+    if (!report || report.visit_id !== req.params.visitId) {
+      return res.status(404).json({ success: false, error: 'Attachment not found' });
+    }
+    const url = await generateS3Url(attachment.s3_key, attachment.filename, forceDownload);
+    res.json({ success: true, data: { url, filename: attachment.filename } });
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+}
+router.get('/:visitId/reports/:reportId/attachments/:attachmentId/preview', (req, res) => reportAttachmentLink(req, res, false));
+router.get('/:visitId/reports/:reportId/attachments/:attachmentId/download', (req, res) => reportAttachmentLink(req, res, true));
 
 router.post('/', async (req: Request, res: Response) => {
   try {
     const data: CreateVisitRequest = req.body;
+    if (!(await canAccessClient(req, (data as any).client_id))) return deny(res, 'Access denied to this client');
     const visit = await visitService.createVisit(req.user!.id, data);
     const response: ApiResponse<any> = { success: true, data: visit };
     res.status(201).json(response);
@@ -296,7 +309,7 @@ router.patch('/:visitId/reports/:reportId/delivery', async (req: Request, res: R
   }
 });
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 router.post('/:visitId/reports/:reportId/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {

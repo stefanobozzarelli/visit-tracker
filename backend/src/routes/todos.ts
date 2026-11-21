@@ -8,6 +8,7 @@ import { authMiddleware } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import multer from 'multer';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 const todoService = new TodoService();
@@ -15,7 +16,7 @@ const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
 const emailService = new EmailService();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 /**
  * POST /api/todos/export-pdf

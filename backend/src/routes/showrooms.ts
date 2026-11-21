@@ -7,6 +7,7 @@ import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
 import { PermissionService } from '../services/PermissionService';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 const showroomService = new ShowroomService();
@@ -14,7 +15,7 @@ const permissionService = new PermissionService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 router.use(authMiddleware);
 

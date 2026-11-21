@@ -30,6 +30,11 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Railway sits in front of the app as one proxy: trust exactly that hop, so
+// req.ip is the visitor's address and cannot be faked with X-Forwarded-For.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
+app.disable('x-powered-by');
+
 // Middleware
 app.use(express.json());
 app.use(cors());
@@ -57,6 +62,20 @@ app.use('/api/parse-booking', parseBookingRoutes);
 
 // Claude connector: /mcp, /oauth/* and /.well-known/oauth-* (read-only)
 app.use(mcpRoutes);
+
+// Errors raised by middleware (oversized uploads, malformed JSON) get a short
+// JSON reply instead of a stack trace.
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) return next(err);
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ success: false, error: 'File too large' });
+  }
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ success: false, error: 'Invalid JSON' });
+  }
+  console.error('Unhandled error:', err?.message || err);
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
 
 // Health check
 app.get('/health', (req, res) => {
