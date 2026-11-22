@@ -52,6 +52,10 @@ export const Projects: React.FC = () => {
   // Highlight
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
+  // Duplicate detection — persisted so state survives project navigation
+  const [duplicateMode, setDuplicateMode] = useSessionState<boolean>('projects__duplicateMode', false);
+  const [duplicateSensitivity, setDuplicateSensitivity] = useSessionState<number>('projects__duplicateSensitivity', 70);
+
   useScrollRestore('projects', !loading);
 
   // Handle highlight from URL
@@ -141,6 +145,70 @@ export const Projects: React.FC = () => {
     return { total: filteredProjects.length, active, completed, totalValue, totalShipped };
   }, [filteredProjects]);
 
+  // --- Duplicate detection ---
+  const duplicateGroups = useMemo(() => {
+    if (!duplicateMode) return [];
+
+    const tokenize = (s: string) =>
+      (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+
+    const jaccard = (a: string, b: string): number => {
+      const ta = new Set(tokenize(a));
+      const tb = new Set(tokenize(b));
+      if (ta.size === 0 && tb.size === 0) return 1;
+      if (ta.size === 0 || tb.size === 0) return 0;
+      let inter = 0;
+      ta.forEach(t => { if (tb.has(t)) inter++; });
+      return inter / (ta.size + tb.size - inter);
+    };
+
+    const exact = (a: string | undefined, b: string | undefined) =>
+      a && b && a.trim().toLowerCase() === b.trim().toLowerCase() ? 1 : 0;
+
+    const projectSimilarity = (p1: Project, p2: Project): number => {
+      const nameSim     = jaccard(p1.project_name || '', p2.project_name || '') * 45;
+      const clientSim   = (p1.client_id && p1.client_id === p2.client_id ? 1 : 0) * 20;
+      const supplierSim = (p1.supplier_id && p1.supplier_id === p2.supplier_id ? 1 : 0) * 10;
+      const addrSim     = jaccard(p1.project_address || '', p2.project_address || '') * 10;
+      const countrySim  = exact(p1.country, p2.country) * 5;
+      const archSim     = jaccard(p1.architect_designer || '', p2.architect_designer || '') * 5;
+      const devSim      = jaccard(p1.developer || '', p2.developer || '') * 5;
+      return nameSim + clientSim + supplierSim + addrSim + countrySim + archSim + devSim;
+    };
+
+    const threshold = duplicateSensitivity;
+    const list = filteredProjects;
+    // Build adjacency: pairs above threshold
+    const pairs: { i: number; j: number; score: number }[] = [];
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const score = projectSimilarity(list[i], list[j]);
+        if (score >= threshold) pairs.push({ i, j, score });
+      }
+    }
+    // Union-Find for grouping
+    const parent = list.map((_, i) => i);
+    const find = (x: number): number => parent[x] === x ? x : (parent[x] = find(parent[x]));
+    const union = (x: number, y: number) => { parent[find(x)] = find(y); };
+    pairs.forEach(({ i, j }) => union(i, j));
+
+    const groupMap = new Map<number, { projects: Project[]; maxScore: number }>();
+    list.forEach((p, i) => {
+      const root = find(i);
+      if (!groupMap.has(root)) groupMap.set(root, { projects: [], maxScore: 0 });
+      groupMap.get(root)!.projects.push(p);
+    });
+    pairs.forEach(({ i, j, score }) => {
+      const root = find(i);
+      const g = groupMap.get(root);
+      if (g && score > g.maxScore) g.maxScore = score;
+    });
+
+    return Array.from(groupMap.values())
+      .filter(g => g.projects.length > 1)
+      .sort((a, b) => b.maxScore - a.maxScore);
+  }, [duplicateMode, duplicateSensitivity, filteredProjects]);
+
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
@@ -222,6 +290,12 @@ export const Projects: React.FC = () => {
           >
             Excel
           </button>
+          <button
+            onClick={() => setDuplicateMode(m => !m)}
+            style={{ padding: '0.5rem 0.75rem', background: duplicateMode ? '#7c3aed' : '#6b7280', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {duplicateMode ? '✕ Duplicati' : '⚡ Duplicati'}
+          </button>
           {isAdmin && (
             <button className="projects-new-btn" onClick={() => navigate('/projects/new')}>
               + New Project
@@ -302,6 +376,79 @@ export const Projects: React.FC = () => {
           </button>
         )}
       </form>
+
+      {/* Duplicate detection panel */}
+      {duplicateMode && (
+        <div style={{ background: '#f3f0ff', border: '1.5px solid #7c3aed', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', marginBottom: duplicateGroups.length > 0 ? '1rem' : 0 }}>
+            <span style={{ fontWeight: 700, color: '#5b21b6', fontSize: '0.9375rem' }}>⚡ Ricerca Duplicati</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#374151' }}>
+              Sensibilità: <strong style={{ color: '#5b21b6', minWidth: 32 }}>{duplicateSensitivity}%</strong>
+              <input
+                type="range" min={40} max={90} step={5}
+                value={duplicateSensitivity}
+                onChange={e => setDuplicateSensitivity(Number(e.target.value))}
+                style={{ width: 140, accentColor: '#7c3aed' }}
+              />
+            </label>
+            <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
+              {duplicateGroups.length === 0 ? 'Nessun duplicato trovato' : `${duplicateGroups.length} gruppo${duplicateGroups.length > 1 ? 'i' : ''} trovato${duplicateGroups.length > 1 ? 'i' : ''}`}
+            </span>
+          </div>
+          {duplicateGroups.map((group, gi) => (
+            <div key={gi} style={{ background: 'white', border: '1px solid #c4b5fd', borderRadius: 8, marginBottom: '0.75rem', overflow: 'hidden' }}>
+              <div style={{ background: '#ede9fe', padding: '0.4rem 0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600, color: '#5b21b6', fontSize: '0.8125rem' }}>Gruppo {gi + 1} — {group.projects.length} progetti simili</span>
+                <span style={{ background: '#7c3aed', color: 'white', borderRadius: 12, padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700 }}>
+                  {Math.round(group.maxScore)}% similitudine
+                </span>
+              </div>
+              <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#faf5ff' }}>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>#</th>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>Progetto</th>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>Fornitore</th>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>Cliente</th>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>Paese</th>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>Architetto</th>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>Developer</th>
+                    <th style={{ padding: '0.4rem 0.75rem', textAlign: 'left', color: '#374151', fontWeight: 600 }}>Stato</th>
+                    <th style={{ padding: '0.4rem 0.75rem' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.projects.map(p => (
+                    <tr key={p.id} style={{ borderTop: '1px solid #ede9fe' }}>
+                      <td style={{ padding: '0.4rem 0.75rem', color: '#6b7280' }}>{p.project_number}</td>
+                      <td style={{ padding: '0.4rem 0.75rem', fontWeight: 600, color: '#1f2937' }}>{p.project_name || '-'}</td>
+                      <td style={{ padding: '0.4rem 0.75rem', color: '#374151' }}>{p.supplier?.name || '-'}</td>
+                      <td style={{ padding: '0.4rem 0.75rem', color: '#374151' }}>{p.client?.name || '-'}</td>
+                      <td style={{ padding: '0.4rem 0.75rem', color: '#374151' }}>{p.country || '-'}</td>
+                      <td style={{ padding: '0.4rem 0.75rem', color: '#374151' }}>{p.architect_designer || '-'}</td>
+                      <td style={{ padding: '0.4rem 0.75rem', color: '#374151' }}>{p.developer || '-'}</td>
+                      <td style={{ padding: '0.4rem 0.75rem' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: STATUS_DOT[p.status] || '#888' }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[p.status] || '#888', display: 'inline-block' }} />
+                          {p.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.4rem 0.75rem' }}>
+                        <button
+                          onClick={() => navigate(`/projects/${p.id}`)}
+                          style={{ padding: '0.25rem 0.6rem', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 5, fontSize: '0.75rem', cursor: 'pointer' }}
+                        >
+                          Apri
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Table */}
       <div className="projects-table-wrapper">

@@ -16,6 +16,7 @@ const ROLE_CONFIG: Record<string, { label: string; className: string }> = {
   cliente:              { label: 'Client',            className: 'role-client' },
   developer:            { label: 'Developer',         className: 'role-developer' },
   'architetto-designer': { label: 'Architect/Designer', className: 'role-architect' },
+  other:                { label: 'Other',             className: 'role-other' },
 };
 
 const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
@@ -212,7 +213,7 @@ export const Clients: React.FC = () => {
     }
 
     // Sort by role then name
-    const roleOrder: Record<string, number> = { cliente: 0, developer: 1, 'architetto-designer': 2 };
+    const roleOrder: Record<string, number> = { cliente: 0, developer: 1, 'architetto-designer': 2, other: 3 };
     list.sort((a, b) => {
       const ra = roleOrder[(a as any).role || 'cliente'] ?? 99;
       const rb = roleOrder[(b as any).role || 'cliente'] ?? 99;
@@ -470,6 +471,7 @@ export const Clients: React.FC = () => {
                   <option value="cliente">Client</option>
                   <option value="developer">Developer</option>
                   <option value="architetto-designer">Architect/Designer</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
             </div>
@@ -613,6 +615,7 @@ export const Clients: React.FC = () => {
             <option value="cliente">Client</option>
             <option value="developer">Developer</option>
             <option value="architetto-designer">Architect/Designer</option>
+            <option value="other">Other</option>
           </select>
         </div>
       </div>

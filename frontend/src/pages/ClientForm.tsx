@@ -328,6 +328,7 @@ export const ClientForm: React.FC = () => {
                 <option value="cliente">Client</option>
                 <option value="developer">Developer</option>
                 <option value="architetto-designer">Architect/Designer</option>
+                <option value="other">Other</option>
               </select>
             </div>
           </div>

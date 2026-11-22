@@ -88,6 +88,7 @@
 .client-role-badge.role-client { background: rgba(74, 96, 120, 0.08); color: var(--color-info); border-color: rgba(74, 96, 120, 0.2); }
 .client-role-badge.role-developer { background: rgba(138, 127, 130, 0.08); color: #8A7F82; border-color: rgba(138, 127, 130, 0.2); }
 .client-role-badge.role-architect { background: rgba(176, 152, 64, 0.08); color: #947E35; border-color: rgba(176, 152, 64, 0.2); }
+.client-role-badge.role-other { background: rgba(107, 114, 128, 0.08); color: #6b7280; border-color: rgba(107, 114, 128, 0.2); }
 
 /* Related companies */
 .client-companies { font-size: 0.75rem; color: var(--color-info); font-weight: var(--font-weight-medium); }

@@ -79,6 +79,11 @@ export const ProjectForm: React.FC = () => {
   const [newCountryInput, setNewCountryInput] = useState('');
   const [isDeletingCountry, setIsDeletingCountry] = useState(false);
   const [countryToDelete, setCountryToDelete] = useState<string | null>(null);
+  const [quickAddTarget, setQuickAddTarget] = useState<'developer' | 'architect' | null>(null);
+  const [quickAddForm, setQuickAddForm] = useState({ name: '', country: '', addToAnagrafica: true });
+  const [quickAddSaving, setQuickAddSaving] = useState(false);
+  const [quickAddError, setQuickAddError] = useState('');
+  const [linkedClientIds, setLinkedClientIds] = useState<string[]>([]);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -148,6 +153,30 @@ export const ProjectForm: React.FC = () => {
     }
   }, [selectedClient]);
 
+  useEffect(() => {
+    if (!form.client_id) { setLinkedClientIds([]); return; }
+    apiService.getClientReferrals(form.client_id).then(res => {
+      if (res.success && res.data) {
+        const ids = (res.data as any[]).flatMap(r => [r.from_client_id, r.to_client_id]).filter(cid => cid !== form.client_id);
+        setLinkedClientIds([...new Set(ids)]);
+      }
+    }).catch(() => {});
+  }, [form.client_id]);
+
+  const architectOptions = useMemo(() => {
+    const all = clients.filter(c => c.role === 'architetto-designer').sort((a, b) => a.name.localeCompare(b.name));
+    const linked = all.filter(c => linkedClientIds.includes(c.id));
+    const others = all.filter(c => !linkedClientIds.includes(c.id));
+    return { linked, others };
+  }, [clients, linkedClientIds]);
+
+  const developerOptions = useMemo(() => {
+    const all = clients.filter(c => c.role === 'developer').sort((a, b) => a.name.localeCompare(b.name));
+    const linked = all.filter(c => linkedClientIds.includes(c.id));
+    const others = all.filter(c => !linkedClientIds.includes(c.id));
+    return { linked, others };
+  }, [clients, linkedClientIds]);
+
   // Derive unique countries from clients + existing projects
   const existingCountries = useMemo(() => {
     const fromClients = clients.map(c => c.country).filter(Boolean);
@@ -166,6 +195,43 @@ export const ProjectForm: React.FC = () => {
 
   const removeArchitectClient = (clientId: string) => {
     setForm(prev => ({ ...prev, architect_client_ids: prev.architect_client_ids.filter(id => id !== clientId) }));
+  };
+
+  const handleQuickAdd = async () => {
+    if (!quickAddForm.name.trim()) { setQuickAddError('Nome obbligatorio'); return; }
+    if (quickAddForm.addToAnagrafica && !quickAddForm.country.trim()) { setQuickAddError('Paese obbligatorio'); return; }
+    setQuickAddSaving(true);
+    setQuickAddError('');
+    try {
+      if (quickAddForm.addToAnagrafica) {
+        const role = quickAddTarget === 'developer' ? 'developer' : 'architetto-designer';
+        const res = await apiService.createClient(quickAddForm.name.trim(), quickAddForm.country.trim(), undefined, role);
+        if (res.success && res.data) {
+          const newClient = res.data;
+          setClients(prev => [...prev, newClient].sort((a, b) => a.name.localeCompare(b.name)));
+          if (quickAddTarget === 'developer') {
+            setForm(prev => ({ ...prev, developer_client_id: newClient.id, developer: prev.developer || newClient.name }));
+          } else {
+            setForm(prev => ({ ...prev, architect_client_ids: [...prev.architect_client_ids, newClient.id] }));
+          }
+        } else {
+          setQuickAddError(res.error || 'Errore'); return;
+        }
+      } else {
+        // Solo testo, nessun record in anagrafica
+        if (quickAddTarget === 'developer') {
+          setForm(prev => ({ ...prev, developer: quickAddForm.name.trim() }));
+        } else {
+          setForm(prev => ({ ...prev, architect_designer: prev.architect_designer ? `${prev.architect_designer}, ${quickAddForm.name.trim()}` : quickAddForm.name.trim() }));
+        }
+      }
+      setQuickAddTarget(null);
+      setQuickAddForm({ name: '', country: '', addToAnagrafica: true });
+    } catch {
+      setQuickAddError('Errore di rete');
+    } finally {
+      setQuickAddSaving(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -483,16 +549,30 @@ export const ProjectForm: React.FC = () => {
               <div className="pf-field">
                 <label>Architect / Designer</label>
                 <input value={form.architect_designer} onChange={e => handleChange('architect_designer', e.target.value)} placeholder="Name" />
-                <select
-                  value=""
-                  onChange={e => addArchitectClient(e.target.value)}
-                  style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}
-                >
-                  <option value="">— Collega architetto in anagrafica —</option>
-                  {clients.filter(c => !form.architect_client_ids.includes(c.id)).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.4rem', alignItems: 'center' }}>
+                  <select
+                    value=""
+                    onChange={e => addArchitectClient(e.target.value)}
+                    style={{ flex: 1, fontSize: '0.78rem' }}
+                  >
+                    <option value="">— Collega architetto in anagrafica —</option>
+                    {architectOptions.linked.filter(c => !form.architect_client_ids.includes(c.id)).length > 0 && (
+                      <optgroup label="★ Collegati al cliente">
+                        {architectOptions.linked.filter(c => !form.architect_client_ids.includes(c.id)).map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {architectOptions.others.filter(c => !form.architect_client_ids.includes(c.id)).length > 0 && (
+                      <optgroup label="Altri architetti">
+                        {architectOptions.others.filter(c => !form.architect_client_ids.includes(c.id)).map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <button type="button" title="Aggiungi nuovo architetto" onClick={() => { setQuickAddTarget('architect'); setQuickAddForm({ name: '', country: '', addToAnagrafica: true }); setQuickAddError(''); }} style={{ flexShrink: 0, padding: '0.3rem 0.6rem', background: '#4A6078', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1 }}>+</button>
+                </div>
                 {form.architect_client_ids.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem' }}>
                     {form.architect_client_ids.map(cid => {
@@ -510,23 +590,37 @@ export const ProjectForm: React.FC = () => {
               <div className="pf-field">
                 <label>Developer</label>
                 <input value={form.developer} onChange={e => handleChange('developer', e.target.value)} placeholder="Name" />
-                <select
-                  value={form.developer_client_id}
-                  onChange={e => {
-                    const val = e.target.value;
-                    handleChange('developer_client_id', val);
-                    if (val) {
-                      const linked = clients.find(c => c.id === val);
-                      if (linked && !form.developer) handleChange('developer', linked.name);
-                    }
-                  }}
-                  style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}
-                >
-                  <option value="">— Collega a cliente in anagrafica —</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.4rem', alignItems: 'center' }}>
+                  <select
+                    value={form.developer_client_id}
+                    onChange={e => {
+                      const val = e.target.value;
+                      handleChange('developer_client_id', val);
+                      if (val) {
+                        const linked = clients.find(c => c.id === val);
+                        if (linked && !form.developer) handleChange('developer', linked.name);
+                      }
+                    }}
+                    style={{ flex: 1, fontSize: '0.78rem' }}
+                  >
+                    <option value="">— Collega developer in anagrafica —</option>
+                    {developerOptions.linked.length > 0 && (
+                      <optgroup label="★ Collegati al cliente">
+                        {developerOptions.linked.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {developerOptions.others.length > 0 && (
+                      <optgroup label="Altri developer">
+                        {developerOptions.others.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <button type="button" title="Aggiungi nuovo developer" onClick={() => { setQuickAddTarget('developer'); setQuickAddForm({ name: '', country: '', addToAnagrafica: true }); setQuickAddError(''); }} style={{ flexShrink: 0, padding: '0.3rem 0.6rem', background: '#4A6078', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1 }}>+</button>
+                </div>
                 {form.developer_client_id && (
                   <button
                     type="button"
@@ -661,6 +755,56 @@ export const ProjectForm: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Quick-add client modal */}
+      {quickAddTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setQuickAddTarget(null)}>
+          <div style={{ background: 'white', borderRadius: 12, padding: '1.5rem', width: 360, maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>
+              Aggiungi {quickAddTarget === 'developer' ? 'Developer' : 'Architetto'} in anagrafica
+            </h3>
+            {quickAddError && <div style={{ color: '#c62828', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{quickAddError}</div>}
+            <div style={{ marginBottom: '0.75rem' }}>
+              <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.3rem' }}>Nome *</label>
+              <input
+                autoFocus
+                value={quickAddForm.name}
+                onChange={e => setQuickAddForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome cliente / azienda"
+                style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d5d0c8', borderRadius: 8, fontSize: '0.85rem', boxSizing: 'border-box' }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd(); } }}
+              />
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.83rem', cursor: 'pointer', marginBottom: '0.9rem' }}>
+              <input
+                type="checkbox"
+                checked={quickAddForm.addToAnagrafica}
+                onChange={e => setQuickAddForm(prev => ({ ...prev, addToAnagrafica: e.target.checked }))}
+                style={{ width: 'auto', cursor: 'pointer' }}
+              />
+              Aggiungi all'anagrafica
+            </label>
+            {quickAddForm.addToAnagrafica && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.3rem' }}>Paese *</label>
+                <input
+                  value={quickAddForm.country}
+                  onChange={e => setQuickAddForm(prev => ({ ...prev, country: e.target.value }))}
+                  placeholder="es. Italy, China…"
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #d5d0c8', borderRadius: 8, fontSize: '0.85rem', boxSizing: 'border-box' }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd(); } }}
+                />
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setQuickAddTarget(null)} style={{ padding: '0.5rem 1rem', border: '1px solid #d5d0c8', borderRadius: 8, background: '#f5f0ea', cursor: 'pointer', fontSize: '0.85rem' }}>Annulla</button>
+              <button type="button" onClick={handleQuickAdd} disabled={quickAddSaving} style={{ padding: '0.5rem 1.2rem', background: '#4A6078', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
+                {quickAddSaving ? 'Salvo...' : 'Aggiungi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
