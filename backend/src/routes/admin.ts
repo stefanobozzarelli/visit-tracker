@@ -32,6 +32,37 @@ function masterAdminOnly(req: Request, res: Response, next: Function) {
   next();
 }
 
+// Roles an admin may hand out. Only the master admin can create or promote
+// another master admin, so an admin cannot raise their own access.
+function rolesAssignableBy(callerRole: string): string[] {
+  return callerRole === 'master_admin'
+    ? ['sales_rep', 'manager', 'admin', 'master_admin']
+    : ['sales_rep', 'manager', 'admin'];
+}
+
+// Middleware: an admin may not change, reset or delete the master admin,
+// and nobody may change their own role.
+async function protectTargetUser(req: Request, res: Response, next: Function) {
+  try {
+    const caller = req.user as any;
+    const target = await AppDataSource.getRepository(User).findOne({ where: { id: req.params.userId }, select: ['id', 'role'] as any });
+    if (!target) return res.status(404).json({ success: false, error: 'User not found' });
+    if (target.role === 'master_admin' && caller?.role !== 'master_admin') {
+      return res.status(403).json({ success: false, error: 'Only the master admin can change this user' });
+    }
+    next();
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+}
+
+// Never send password hashes or Microsoft tokens back to the browser.
+function publicUser(user: any) {
+  if (!user) return user;
+  const { password_hash, ms_refresh_token, ms_access_token, ms_token_expiry, todoist_access_token, ...rest } = user;
+  return rest;
+}
+
 /**
  * GET /api/admin/users (public, accessible to all authenticated users)
  * List all users to assign TODOs
@@ -66,11 +97,13 @@ router.post('/users', authMiddleware, adminOnly, async (req: Request, res: Respo
       });
     }
 
+    if (role && !rolesAssignableBy((req.user as any)?.role).includes(role)) {
+      return res.status(403).json({ success: false, error: 'Role not allowed' });
+    }
     const user = await userService.createUser(email, name, password, role, company_id);
-    const { password_hash: _ph, ...safeUser } = user as any;
     res.status(201).json({
       success: true,
-      data: safeUser,
+      data: publicUser(user),
     });
   } catch (error) {
     res.status(400).json({
@@ -95,7 +128,7 @@ router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
     }
     res.json({
       success: true,
-      data: user,
+      data: publicUser(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -109,7 +142,7 @@ router.get('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
  * PUT /api/admin/users/:userId
  * Update user data
  */
-router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+router.put('/users/:userId', authMiddleware, adminOnly, protectTargetUser, async (req: Request, res: Response) => {
   try {
     const { name, role } = req.body;
 
@@ -121,12 +154,21 @@ router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
     }
 
     const updateData: any = { name };
-    if (role) updateData.role = role;
+    if (role) {
+      const caller = req.user as any;
+      if (!rolesAssignableBy(caller?.role).includes(role)) {
+        return res.status(403).json({ success: false, error: 'Role not allowed' });
+      }
+      if (req.params.userId === caller?.id && role !== caller?.role) {
+        return res.status(403).json({ success: false, error: 'You cannot change your own role' });
+      }
+      updateData.role = role;
+    }
 
     const user = await userService.updateUser(req.params.userId, updateData);
     res.json({
       success: true,
-      data: user,
+      data: publicUser(user),
     });
   } catch (error) {
     res.status(400).json({
@@ -140,7 +182,7 @@ router.put('/users/:userId', authMiddleware, adminOnly, async (req: Request, res
  * PATCH /api/admin/users/:userId/password
  * Change a user's password
  */
-router.patch('/users/:userId/password', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+router.patch('/users/:userId/password', authMiddleware, adminOnly, protectTargetUser, async (req: Request, res: Response) => {
   try {
     const { newPassword } = req.body;
 
@@ -168,7 +210,7 @@ router.patch('/users/:userId/password', authMiddleware, adminOnly, async (req: R
  * DELETE /api/admin/users/:userId
  * Delete a user and all associated data
  */
-router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+router.delete('/users/:userId', authMiddleware, adminOnly, protectTargetUser, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -302,7 +344,7 @@ router.delete('/permissions/:permissionId', authMiddleware, adminOnly, async (re
  * DELETE /api/admin/users/:userId
  * Cancella un utente (e tutti i suoi dati associati)
  */
-router.delete('/users/:userId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+router.delete('/users/:userId', authMiddleware, adminOnly, protectTargetUser, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 

@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { Project } from '../entities/Project';
+import { Client } from '../entities/Client';
+import { In } from 'typeorm';
 import { ApiResponse } from '../types';
 import { PermissionService } from '../services/PermissionService';
 import { PdfService } from '../services/PdfService';
@@ -11,6 +13,7 @@ import { S3Service } from '../services/S3Service';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 router.use(authMiddleware);
@@ -21,7 +24,7 @@ const pdfService = new PdfService();
 const excelService = new ExcelService();
 const projectService = new ProjectService();
 const s3Service = new S3Service();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 // GET project stats (MUST be before /:id to avoid conflict)
 router.get('/stats/summary', async (req: Request, res: Response) => {
@@ -146,13 +149,15 @@ router.post('/export-excel', async (req: Request, res: Response) => {
 // GET all projects (with filters + permission-based visibility)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { supplier_id, client_id, country, status, project_type, search } = req.query;
+    const { supplier_id, client_id, country, status, project_type, search, developer_client_id, architect_client_id } = req.query;
     const userId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
 
     let qb = repo().createQueryBuilder('p')
       .leftJoinAndSelect('p.supplier', 'supplier')
       .leftJoinAndSelect('p.client', 'client')
+      .leftJoinAndSelect('p.developer_client', 'developer_client')
+      .leftJoinAndSelect('p.architect_clients', 'architect_clients')
       .orderBy('p.project_number', 'DESC');
 
     // Permission-based filtering: admin/master_admin/manager see all, sales_rep only sees permitted clients
@@ -170,6 +175,8 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (supplier_id) qb = qb.andWhere('p.supplier_id = :supplier_id', { supplier_id });
     if (client_id) qb = qb.andWhere('p.client_id = :client_id', { client_id });
+    if (developer_client_id) qb = qb.andWhere('p.developer_client_id = :developer_client_id', { developer_client_id });
+    if (architect_client_id) qb = qb.andWhere('EXISTS (SELECT 1 FROM project_architect_clients pac WHERE pac.project_id = p.id AND pac.client_id = :architect_client_id)', { architect_client_id });
     if (country) qb = qb.andWhere('p.country = :country', { country });
     if (status) qb = qb.andWhere('p.status = :status', { status });
     if (project_type) qb = qb.andWhere('p.project_type = :project_type', { project_type });
@@ -196,7 +203,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const project = await repo().findOne({
       where: { id: req.params.id },
-      relations: ['supplier', 'client'],
+      relations: ['supplier', 'client', 'developer_client', 'architect_clients'],
     });
     if (!project) return res.status(404).json({ success: false, error: 'Project not found' });
 
@@ -229,13 +236,24 @@ router.post('/', async (req: Request, res: Response) => {
       .getOne();
     const nextNumber = (lastProject?.project_number || 0) + 1;
 
-    const projectData = { ...req.body, project_number: nextNumber };
+    const { architect_client_ids, ...bodyData } = req.body;
+    const projectData = { ...bodyData, project_number: nextNumber };
     const project = new Project();
     Object.assign(project, projectData);
     const saved = await repo().save(project);
 
+    // Update architect_clients relation
+    if (architect_client_ids !== undefined) {
+      const clientRepo = AppDataSource.getRepository(Client);
+      const archClients = architect_client_ids.length > 0
+        ? await clientRepo.findBy({ id: In(architect_client_ids) })
+        : [];
+      saved.architect_clients = archClients;
+      await repo().save(saved);
+    }
+
     // Reload with relations
-    const result = await repo().findOne({ where: { id: (saved as any).id }, relations: ['supplier', 'client'] });
+    const result = await repo().findOne({ where: { id: (saved as any).id }, relations: ['supplier', 'client', 'developer_client', 'architect_clients'] });
     const response: ApiResponse<any> = { success: true, data: result };
     res.status(201).json(response);
   } catch (error) {
@@ -251,14 +269,27 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.status(403).json({ success: false, error: 'Only admin/manager can update projects' });
     }
 
-    await repo().update(req.params.id, req.body);
+    const { architect_client_ids, ...updateBody } = req.body;
+    await repo().update(req.params.id, updateBody);
+
+    // Update architect_clients relation if provided
+    if (architect_client_ids !== undefined) {
+      const projectToUpdate = await repo().findOne({ where: { id: req.params.id }, relations: ['architect_clients'] });
+      if (projectToUpdate) {
+        const clientRepo = AppDataSource.getRepository(Client);
+        projectToUpdate.architect_clients = architect_client_ids.length > 0
+          ? await clientRepo.findBy({ id: In(architect_client_ids) })
+          : [];
+        await repo().save(projectToUpdate);
+      }
+    }
 
     // If the project value is set to auto (not manual), recompute it from linked offers
     if (req.body.project_value_manual === false || req.body.project_value_manual === 'false') {
       await projectService.recalcValue(req.params.id);
     }
 
-    const result = await repo().findOne({ where: { id: req.params.id }, relations: ['supplier', 'client'] });
+    const result = await repo().findOne({ where: { id: req.params.id }, relations: ['supplier', 'client', 'developer_client', 'architect_clients'] });
     const response: ApiResponse<any> = { success: true, data: result };
     res.json(response);
   } catch (error) {

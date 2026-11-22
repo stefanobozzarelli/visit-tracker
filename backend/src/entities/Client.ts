@@ -9,6 +9,7 @@ export enum ClientRole {
   CLIENTE = 'cliente',
   DEVELOPER = 'developer',
   ARCHITETTO_DESIGNER = 'architetto-designer',
+  OTHER = 'other',
 }
 
 @Entity('clients')
@@ -28,12 +29,8 @@ export class Client {
   @Column({ nullable: true, type: 'text' })
   notes: string;
 
-  @Column({
-    type: 'enum',
-    enum: ClientRole,
-    default: ClientRole.CLIENTE,
-  })
-  role: ClientRole;
+  @Column({ type: 'varchar', default: 'cliente' })
+  role: string;
 
   @Column({ type: 'boolean', default: false })
   has_showroom: boolean;

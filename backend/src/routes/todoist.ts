@@ -2,9 +2,9 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../middleware/auth';
 import { todoistService } from '../services/TodoistService';
+import { getJwtSecret } from '../config/jwtSecret';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your_secret';
 
 /**
  * GET /api/integrations/todoist/connect
@@ -16,7 +16,7 @@ router.get('/connect', authMiddleware, async (req: Request, res: Response) => {
       return res.status(503).json({ success: false, error: 'Integrazione Todoist non configurata sul server' });
     }
     const userId = (req.user as any)?.id;
-    const state = jwt.sign({ id: userId, purpose: 'todoist_oauth' }, JWT_SECRET, { expiresIn: '10m' });
+    const state = jwt.sign({ id: userId, purpose: 'todoist_oauth' }, getJwtSecret(), { expiresIn: '10m' });
     res.json({ success: true, data: { url: todoistService.getAuthUrl(state) } });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
@@ -37,7 +37,7 @@ router.get('/callback', async (req: Request, res: Response) => {
 
     let userId: string;
     try {
-      const decoded = jwt.verify(state, JWT_SECRET) as any;
+      const decoded = jwt.verify(state, getJwtSecret()) as any;
       if (decoded.purpose !== 'todoist_oauth') throw new Error('state non valido');
       userId = decoded.id;
     } catch {

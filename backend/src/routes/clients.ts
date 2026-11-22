@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
 import { ClientService } from '../services/ClientService';
@@ -10,6 +10,10 @@ import { ExcelService } from '../services/ExcelService';
 import { authMiddleware } from '../middleware/auth';
 import { checkVisitPermission } from '../middleware/permissionMiddleware';
 import { ApiResponse, CreateClientRequest, CreateContactRequest } from '../types';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
+import { AppDataSource } from '../config/database';
+import { ClientContact } from '../entities/ClientContact';
+import { isPrivileged, canAccessClient, deny } from '../utils/access';
 
 const router = Router();
 const clientService = new ClientService();
@@ -18,9 +22,36 @@ const companyService = new CompanyService();
 const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 router.use(authMiddleware);
+
+// Every route that names a client or a contact checks the user may see that client.
+async function checkClientAccess(req: Request, res: Response, next: NextFunction, clientId: string) {
+  try {
+    if (await canAccessClient(req, clientId)) return next();
+    return deny(res, 'Access denied to this client');
+  } catch (error) {
+    next(error);
+  }
+}
+router.param('id', checkClientAccess);
+router.param('clientId', checkClientAccess);
+
+router.param('contactId', async (req: Request, res: Response, next: NextFunction, contactId: string) => {
+  try {
+    if (isPrivileged(req)) return next();
+    const contact = await AppDataSource.getRepository(ClientContact).findOne({ where: { id: contactId }, select: ['id', 'client_id'] as any });
+    if (!contact) return res.status(404).json({ success: false, error: 'Contact not found' });
+    if (req.params.clientId && contact.client_id !== req.params.clientId) {
+      return res.status(404).json({ success: false, error: 'Contact not found' });
+    }
+    if (!(await canAccessClient(req, contact.client_id))) return deny(res, 'Access denied to this client');
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.post('/', async (req: Request, res: Response) => {
   try {

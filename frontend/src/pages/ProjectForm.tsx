@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Company, Client } from '../types';
@@ -32,7 +32,9 @@ interface FormData {
   detail_of_project_type: string;
   designated_area: string;
   architect_designer: string;
+  architect_client_ids: string[];
   developer: string;
+  developer_client_id: string;
   contractor: string;
   item: string;
   quantity: string;
@@ -49,7 +51,7 @@ const emptyForm: FormData = {
   supplier_id: '', client_id: '', country: '', registration_date: '',
   project_name: '', status: 'ATTIVO', project_development: '', project_registration: '',
   project_address: '', project_type: '', detail_of_project_type: '', designated_area: '',
-  architect_designer: '', developer: '', contractor: '', item: '', quantity: '',
+  architect_designer: '', architect_client_ids: [], developer: '', developer_client_id: '', contractor: '', item: '', quantity: '',
   note: '', estimated_order_date: '', estimated_delivery_date: '',
   estimated_arrival_date: '', project_value: '', project_value_manual: false, total_value_shipped: '',
 };
@@ -62,6 +64,7 @@ const toDateInput = (d?: string) => {
 export const ProjectForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isEdit = !!id;
 
@@ -91,6 +94,12 @@ export const ProjectForm: React.FC = () => {
       if (cliRes.success && cliRes.data) setClients(cliRes.data);
       if (projRes.success && projRes.data) setAllProjects(projRes.data);
 
+      // Pre-fill client from URL param (e.g. from client detail page)
+      if (!isEdit) {
+        const urlClientId = searchParams.get('clientId');
+        if (urlClientId) setForm(prev => ({ ...prev, client_id: urlClientId }));
+      }
+
       if (isEdit) {
         const projRes = await apiService.getProject(id!);
         if (projRes.success && projRes.data) {
@@ -109,7 +118,9 @@ export const ProjectForm: React.FC = () => {
             detail_of_project_type: p.detail_of_project_type || '',
             designated_area: p.designated_area || '',
             architect_designer: p.architect_designer || '',
+            architect_client_ids: Array.isArray(p.architect_clients) ? p.architect_clients.map((c: any) => c.id) : [],
             developer: p.developer || '',
+            developer_client_id: p.developer_client_id || '',
             contractor: p.contractor || '',
             item: p.item || '',
             quantity: p.quantity || '',
@@ -148,6 +159,15 @@ export const ProjectForm: React.FC = () => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const addArchitectClient = (clientId: string) => {
+    if (!clientId || form.architect_client_ids.includes(clientId)) return;
+    setForm(prev => ({ ...prev, architect_client_ids: [...prev.architect_client_ids, clientId] }));
+  };
+
+  const removeArchitectClient = (clientId: string) => {
+    setForm(prev => ({ ...prev, architect_client_ids: prev.architect_client_ids.filter(id => id !== clientId) }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.project_name) { setError('Project name is required'); return; }
@@ -168,6 +188,7 @@ export const ProjectForm: React.FC = () => {
       else payload.total_value_shipped = null;
       if (!payload.supplier_id) payload.supplier_id = null;
       if (!payload.client_id) payload.client_id = null;
+      if (!payload.developer_client_id) payload.developer_client_id = null;
       if (!payload.registration_date) payload.registration_date = null;
       if (!payload.estimated_order_date) payload.estimated_order_date = null;
       if (!payload.estimated_delivery_date) payload.estimated_delivery_date = null;
@@ -178,7 +199,7 @@ export const ProjectForm: React.FC = () => {
         : await apiService.createProject(payload);
 
       if (res.success) {
-        navigate('/projects');
+        navigate(searchParams.get('returnTo') || '/projects');
       } else {
         setError(res.error || 'Error saving project');
       }
@@ -206,7 +227,7 @@ export const ProjectForm: React.FC = () => {
             <p>{isEdit ? 'Update project registration details' : 'Register a new project in the system'}</p>
           </div>
           <div className="pf-page-header-actions">
-            <button type="button" className="pf-btn-secondary" onClick={() => navigate('/projects')}>
+            <button type="button" className="pf-btn-secondary" onClick={() => navigate(searchParams.get('returnTo') || '/projects')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
               Back
             </button>
@@ -462,10 +483,59 @@ export const ProjectForm: React.FC = () => {
               <div className="pf-field">
                 <label>Architect / Designer</label>
                 <input value={form.architect_designer} onChange={e => handleChange('architect_designer', e.target.value)} placeholder="Name" />
+                <select
+                  value=""
+                  onChange={e => addArchitectClient(e.target.value)}
+                  style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}
+                >
+                  <option value="">— Collega architetto in anagrafica —</option>
+                  {clients.filter(c => !form.architect_client_ids.includes(c.id)).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {form.architect_client_ids.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem' }}>
+                    {form.architect_client_ids.map(cid => {
+                      const linked = clients.find(c => c.id === cid);
+                      return (
+                        <span key={cid} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: '#e8f0f7', color: '#2c5282', borderRadius: 12, padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
+                          {linked?.name || cid}
+                          <button type="button" onClick={() => removeArchitectClient(cid)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 0, lineHeight: 1 }}>✕</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="pf-field">
                 <label>Developer</label>
                 <input value={form.developer} onChange={e => handleChange('developer', e.target.value)} placeholder="Name" />
+                <select
+                  value={form.developer_client_id}
+                  onChange={e => {
+                    const val = e.target.value;
+                    handleChange('developer_client_id', val);
+                    if (val) {
+                      const linked = clients.find(c => c.id === val);
+                      if (linked && !form.developer) handleChange('developer', linked.name);
+                    }
+                  }}
+                  style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}
+                >
+                  <option value="">— Collega a cliente in anagrafica —</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {form.developer_client_id && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange('developer_client_id', '')}
+                    style={{ marginTop: '0.25rem', fontSize: '0.72rem', background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: 0 }}
+                  >
+                    ✕ Rimuovi collegamento
+                  </button>
+                )}
               </div>
               <div className="pf-field">
                 <label>Contractor</label>
@@ -585,7 +655,7 @@ export const ProjectForm: React.FC = () => {
 
         {/* Bottom actions (mobile) */}
         <div className="pf-bottom-actions">
-          <button type="button" className="pf-btn-secondary" onClick={() => navigate('/projects')}>Cancel</button>
+          <button type="button" className="pf-btn-secondary" onClick={() => navigate(searchParams.get('returnTo') || '/projects')}>Cancel</button>
           <button type="submit" className="pf-btn-primary" disabled={saving}>
             {saving ? 'Saving...' : isEdit ? 'Update Project' : 'Save Project'}
           </button>

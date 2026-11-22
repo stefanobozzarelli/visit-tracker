@@ -2,10 +2,11 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware, roleMiddleware } from '../middleware/auth';
 import { InvoiceService } from '../services/InvoiceService';
 import multer from 'multer';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 const invoiceService = new InvoiceService();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 // All routes require auth + revenue access (master_admin or admin with can_view_revenue)
 router.use(authMiddleware);

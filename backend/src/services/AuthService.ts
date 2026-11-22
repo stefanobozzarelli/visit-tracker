@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import { AuthPayload, LoginRequest, RegisterRequest } from '../types';
+import { getJwtSecret } from '../config/jwtSecret';
 
 export class AuthService {
   private userRepository = AppDataSource.getRepository(User);
@@ -28,18 +29,21 @@ export class AuthService {
   }
 
   async login(data: LoginRequest): Promise<{ user: User; token: string }> {
+    // password_hash è select: false → va richiesto esplicitamente
     const user = await this.userRepository
       .createQueryBuilder('user')
       .addSelect('user.password_hash')
       .where('user.email = :email', { email: data.email })
       .getOne();
-    if (!user) {
-      throw new Error('User not found');
+    // Same message whether the email or the password is wrong, so the login
+    // form cannot be used to find out which emails have an account.
+    if (!user || !data.password) {
+      throw new Error('Invalid email or password');
     }
 
     const isValidPassword = await bcrypt.compare(data.password, user.password_hash);
     if (!isValidPassword) {
-      throw new Error('Invalid password');
+      throw new Error('Invalid email or password');
     }
 
     const token = this.generateToken(user);
@@ -55,7 +59,7 @@ export class AuthService {
       can_view_revenue: !!(user as any).can_view_revenue,
     };
 
-    const secret = process.env.JWT_SECRET || 'your_secret';
+    const secret = getJwtSecret();
     const expiresIn = process.env.JWT_EXPIRY || '24h';
 
     return jwt.sign(payload, secret, { expiresIn } as any);
@@ -72,7 +76,7 @@ export class AuthService {
   }
 
   verifyToken(token: string): AuthPayload {
-    const secret = process.env.JWT_SECRET || 'your_secret';
+    const secret = getJwtSecret();
     return jwt.verify(token, secret) as AuthPayload;
   }
 }

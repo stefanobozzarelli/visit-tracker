@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { openSignedLink } from '../utils/openSignedLink';
 import { config } from '../config';
 import { CompanyVisit, CompanyVisitAttachment } from '../types';
 import '../styles/CrudPages.css';
@@ -91,7 +92,7 @@ export const CompanyVisitDetail: React.FC = () => {
 
   const handleViewAttachment = (attachmentId: string) => {
     if (!id) return;
-    window.open(`${config.API_BASE_URL}/company-visits/${id}/attachments/${attachmentId}/preview`, '_blank');
+    openSignedLink(() => apiService.getCompanyVisitAttachmentLink(id, attachmentId, 'preview'));
   };
 
   const handleDownloadAttachment = async (attachmentId: string, filename: string) => {

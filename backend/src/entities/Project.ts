@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, ManyToMany, JoinColumn, JoinTable } from 'typeorm';
 import { Company } from './Company';
 import { Client } from './Client';
 
@@ -55,6 +55,23 @@ export class Project {
   @ManyToOne(() => Client, { nullable: true, eager: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'client_id' })
   client: Client;
+
+  // Developer client (linked client from anagrafica)
+  @Column({ nullable: true })
+  developer_client_id: string;
+
+  @ManyToOne(() => Client, { nullable: true, eager: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'developer_client_id' })
+  developer_client: Client;
+
+  // Architect clients (many-to-many)
+  @ManyToMany(() => Client, { eager: true })
+  @JoinTable({
+    name: 'project_architect_clients',
+    joinColumn: { name: 'project_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'client_id', referencedColumnName: 'id' },
+  })
+  architect_clients: Client[];
 
   @Column({ nullable: true })
   country: string;

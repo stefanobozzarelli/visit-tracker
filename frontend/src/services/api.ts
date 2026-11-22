@@ -787,6 +787,14 @@ class ApiService {
     return response.data;
   }
 
+  /** Signed, short-lived link to a visit-report attachment (requires sign-in). */
+  async getReportAttachmentLink(visitId: string, reportId: string, attachmentId: string, mode: 'preview' | 'download' = 'preview'): Promise<string> {
+    const response = await this.api.get<ApiResponse<{ url: string }>>(
+      `/visits/${visitId}/reports/${reportId}/attachments/${attachmentId}/${mode}`
+    );
+    return (response.data as any)?.data?.url;
+  }
+
   async getAttachmentDownloadUrl(visitId: string, reportId: string, attachmentId: string) {
     const response = await this.api.get<ApiResponse<any>>(
       `/visits/${visitId}/reports/${reportId}/attachments/${attachmentId}/download`
@@ -990,9 +998,14 @@ class ApiService {
     return response.data;
   }
 
+  /** Signed, short-lived link to a supplier-meeting attachment (requires sign-in). */
+  async getCompanyVisitAttachmentLink(visitId: string, attachmentId: string, mode: 'preview' | 'download' = 'preview'): Promise<string> {
+    const response = await this.api.get<ApiResponse<{ url: string }>>(`/company-visits/${visitId}/attachments/${attachmentId}/${mode}`);
+    return (response.data as any)?.data?.url;
+  }
+
   async previewCompanyVisitAttachment(visitId: string, attachmentId: string): Promise<string> {
-    // Returns the preview URL (no content-disposition) for opening in new tab
-    return `${this.api.defaults.baseURL}/company-visits/${visitId}/attachments/${attachmentId}/preview`;
+    return this.getCompanyVisitAttachmentLink(visitId, attachmentId, 'preview');
   }
 
   async deleteCompanyVisitAttachment(visitId: string, attachmentId: string) {
@@ -1581,6 +1594,8 @@ class ApiService {
     const params = new URLSearchParams();
     if (filters?.supplier_id) params.set('supplier_id', filters.supplier_id);
     if (filters?.client_id) params.set('client_id', filters.client_id);
+    if (filters?.developer_client_id) params.set('developer_client_id', filters.developer_client_id);
+    if (filters?.architect_client_id) params.set('architect_client_id', filters.architect_client_id);
     if (filters?.country) params.set('country', filters.country);
     if (filters?.status) params.set('status', filters.status);
     if (filters?.project_type) params.set('project_type', filters.project_type);

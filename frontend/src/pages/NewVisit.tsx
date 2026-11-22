@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { openSignedLink } from '../utils/openSignedLink';
 import { Client, Company } from '../types';
 import { encodeMetadata, VisitMetadata, decodeMetadata } from '../utils/visitMetadata';
 import { compressImages } from '../utils/compressImage';
@@ -17,7 +18,7 @@ export const NewVisit: React.FC = () => {
   // Pre-fill from URL params (e.g. from + Visita button in trip)
   const prefillParams = useMemo(() => {
     const p = new URLSearchParams(location.search);
-    return { client: p.get('client') || '', date: p.get('date') || '' };
+    return { client: p.get('client') || '', date: p.get('date') || '', returnTo: p.get('returnTo') || '' };
   }, [location.search]);
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -701,8 +702,8 @@ export const NewVisit: React.FC = () => {
     <div className="crud-page">
       <div className="page-header">
         <h1>{isEditMode ? 'Edit Meeting' : 'Register Visit'}</h1>
-        <button onClick={() => navigate('/visits')} className="btn-secondary">
-          ← Back to Client Meetings
+        <button onClick={() => navigate(prefillParams.returnTo || '/visits')} className="btn-secondary">
+          ← {prefillParams.returnTo ? 'Back to Client' : 'Back to Client Meetings'}
         </button>
       </div>
 
@@ -1138,11 +1139,7 @@ export const NewVisit: React.FC = () => {
                           href="#"
                           onClick={async (e) => {
                             e.preventDefault();
-                            try {
-                              const r = await apiService.getAttachmentDownloadUrl(editId!, existingReports[index].id, att.id);
-                              const url = typeof r === 'string' ? r : (r as any)?.data?.url || (r as any)?.url;
-                              if (url) window.open(url, '_blank');
-                            } catch {}
+                            await openSignedLink(() => apiService.getReportAttachmentLink(editId!, existingReports[index].id, att.id, 'preview'));
                           }}
                           style={{ color: 'var(--color-info)', textDecoration: 'underline' }}
                         >

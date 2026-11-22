@@ -10,6 +10,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { MAX_UPLOAD_BYTES } from '../config/uploads';
 
 const router = Router();
 const offerService = new OfferService();
@@ -18,7 +19,7 @@ const s3Service = new S3Service();
 const pdfService = new PdfService();
 const excelService = new ExcelService();
 const projectService = new ProjectService();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 // Recompute the linked project's auto value (if any) after an offer's total changes.
 async function recalcLinkedProject(offerId: string): Promise<void> {

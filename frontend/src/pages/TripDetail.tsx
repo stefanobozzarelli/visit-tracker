@@ -201,8 +201,11 @@ export const TripDetail: React.FC = () => {
   const savingInFlightRef = useRef(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'list' | 'report'>('list');
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [allExpanded, setAllExpanded] = useState(false);
   const [highlightDayId, setHighlightDayId] = useState<string | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10);
+  const didInitialScrollRef = useRef(false);
+  const pendingScrollDayIdRef = useRef<string | null>(null);
 
   // PDF upload & export
   const [showPdfUpload, setShowPdfUpload] = useState(false);
@@ -256,6 +259,40 @@ export const TripDetail: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, [showExportMenu]);
 
+  const scrollToDay = useCallback((dayId: string) => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`trip-day-${dayId}`);
+      if (!el) return;
+      const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
+      const offset = headerBar ? headerBar.offsetHeight + 12 : 80;
+      const scroller = document.querySelector('.app-layout-content') as HTMLElement ?? document.documentElement;
+      const top = scroller.scrollTop + el.getBoundingClientRect().top - offset;
+      scroller.scrollTo({ top, behavior: 'instant' as ScrollBehavior });
+    });
+  }, []);
+
+  // Execute pending scroll AFTER expandedDays change is committed to DOM (Comprimi/Espandi)
+  useEffect(() => {
+    if (!pendingScrollDayIdRef.current) return;
+    const dayId = pendingScrollDayIdRef.current;
+    pendingScrollDayIdRef.current = null;
+    scrollToDay(dayId);
+  }, [expandedDays]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Initial scroll to today: fires once per list-tab visit, skipped on saves
+  useEffect(() => {
+    if (activeTab !== 'list') {
+      didInitialScrollRef.current = false;
+      return;
+    }
+    if (!trip || didInitialScrollRef.current) return;
+    const todayDay = trip.days.find(d => d.date === todayStr);
+    if (todayDay) {
+      scrollToDay(todayDay.id);
+      didInitialScrollRef.current = true;
+    }
+  }, [activeTab, trip]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadTrip = async () => {
     try {
       const res = await (apiService as any).getTrip(id);
@@ -263,7 +300,9 @@ export const TripDetail: React.FC = () => {
         setTrip({ ...res.data, hotels: res.data.hotels || [] });
         // Auto-expand today if present
         const today = res.data.days.find((d: TravelDay) => d.date === todayStr);
-        if (today) setExpandedDays(new Set([today.id]));
+        if (today) {
+          setExpandedDays(new Set([today.id]));
+        }
         // Carica le visite del periodo per popolare la mappa delivery
         loadVisitsDeliveryStatus(res.data);
       }
@@ -639,16 +678,49 @@ export const TripDetail: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="td-tabs">
-          <button className={`td-tab${activeTab === 'overview' ? ' active' : ''}`} onClick={() => setActiveTab('overview')}>
-            📊 Panoramica
-          </button>
-          <button className={`td-tab${activeTab === 'list' ? ' active' : ''}`} onClick={() => setActiveTab('list')}>
-            ☰ Lista
-          </button>
-          <button className={`td-tab${activeTab === 'report' ? ' active' : ''}`} onClick={() => setActiveTab('report')}>
-            📋 Report
-          </button>
+        <div className="td-tabs" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex' }}>
+            <button className={`td-tab${activeTab === 'overview' ? ' active' : ''}`} onClick={() => setActiveTab('overview')}>
+              📊 Panoramica
+            </button>
+            <button className={`td-tab${activeTab === 'list' ? ' active' : ''}`} onClick={() => setActiveTab('list')}>
+              ☰ Lista
+            </button>
+            <button className={`td-tab${activeTab === 'report' ? ' active' : ''}`} onClick={() => setActiveTab('report')}>
+              📋 Report
+            </button>
+          </div>
+          {activeTab === 'list' && (
+            <button
+              onClick={() => {
+                if (!trip) return;
+                if (allExpanded) {
+                  // Capture the topmost visible day before collapsing
+                  const headerBar = document.querySelector('.td-header-bar') as HTMLElement;
+                  const headerBottom = headerBar ? headerBar.getBoundingClientRect().bottom + 12 : 80;
+                  const dayEls = document.querySelectorAll('[id^="trip-day-"]');
+                  let topDayId: string | null = null;
+                  for (const el of Array.from(dayEls)) {
+                    if (el.getBoundingClientRect().bottom > headerBottom) {
+                      topDayId = el.id.replace('trip-day-', '');
+                      break;
+                    }
+                  }
+                  const todayDay = trip.days.find(d => d.date === todayStr);
+                  // Schedule scroll to that day AFTER collapse commits to DOM
+                  pendingScrollDayIdRef.current = topDayId ?? (todayDay ? todayDay.id : null);
+                  setExpandedDays(new Set(todayDay ? [todayDay.id] : []));
+                  setAllExpanded(false);
+                } else {
+                  setExpandedDays(new Set(trip.days.map(d => d.id)));
+                  setAllExpanded(true);
+                }
+              }}
+              style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-white)', cursor: 'pointer', color: 'var(--color-text-secondary)', alignSelf: 'center', marginRight: '0.25rem' }}
+            >
+              {allExpanded ? '▲ Comprimi' : '▼ Espandi tutti'}
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Client as PgClient } from 'pg';
 import express from 'express';
 import cors from 'cors';
 import { AppDataSource } from './config/database';
@@ -22,12 +23,18 @@ import statisticsRoutes from './routes/statistics';
 import tripRoutes from './routes/trips';
 import parseBookingRoutes from './routes/parse-booking';
 import todoistRoutes from './routes/todoist';
+import mcpRoutes from './routes/mcp';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Railway sits in front of the app as one proxy: trust exactly that hop, so
+// req.ip is the visitor's address and cannot be faked with X-Forwarded-For.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
+app.disable('x-powered-by');
 
 // Middleware
 // rawBody serve per verificare la firma HMAC dei webhook Todoist
@@ -56,13 +63,55 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/parse-booking', parseBookingRoutes);
 app.use('/api/integrations/todoist', todoistRoutes);
 
+// Claude connector: /mcp, /oauth/* and /.well-known/oauth-* (read-only)
+app.use(mcpRoutes);
+
+// Errors raised by middleware (oversized uploads, malformed JSON) get a short
+// JSON reply instead of a stack trace.
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) return next(err);
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ success: false, error: 'File too large' });
+  }
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ success: false, error: 'Invalid JSON' });
+  }
+  console.error('Unhandled error:', err?.message || err);
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: '1.2.0' });
 });
 
+// Pre-migration: convert clients.role from PostgreSQL enum to varchar
+// (TypeORM synchronize cannot change enum values; varchar is simpler and flexible)
+async function runPreMigrations() {
+  const connectionString = process.env.DATABASE_URL ||
+    `postgresql://${process.env.DB_USERNAME || 'postgres'}:${process.env.DB_PASSWORD || 'password'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_DATABASE || 'visit_tracker'}`;
+  const pg = new PgClient({ connectionString });
+  try {
+    await pg.connect();
+    // Convert role column from enum to varchar (safe, idempotent)
+    await pg.query(`
+      ALTER TABLE clients
+        ALTER COLUMN role TYPE varchar
+        USING role::varchar
+    `);
+    console.log('Pre-migration: clients.role converted to varchar');
+  } catch (e: any) {
+    // Ignore if already varchar or column doesn't exist yet
+    if (!e.message?.includes('already exists') && !e.message?.includes('does not exist') && !e.message?.includes('varchar')) {
+      console.log('Pre-migration note:', e.message);
+    }
+  } finally {
+    await pg.end();
+  }
+}
+
 // Initialize database and start server
-AppDataSource.initialize()
+runPreMigrations().then(() => AppDataSource.initialize())
   .then(async () => {
     console.log('Database connection established');
 

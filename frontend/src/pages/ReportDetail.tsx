@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { openSignedLink, downloadSignedLink } from '../utils/openSignedLink';
 import { VisitReport } from '../types';
 import '../styles/CrudPages.css';
 
@@ -186,9 +187,7 @@ export const ReportDetail: React.FC = () => {
                   <button
                     onClick={() => {
                       // Open in new window (preview, not download)
-                      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-                      const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}/preview`;
-                      window.open(url, '_blank');
+                      openSignedLink(() => apiService.getReportAttachmentLink(visitId!, reportId!, att.id, 'preview'));
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
@@ -197,15 +196,8 @@ export const ReportDetail: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // Download via backend endpoint (backend streams from Cloudinary)
-                      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-                      const url = `${baseUrl}/visits/${visitId}/reports/${reportId}/attachments/${att.id}/download`;
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = att.filename;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
+                      // Signed link with "attachment" disposition: the browser downloads it
+                      downloadSignedLink(() => apiService.getReportAttachmentLink(visitId!, reportId!, att.id, 'download'), att.filename);
                     }}
                     className="btn-primary"
                     style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
