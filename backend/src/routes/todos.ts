@@ -405,8 +405,8 @@ router.post('/:id/todoist-restore', authMiddleware, async (req: Request, res: Re
       return res.status(403).json({ success: false, error: 'Unauthorized' });
     }
 
-    const onTodoist = await todoistService.restoreTodo(todo.id);
-    res.json({ success: true, data: { onTodoist } });
+    const result = await todoistService.restoreTodo(todo.id);
+    res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });
   }
