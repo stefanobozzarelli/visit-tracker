@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { TodoistDeletedNotice } from '../components/TodoistDeletedNotice';
 import { TodoItem, Client, Company, User } from '../types';
 import { MobileTaskForm } from './MobileTaskForm';
 import '../styles/MobileTasks.css';
@@ -485,6 +486,14 @@ export const MobileTasks: React.FC = () => {
                 <div className="mt-card-header">
                   <div className="mt-card-main">
                     <div className="mt-card-title">{todo.title}</div>
+                    {todo.todoist_deleted_at && (
+                      <TodoistDeletedNotice
+                        compact
+                        todoId={todo.id}
+                        deletedAt={todo.todoist_deleted_at}
+                        onResolved={() => loadTodos()}
+                      />
+                    )}
                     <div className="mt-card-meta">
                       {clientName && <span className="mt-card-client">{clientName}</span>}
                       {todo.due_date && (

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { TodoService } from '../services/TodoService';
+import { todoistService } from '../services/TodoistService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
@@ -383,6 +384,31 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
       success: false,
       error: (error as Error).message,
     });
+  }
+});
+
+/**
+ * POST /api/todos/:id/todoist-restore
+ * Il task era stato cancellato su Todoist: lo ripristina (ricreandolo su Todoist).
+ */
+router.post('/:id/todoist-restore', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const todo = await todoService.getTodoById(req.params.id);
+    if (!todo) return res.status(404).json({ success: false, error: 'Todo not found' });
+
+    const userId = (req.user as any).id;
+    const userRole = (req.user as any).role;
+    if (
+      userRole !== 'master_admin' && userRole !== 'admin' && userRole !== 'manager' &&
+      String(todo.assigned_to_user_id) !== String(userId) && String(todo.created_by_user_id) !== String(userId)
+    ) {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const onTodoist = await todoistService.restoreTodo(todo.id);
+    res.json({ success: true, data: { onTodoist } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 

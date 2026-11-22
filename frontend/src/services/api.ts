@@ -857,6 +857,13 @@ class ApiService {
     return response.data;
   }
 
+  /** Ripristina un task cancellato su Todoist (lo ricrea su Todoist). */
+  async restoreTodoistTodo(id: string) {
+    const response = await this.api.post<ApiResponse<{ onTodoist: boolean }>>(`/todos/${id}/todoist-restore`);
+    this.memoryCache.clear();
+    return response.data;
+  }
+
   // Todo Attachments
   async uploadTodoAttachment(todoId: string, file: File) {
     const formData = new FormData();

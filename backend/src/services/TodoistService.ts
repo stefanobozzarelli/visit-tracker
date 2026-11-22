@@ -133,6 +133,8 @@ export class TodoistService {
     try {
       const todo = await this.todoRepo.findOne({ where: { id: todoId }, relations: ['client', 'company'] });
       if (!todo) return;
+      // Cancellato su Todoist e non ancora ripristinato: non ricrearlo di nascosto
+      if (todo.todoist_deleted_at) return;
 
       // Riassegnato a un altro utente: togli il task dal Todoist del vecchio assegnatario
       if (todo.todoist_task_id && todo.todoist_owner_user_id && String(todo.todoist_owner_user_id) !== String(todo.assigned_to_user_id)) {
@@ -178,6 +180,18 @@ export class TodoistService {
     }
   }
 
+  /**
+   * Ripristina un task cancellato su Todoist: toglie il segnale e lo ricrea su Todoist.
+   * Ritorna true se il task è di nuovo su Todoist (false se l'assegnatario non ha
+   * Todoist collegato o se il task è completato).
+   */
+  async restoreTodo(todoId: string): Promise<boolean> {
+    await this.todoRepo.update(todoId, { todoist_deleted_at: null });
+    await this.pushTodo(todoId);
+    const after = await this.todoRepo.findOne({ where: { id: todoId } });
+    return !!after?.todoist_task_id;
+  }
+
   /** Cancella da Todoist il task collegato a un todo VT che sta per essere eliminato. */
   async removeTodo(todo: Pick<TodoItem, 'todoist_task_id' | 'todoist_owner_user_id'>): Promise<void> {
     if (!this.isConfigured() || !todo.todoist_task_id || !todo.todoist_owner_user_id) return;
@@ -195,6 +209,7 @@ export class TodoistService {
       .where('todo.assigned_to_user_id = :userId', { userId })
       .andWhere("todo.status != 'done'")
       .andWhere('todo.todoist_task_id IS NULL')
+      .andWhere('todo.todoist_deleted_at IS NULL')
       .getMany();
     for (const t of todos) {
       await this.pushTodo(t.id);
@@ -223,8 +238,14 @@ export class TodoistService {
 
     if (event === 'item:deleted') {
       // Prudenza: non cancelliamo dati VT (allegati, collegamenti a visite/reclami).
-      // Scolleghiamo soltanto il task.
-      if (linked) await this.todoRepo.update(linked.id, { todoist_task_id: null, todoist_owner_user_id: null });
+      // Scolleghiamo il task e lo segnaliamo: l'utente sceglierà se ripristinarlo o eliminarlo.
+      if (linked) {
+        await this.todoRepo.update(linked.id, {
+          todoist_task_id: null,
+          todoist_owner_user_id: null,
+          todoist_deleted_at: new Date(),
+        });
+      }
       return;
     }
 

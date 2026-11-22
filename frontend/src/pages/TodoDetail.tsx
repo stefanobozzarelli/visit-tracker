@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { TodoItem, TodoAttachment } from '../types';
+import { TodoistDeletedNotice } from '../components/TodoistDeletedNotice';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
 
@@ -49,6 +50,17 @@ export const TodoDetail: React.FC = () => {
       </button>
 
       <h1 style={{ marginBottom: '1.5rem' }}>Task Details</h1>
+
+      {todo.todoist_deleted_at && (
+        <TodoistDeletedNotice
+          todoId={todo.id}
+          deletedAt={todo.todoist_deleted_at}
+          onResolved={(deleted) => {
+            if (deleted) navigate('/tasks');
+            else setTodo({ ...todo, todoist_deleted_at: null });
+          }}
+        />
+      )}
 
       <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>

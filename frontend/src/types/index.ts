@@ -285,6 +285,8 @@ export interface TodoItem {
   claim_id?: string;
   company_visit_id?: string;
   category?: string; // 'work' | 'personal' | 'architectural_lines'
+  description?: string | null;
+  todoist_deleted_at?: string | null; // cancellato su Todoist, in attesa di decisione
   created_at: string;
   updated_at: string;
   // Relations
