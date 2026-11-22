@@ -67,9 +67,10 @@ router.post('/users', authMiddleware, adminOnly, async (req: Request, res: Respo
     }
 
     const user = await userService.createUser(email, name, password, role, company_id);
+    const { password_hash: _ph, ...safeUser } = user as any;
     res.status(201).json({
       success: true,
-      data: user,
+      data: safeUser,
     });
   } catch (error) {
     res.status(400).json({

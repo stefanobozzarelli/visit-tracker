@@ -28,7 +28,11 @@ export class AuthService {
   }
 
   async login(data: LoginRequest): Promise<{ user: User; token: string }> {
-    const user = await this.userRepository.findOne({ where: { email: data.email } });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password_hash')
+      .where('user.email = :email', { email: data.email })
+      .getOne();
     if (!user) {
       throw new Error('User not found');
     }
@@ -58,7 +62,11 @@ export class AuthService {
   }
 
   async verifyPassword(userId: string, password: string): Promise<boolean> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password_hash')
+      .where('user.id = :userId', { userId })
+      .getOne();
     if (!user) return false;
     return bcrypt.compare(password, user.password_hash);
   }

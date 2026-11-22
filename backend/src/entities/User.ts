@@ -16,7 +16,8 @@ export class User {
   @Column()
   name: string;
 
-  @Column()
+  // select: false → mai incluso in query/join (es. todo.assigned_to_user); leggere con addSelect
+  @Column({ select: false })
   password_hash: string;
 
   @Column({ type: 'enum', enum: ['master_admin', 'admin', 'manager', 'sales_rep'], default: 'sales_rep' })
@@ -32,14 +33,15 @@ export class User {
   sidebar_menu_order: string[] | null;
 
   // Microsoft 365 / Outlook OAuth (per creare bozze con allegato via Graph)
-  @Column({ type: 'text', nullable: true })
+  // Token segreti: select: false (vedi MicrosoftGraphService.loadUserWithTokens)
+  @Column({ type: 'text', nullable: true, select: false })
   ms_refresh_token: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, select: false })
   ms_access_token: string | null;
 
   // epoch ms di scadenza dell'access token
-  @Column({ type: 'bigint', nullable: true })
+  @Column({ type: 'bigint', nullable: true, select: false })
   ms_token_expiry: string | null;
 
   @Column({ type: 'text', nullable: true })
