@@ -65,6 +65,11 @@ export class TodoItem {
   @Column({ type: 'text', nullable: true })
   todoist_owner_user_id: string | null;
 
+  // Valorizzato quando il task è stato cancellato su Todoist: in VT resta in attesa
+  // che l'utente scelga "ripristina" (lo ricrea su Todoist) o "elimina definitivamente".
+  @Column({ type: 'timestamp', nullable: true })
+  todoist_deleted_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

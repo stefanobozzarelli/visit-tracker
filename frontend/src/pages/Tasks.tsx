@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { TodoistDeletedNotice } from '../components/TodoistDeletedNotice';
 import { TodoItem, Client, Company, User } from '../types';
 import axios from 'axios';
 import { config } from '../config';
@@ -687,6 +688,14 @@ export const Tasks: React.FC = () => {
                         </div>
                         {createdByName && (
                           <div className="task-created-by">by {createdByName}</div>
+                        )}
+                        {todo.todoist_deleted_at && (
+                          <TodoistDeletedNotice
+                            compact
+                            todoId={todo.id}
+                            deletedAt={todo.todoist_deleted_at}
+                            onResolved={() => loadTodos()}
+                          />
                         )}
                         {sourceLabel && (
                           <span

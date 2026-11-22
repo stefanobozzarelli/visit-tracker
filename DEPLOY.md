@@ -88,7 +88,7 @@ Una volta deployato:
 
 Note: un task finisce nel Todoist del suo **assegnatario**, nei progetti "Visit Tracker – …" (uno per categoria).
 Le colonne nuove (`users.todoist_*`, `todo_items.todoist_*`) vengono create in automatico (`synchronize: true`).
-Se un task viene cancellato su Todoist, in Visit Tracker viene solo scollegato (non cancellato).
+Se un task viene cancellato su Todoist, in Visit Tracker resta con l'avviso "Cancellato da Todoist" e due pulsanti: "Ripristina" (lo ricrea su Todoist) o "Elimina definitivamente".
 
 ## 🔧 Troubleshooting
 
