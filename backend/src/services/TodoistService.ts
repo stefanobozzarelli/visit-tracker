@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import { TodoItem } from '../entities/TodoItem';
+import { TodoistAdminTask } from '../entities/TodoistAdminTask';
 
 /**
  * Sincronizzazione bidirezionale To-Do di Visit Tracker <-> Todoist.
@@ -57,6 +58,9 @@ export class TodoistService {
 
   private get userRepo() { return AppDataSource.getRepository(User); }
   private get todoRepo() { return AppDataSource.getRepository(TodoItem); }
+  private get adminTaskRepo() { return AppDataSource.getRepository(TodoistAdminTask); }
+
+  private static ADMIN_ROLES = ['master_admin', 'admin', 'manager'];
 
   isConfigured(): boolean {
     return !!(this.clientId && this.clientSecret);
@@ -149,6 +153,8 @@ export class TodoistService {
 
       const owner = await this.loadUserWithToken(todo.assigned_to_user_id);
       if (!owner?.todoist_access_token) {
+        // L'assegnatario non ha Todoist: aggiorna comunque le copie admin
+        await this.syncAdminCopies(todo, null);
         return { ok: false, reason: "L'assegnatario del task non ha collegato Todoist" };
       }
       ownerId = owner.id;
@@ -158,7 +164,10 @@ export class TodoistService {
 
       if (!todo.todoist_task_id) {
         // Un task già completato non va creato su Todoist
-        if (todo.status === 'done') return { ok: false, reason: 'Il task è completato: su Todoist si creano solo i task aperti' };
+        if (todo.status === 'done') {
+          await this.syncAdminCopies(todo, owner.id);
+          return { ok: false, reason: 'Il task è completato: su Todoist si creano solo i task aperti' };
+        }
         // In creazione "no date" non serve (e Todoist può rifiutarlo)
         const createBody = { ...body };
         delete createBody.due_string;
@@ -174,6 +183,7 @@ export class TodoistService {
           created = await this.api(owner, 'post', '/tasks', { ...createBody, project_id: await this.ensureProject(owner, category) });
         }
         await this.todoRepo.update(todo.id, { todoist_task_id: String(created.id), todoist_owner_user_id: owner.id });
+        await this.syncAdminCopies(todo, owner.id);
         return { ok: true };
       }
 
@@ -196,6 +206,7 @@ export class TodoistService {
         }
         throw e;
       }
+      await this.syncAdminCopies(todo, owner.id);
       return { ok: true };
     } catch (e) {
       const detail = this.describe(e);
@@ -207,6 +218,77 @@ export class TodoistService {
         return { ok: false, reason: 'Il collegamento a Todoist non è più valido. Vai in Impostazioni → Todoist e premi "Collega Todoist", poi "Sincronizza ora".' };
       }
       return { ok: false, reason: `Errore da Todoist: ${detail}` };
+    }
+  }
+
+  /** Aggiorna le copie admin di un task su Todoist (chiamato dopo ogni push all'assegnatario). */
+  private async syncAdminCopies(todo: TodoItem, assigneeUserId: string | null): Promise<void> {
+    try {
+      const admins = await this.loadAdminUsers();
+      for (const admin of admins) {
+        if (admin.id === assigneeUserId) continue; // skip se l'assegnatario è già admin
+        await this.pushAdminCopy(todo, admin);
+        await new Promise(r => setTimeout(r, 150));
+      }
+    } catch (e) {
+      console.error('[Todoist] syncAdminCopies fallito:', this.describe(e));
+    }
+  }
+
+  /** Crea o aggiorna la copia di un task nel Todoist di un admin. */
+  private async pushAdminCopy(todo: TodoItem, admin: User): Promise<void> {
+    const category = todo.category || 'work';
+    const body = this.toTodoistPayload(todo);
+    const existing = await this.adminTaskRepo.findOne({ where: { todo_id: todo.id, admin_user_id: admin.id } });
+
+    try {
+      if (!existing?.todoist_task_id) {
+        if (todo.status === 'done') return;
+        const createBody = { ...body };
+        delete createBody.due_string;
+
+        let created: any;
+        try {
+          created = await this.api(admin, 'post', '/tasks', { ...createBody, project_id: await this.ensureProject(admin, category) });
+        } catch (e) {
+          const status = (e as AxiosError)?.response?.status;
+          if (status !== 400 && status !== 404) throw e;
+          await this.forgetProject(admin, category);
+          created = await this.api(admin, 'post', '/tasks', { ...createBody, project_id: await this.ensureProject(admin, category) });
+        }
+
+        if (existing) {
+          await this.adminTaskRepo.update(existing.id, { todoist_task_id: String(created.id) });
+        } else {
+          await this.adminTaskRepo.save(this.adminTaskRepo.create({
+            todo_id: todo.id,
+            admin_user_id: admin.id,
+            todoist_task_id: String(created.id),
+          }));
+        }
+      } else {
+        const projectId = await this.ensureProject(admin, category);
+        try {
+          await this.api(admin, 'post', `/tasks/${existing.todoist_task_id}`, body);
+          await this.api(admin, 'post', `/tasks/${existing.todoist_task_id}/move`, { project_id: projectId }).catch(() => {});
+          if (todo.status === 'done') {
+            await this.api(admin, 'post', `/tasks/${existing.todoist_task_id}/close`);
+          } else {
+            await this.api(admin, 'post', `/tasks/${existing.todoist_task_id}/reopen`).catch(() => {});
+          }
+        } catch (e) {
+          if (this.isNotFound(e)) {
+            await this.adminTaskRepo.update(existing.id, { todoist_task_id: null });
+            return;
+          }
+          throw e;
+        }
+      }
+    } catch (e) {
+      console.error(`[Todoist] pushAdminCopy todo=${todo.id} admin=${admin.id} fallito:`, this.describe(e));
+      if ((e as AxiosError)?.response?.status === 401) {
+        await this.userRepo.update(admin.id, { todoist_access_token: null });
+      }
     }
   }
 
@@ -224,29 +306,82 @@ export class TodoistService {
   }
 
   /** Cancella da Todoist il task collegato a un todo VT che sta per essere eliminato. */
-  async removeTodo(todo: Pick<TodoItem, 'todoist_task_id' | 'todoist_owner_user_id'>): Promise<void> {
-    if (!this.isConfigured() || !todo.todoist_task_id || !todo.todoist_owner_user_id) return;
-    try {
-      await this.deleteRemoteTask(todo.todoist_owner_user_id, todo.todoist_task_id);
-    } catch (e) {
-      console.error('[Todoist] removeTodo fallito:', this.describe(e));
+  async removeTodo(todo: Pick<TodoItem, 'id' | 'todoist_task_id' | 'todoist_owner_user_id'>): Promise<void> {
+    if (!this.isConfigured()) return;
+    // Cancella dal Todoist dell'assegnatario
+    if (todo.todoist_task_id && todo.todoist_owner_user_id) {
+      try {
+        await this.deleteRemoteTask(todo.todoist_owner_user_id, todo.todoist_task_id);
+      } catch (e) {
+        console.error('[Todoist] removeTodo (owner) fallito:', this.describe(e));
+      }
+    }
+    // Cancella le copie admin
+    if (todo.id) {
+      const adminTasks = await this.adminTaskRepo.find({ where: { todo_id: todo.id } });
+      for (const at of adminTasks) {
+        if (at.todoist_task_id) {
+          try {
+            await this.deleteRemoteTask(at.admin_user_id, at.todoist_task_id);
+          } catch (e) {
+            console.error(`[Todoist] removeTodo (admin ${at.admin_user_id}) fallito:`, this.describe(e));
+          }
+        }
+      }
+      if (adminTasks.length > 0) {
+        await this.adminTaskRepo.delete({ todo_id: todo.id });
+      }
     }
   }
 
-  /** Prima sincronizzazione dopo il collegamento: invia i task aperti assegnati all'utente. */
+  /** Prima sincronizzazione dopo il collegamento: invia i task aperti all'utente (tutti se admin). */
   async initialSync(userId: string): Promise<void> {
-    const todos = await this.todoRepo
-      .createQueryBuilder('todo')
-      .where('todo.assigned_to_user_id = :userId', { userId })
-      .andWhere("todo.status != 'done'")
-      .andWhere('todo.todoist_task_id IS NULL')
-      .andWhere('todo.todoist_deleted_at IS NULL')
-      .getMany();
-    for (const t of todos) {
-      await this.pushTodo(t.id);
-      await new Promise(r => setTimeout(r, 250)); // gentile coi rate limit
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.role')
+      .where('user.id = :userId', { userId })
+      .getOne();
+    const isAdmin = TodoistService.ADMIN_ROLES.includes(user?.role || '');
+
+    if (isAdmin) {
+      // Admin: invia tutti i task aperti — quelli assegnati a sé via pushTodo, gli altri come copia admin
+      const todos = await this.todoRepo
+        .createQueryBuilder('todo')
+        .leftJoinAndSelect('todo.client', 'client')
+        .leftJoinAndSelect('todo.company', 'company')
+        .where("todo.status != 'done'")
+        .andWhere('todo.todoist_deleted_at IS NULL')
+        .getMany();
+
+      let pushed = 0;
+      for (const t of todos) {
+        if (String(t.assigned_to_user_id) === String(userId)) {
+          if (!t.todoist_task_id) {
+            await this.pushTodo(t.id);
+            pushed++;
+          }
+        } else {
+          await this.pushAdminCopy(t, user!);
+          pushed++;
+        }
+        await new Promise(r => setTimeout(r, 250));
+      }
+      console.log(`[Todoist] Sync iniziale admin ${userId}: ${pushed}/${todos.length} task inviati`);
+    } else {
+      // Utente normale: invia solo i task assegnati a sé
+      const todos = await this.todoRepo
+        .createQueryBuilder('todo')
+        .where('todo.assigned_to_user_id = :userId', { userId })
+        .andWhere("todo.status != 'done'")
+        .andWhere('todo.todoist_task_id IS NULL')
+        .andWhere('todo.todoist_deleted_at IS NULL')
+        .getMany();
+      for (const t of todos) {
+        await this.pushTodo(t.id);
+        await new Promise(r => setTimeout(r, 250));
+      }
+      console.log(`[Todoist] Sync iniziale utente ${userId}: ${todos.length} task inviati`);
     }
-    console.log(`[Todoist] Sync iniziale utente ${userId}: ${todos.length} task inviati`);
   }
 
   // ─── Todoist -> VT (webhook) ───────────────────────────────────────────
@@ -265,17 +400,23 @@ export class TodoistService {
     if (!event.startsWith('item:') || !task?.id) return;
 
     const todoistTaskId = String(task.id);
+    // Cerca prima tra i task dell'assegnatario, poi tra le copie admin
     const linked = await this.todoRepo.findOne({ where: { todoist_task_id: todoistTaskId } });
+    const adminLinked = !linked
+      ? await this.adminTaskRepo.findOne({ where: { todoist_task_id: todoistTaskId } })
+      : null;
 
     if (event === 'item:deleted') {
-      // Prudenza: non cancelliamo dati VT (allegati, collegamenti a visite/reclami).
-      // Scolleghiamo il task e lo segnaliamo: l'utente sceglierà se ripristinarlo o eliminarlo.
       if (linked) {
+        // Task dell'assegnatario eliminato: segnala come cancellato da Todoist
         await this.todoRepo.update(linked.id, {
           todoist_task_id: null,
           todoist_owner_user_id: null,
           todoist_deleted_at: new Date(),
         });
+      } else if (adminLinked) {
+        // Copia admin eliminata: rimuovi solo la riga dalla tabella copie (non toccare VT)
+        await this.adminTaskRepo.update(adminLinked.id, { todoist_task_id: null });
       }
       return;
     }
@@ -285,14 +426,39 @@ export class TodoistService {
       return;
     }
 
+    if (adminLinked) {
+      // Modifica da un admin: applica al task VT originale
+      const vtTodo = await this.todoRepo.findOne({ where: { id: adminLinked.todo_id } });
+      if (vtTodo) await this.applyRemoteChanges(vtTodo, task, event);
+      return;
+    }
+
     if (event !== 'item:added') return;
 
     // Task creato da VT: il webhook può arrivare prima che abbiamo salvato l'id → riconoscilo dal link nel footer
     const vtId = this.extractVtId(task.description);
     if (vtId) {
       const own = await this.todoRepo.findOne({ where: { id: vtId } });
-      if (own && !own.todoist_task_id) {
-        await this.todoRepo.update(own.id, { todoist_task_id: todoistTaskId, todoist_owner_user_id: own.assigned_to_user_id });
+      if (own) {
+        if (!own.todoist_task_id) {
+          // È il task dell'assegnatario
+          await this.todoRepo.update(own.id, { todoist_task_id: todoistTaskId, todoist_owner_user_id: own.assigned_to_user_id });
+        } else {
+          // È la copia di un admin: registrala in todoist_admin_tasks
+          const webhookOwner = await this.findOwner(payload?.user_id, task.project_id);
+          if (webhookOwner && TodoistService.ADMIN_ROLES.includes(webhookOwner.role)) {
+            const existing = await this.adminTaskRepo.findOne({ where: { todo_id: vtId, admin_user_id: webhookOwner.id } });
+            if (existing && !existing.todoist_task_id) {
+              await this.adminTaskRepo.update(existing.id, { todoist_task_id: todoistTaskId });
+            } else if (!existing) {
+              await this.adminTaskRepo.save(this.adminTaskRepo.create({
+                todo_id: vtId,
+                admin_user_id: webhookOwner.id,
+                todoist_task_id: todoistTaskId,
+              }));
+            }
+          }
+        }
       }
       return;
     }
@@ -356,6 +522,16 @@ export class TodoistService {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────
+
+  private async loadAdminUsers(): Promise<User[]> {
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.todoist_access_token')
+      .addSelect('user.role')
+      .where('user.todoist_access_token IS NOT NULL')
+      .andWhere(`user.role IN ('master_admin', 'admin', 'manager')`)
+      .getMany();
+  }
 
   private async loadUserWithToken(userId: string): Promise<User | null> {
     return this.userRepo
