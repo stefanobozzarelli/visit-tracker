@@ -29,7 +29,12 @@ export class AuthService {
   }
 
   async login(data: LoginRequest): Promise<{ user: User; token: string }> {
-    const user = await this.userRepository.findOne({ where: { email: data.email } });
+    // password_hash è select: false → va richiesto esplicitamente
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password_hash')
+      .where('user.email = :email', { email: data.email })
+      .getOne();
     // Same message whether the email or the password is wrong, so the login
     // form cannot be used to find out which emails have an account.
     if (!user || !data.password) {
@@ -61,7 +66,11 @@ export class AuthService {
   }
 
   async verifyPassword(userId: string, password: string): Promise<boolean> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password_hash')
+      .where('user.id = :userId', { userId })
+      .getOne();
     if (!user) return false;
     return bcrypt.compare(password, user.password_hash);
   }

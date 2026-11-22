@@ -58,8 +58,24 @@ export class MicrosoftGraphService {
     return this.persistTokens(userId, tokens);
   }
 
+  /** Carica l'utente INCLUSI i token (colonne con select: false). */
+  async loadUserWithTokens(userId: string): Promise<User | null> {
+    return AppDataSource.getRepository(User)
+      .createQueryBuilder('user')
+      .addSelect(['user.ms_refresh_token', 'user.ms_access_token', 'user.ms_token_expiry'])
+      .where('user.id = :userId', { userId })
+      .getOne();
+  }
+
+  /** true se l'utente ha collegato Outlook. */
+  async isConnected(userId: string): Promise<boolean> {
+    const user = await this.loadUserWithTokens(userId);
+    return !!user?.ms_refresh_token;
+  }
+
   /** Ritorna un access token valido, rinnovandolo col refresh token se scaduto. */
-  async getValidAccessToken(user: User): Promise<string> {
+  async getValidAccessToken(userRef: User): Promise<string> {
+    const user = (await this.loadUserWithTokens(userRef.id)) || userRef;
     const now = Date.now();
     const expiry = user.ms_token_expiry ? Number(user.ms_token_expiry) : 0;
 

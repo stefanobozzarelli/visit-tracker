@@ -450,6 +450,27 @@ class ApiService {
     return response.data;
   }
 
+  // ---- Todoist integration ----
+  async getTodoistStatus() {
+    const response = await this.api.get<ApiResponse<{ connected: boolean; email: string | null; configured: boolean }>>('/integrations/todoist/status');
+    return response.data;
+  }
+
+  async connectTodoist() {
+    const response = await this.api.get<ApiResponse<{ url: string }>>('/integrations/todoist/connect');
+    return response.data;
+  }
+
+  async disconnectTodoist() {
+    const response = await this.api.post<ApiResponse<any>>('/integrations/todoist/disconnect');
+    return response.data;
+  }
+
+  async syncTodoist() {
+    const response = await this.api.post<ApiResponse<any>>('/integrations/todoist/sync');
+    return response.data;
+  }
+
   async createOutlookDraft(visitId: string, data: { reportId?: string; subject?: string; body?: string; to?: string[] }) {
     const response = await this.api.post<ApiResponse<{ webLink: string }>>(`/visits/${visitId}/outlook-draft`, data);
     return response.data;

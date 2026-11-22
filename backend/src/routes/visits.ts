@@ -581,7 +581,7 @@ router.post('/outlook-draft-multi', async (req: Request, res: Response) => {
 
     const user = await AppDataSource.getRepository(User).findOne({ where: { id: authUserId } });
     if (!user) return res.status(404).json({ success: false, error: 'Utente non trovato' });
-    if (!user.ms_refresh_token) {
+    if (!(await msGraph.isConnected(user.id))) {
       return res.status(409).json({ success: false, error: 'OUTLOOK_NOT_CONNECTED' });
     }
 
@@ -690,7 +690,7 @@ router.post('/:id/outlook-draft', async (req: Request, res: Response) => {
     const userId = (req.user as any)?.id;
     const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId } });
     if (!user) return res.status(404).json({ success: false, error: 'Utente non trovato' });
-    if (!user.ms_refresh_token) {
+    if (!(await msGraph.isConnected(user.id))) {
       return res.status(409).json({ success: false, error: 'OUTLOOK_NOT_CONNECTED' });
     }
 

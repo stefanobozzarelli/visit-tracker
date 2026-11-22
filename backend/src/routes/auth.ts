@@ -288,7 +288,7 @@ router.get('/microsoft/status', authMiddleware, async (req: Request, res: Respon
     res.json({
       success: true,
       data: {
-        connected: !!(user && user.ms_refresh_token),
+        connected: !!user && (await msGraph.isConnected(userId)),
         email: user?.ms_email || null,
         configured: msGraph.isConfigured(),
       },

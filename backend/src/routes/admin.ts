@@ -59,7 +59,7 @@ async function protectTargetUser(req: Request, res: Response, next: Function) {
 // Never send password hashes or Microsoft tokens back to the browser.
 function publicUser(user: any) {
   if (!user) return user;
-  const { password_hash, ms_refresh_token, ms_access_token, ms_token_expiry, ...rest } = user;
+  const { password_hash, ms_refresh_token, ms_access_token, ms_token_expiry, todoist_access_token, ...rest } = user;
   return rest;
 }
 

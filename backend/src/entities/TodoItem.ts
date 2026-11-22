@@ -58,6 +58,13 @@ export class TodoItem {
   @Column({ default: 'work' })
   category: string; // 'work' | 'personal' | 'architectural_lines'
 
+  // Todoist sync: id del task su Todoist e utente VT nel cui Todoist si trova
+  @Column({ type: 'text', nullable: true })
+  todoist_task_id: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  todoist_owner_user_id: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

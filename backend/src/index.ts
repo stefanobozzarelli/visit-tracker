@@ -22,6 +22,7 @@ import opportunityRoutes from './routes/opportunities';
 import statisticsRoutes from './routes/statistics';
 import tripRoutes from './routes/trips';
 import parseBookingRoutes from './routes/parse-booking';
+import todoistRoutes from './routes/todoist';
 import mcpRoutes from './routes/mcp';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
@@ -36,7 +37,8 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 app.disable('x-powered-by');
 
 // Middleware
-app.use(express.json());
+// rawBody serve per verificare la firma HMAC dei webhook Todoist
+app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 app.use(cors());
 
 // Routes
@@ -59,6 +61,7 @@ app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/parse-booking', parseBookingRoutes);
+app.use('/api/integrations/todoist', todoistRoutes);
 
 // Claude connector: /mcp, /oauth/* and /.well-known/oauth-* (read-only)
 app.use(mcpRoutes);

@@ -43,7 +43,7 @@ interface FormData {
   role: string;
 }
 
-type Tab = 'users' | 'companies' | 'clients' | 'outlook';
+type Tab = 'users' | 'companies' | 'clients' | 'outlook' | 'todoist';
 
 // ─── Component ────────────────────────────────────────
 export const Settings: React.FC = () => {
@@ -60,11 +60,12 @@ export const Settings: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('ms')) setActiveTab('outlook');
+    if (params.get('todoist')) setActiveTab('todoist');
   }, []);
 
-  // Se l'utente non è admin/manager, forza la tab Outlook (le tab amministrative sono nascoste)
+  // Se l'utente non è admin/manager, forza una tab personale (le tab amministrative sono nascoste)
   useEffect(() => {
-    if (user && !isAdminLevel) setActiveTab('outlook');
+    if (user && !isAdminLevel) setActiveTab(prev => (prev === 'todoist' ? 'todoist' : 'outlook'));
   }, [user, isAdminLevel]);
 
   if (!isOnline) {
@@ -111,6 +112,12 @@ export const Settings: React.FC = () => {
         >
           Outlook
         </button>
+        <button
+          className={`settings-tab ${activeTab === 'todoist' ? 'active' : ''}`}
+          onClick={() => setActiveTab('todoist')}
+        >
+          Todoist
+        </button>
       </div>
 
       <div className="settings-content">
@@ -118,6 +125,7 @@ export const Settings: React.FC = () => {
         {isAdminLevel && activeTab === 'companies' && <CompanyAccessTab />}
         {isAdminLevel && activeTab === 'clients' && <ClientPermissionsTab />}
         {activeTab === 'outlook' && <OutlookTab />}
+        {activeTab === 'todoist' && <TodoistTab />}
       </div>
     </div>
   );
@@ -834,6 +842,138 @@ const OutlookTab: React.FC = () => {
               <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Nessun account collegato.</div>
               <button className="btn btn-primary" onClick={handleConnect} disabled={working || !status?.configured}>
                 {working ? 'Reindirizzamento...' : 'Collega Outlook'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ─── Todoist Tab ──────────────────────────────────────
+const TodoistTab: React.FC = () => {
+  const [status, setStatus] = useState<{ connected: boolean; email: string | null; configured: boolean } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const loadStatus = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiService.getTodoistStatus();
+      if (res.success && res.data) setStatus(res.data);
+      else setError(res.error || 'Errore nel caricamento dello stato');
+    } catch {
+      setError('Errore nel caricamento dello stato Todoist');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadStatus(); }, [loadStatus]);
+
+  // Feedback dal redirect OAuth (?todoist=connected | ?todoist=error&reason=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('todoist');
+    if (t === 'connected') setSuccess('Todoist collegato. I tuoi task aperti vengono inviati in background.');
+    else if (t === 'error') setError(`Collegamento fallito: ${decodeURIComponent(params.get('reason') || 'errore sconosciuto')}`);
+    if (t) window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
+  const handleConnect = async () => {
+    setError(''); setSuccess(''); setWorking(true);
+    try {
+      const res = await apiService.connectTodoist();
+      if (res.success && res.data?.url) {
+        window.location.href = res.data.url; // redirect all'autorizzazione Todoist
+      } else {
+        setError(res.error || 'Impossibile avviare il collegamento');
+        setWorking(false);
+      }
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Integrazione Todoist non configurata sul server');
+      setWorking(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setError(''); setSuccess(''); setWorking(true);
+    try {
+      const res = await apiService.syncTodoist();
+      if (res.success) setSuccess('Sincronizzazione avviata: i task aperti mancanti arriveranno su Todoist a breve.');
+      else setError(res.error || 'Errore durante la sincronizzazione');
+    } catch {
+      setError('Errore durante la sincronizzazione');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Scollegare Todoist? I task già presenti su Todoist restano lì ma non verranno più sincronizzati.')) return;
+    setError(''); setSuccess(''); setWorking(true);
+    try {
+      const res = await apiService.disconnectTodoist();
+      if (res.success) { setSuccess('Todoist scollegato'); await loadStatus(); }
+      else setError(res.error || 'Errore durante lo scollegamento');
+    } catch {
+      setError('Errore durante lo scollegamento');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  if (loading) return <p className="settings-loading">Caricamento...</p>;
+
+  return (
+    <>
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      <div style={{ maxWidth: 640 }}>
+        <h3 style={{ marginTop: 0 }}>Integrazione Todoist</h3>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+          Collega il tuo account Todoist per avere i <strong>task assegnati a te</strong> anche su Todoist, in progetti
+          &quot;Visit Tracker&quot;. La sincronizzazione è nei due sensi: se completi, modifichi o crei un task in quei
+          progetti su Todoist, Visit Tracker si aggiorna.
+        </p>
+        <ul style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, paddingLeft: '1.2rem' }}>
+          <li>Priorità bassa / media / alta → P3 / P2 / P1</li>
+          <li>&quot;In corso&quot; → etichetta <code>in-corso</code></li>
+          <li>Cliente, azienda e link alla scheda vengono aggiunti alla descrizione</li>
+          <li>Gli allegati restano solo in Visit Tracker</li>
+        </ul>
+
+        {status && !status.configured && (
+          <div className="alert alert-error" style={{ marginTop: '1rem' }}>
+            L'integrazione Todoist non è ancora configurata sul server (mancano le credenziali). Contatta l'amministratore.
+          </div>
+        )}
+
+        <div style={{ marginTop: '1.5rem', padding: '1.25rem', border: '1px solid var(--color-border, #e0e0e0)', borderRadius: 8, background: 'var(--color-surface, #fff)' }}>
+          {status?.connected ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 600, color: '#2E7D32' }}>✓ Collegato</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{status.email || 'Account Todoist'}</div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button className="btn btn-secondary" onClick={handleSync} disabled={working}>
+                  Sincronizza ora
+                </button>
+                <button className="btn btn-danger-outline" onClick={handleDisconnect} disabled={working}>
+                  {working ? 'Attendere...' : 'Scollega'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Nessun account collegato.</div>
+              <button className="btn btn-primary" onClick={handleConnect} disabled={working || !status?.configured}>
+                {working ? 'Reindirizzamento...' : 'Collega Todoist'}
               </button>
             </div>
           )}
