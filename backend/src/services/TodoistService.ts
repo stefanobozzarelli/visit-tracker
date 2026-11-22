@@ -132,6 +132,7 @@ export class TodoistService {
   /** Crea o aggiorna su Todoist il task VT. Non lancia mai: logga e basta. */
   async pushTodo(todoId: string): Promise<PushResult> {
     if (!this.isConfigured()) return { ok: false, reason: 'Integrazione Todoist non configurata sul server' };
+    let ownerId: string | null = null;
     try {
       const todo = await this.todoRepo.findOne({ where: { id: todoId }, relations: ['client', 'company'] });
       if (!todo) return { ok: false, reason: 'Task non trovato' };
@@ -150,6 +151,7 @@ export class TodoistService {
       if (!owner?.todoist_access_token) {
         return { ok: false, reason: "L'assegnatario del task non ha collegato Todoist" };
       }
+      ownerId = owner.id;
 
       const category = todo.category || 'work';
       const body = this.toTodoistPayload(todo);
@@ -198,6 +200,12 @@ export class TodoistService {
     } catch (e) {
       const detail = this.describe(e);
       console.error(`[Todoist] pushTodo ${todoId} fallito:`, detail);
+      if ((e as AxiosError)?.response?.status === 401 && ownerId) {
+        // Token revocato/non più valido: segna l'utente come non collegato, ma tieni i
+        // collegamenti ai task (dopo il ricollegamento continuano a funzionare).
+        await this.userRepo.update(ownerId, { todoist_access_token: null });
+        return { ok: false, reason: 'Il collegamento a Todoist non è più valido. Vai in Impostazioni → Todoist e premi "Collega Todoist", poi "Sincronizza ora".' };
+      }
       return { ok: false, reason: `Errore da Todoist: ${detail}` };
     }
   }

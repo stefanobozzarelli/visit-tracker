@@ -964,6 +964,14 @@ const TodoistTab: React.FC = () => {
                 <button className="btn btn-secondary" onClick={handleSync} disabled={working}>
                   Sincronizza ora
                 </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleConnect}
+                  disabled={working}
+                  title="Rinnova l'autorizzazione senza perdere i collegamenti dei task"
+                >
+                  Ricollega
+                </button>
                 <button className="btn btn-danger-outline" onClick={handleDisconnect} disabled={working}>
                   {working ? 'Attendere...' : 'Scollega'}
                 </button>
