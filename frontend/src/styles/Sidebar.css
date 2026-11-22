@@ -386,3 +386,16 @@
     background: rgba(0, 0, 0, 0.4);
   }
 }
+
+/* Pulsante "Aggiorna app" */
+.sidebar-update-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.sidebar.collapsed .sidebar-update-btn {
+  justify-content: center;
+}
