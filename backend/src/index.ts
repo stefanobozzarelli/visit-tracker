@@ -21,6 +21,7 @@ import opportunityRoutes from './routes/opportunities';
 import statisticsRoutes from './routes/statistics';
 import tripRoutes from './routes/trips';
 import parseBookingRoutes from './routes/parse-booking';
+import todoistRoutes from './routes/todoist';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
@@ -29,7 +30,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(express.json());
+// rawBody serve per verificare la firma HMAC dei webhook Todoist
+app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 app.use(cors());
 
 // Routes
@@ -52,6 +54,7 @@ app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/parse-booking', parseBookingRoutes);
+app.use('/api/integrations/todoist', todoistRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -73,6 +73,23 @@ Una volta deployato:
 - **Backend API**: https://visit-tracker-backend.railway.app/api
 - **Database**: Gestito da Railway (non direttamente accessibile)
 
+## 🔗 Integrazione Todoist (sincronizzazione task)
+
+1. Vai su https://developer.todoist.com/appconsole.html e crea una nuova app.
+2. **OAuth redirect URL**: `https://visit-tracker-backend-production.up.railway.app/api/integrations/todoist/callback`
+3. **Webhooks**: attiva i webhook con callback URL
+   `https://visit-tracker-backend-production.up.railway.app/api/integrations/todoist/webhook`
+   e gli eventi `item:added`, `item:updated`, `item:completed`, `item:uncompleted`, `item:deleted`.
+4. Nel servizio Backend su Railway aggiungi le variabili:
+   - `TODOIST_CLIENT_ID` = Client ID dell'app
+   - `TODOIST_CLIENT_SECRET` = Client secret dell'app (serve anche per verificare la firma dei webhook)
+   - `FRONTEND_URL` (se non già impostata) = URL del frontend
+5. Ogni utente va in **Settings → Todoist → Collega Todoist**.
+
+Note: un task finisce nel Todoist del suo **assegnatario**, nei progetti "Visit Tracker – …" (uno per categoria).
+Le colonne nuove (`users.todoist_*`, `todo_items.todoist_*`) vengono create in automatico (`synchronize: true`).
+Se un task viene cancellato su Todoist, in Visit Tracker viene solo scollegato (non cancellato).
+
 ## 🔧 Troubleshooting
 
 **Errore: Database connection refused**

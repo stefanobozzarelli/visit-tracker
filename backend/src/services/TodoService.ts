@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/database';
 import { TodoItem } from '../entities/TodoItem';
 import { TodoAttachment } from '../entities/TodoAttachment';
+import { todoistService } from './TodoistService';
 
 interface TodoFilters {
   status?: string;
@@ -52,7 +53,10 @@ export class TodoService {
       priority: priority || 1,
       category: category || 'work',
     });
-    return await this.todoRepository.save(todo);
+    const saved = await this.todoRepository.save(todo);
+    // Fire-and-forget: sincronizza su Todoist (se l'assegnatario l'ha collegato)
+    todoistService.pushTodo(saved.id);
+    return saved;
   }
 
   async getTodos(filters?: TodoFilters): Promise<TodoItem[]> {
@@ -205,11 +209,14 @@ export class TodoService {
     await this.todoRepository.update(id, data);
     const updated = await this.getTodoById(id);
     if (!updated) throw new Error('Todo not found');
+    todoistService.pushTodo(id);
     return updated;
   }
 
   async deleteTodo(id: string): Promise<void> {
+    const existing = await this.todoRepository.findOne({ where: { id } });
     await this.todoRepository.delete(id);
+    if (existing) todoistService.removeTodo(existing);
   }
 
   async getTodosByStatus(status: 'todo' | 'in_progress' | 'done'): Promise<TodoItem[]> {

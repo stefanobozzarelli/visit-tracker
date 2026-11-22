@@ -45,6 +45,21 @@ export class User {
   @Column({ type: 'text', nullable: true })
   ms_email: string | null;
 
+  // Todoist OAuth (sincronizzazione bidirezionale dei task)
+  // select: false → mai incluso nelle query/join (es. todo.assigned_to_user); va letto con addSelect
+  @Column({ type: 'text', nullable: true, select: false })
+  todoist_access_token: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  todoist_user_id: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  todoist_email: string | null;
+
+  // { [category]: todoist project id } — progetti "Visit Tracker" creati nel Todoist dell'utente
+  @Column({ type: 'simple-json', nullable: true })
+  todoist_project_ids: Record<string, string> | null;
+
   @CreateDateColumn()
   created_at: Date;
 
