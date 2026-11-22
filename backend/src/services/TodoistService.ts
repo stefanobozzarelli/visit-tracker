@@ -143,12 +143,17 @@ export class TodoistService {
       // Cancellato su Todoist e non ancora ripristinato: non ricrearlo di nascosto
       if (todo.todoist_deleted_at) return { ok: false, reason: 'Task segnato come cancellato da Todoist' };
 
-      // Riassegnato a un altro utente: togli il task dal Todoist del vecchio assegnatario
+      // Riassegnato a un altro utente: togli il task dal Todoist del vecchio assegnatario.
+      // Svuota il DB PRIMA di cancellare su Todoist: se il webhook item:deleted arriva
+      // prima dell'aggiornamento del DB, non trova più il link e non segna il task come
+      // "cancellato da Todoist" per errore.
       if (todo.todoist_task_id && todo.todoist_owner_user_id && String(todo.todoist_owner_user_id) !== String(todo.assigned_to_user_id)) {
-        await this.deleteRemoteTask(todo.todoist_owner_user_id, todo.todoist_task_id);
+        const oldTaskId = todo.todoist_task_id;
+        const oldOwnerId = todo.todoist_owner_user_id;
         todo.todoist_task_id = null;
         todo.todoist_owner_user_id = null;
         await this.todoRepo.update(todo.id, { todoist_task_id: null, todoist_owner_user_id: null });
+        await this.deleteRemoteTask(oldOwnerId, oldTaskId);
       }
 
       const owner = await this.loadUserWithToken(todo.assigned_to_user_id);
