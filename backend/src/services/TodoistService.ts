@@ -36,6 +36,8 @@ const CATEGORY_PROJECTS: Record<string, string> = {
   architectural_lines: 'Visit Tracker – Linee architettoniche',
 };
 
+type PushResult = { ok: boolean; reason?: string };
+
 type TodoistTask = {
   id: string;
   content: string;
@@ -128,13 +130,13 @@ export class TodoistService {
   // ─── VT -> Todoist ─────────────────────────────────────────────────────
 
   /** Crea o aggiorna su Todoist il task VT. Non lancia mai: logga e basta. */
-  async pushTodo(todoId: string): Promise<void> {
-    if (!this.isConfigured()) return;
+  async pushTodo(todoId: string): Promise<PushResult> {
+    if (!this.isConfigured()) return { ok: false, reason: 'Integrazione Todoist non configurata sul server' };
     try {
       const todo = await this.todoRepo.findOne({ where: { id: todoId }, relations: ['client', 'company'] });
-      if (!todo) return;
+      if (!todo) return { ok: false, reason: 'Task non trovato' };
       // Cancellato su Todoist e non ancora ripristinato: non ricrearlo di nascosto
-      if (todo.todoist_deleted_at) return;
+      if (todo.todoist_deleted_at) return { ok: false, reason: 'Task segnato come cancellato da Todoist' };
 
       // Riassegnato a un altro utente: togli il task dal Todoist del vecchio assegnatario
       if (todo.todoist_task_id && todo.todoist_owner_user_id && String(todo.todoist_owner_user_id) !== String(todo.assigned_to_user_id)) {
@@ -145,18 +147,35 @@ export class TodoistService {
       }
 
       const owner = await this.loadUserWithToken(todo.assigned_to_user_id);
-      if (!owner?.todoist_access_token) return; // assegnatario senza Todoist collegato
+      if (!owner?.todoist_access_token) {
+        return { ok: false, reason: "L'assegnatario del task non ha collegato Todoist" };
+      }
 
-      const projectId = await this.ensureProject(owner, todo.category || 'work');
+      const category = todo.category || 'work';
       const body = this.toTodoistPayload(todo);
 
       if (!todo.todoist_task_id) {
         // Un task già completato non va creato su Todoist
-        if (todo.status === 'done') return;
-        const created = await this.api(owner, 'post', '/tasks', { ...body, project_id: projectId });
+        if (todo.status === 'done') return { ok: false, reason: 'Il task è completato: su Todoist si creano solo i task aperti' };
+        // In creazione "no date" non serve (e Todoist può rifiutarlo)
+        const createBody = { ...body };
+        delete createBody.due_string;
+
+        let created: any;
+        try {
+          created = await this.api(owner, 'post', '/tasks', { ...createBody, project_id: await this.ensureProject(owner, category) });
+        } catch (e) {
+          const status = (e as AxiosError)?.response?.status;
+          if (status !== 400 && status !== 404) throw e;
+          // Progetto "Visit Tracker" cancellato/archiviato su Todoist: ritrovalo o ricrealo e riprova
+          await this.forgetProject(owner, category);
+          created = await this.api(owner, 'post', '/tasks', { ...createBody, project_id: await this.ensureProject(owner, category) });
+        }
         await this.todoRepo.update(todo.id, { todoist_task_id: String(created.id), todoist_owner_user_id: owner.id });
-        return;
+        return { ok: true };
       }
+
+      const projectId = await this.ensureProject(owner, category);
 
       try {
         await this.api(owner, 'post', `/tasks/${todo.todoist_task_id}`, body);
@@ -171,12 +190,15 @@ export class TodoistService {
         if (this.isNotFound(e)) {
           // Task cancellato su Todoist nel frattempo: scollega
           await this.todoRepo.update(todo.id, { todoist_task_id: null, todoist_owner_user_id: null });
-          return;
+          return { ok: false, reason: 'Il task non esiste più su Todoist' };
         }
         throw e;
       }
+      return { ok: true };
     } catch (e) {
-      console.error(`[Todoist] pushTodo ${todoId} fallito:`, this.describe(e));
+      const detail = this.describe(e);
+      console.error(`[Todoist] pushTodo ${todoId} fallito:`, detail);
+      return { ok: false, reason: `Errore da Todoist: ${detail}` };
     }
   }
 
@@ -185,11 +207,12 @@ export class TodoistService {
    * Ritorna true se il task è di nuovo su Todoist (false se l'assegnatario non ha
    * Todoist collegato o se il task è completato).
    */
-  async restoreTodo(todoId: string): Promise<boolean> {
+  async restoreTodo(todoId: string): Promise<{ onTodoist: boolean; reason?: string }> {
     await this.todoRepo.update(todoId, { todoist_deleted_at: null });
-    await this.pushTodo(todoId);
+    const result = await this.pushTodo(todoId);
     const after = await this.todoRepo.findOne({ where: { id: todoId } });
-    return !!after?.todoist_task_id;
+    if (after?.todoist_task_id) return { onTodoist: true };
+    return { onTodoist: false, reason: result.reason };
   }
 
   /** Cancella da Todoist il task collegato a un todo VT che sta per essere eliminato. */
@@ -373,6 +396,14 @@ export class TodoistService {
     owner.todoist_project_ids = ids;
     await this.userRepo.update(owner.id, { todoist_project_ids: ids });
     return projectId;
+  }
+
+  private async forgetProject(owner: User, category: string): Promise<void> {
+    const cat = CATEGORY_PROJECTS[category] ? category : 'work';
+    const ids = { ...(owner.todoist_project_ids || {}) };
+    delete ids[cat];
+    owner.todoist_project_ids = ids;
+    await this.userRepo.update(owner.id, { todoist_project_ids: ids });
   }
 
   private async deleteRemoteTask(ownerUserId: string, taskId: string): Promise<void> {

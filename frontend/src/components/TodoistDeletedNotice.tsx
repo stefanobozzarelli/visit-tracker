@@ -25,7 +25,7 @@ export const TodoistDeletedNotice: React.FC<Props> = ({ todoId, deletedAt, onRes
       const res = await apiService.restoreTodoistTodo(todoId);
       if (res.success) {
         if (!res.data?.onTodoist) {
-          window.alert('Task ripristinato in Tradeflow. Non è stato ricreato su Todoist (task completato o Todoist non collegato per l\'assegnatario).');
+          window.alert(`Task ripristinato in Tradeflow, ma non è stato ricreato su Todoist.\n\nMotivo: ${res.data?.reason || 'sconosciuto'}`);
         }
         onResolved(false);
       } else {

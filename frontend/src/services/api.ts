@@ -859,7 +859,7 @@ class ApiService {
 
   /** Ripristina un task cancellato su Todoist (lo ricrea su Todoist). */
   async restoreTodoistTodo(id: string) {
-    const response = await this.api.post<ApiResponse<{ onTodoist: boolean }>>(`/todos/${id}/todoist-restore`);
+    const response = await this.api.post<ApiResponse<{ onTodoist: boolean; reason?: string }>>(`/todos/${id}/todoist-restore`);
     this.memoryCache.clear();
     return response.data;
   }
