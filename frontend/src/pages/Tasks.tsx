@@ -322,8 +322,8 @@ export const Tasks: React.FC = () => {
       list = list.filter(t => (t.priority || 1) === pv);
     }
 
-    // Show completed toggle
-    if (!showCompleted) {
+    // Show completed toggle (ignorato se il filtro stato chiede proprio i completati)
+    if (!showCompleted && statusFilter !== 'completed') {
       list = list.filter(t => normalizeStatus(t.status) !== 'completed');
     }
 
@@ -350,7 +350,7 @@ export const Tasks: React.FC = () => {
       if (clientId) filters.clientId = clientId;
       if (companyId) filters.companyId = companyId;
       if (assignedToUserId) filters.assignedToUserId = assignedToUserId;
-      if (statusFilter) filters.status = statusFilter;
+      if (statusFilter) filters.status = statusToApi(statusFilter as TaskStatus);
       if (overdue) filters.overdue = true;
       if (thisWeek) filters.thisWeek = true;
       if (next7Days) filters.next7Days = true;
