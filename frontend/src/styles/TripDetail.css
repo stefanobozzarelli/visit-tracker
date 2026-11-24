@@ -711,6 +711,7 @@
 .status-badge.sollecitato    { background: rgba(176,157,181,0.2);  color: #6b5a70; border-color: #B09DB5; }
 .status-badge.da_modificare  { background: rgba(212,204,142,0.5);  color: #7a7340; border-color: #D4CC8E; }
 .status-badge.rifiutato      { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+.status-badge.cancellato     { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; text-decoration: line-through; }
 .status-badge.fatto_report   { background: rgba(160,154,150,0.2);  color: #7A7774; border-color: #A09A96; }
 .status-badge.hotel-programmato { background: rgba(212,204,142,0.3); color: #7a7340; border-color: #D4CC8E; }
 

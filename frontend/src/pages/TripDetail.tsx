@@ -12,14 +12,14 @@ interface TripHotel {
   name: string;
   checkIn: string;
   checkOut: string;
-  status: 'programmato' | 'richiesto' | 'confermato';
+  status: 'programmato' | 'richiesto' | 'confermato' | 'cancellato';
 }
 
 interface Flight {
   id: string;
   route: string;
   details: string;
-  status: 'programmato' | 'confermato';
+  status: 'programmato' | 'confermato' | 'cancellato';
   type: 'volo' | 'treno' | 'traghetto';
   departureTime?: string;
   arrivalTime?: string;
@@ -63,8 +63,8 @@ interface Trip {
 }
 
 // ---- Constants ----
-const FLIGHT_STATUSES = ['programmato', 'confermato'];
-const HOTEL_STATUSES = ['programmato', 'richiesto', 'confermato'];
+const FLIGHT_STATUSES = ['programmato', 'confermato', 'cancellato'];
+const HOTEL_STATUSES = ['programmato', 'richiesto', 'confermato', 'cancellato'];
 const APT_STATUSES = ['programmato', 'confermato', 'in_attesa', 'sollecitato', 'da_modificare', 'rifiutato', 'fatto_report'];
 const TRANSPORT_ICONS: Record<string, string> = { volo: '✈', treno: '🚆', traghetto: '⛴' };
 
@@ -77,6 +77,7 @@ const STATUS_LABELS: Record<string, string> = {
   da_modificare: 'Da modificare',
   rifiutato: 'Rifiutato',
   fatto_report: 'Fatto / Report',
+  cancellato: 'Cancellato',
 };
 
 const DAY_NAMES_IT = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -159,9 +160,9 @@ function StatusDropdown({ status, statuses, onChange, type = 'apt' }: StatusDrop
   };
 
   const badgeCls = type === 'flight'
-    ? (status === 'confermato' ? 'status-badge confermato' : 'status-badge programmato')
+    ? (status === 'confermato' ? 'status-badge confermato' : status === 'cancellato' ? 'status-badge cancellato' : 'status-badge programmato')
     : type === 'hotel'
-    ? (status === 'confermato' ? 'status-badge confermato' : 'status-badge hotel-programmato')
+    ? (status === 'confermato' ? 'status-badge confermato' : status === 'cancellato' ? 'status-badge cancellato' : 'status-badge hotel-programmato')
     : `status-badge ${status}`;
 
   return (

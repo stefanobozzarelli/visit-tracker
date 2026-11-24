@@ -12,7 +12,7 @@ const COLORS = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  programmato: 'Programmato', confermato: 'Confermato',
+  programmato: 'Programmato', confermato: 'Confermato', cancellato: 'Cancellato',
   in_attesa: 'In attesa', sollecitato: 'Sollecitato',
   da_modificare: 'Da modificare', rifiutato: 'Rifiutato', fatto_report: 'Fatto report',
 };
