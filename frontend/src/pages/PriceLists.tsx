@@ -14,6 +14,8 @@ interface Mapping {
   description: number;
   price: number;
   unit: number;
+  variant?: number;
+  internal_code?: number;
   extra_columns?: number[];
 }
 
@@ -207,6 +209,7 @@ export const PriceListsTab: React.FC = () => {
     if (i === mapping.price) return 'col-price';
     if (i === mapping.description) return 'col-desc';
     if (i === mapping.unit) return 'col-unit';
+    if (i === mapping.variant || i === mapping.internal_code) return 'col-code2';
     return '';
   };
 
@@ -288,7 +291,7 @@ export const PriceListsTab: React.FC = () => {
                     {preview.rows.slice(0, 40).map((_, i) => <option key={i} value={i}>riga {i + 1}</option>)}
                   </select>
                 </label>
-                <label className="pl-required">Codice *
+                <label className="pl-required" title="Il codice come è scritto in fattura">Codice in fattura *
                   <select value={mapping.code} onChange={e => changeMapping({ code: Number(e.target.value) })}>{columnOptions(preview.width)}</select>
                 </label>
                 <label className="pl-required">Prezzo *
@@ -299,6 +302,12 @@ export const PriceListsTab: React.FC = () => {
                 </label>
                 <label>Unità
                   <select value={mapping.unit} onChange={e => changeMapping({ unit: Number(e.target.value) })}>{columnOptions(preview.width)}</select>
+                </label>
+                <label title="Versione o categoria aggiunta al codice in fattura, es. _6 in LEMUD111198_6">Versione
+                  <select value={mapping.variant ?? -1} onChange={e => changeMapping({ variant: Number(e.target.value) })}>{columnOptions(preview.width)}</select>
+                </label>
+                <label title="Codice interno del fornitore: separa le righe con lo stesso codice in fattura (es. stesso lavabo in materiali diversi)">Codice interno
+                  <select value={mapping.internal_code ?? -1} onChange={e => changeMapping({ internal_code: Number(e.target.value) })}>{columnOptions(preview.width)}</select>
                 </label>
               </div>
             )}

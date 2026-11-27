@@ -99,6 +99,7 @@
 .pl-raw .col-price { background: rgba(91, 138, 101, 0.14); }
 .pl-raw .col-desc { background: rgba(176, 152, 64, 0.10); }
 .pl-raw .col-unit { background: rgba(158, 90, 82, 0.08); }
+.pl-raw .col-code2 { background: rgba(74, 96, 120, 0.06); }
 
 .pl-result { font-size: var(--text-sm); }
 .pl-result-main { font-weight: 700; color: var(--color-success); }
