@@ -7,11 +7,13 @@ import { CommissionRates } from './CommissionRates';
 import { SubAgents } from './SubAgents';
 import { CommissionInvoices } from './CommissionInvoices';
 import { CommissionSummaryDashboard } from './CommissionSummaryDashboard';
+import { PriceListsTab } from './PriceLists';
+import { ArticlesTab } from './Articles';
 import '../styles/Revenue.css';
 import '../styles/Amministrazione.css';
 
 type TopTab = 'fatturato' | 'provvigioni';
-type RevenueSubTab = 'invoices' | 'statistics' | 'assistant';
+type RevenueSubTab = 'invoices' | 'statistics' | 'articles' | 'pricelists' | 'assistant';
 type CommissionSubTab = 'dashboard' | 'aziende' | 'subagenti' | 'fatture' | 'summary';
 
 const canAccess = (user: any) =>
@@ -79,6 +81,8 @@ export const Amministrazione: React.FC = () => {
             {([
               { key: 'invoices' as RevenueSubTab, label: 'Fatture' },
               { key: 'statistics' as RevenueSubTab, label: 'Statistiche' },
+              { key: 'articles' as RevenueSubTab, label: 'Articoli' },
+              { key: 'pricelists' as RevenueSubTab, label: 'Listini' },
               { key: 'assistant' as RevenueSubTab, label: 'Assistente AI' },
             ]).map(tab => (
               <button
@@ -92,6 +96,8 @@ export const Amministrazione: React.FC = () => {
           </div>
           {revenueSubTab === 'invoices' && <InvoicesTab />}
           {revenueSubTab === 'statistics' && <StatisticsTab />}
+          {revenueSubTab === 'articles' && <ArticlesTab />}
+          {revenueSubTab === 'pricelists' && <PriceListsTab />}
           {revenueSubTab === 'assistant' && <AssistantTab />}
         </>
       )}

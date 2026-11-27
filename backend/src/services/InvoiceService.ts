@@ -3,11 +3,11 @@ import { Invoice, InvoiceStatus } from '../entities/Invoice';
 import { InvoiceLineItem } from '../entities/InvoiceLineItem';
 import { Client } from '../entities/Client';
 import { S3Service } from './S3Service';
+import { ArticleService } from './ArticleService';
 import { v4 as uuidv4 } from 'uuid';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import Anthropic from '@anthropic-ai/sdk';
-// pdf-parse v1 — simple function: pdfParse(buffer) => { text, numpages, info }
-const pdfParse = require('pdf-parse');
+import { pdfText } from './PriceListParser';
 
 const getAnthropicClient = () => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -84,9 +84,8 @@ export class InvoiceService {
       if (!bodyBytes) throw new Error('Empty PDF file');
       const pdfBuffer = Buffer.from(bodyBytes);
 
-      // Extract text from PDF
-      const pdfData = await pdfParse(pdfBuffer);
-      const extractedText = pdfData.text;
+      // Extract text from PDF (retries the flaky pdf-parse reads)
+      const { text: extractedText } = await pdfText(pdfBuffer);
 
       if (!extractedText || extractedText.trim().length < 10) {
         throw new Error('Could not extract text from PDF - file may be scanned/image-based');
@@ -193,6 +192,14 @@ CRITICAL — how to identify quantity and unit_price:
           });
         });
         await this.lineItemRepo.save(lineItems);
+
+        // Link each line to the supplier's price-list article by its code
+        try {
+          const m = await new ArticleService().matchLineItems({ invoiceIds: [invoice.id] });
+          console.log(`[INVOICE] Articles for ${invoice.id}: ${m.matched} matched, ${m.unmatched} not in price lists, ${m.no_code} without code`);
+        } catch (matchErr) {
+          console.warn(`[INVOICE] ⚠️ Article match failed for ${invoice.id}:`, (matchErr as Error).message);
+        }
 
         // Recalculate total if not provided
         if (!parsed.total_amount) {
@@ -436,6 +443,11 @@ CRITICAL — how to identify quantity and unit_price:
       fatturato_per_mese: stats.revenue_by_month,
       articoli_principali: stats.top_articles.slice(0, 20),
       totali_per_unita: stats.unit_totals,
+      articoli_da_listino: await new ArticleService().topArticles({}, 30).then(rows => rows.map((a: any) => ({
+        azienda: a.company_name, codice: a.code, descrizione: a.description, unita: a.unit,
+        prezzo_listino: a.list_price, quantita_venduta: a.quantity, fatturato: a.revenue,
+        prezzo_medio_netto: a.avg_net_price, sconto_medio_su_listino: a.avg_discount,
+      }))).catch(() => []),
     }, null, 2);
 
     const aiResponse = await client.messages.create({
@@ -478,7 +490,8 @@ Se non hai abbastanza dati per rispondere, dillo chiaramente.`
     }
     await this.lineItemRepo.save(item);
     await this.recalcInvoiceTotal(invoiceId);
-    return item;
+    await this.rematchArticles(invoiceId);
+    return this.lineItemRepo.findOne({ where: { id: itemId } });
   }
 
   async addLineItem(invoiceId: string, data: Partial<InvoiceLineItem>): Promise<InvoiceLineItem> {
@@ -494,7 +507,8 @@ Se non hai abbastanza dati per rispondere, dillo chiaramente.`
     } as any);
     const saved = await this.lineItemRepo.save(item) as any as InvoiceLineItem;
     await this.recalcInvoiceTotal(invoiceId);
-    return saved;
+    await this.rematchArticles(invoiceId);
+    return (await this.lineItemRepo.findOne({ where: { id: saved.id } })) || saved;
   }
 
   async deleteLineItem(invoiceId: string, itemId: string): Promise<void> {
@@ -594,6 +608,14 @@ Return ONLY valid JSON:
       const commService = new CommissionService();
       await commService.calculateInvoiceCommission(invoiceId);
     } catch (e) { /* ignore */ }
+  }
+
+  private async rematchArticles(invoiceId: string): Promise<void> {
+    try {
+      await new ArticleService().matchLineItems({ invoiceIds: [invoiceId] });
+    } catch (e) {
+      console.warn(`[INVOICE] ⚠️ Article match failed for ${invoiceId}:`, (e as Error).message);
+    }
   }
 
   private async recalcInvoiceTotal(invoiceId: string): Promise<void> {

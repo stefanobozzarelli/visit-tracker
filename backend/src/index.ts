@@ -24,6 +24,8 @@ import tripRoutes from './routes/trips';
 import parseBookingRoutes from './routes/parse-booking';
 import todoistRoutes from './routes/todoist';
 import mcpRoutes from './routes/mcp';
+import priceListRoutes from './routes/priceLists';
+import articleRoutes from './routes/articles';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
@@ -51,6 +53,8 @@ app.use('/api/todos', todoRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/price-lists', priceListRoutes);
+app.use('/api/articles', articleRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/claims', claimRoutes);
@@ -138,6 +142,25 @@ runPreMigrations().then(() => AppDataSource.initialize())
         CREATE UNIQUE INDEX IF NOT EXISTS idx_commission_rates_unique
         ON commission_rates (company_id, COALESCE(country, ''), COALESCE(client_id, '00000000-0000-0000-0000-000000000000'));
       `).catch(() => {});
+      // Article matching also tries the code without leading zeros ("0013288" = "13288")
+      await qr.query(`
+        CREATE INDEX IF NOT EXISTS idx_articles_company_code_nozeros
+        ON articles (company_id, ltrim(normalized_code, '0'));
+      `).catch(() => {});
+      // Invoice lines processed before price lists existed: link them once, in the background
+      setTimeout(async () => {
+        try {
+          const companies = await AppDataSource.query(`
+            SELECT DISTINCT inv.company_id FROM invoice_line_items li
+            JOIN invoices inv ON inv.id::text = li.invoice_id::text
+            WHERE li.match_status IS NULL`);
+          if (!companies.length) return;
+          const { ArticleService } = require('./services/ArticleService');
+          const articleService = new ArticleService();
+          for (const c of companies) await articleService.matchLineItems({ companyId: String(c.company_id) });
+          console.log(`Article matching: checked old invoice lines of ${companies.length} companies`);
+        } catch (e) { console.log('Article matching note:', (e as Error).message); }
+      }, 5000);
       await qr.release();
       console.log('Database schema updates applied');
     } catch (e) {
