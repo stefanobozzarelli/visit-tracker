@@ -1596,6 +1596,98 @@ class ApiService {
     return response.data;
   }
 
+  // ==================== Price lists (listini) and articles ====================
+
+  async getPriceLists(companyId?: string) {
+    const response = await this.api.get<ApiResponse<any>>('/price-lists', { params: companyId ? { company_id: companyId } : {} });
+    return response.data;
+  }
+
+  async getLastPriceListMapping(companyId: string) {
+    const response = await this.api.get<ApiResponse<any>>('/price-lists/last-mapping', { params: { company_id: companyId } });
+    return response.data;
+  }
+
+  /** Reads the file on the server and shows what would be imported; saves nothing. */
+  async previewPriceList(file: File, options: { sheet?: string; mapping?: any; previous?: any } = {}) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options.sheet) formData.append('sheet', options.sheet);
+    if (options.mapping) formData.append('mapping', JSON.stringify(options.mapping));
+    if (options.previous) formData.append('previous', JSON.stringify(options.previous));
+    const response = await this.api.post<ApiResponse<any>>('/price-lists/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+    return response.data;
+  }
+
+  async importPriceList(file: File, data: { company_id: string; name?: string; valid_from?: string; notes?: string; mapping?: any; use_ai?: boolean }) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('company_id', data.company_id);
+    if (data.name) formData.append('name', data.name);
+    if (data.valid_from) formData.append('valid_from', data.valid_from);
+    if (data.notes) formData.append('notes', data.notes);
+    if (data.mapping) formData.append('mapping', JSON.stringify(data.mapping));
+    if (data.use_ai) formData.append('use_ai', 'true');
+    const response = await this.api.post<ApiResponse<any>>('/price-lists', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300000, // large lists (20.000+ rows) take a few seconds, uploads on slow lines longer
+    });
+    return response.data;
+  }
+
+  async updatePriceList(id: string, data: { name?: string; valid_from?: string | null; notes?: string | null }) {
+    const response = await this.api.put<ApiResponse<any>>(`/price-lists/${id}`, data, { timeout: 120000 });
+    return response.data;
+  }
+
+  async deletePriceList(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/price-lists/${id}`, { timeout: 120000 });
+    return response.data;
+  }
+
+  async getPriceListDownloadUrl(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/price-lists/${id}/download`);
+    return response.data;
+  }
+
+  async getArticles(params: { company_id?: string; company_ids?: string; client_id?: string; start_date?: string; end_date?: string; search?: string; only_sold?: boolean; sort?: string; page?: number; limit?: number }) {
+    const response = await this.api.get<ApiResponse<any>>('/articles', { params, timeout: 30000 });
+    return response.data;
+  }
+
+  async getArticlesSummary(params: { company_id?: string; company_ids?: string; client_id?: string; start_date?: string; end_date?: string }) {
+    const response = await this.api.get<ApiResponse<any>>('/articles/summary', { params, timeout: 30000 });
+    return response.data;
+  }
+
+  async getArticle(id: string, params: { client_id?: string; start_date?: string; end_date?: string } = {}) {
+    const response = await this.api.get<ApiResponse<any>>(`/articles/${id}`, { params, timeout: 30000 });
+    return response.data;
+  }
+
+  async getUnmatchedArticleCodes(params: { company_id?: string; company_ids?: string; client_id?: string; start_date?: string; end_date?: string }) {
+    const response = await this.api.get<ApiResponse<any>>('/articles/unmatched', { params, timeout: 30000 });
+    return response.data;
+  }
+
+  async linkArticleCode(data: { company_id: string; code: string; article_id: string }) {
+    const response = await this.api.post<ApiResponse<any>>('/articles/link-code', data, { timeout: 60000 });
+    return response.data;
+  }
+
+  async unlinkArticleCode(articleId: string, code: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/articles/${articleId}/aliases/${encodeURIComponent(code)}`, { timeout: 60000 });
+    return response.data;
+  }
+
+  async rematchArticles(companyId: string) {
+    const response = await this.api.post<ApiResponse<any>>('/articles/rematch', { company_id: companyId }, { timeout: 120000 });
+    return response.data;
+  }
+
   // Projects
   async getProjects(filters?: any) {
     const params = new URLSearchParams();

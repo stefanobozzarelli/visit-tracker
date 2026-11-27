@@ -47,6 +47,10 @@ import { ProjectMovement } from '../entities/ProjectMovement';
 import { ProjectMovementAttachment } from '../entities/ProjectMovementAttachment';
 import { ClientRelationship } from '../entities/ClientRelationship';
 import { TodoistAdminTask } from '../entities/TodoistAdminTask';
+import { PriceList } from '../entities/PriceList';
+import { Article } from '../entities/Article';
+import { ArticlePrice } from '../entities/ArticlePrice';
+import { ArticleAlias } from '../entities/ArticleAlias';
 
 require('dotenv').config();
 
@@ -61,7 +65,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'visit_tracker',
   synchronize: true,
   logging: isDevelopment,
-  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany, Showroom, ShowroomPhotoAlbum, ShowroomPhoto, Offer, OfferItem, OfferAttachment, OfferItemAttachment, UserLoginLog, Opportunity, OpportunityAdvance, OpportunityAttachment, OpportunityAdvanceAttachment, Trip, ProjectAttachment, ProjectMovement, ProjectMovementAttachment, ClientRelationship, TodoistAdminTask],
+  entities: [User, Company, Client, ClientContact, Visit, VisitReport, VisitAttachment, UserPermission, TodoItem, TodoAttachment, CustomerOrder, CustomerOrderItem, Invoice, InvoiceLineItem, CommissionRate, SubAgent, SubAgentCommissionRate, InvoiceCommission, InvoiceSubAgentCommission, SubAgentExpense, Project, Claim, ClaimMovement, ClaimMovementAttachment, CompanyVisit, CompanyVisitAttachment, VisitDirectAttachment, UserCompany, UserCountry, ClientCompany, Showroom, ShowroomPhotoAlbum, ShowroomPhoto, Offer, OfferItem, OfferAttachment, OfferItemAttachment, UserLoginLog, Opportunity, OpportunityAdvance, OpportunityAttachment, OpportunityAdvanceAttachment, Trip, ProjectAttachment, ProjectMovement, ProjectMovementAttachment, ClientRelationship, TodoistAdminTask, PriceList, Article, ArticlePrice, ArticleAlias],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: ['src/subscribers/**/*.ts'],
 });

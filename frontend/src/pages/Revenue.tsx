@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import '../styles/Revenue.css';
+import '../styles/Articles.css';
 
 type Tab = 'invoices' | 'statistics' | 'assistant';
 
@@ -37,6 +38,9 @@ interface LineItem {
   unit_price: number;
   discount_percent?: number;
   line_total: number;
+  article_id?: string | null;
+  list_price?: number | null;
+  match_status?: 'matched' | 'alias' | 'unmatched' | 'no_code' | null;
 }
 
 interface ChatMessage {
@@ -549,7 +553,18 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; clients: any[]; onUpdate?:
               ) : (
                 <tr key={item.id}>
                   <td>{item.line_number}</td>
-                  <td className="article-code">{item.article_code || '–'}</td>
+                  <td className="article-code">
+                    {item.article_code || '–'}
+                    {(item.match_status === 'matched' || item.match_status === 'alias') && (
+                      <span className="li-match li-match-ok" title="Articolo trovato nel listino">
+                        a listino {item.list_price ? formatCurrency(item.list_price) : ''}
+                        {item.list_price && Number(item.quantity) ? ` · sconto ${Math.round((1 - Number(item.line_total) / Number(item.quantity) / Number(item.list_price)) * 1000) / 10}%` : ''}
+                      </span>
+                    )}
+                    {item.match_status === 'unmatched' && (
+                      <span className="li-match li-match-missing" title="Il codice non è in nessun listino caricato di questa azienda: collegalo in Articoli › Codici non trovati">non a listino</span>
+                    )}
+                  </td>
                   <td>{item.description}</td>
                   <td className="num">{Number(item.quantity).toFixed(2)}</td>
                   <td>{item.unit}</td>

@@ -6,6 +6,7 @@ import { ClientService } from './ClientService';
 import { CompanyService } from './CompanyService';
 import { TodoService } from './TodoService';
 import { PermissionService } from './PermissionService';
+import { ArticleService } from './ArticleService';
 
 /**
  * Read-only tools exposed to Claude through the MCP endpoint (/mcp).
@@ -32,6 +33,7 @@ const clientService = new ClientService();
 const companyService = new CompanyService();
 const todoService = new TodoService();
 const permissionService = new PermissionService();
+const articleService = new ArticleService();
 
 const seesEverything = (user: AuthPayload) =>
   user.role === 'master_admin' || user.role === 'admin' || user.role === 'manager';
@@ -127,6 +129,50 @@ export const mcpTools: McpTool[] = [
           };
         })
         .sort((a, b) => String(b.data ?? '').localeCompare(String(a.data ?? '')));
+    },
+  },
+  {
+    name: 'tradeflow_articoli',
+    title: 'Vendite per articolo',
+    description:
+      'Vendite per singolo articolo dei listini delle aziende, ricavate dalle righe delle fatture abbinate per codice articolo: quantità, fatturato, prezzo medio netto, prezzo di listino e sconto medio sul listino. Solo per utenti con accesso al fatturato.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        azienda: { type: 'string', description: 'Nome esatto dell\'azienda (es. "Lupi").' },
+        cerca: { type: 'string', description: 'Testo da cercare nel codice o nella descrizione dell\'articolo.' },
+        ...dateProps,
+      },
+      additionalProperties: false,
+    },
+    run: async (user, args) => {
+      if (!canViewRevenue(user)) {
+        throw new McpAccessError('Il tuo utente TradeFlow non ha accesso al fatturato.');
+      }
+      const { articles } = await articleService.listArticles({
+        start_date: isDay(args.data_inizio) ? args.data_inizio : undefined,
+        end_date: isDay(args.data_fine) ? args.data_fine : undefined,
+        search: typeof args.cerca === 'string' ? args.cerca : undefined,
+        only_sold: true,
+        sort: 'revenue',
+        limit: 500,
+      });
+      return articles
+        .filter((a: any) => !args.azienda || sameText(a.company_name, args.azienda))
+        .map((a: any) => ({
+          azienda: a.company_name,
+          codice: a.code,
+          descrizione: a.description,
+          unita: a.unit,
+          prezzo_listino: a.list_price,
+          quantita: Math.round(num(a.quantity) * 100) / 100,
+          fatturato: Math.round(num(a.revenue) * 100) / 100,
+          prezzo_medio_netto: a.avg_net_price === null ? null : Math.round(a.avg_net_price * 100) / 100,
+          sconto_medio_listino_pct: a.avg_discount === null ? null : Math.round(a.avg_discount * 1000) / 10,
+          fatture: a.invoices,
+          clienti: a.clients,
+          ultima_vendita: day(a.last_date),
+        }));
     },
   },
   {

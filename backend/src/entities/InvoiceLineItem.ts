@@ -1,7 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Invoice } from './Invoice';
+import { Article } from './Article';
 
 @Entity('invoice_line_items')
+@Index(['article_id'])
 export class InvoiceLineItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -36,6 +38,18 @@ export class InvoiceLineItem {
   @Column({ type: 'text', nullable: true })
   raw_text: string;
 
+  // Article of the supplier's price list this line refers to (matched on article_code)
+  @Column({ type: 'uuid', nullable: true })
+  article_id: string | null;
+
+  // List price of the article valid on the invoice date, kept to measure the discount
+  @Column({ type: 'decimal', precision: 14, scale: 4, nullable: true })
+  list_price: number | null;
+
+  // matched | alias | unmatched | no_code (null = not checked yet)
+  @Column({ type: 'varchar', nullable: true })
+  match_status: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 
@@ -43,4 +57,8 @@ export class InvoiceLineItem {
   @ManyToOne(() => Invoice, invoice => invoice.items, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'invoice_id' })
   invoice: Invoice;
+
+  @ManyToOne(() => Article, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'article_id' })
+  article: Article;
 }
