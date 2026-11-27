@@ -6,11 +6,17 @@ import { v4 as uuidv4 } from 'uuid';
  * Articles of the supplier price lists, their link to invoice lines, and the
  * per-article sales statistics.
  *
- * Matching rule for an invoice line (same company as the invoice):
- *   1. normalized code equals an article's normalized code         → matched
- *   2. normalized code is an alias linked by hand to an article     → alias
- *   3. equal after dropping leading zeros, and only one candidate   → matched
+ * Matching rule for an invoice line (same company as the invoice), first hit wins:
+ *   1. code equals an article's invoice code (code + version) or internal code → matched
+ *   2. code is an alias linked by hand to an article                         → alias
+ *   3. code equals an article's code without version (list has versions,
+ *      invoice not)                                                           → matched
+ *   4. code without a trailing "_x" (price category, LEMUD111198_6 →
+ *      LEMUD111198) equals an article's invoice code or code without version  → matched
+ *   5. equal after dropping leading zeros                                     → matched
  *   otherwise → unmatched (or no_code when the line has no code).
+ * When a step finds several articles (the same code in different materials or
+ * finishes) the one whose description shares most words with the line wins.
  * The list price stored on the line is the one valid on the invoice date.
  */
 
@@ -23,6 +29,11 @@ export interface SalesFilters {
   client_id?: string;
   start_date?: string;
   end_date?: string;
+}
+
+// Words of a description, for choosing between articles with the same code
+function wordsOf(text: string): Set<string> {
+  return new Set(String(text).toUpperCase().split(/[^A-Z0-9Ø]+/).filter(w => w.length >= 2));
 }
 
 const num = (v: any) => (v === null || v === undefined ? 0 : Number(v));
@@ -51,61 +62,129 @@ export class ArticleService {
     if (scope.normalizedCode) { params.push(scope.normalizedCode); where.push(`${SQL_NORMALIZE('li.article_code')} = $${params.length}`); }
     if (!where.length) throw new Error('matchLineItems needs a scope');
 
-    const rows = await AppDataSource.query(
-      `WITH li AS (
-         SELECT li.id, inv.company_id::text AS company_id, inv.invoice_date,
-                ${SQL_NORMALIZE('li.article_code')} AS nc
-         FROM invoice_line_items li
-         JOIN invoices inv ON inv.id::text = li.invoice_id::text
-         WHERE ${where.join(' AND ')}
-       ),
-       m AS (
-         SELECT li.id, li.invoice_date,
-           CASE WHEN li.nc = '' THEN NULL
-                ELSE COALESCE(a1.id::text, al.article_id::text, CASE WHEN z.n = 1 THEN z.id END) END AS article_id,
-           CASE WHEN li.nc = '' THEN 'no_code'
-                WHEN a1.id IS NOT NULL THEN 'matched'
-                WHEN al.article_id IS NOT NULL THEN 'alias'
-                WHEN z.n = 1 THEN 'matched'
-                ELSE 'unmatched' END AS status
-         FROM li
-         LEFT JOIN articles a1 ON a1.company_id::text = li.company_id AND a1.normalized_code = li.nc
-         LEFT JOIN article_aliases al ON a1.id IS NULL AND al.company_id::text = li.company_id AND al.normalized_code = li.nc
-         LEFT JOIN LATERAL (
-           SELECT min(a.id::text) AS id, count(*) AS n FROM articles a
-           WHERE a1.id IS NULL AND al.article_id IS NULL AND ltrim(li.nc, '0') <> ''
-             AND a.company_id::text = li.company_id AND ltrim(a.normalized_code, '0') = ltrim(li.nc, '0')
-         ) z ON true
-       ),
-       p AS (
-         SELECT m.*, (
-           SELECT ap.price FROM article_prices ap
-           JOIN price_lists pl ON pl.id = ap.price_list_id
-           WHERE ap.article_id::text = m.article_id
-           ORDER BY (COALESCE(pl.valid_from, pl.created_at::date) <= COALESCE(m.invoice_date, current_date)) DESC,
-                    CASE WHEN COALESCE(pl.valid_from, pl.created_at::date) <= COALESCE(m.invoice_date, current_date)
-                         THEN COALESCE(pl.valid_from, pl.created_at::date) END DESC NULLS LAST,
-                    COALESCE(pl.valid_from, pl.created_at::date) ASC,
-                    pl.created_at DESC
-           LIMIT 1
-         ) AS list_price
-         FROM m
-       ),
-       upd AS (
-         UPDATE invoice_line_items t
-         SET article_id = p.article_id::uuid, match_status = p.status, list_price = p.list_price
-         FROM p WHERE t.id = p.id
-         RETURNING p.status
-       )
-       SELECT status, count(*)::int AS n FROM upd GROUP BY status`,
+    const lines: { id: string; company_id: string; article_code: string | null; description: string | null }[] = await AppDataSource.query(
+      `SELECT li.id::text AS id, inv.company_id::text AS company_id, li.article_code, li.description
+       FROM invoice_line_items li
+       JOIN invoices inv ON inv.id::text = li.invoice_id::text
+       WHERE ${where.join(' AND ')}`,
       params,
     );
-    const by = Object.fromEntries(rows.map((r: any) => [r.status, r.n]));
-    return {
-      matched: (by.matched || 0) + (by.alias || 0),
-      unmatched: by.unmatched || 0,
-      no_code: by.no_code || 0,
+    if (!lines.length) return { matched: 0, unmatched: 0, no_code: 0 };
+
+    const keysOf = (code: string | null) => {
+      const nc = normalizeCode(code);
+      const raw = code || '';
+      const base = raw.includes('_') ? normalizeCode(raw.replace(/_[^_]*$/, '')) : '';
+      return { nc, base: base && base !== nc ? base : '', nozeros: nc.replace(/^0+/, '') };
     };
+    const companies = [...new Set(lines.map(l => l.company_id))];
+    const keys = new Set<string>();
+    const zkeys = new Set<string>();
+    for (const l of lines) {
+      const k = keysOf(l.article_code);
+      if (k.nc) keys.add(k.nc);
+      if (k.base) keys.add(k.base);
+      if (k.nozeros) zkeys.add(k.nozeros);
+    }
+
+    type Cand = { id: string; company_id: string; match_code: string | null; base_code: string | null; alt_code: string | null; words: Set<string> };
+    const candidates: Cand[] = [];
+    const keyList = [...keys];
+    for (let i = 0; i < Math.max(keyList.length, 1); i += 5000) {
+      const chunk = keyList.slice(i, i + 5000);
+      const zchunk = i === 0 ? [...zkeys] : [];
+      if (!chunk.length && !zchunk.length) break;
+      const rows = await AppDataSource.query(
+        `SELECT id::text AS id, company_id::text AS company_id, match_code, base_code, alt_code, description, extra
+         FROM articles
+         WHERE company_id::text = ANY($1::text[])
+           AND (match_code = ANY($2::text[]) OR alt_code = ANY($2::text[]) OR base_code = ANY($2::text[])
+                OR ltrim(match_code, '0') = ANY($3::text[]))`,
+        [companies, chunk, zchunk],
+      );
+      for (const r of rows) {
+        const text = [r.description, ...Object.values(r.extra || {})].filter(v => typeof v === 'string').join(' ');
+        candidates.push({ id: r.id, company_id: r.company_id, match_code: r.match_code, base_code: r.base_code, alt_code: r.alt_code, words: wordsOf(text) });
+      }
+    }
+    const aliasRows: { company_id: string; normalized_code: string; article_id: string }[] = keyList.length
+      ? await AppDataSource.query(
+        `SELECT company_id::text AS company_id, normalized_code, article_id::text AS article_id
+         FROM article_aliases WHERE company_id::text = ANY($1::text[]) AND normalized_code = ANY($2::text[])`,
+        [companies, keyList])
+      : [];
+    const aliases = new Map(aliasRows.map(a => [`${a.company_id}|${a.normalized_code}`, a.article_id]));
+
+    const pick = (found: Cand[], description: string | null): string | null => {
+      if (!found.length) return null;
+      if (found.length === 1) return found[0].id;
+      const words = wordsOf(description || '');
+      let best = found[0];
+      let bestScore = -1;
+      for (const c of [...found].sort((a, b) => a.id.localeCompare(b.id))) {
+        let score = 0;
+        words.forEach(w => { if (c.words.has(w)) score++; });
+        if (score > bestScore) { best = c; bestScore = score; }
+      }
+      return best.id;
+    };
+
+    const ids: string[] = [];
+    const articleIds: (string | null)[] = [];
+    const statuses: string[] = [];
+    const counts = { matched: 0, unmatched: 0, no_code: 0 };
+    for (const l of lines) {
+      const k = keysOf(l.article_code);
+      let articleId: string | null = null;
+      let status = 'unmatched';
+      if (!k.nc) {
+        status = 'no_code';
+      } else {
+        const mine = candidates.filter(c => c.company_id === l.company_id);
+        const steps: (() => string | null)[] = [
+          () => pick(mine.filter(c => c.match_code === k.nc), l.description) || pick(mine.filter(c => c.alt_code === k.nc), l.description),
+          () => aliases.get(`${l.company_id}|${k.nc}`) || null,
+          () => pick(mine.filter(c => c.base_code === k.nc), l.description),
+          () => k.base ? pick(mine.filter(c => c.match_code === k.base || c.base_code === k.base), l.description) : null,
+          () => k.nozeros ? pick(mine.filter(c => (c.match_code || '').replace(/^0+/, '') === k.nozeros), l.description) : null,
+        ];
+        for (let s = 0; s < steps.length && !articleId; s++) {
+          articleId = steps[s]();
+          if (articleId) status = s === 1 ? 'alias' : 'matched';
+        }
+      }
+      ids.push(l.id);
+      articleIds.push(articleId);
+      statuses.push(status);
+      if (status === 'no_code') counts.no_code++;
+      else if (status === 'unmatched') counts.unmatched++;
+      else counts.matched++;
+    }
+
+    await AppDataSource.query(
+      `UPDATE invoice_line_items t
+       SET article_id = v.article_id::uuid, match_status = v.status
+       FROM unnest($1::text[], $2::text[], $3::text[]) AS v(id, article_id, status)
+       WHERE t.id::text = v.id`,
+      [ids, articleIds, statuses],
+    );
+    await AppDataSource.query(
+      `UPDATE invoice_line_items t
+       SET list_price = CASE WHEN t.article_id IS NULL THEN NULL ELSE (
+         SELECT ap.price FROM article_prices ap
+         JOIN price_lists pl ON pl.id = ap.price_list_id
+         WHERE ap.article_id = t.article_id
+         ORDER BY (COALESCE(pl.valid_from, pl.created_at::date) <= COALESCE(inv.invoice_date, current_date)) DESC,
+                  CASE WHEN COALESCE(pl.valid_from, pl.created_at::date) <= COALESCE(inv.invoice_date, current_date)
+                       THEN COALESCE(pl.valid_from, pl.created_at::date) END DESC NULLS LAST,
+                  COALESCE(pl.valid_from, pl.created_at::date) ASC,
+                  pl.created_at DESC
+         LIMIT 1) END
+       FROM invoices inv
+       WHERE inv.id::text = t.invoice_id::text AND t.id::text = ANY($1::text[])`,
+      [ids],
+    );
+    return counts;
   }
 
   /** Updates articles.list_price / price_list_id to the most recent list of the company. */

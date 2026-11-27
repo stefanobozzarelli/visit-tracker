@@ -147,6 +147,15 @@ runPreMigrations().then(() => AppDataSource.initialize())
         CREATE INDEX IF NOT EXISTS idx_articles_company_code_nozeros
         ON articles (company_id, ltrim(normalized_code, '0'));
       `).catch(() => {});
+      // Articles saved before match_code/base_code existed: their code is both
+      await qr.query(`
+        UPDATE articles SET match_code = normalized_code, base_code = normalized_code
+        WHERE match_code IS NULL;
+      `).catch(() => {});
+      await qr.query(`
+        CREATE INDEX IF NOT EXISTS idx_articles_company_match_nozeros
+        ON articles (company_id, ltrim(match_code, '0'));
+      `).catch(() => {});
       // Invoice lines processed before price lists existed: link them once, in the background
       setTimeout(async () => {
         try {

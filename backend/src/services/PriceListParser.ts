@@ -16,12 +16,20 @@ export interface ColumnMapping {
   description: number;
   price: number;
   unit: number;
+  // Optional: version/category appended to the code as on invoices ("LEMUD111198" + "_6")
+  variant?: number;
+  // Optional: the supplier's internal code, when the invoice code repeats on several
+  // rows (same item in different materials); it keeps those rows apart
+  internal_code?: number;
   extra_columns?: number[]; // other columns to keep in article.extra; all others when missing
 }
 
 export interface ParsedArticle {
-  code: string;
-  normalized_code: string;
+  code: string;               // code as written on invoices, with the version when there is one
+  normalized_code: string;    // unique key of the article for the supplier
+  match_code: string;         // normalized invoice code (code + version)
+  base_code: string;          // normalized code without the version
+  alt_code: string | null;    // normalized internal code
   description: string | null;
   unit: string | null;
   price: number;
@@ -154,7 +162,7 @@ export function sheetRows(wb: XLSX.WorkBook, sheetName?: string): Cell[][] {
 /* ─────────────── Header and column detection ─────────────── */
 
 const HEADER_HINTS: Record<'code' | 'description' | 'price' | 'unit', RegExp[]> = {
-  code: [/^cod(ice)?\.?\s*(art(icolo)?\.?)?$/, /^cod(ice)?\b/, /^art(icolo)?\.?$/, /^(item|sku|ref(erence)?|riferimento|article|code|product code|part)\b/],
+  code: [/^cod(ice)?\.?\s*comm/, /^cod(ice)?\.?\s*(art(icolo)?\.?)?$/, /^cod(ice)?\b/, /^art(icolo)?\.?$/, /^(item|sku|ref(erence)?|riferimento|article|code|product code|part)\b/],
   description: [/^desc(rizione)?\.?/, /^(description|denominazione|prodotto|product|nome|name)/],
   price: [/prezzo|listino|price|€|\beur(o)?\b|importo|valore|tariff/],
   unit: [/^u\.?\s?m\.?$/, /^(unit(à|a)?|uom|misura|unit of measure)$/],
@@ -182,6 +190,9 @@ export function detectHeaderRow(rows: Cell[][]): number {
 const looksNumeric = (v: Cell) =>
   typeof v === 'number' || (typeof v === 'string' && /^[\s€$]*-?\d[\d.,'\s]*(€|eur)?[\s/a-z²]*$/i.test(v) && parsePrice(v) !== null);
 
+const VARIANT_HINTS = [/^vrs\.?$/, /^var\.?$/];
+const INTERNAL_CODE_HINTS = [/^cod(ice)?\.?\s*int/, /^cod(ice)?\.?\s*(art(icolo)?\.?)?$/, /^cod(ice)?\b/];
+
 /** Best guess of which columns hold code, description, price and unit. */
 export function guessMapping(rows: Cell[][], headerRow: number): Omit<ColumnMapping, 'sheet'> {
   const width = Math.max(0, ...rows.slice(0, 200).map(r => r.length));
@@ -196,6 +207,17 @@ export function guessMapping(rows: Cell[][], headerRow: number): Omit<ColumnMapp
   };
   // order matters: "codice articolo" must go to code before anything else looks at it
   let code = pick('code');
+  const pickBy = (res: RegExp[]): number => {
+    for (const re of res) {
+      const idx = headers.findIndex((h, i) => !used.has(i) && !!h && h.length < 60 && re.test(h));
+      if (idx >= 0) { used.add(idx); return idx; }
+    }
+    return -1;
+  };
+  // A "commercial code" column is the one printed on invoices; the plain "codice"
+  // next to it is then the internal code (e.g. Antoniolupi: COD.COMM. + CODICE)
+  const internal_code = code >= 0 && /comm/.test(headers[code] || '') ? pickBy(INTERNAL_CODE_HINTS) : -1;
+  const variant = code >= 0 ? pickBy(VARIANT_HINTS) : -1;
   let price = pick('price');
   const unit = pick('unit');
   let description = pick('description');
@@ -221,7 +243,15 @@ export function guessMapping(rows: Cell[][], headerRow: number): Omit<ColumnMapp
     const p = [...stats].reverse().find(s => !used.has(s.i) && s.filled > 0 && s.numeric >= s.filled * 0.8);
     if (p) { price = p.i; used.add(p.i); }
   }
-  return { header_row: headerRow, code, description, price, unit };
+  return { header_row: headerRow, code, description, price, unit, variant, internal_code };
+}
+
+/** Code plus version as printed on invoices: "LEMUD111198" + "_6" → "LEMUD111198_6". */
+export function codeWithVariant(code: any, variant: any): string {
+  const c = displayCode(code);
+  const v = displayCode(variant);
+  if (!v) return c;
+  return /^[_\-.\/\s]/.test(v) ? c + v : `${c}_${v}`;
 }
 
 /* ─────────────── Rows → articles ─────────────── */
@@ -249,13 +279,18 @@ export function buildArticles(rows: Cell[][], mapping: ColumnMapping): BuildResu
     if (!row || row.every(c => c === null || c === undefined || c === '')) continue;
     rowsRead++;
     const rawCode = mapping.code >= 0 ? row[mapping.code] : null;
-    const normalized = normalizeCode(rawCode);
+    const variantIdx = mapping.variant ?? -1;
+    const internalIdx = mapping.internal_code ?? -1;
+    const fullCode = codeWithVariant(rawCode, variantIdx >= 0 ? row[variantIdx] : null);
+    const matchCode = normalizeCode(fullCode);
+    const internal = internalIdx >= 0 ? normalizeCode(row[internalIdx]) : '';
+    const normalized = matchCode && internal && internal !== matchCode ? `${matchCode}#${internal}` : matchCode;
     const price = mapping.price >= 0 ? parsePrice(row[mapping.price]) : null;
     let reason = '';
     if (!normalized) reason = 'manca il codice';
     else if (codeHeader && textOf(rawCode) === codeHeader) reason = 'riga di intestazione';
     else if (price === null) reason = 'manca il prezzo';
-    else if (normalized.length > 60) reason = 'codice troppo lungo';
+    else if (normalized.length > 120) reason = 'codice troppo lungo';
     if (reason) {
       skipped++;
       if (skippedSamples.length < 20) skippedSamples.push({ row: r + 1, reason, values: row.slice(0, 8) });
@@ -269,8 +304,11 @@ export function buildArticles(rows: Cell[][], mapping: ColumnMapping): BuildResu
     if (byCode.has(normalized)) duplicates++;
     const d = mapping.description >= 0 ? row[mapping.description] : null;
     byCode.set(normalized, {
-      code: displayCode(rawCode).substring(0, 100),
+      code: fullCode.substring(0, 100),
       normalized_code: normalized,
+      match_code: matchCode,
+      base_code: normalizeCode(rawCode),
+      alt_code: internal || null,
       description: d !== null && d !== undefined && String(d).trim() ? String(d).trim() : null,
       unit: mapping.unit >= 0 ? normalizeUnit(row[mapping.unit]) : null,
       price: price as number,

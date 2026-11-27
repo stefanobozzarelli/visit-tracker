@@ -4,11 +4,14 @@ import { PriceList } from './PriceList';
 
 /**
  * One article of a supplier (azienda), identified by the supplier's own code.
- * normalized_code (upper case, no spaces/dots/dashes/slashes) is what invoice
- * lines are matched on.
+ * Invoice lines are matched on match_code (upper case, no spaces/dots/dashes/
+ * slashes/underscores), then on alt_code and base_code.
  */
 @Entity('articles')
 @Index('idx_articles_company_code', ['company_id', 'normalized_code'], { unique: true })
+@Index('idx_articles_company_match', ['company_id', 'match_code'])
+@Index('idx_articles_company_base', ['company_id', 'base_code'])
+@Index('idx_articles_company_alt', ['company_id', 'alt_code'])
 export class Article {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -19,8 +22,22 @@ export class Article {
   @Column()
   code: string;
 
+  // Unique key: match_code, plus "#internal code" when the same invoice code
+  // repeats on several rows of the list
   @Column()
   normalized_code: string;
+
+  // Normalized code as printed on invoices (code + version, e.g. LEMUD1111986)
+  @Column({ type: 'varchar', nullable: true })
+  match_code: string | null;
+
+  // Normalized code without the version (LEMUD111198)
+  @Column({ type: 'varchar', nullable: true })
+  base_code: string | null;
+
+  // Normalized internal code of the supplier, when the list has one
+  @Column({ type: 'varchar', nullable: true })
+  alt_code: string | null;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

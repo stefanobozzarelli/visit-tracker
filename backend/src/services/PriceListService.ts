@@ -12,8 +12,11 @@ import { v4 as uuidv4 } from 'uuid';
 const PREVIEW_ROWS = 40;
 const UPSERT_CHUNK = 1000;
 
+const MAPPED_FIELDS = ['code', 'description', 'price', 'unit', 'variant', 'internal_code'] as const;
+type MappedField = typeof MAPPED_FIELDS[number];
+
 export type SavedMapping = ColumnMapping & {
-  header_names?: Partial<Record<'code' | 'description' | 'price' | 'unit', string>>;
+  header_names?: Partial<Record<MappedField, string>>;
 };
 
 export interface PreviewOptions {
@@ -70,6 +73,8 @@ async function readRows(file: Express.Multer.File, opts: PreviewOptions) {
     description: m.description ?? guessed.description,
     price: m.price ?? guessed.price,
     unit: m.unit ?? guessed.unit,
+    variant: m.variant ?? guessed.variant ?? -1,
+    internal_code: m.internal_code ?? guessed.internal_code ?? -1,
     extra_columns: m.extra_columns,
   };
   return { kind, sheets: wb.SheetNames, sheet, rows, mapping, pdf: null as null | { pages: number; lines: number; unparsed_samples: string[]; text: string } };
@@ -86,7 +91,7 @@ function reuseByHeaderName(rows: Cell[][], headerRow: number, previous?: SavedMa
   if (!names || headerRow < 0) return {};
   const headers = (rows[headerRow] || []).map(headerKey);
   const out: Partial<ColumnMapping> = {};
-  for (const field of ['code', 'description', 'price', 'unit'] as const) {
+  for (const field of MAPPED_FIELDS) {
     const name = names[field];
     if (!name) continue;
     const idx = headers.indexOf(headerKey(name));
@@ -101,7 +106,7 @@ function withHeaderNames(rows: Cell[][], mapping: ColumnMapping): SavedMapping {
   const name = (i: number) => (i >= 0 && headers[i] !== null && headers[i] !== undefined && String(headers[i]).trim() ? String(headers[i]).trim() : undefined);
   return {
     ...mapping,
-    header_names: { code: name(mapping.code), description: name(mapping.description), price: name(mapping.price), unit: name(mapping.unit) },
+    header_names: Object.fromEntries(MAPPED_FIELDS.map(f => [f, name(mapping[f] ?? -1)])),
   };
 }
 
@@ -195,18 +200,22 @@ export class PriceListService {
         const chunk = list.slice(i, i + UPSERT_CHUNK);
         const values: any[] = [];
         const tuples = chunk.map((a, j) => {
-          const b = j * 7;
-          values.push(uuidv4(), priceList.company_id, a.code, a.normalized_code, a.description, a.unit, a.extra ? JSON.stringify(a.extra) : null);
-          return `($${b + 1}::uuid, $${b + 2}::uuid, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}::jsonb, now(), now())`;
+          const b = j * 10;
+          values.push(uuidv4(), priceList.company_id, a.code, a.normalized_code, a.description, a.unit, a.extra ? JSON.stringify(a.extra) : null,
+            a.match_code, a.base_code, a.alt_code);
+          return `($${b + 1}::uuid, $${b + 2}::uuid, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}::jsonb, $${b + 8}, $${b + 9}, $${b + 10}, now(), now())`;
         });
         const ids: { id: string; normalized_code: string }[] = await m.query(
-          `INSERT INTO articles (id, company_id, code, normalized_code, description, unit, extra, created_at, updated_at)
+          `INSERT INTO articles (id, company_id, code, normalized_code, description, unit, extra, match_code, base_code, alt_code, created_at, updated_at)
            VALUES ${tuples.join(',')}
            ON CONFLICT (company_id, normalized_code) DO UPDATE SET
              code = EXCLUDED.code,
              description = COALESCE(EXCLUDED.description, articles.description),
              unit = COALESCE(EXCLUDED.unit, articles.unit),
              extra = COALESCE(EXCLUDED.extra, articles.extra),
+             match_code = EXCLUDED.match_code,
+             base_code = EXCLUDED.base_code,
+             alt_code = EXCLUDED.alt_code,
              updated_at = now()
            RETURNING id, normalized_code`, values);
         const idByCode = new Map(ids.map(x => [x.normalized_code, x.id]));
