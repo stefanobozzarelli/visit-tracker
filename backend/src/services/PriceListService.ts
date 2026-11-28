@@ -369,7 +369,10 @@ Return ONLY valid JSON: {"articles": [{"code": "article code exactly as printed"
     const rows: { code: string }[] = await AppDataSource.query(
       `SELECT DISTINCT li.article_code AS code FROM invoice_line_items li
        JOIN invoices inv ON inv.id::text = li.invoice_id::text
-       WHERE inv.company_id::text = $1 AND li.article_code IS NOT NULL AND li.article_code <> ''
+       JOIN companies c ON c.id::text = inv.company_id::text
+       -- also the invoices of companies that use this company's price lists (e.g. a group)
+       WHERE (c.id::text = $1 OR $1 = ANY(c.price_list_sources))
+         AND li.article_code IS NOT NULL AND li.article_code <> ''
        LIMIT 50000`, [companyId]);
     const set = new Set<string>();
     for (const r of rows) {

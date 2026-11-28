@@ -490,6 +490,8 @@ export const PriceListsTab: React.FC = () => {
         )}
       </div>
 
+      <PriceListSources companies={companies} />
+
       {/* Existing lists */}
       <div className="revenue-filters">
         <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)}>
@@ -561,6 +563,75 @@ export const PriceListsTab: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+/**
+ * For a company that invoices articles of other companies (e.g. a group and its
+ * brands): choose whose price lists to use for its invoice lines.
+ */
+const PriceListSources: React.FC<{ companies: any[] }> = ({ companies }) => {
+  const [companyId, setCompanyId] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
+  const [saved, setSaved] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    setNote('');
+    if (!companyId) { setSelected([]); setSaved([]); return; }
+    apiService.getPriceListSources(companyId)
+      .then(r => { setSelected(r.data || []); setSaved(r.data || []); })
+      .catch(e => setNote(errorText(e)));
+  }, [companyId]);
+
+  const toggle = (id: string) => setSelected(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
+  const changed = selected.length !== saved.length || selected.some(id => !saved.includes(id));
+
+  const save = async () => {
+    setSaving(true);
+    setNote('');
+    try {
+      const r = await apiService.setPriceListSources(companyId, selected);
+      setSaved(selected);
+      const m = r.data || {};
+      setNote(`Salvato. Righe fattura ricontrollate: ${fmtNum(m.matched || 0)} abbinate a un articolo, ${fmtNum(m.unmatched || 0)} con codice non trovato.`);
+    } catch (e) { setNote(errorText(e)); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="revenue-card">
+      <h3 className="card-section-title">Listini di altre aziende</h3>
+      <p className="pl-hint">
+        Se un'azienda fattura articoli delle aziende del suo gruppo (per esempio un gruppo che vende i prodotti dei suoi
+        marchi), scegli qui di quali aziende usare i listini. Le righe delle sue fatture verranno abbinate anche agli
+        articoli di quei listini, compresi quelli caricati in futuro.
+      </p>
+      <div className="upload-selectors">
+        <select value={companyId} onChange={e => setCompanyId(e.target.value)}>
+          <option value="">Seleziona Azienda</option>
+          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      {companyId && (
+        <>
+          <div className="pl-sources">
+            {companies.filter(c => c.id !== companyId).map(c => (
+              <label key={c.id} className="pl-checkbox">
+                <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggle(c.id)} /> {c.name}
+              </label>
+            ))}
+          </div>
+          <div className="pl-save">
+            <button className="admin-btn admin-btn-primary" disabled={saving || !changed} onClick={save}>
+              {saving ? 'Salvataggio…' : 'Salva'}
+            </button>
+          </div>
+        </>
+      )}
+      {note && <p className="pl-hint">{note}</p>}
     </div>
   );
 };

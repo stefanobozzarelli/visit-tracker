@@ -163,11 +163,17 @@ runPreMigrations().then(() => AppDataSource.initialize())
             SELECT DISTINCT inv.company_id FROM invoice_line_items li
             JOIN invoices inv ON inv.id::text = li.invoice_id::text
             WHERE li.match_status IS NULL`);
-          if (!companies.length) return;
           const { ArticleService } = require('./services/ArticleService');
           const articleService = new ArticleService();
           for (const c of companies) await articleService.matchLineItems({ companyId: String(c.company_id) });
-          console.log(`Article matching: checked old invoice lines of ${companies.length} companies`);
+          if (companies.length) console.log(`Article matching: checked old invoice lines of ${companies.length} companies`);
+          // Codes not found yet: try again, the matching gets better over time
+          // (codes written another way, price lists of group companies)
+          const pending = await AppDataSource.query(`
+            SELECT DISTINCT invoice_id::text AS id FROM invoice_line_items WHERE match_status = 'unmatched'`);
+          const ids: string[] = pending.map((r: any) => r.id);
+          for (let i = 0; i < ids.length; i += 200) await articleService.matchLineItems({ invoiceIds: ids.slice(i, i + 200) });
+          if (ids.length) console.log(`Article matching: re-checked ${ids.length} invoices with codes not found`);
         } catch (e) { console.log('Article matching note:', (e as Error).message); }
       }, 5000);
       await qr.release();

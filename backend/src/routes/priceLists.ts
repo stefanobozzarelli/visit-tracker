@@ -3,9 +3,11 @@ import multer from 'multer';
 import { authMiddleware } from '../middleware/auth';
 import { MAX_UPLOAD_BYTES } from '../config/uploads';
 import { PriceListService } from '../services/PriceListService';
+import { ArticleService } from '../services/ArticleService';
 
 const router = Router();
 const service = new PriceListService();
+const articles = new ArticleService();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 // Same access as invoices: master_admin, or admin with revenue access
@@ -29,6 +31,21 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     res.json({ success: true, data: await service.list(req.query.company_id as string | undefined) });
   } catch (e) { fail(res, e); }
+});
+
+// Other companies whose price lists are also used for this company's invoices
+router.get('/sources/:companyId', async (req: Request, res: Response) => {
+  try {
+    const ids = await articles.withSources(req.params.companyId);
+    res.json({ success: true, data: ids.slice(1) });
+  } catch (error) { fail(res, error); }
+});
+
+router.put('/sources/:companyId', async (req: Request, res: Response) => {
+  try {
+    const ids = Array.isArray(req.body.source_ids) ? req.body.source_ids.map(String) : [];
+    res.json({ success: true, data: await articles.setPriceListSources(req.params.companyId, ids) });
+  } catch (error) { fail(res, error, 400); }
 });
 
 router.get('/last-mapping', async (req: Request, res: Response) => {
