@@ -1,0 +1,464 @@
+/*
+ * Shared look for the visit entry forms (client + supplier) and the visit
+ * detail pages. Bigger type, soft field backgrounds, one card per block.
+ * Everything is scoped under .vx-page so other pages are untouched.
+ */
+
+.vx-page {
+  max-width: 940px;
+  margin: 0 auto;
+  padding-bottom: 110px; /* room for the fixed action bar */
+  color: var(--color-text-primary);
+}
+
+.vx-page.vx-detail {
+  padding-bottom: 2rem;
+}
+
+/* ---------- header ---------- */
+.vx-back {
+  display: inline-block;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-info);
+  cursor: pointer;
+  margin-bottom: 0.4rem;
+}
+.vx-back:hover { text-decoration: underline; }
+
+.vx-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.vx-head h1 {
+  font-size: clamp(26px, 3.2vw, 34px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+.vx-head .vx-sub {
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  margin-top: 0.35rem;
+}
+.vx-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ---------- cards ---------- */
+.vx-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: clamp(18px, 2.6vw, 30px);
+  margin-bottom: 1.25rem;
+}
+.vx-report {
+  border-left: 5px solid var(--color-info);
+}
+
+.vx-section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 2rem 0 0.85rem;
+}
+.vx-section h2 {
+  font-size: 23px;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+.vx-section span {
+  color: var(--color-text-secondary);
+  font-size: 15px;
+}
+
+/* ---------- form fields ---------- */
+.vx-page .form-group { margin-bottom: 1.35rem; }
+.vx-page .form-group:last-child { margin-bottom: 0; }
+
+.vx-page .form-group > label,
+.vx-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.vx-page .form-group input:not([type=checkbox]):not([type=radio]),
+.vx-page .form-group select,
+.vx-page .form-group textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  padding: 13px 16px;
+  min-height: 50px;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.vx-page .form-group input:not([type=checkbox]):not([type=radio]):hover,
+.vx-page .form-group select:hover,
+.vx-page .form-group textarea:hover {
+  border-color: var(--color-border);
+}
+.vx-page .form-group input:not([type=checkbox]):not([type=radio]):focus,
+.vx-page .form-group select:focus,
+.vx-page .form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-info);
+  background: var(--color-white);
+  box-shadow: 0 0 0 4px rgba(74, 96, 120, 0.12);
+}
+.vx-page .form-group input:disabled,
+.vx-page .form-group select:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+.vx-page .form-group textarea {
+  line-height: 1.65;
+  resize: vertical;
+}
+.vx-page .form-group textarea.vx-report-text { min-height: 220px; }
+
+.vx-page .form-group input.vx-title {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.vx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 0 1.25rem;
+}
+.vx-grid > * { min-width: 0; }
+
+/* ---------- segmented choice ---------- */
+.vx-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.vx-seg button {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 16px;
+  padding: 11px 14px;
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+}
+.vx-seg button:hover { border-color: var(--color-border-strong); }
+.vx-seg button svg { width: 18px; height: 18px; flex: none; }
+.vx-seg button[aria-pressed=true] {
+  border-color: var(--color-info);
+  background: rgba(74, 96, 120, 0.09);
+  color: var(--color-info);
+  font-weight: 600;
+}
+.vx-seg button[data-tone=green][aria-pressed=true] { border-color: var(--color-success); color: var(--color-success); background: rgba(91, 138, 101, 0.11); }
+.vx-seg button[data-tone=gold][aria-pressed=true] { border-color: var(--color-warning); color: #8a7630; background: rgba(176, 152, 64, 0.12); }
+.vx-seg button[data-tone=red][aria-pressed=true] { border-color: var(--color-error); color: var(--color-error); background: rgba(158, 90, 82, 0.1); }
+
+/* ---------- checkboxes as chips (supplier internal participants) ---------- */
+.vx-page .cv-participants-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.vx-page .cv-participant-checkbox {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: var(--color-text-primary) !important;
+  padding: 9px 14px;
+  margin: 0 !important;
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+  background: var(--color-white);
+}
+.vx-page .cv-participant-checkbox,
+.vx-page .cv-participant-checkbox span { text-transform: none !important; letter-spacing: 0 !important; }
+.vx-page .cv-participant-checkbox input { width: 18px; height: 18px; accent-color: var(--color-info); margin: 0; }
+.vx-page .cv-participant-checkbox:has(input:checked) {
+  border-color: var(--color-info);
+  background: rgba(74, 96, 120, 0.09);
+  color: var(--color-info) !important;
+}
+
+/* ---------- collapsible optional block ---------- */
+.vx-details {
+  border-top: 1px solid var(--color-border);
+  margin-top: 1.5rem;
+  padding-top: 1.1rem;
+}
+.vx-details > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.vx-details > summary::-webkit-details-marker { display: none; }
+.vx-details > summary::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--color-text-secondary);
+  border-bottom: 2px solid var(--color-text-secondary);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.vx-details[open] > summary::before { transform: rotate(45deg); }
+.vx-details > summary small { font-weight: 400; font-size: 14px; color: var(--color-text-tertiary); }
+.vx-details-body { padding-top: 1.1rem; }
+
+/* ---------- report card header ---------- */
+.vx-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  background: var(--color-info);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 18px;
+  flex: none;
+  text-transform: uppercase;
+}
+.vx-rephead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.vx-rephead select { flex: 1 1 220px; width: auto !important; font-size: 19px !important; font-weight: 600; }
+
+/* ---------- buttons ---------- */
+.vx-ghost {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-info);
+  background: none;
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: 10px;
+  padding: 9px 14px;
+  min-height: 44px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vx-ghost:hover { border-color: var(--color-info); background: rgba(74, 96, 120, 0.07); }
+.vx-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.vx-link-danger {
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  margin-left: auto;
+}
+.vx-link-danger:hover { color: var(--color-error); }
+
+.vx-add {
+  width: 100%;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-info);
+  background: transparent;
+  border: 2px dashed var(--color-border-strong);
+  border-radius: 14px;
+  padding: 18px;
+  cursor: pointer;
+  margin-bottom: 1.25rem;
+}
+.vx-add:hover { border-color: var(--color-info); background: rgba(74, 96, 120, 0.06); }
+
+.vx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 16px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vx-btn:hover { border-color: var(--color-border-strong); background: var(--color-bg-tertiary); }
+.vx-btn:disabled { opacity: 0.55; cursor: wait; }
+.vx-btn.vx-primary { background: var(--color-info); border-color: var(--color-info); color: #fff; }
+.vx-btn.vx-primary:hover { filter: brightness(1.08); }
+.vx-btn.vx-sm { font-size: 14px; padding: 7px 12px; min-height: 38px; font-weight: 500; }
+
+/* ---------- attachments ---------- */
+.vx-page .cv-attachment-dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  border: 1.5px dashed var(--color-border-strong) !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  padding: 16px 18px !important;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  text-align: left !important;
+  cursor: pointer;
+}
+.vx-page .cv-attachment-dropzone:hover,
+.vx-page .cv-attachment-dropzone.drag-over {
+  border-color: var(--color-info) !important;
+  background: rgba(74, 96, 120, 0.05) !important;
+}
+.vx-page .cv-attachment-dropzone svg { color: var(--color-info); width: 24px; height: 24px; }
+.vx-page .cv-attachments-section > label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.vx-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---------- fixed save bar ---------- */
+.vx-actionbar {
+  position: fixed;
+  left: var(--sidebar-width, 260px);
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--color-border);
+  padding: 12px 2rem calc(12px + env(safe-area-inset-bottom, 0px));
+  margin: 0 !important;
+}
+.vx-actionbar-inner {
+  max-width: 940px;
+  margin: 0 auto;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.vx-actionbar .btn-primary,
+.vx-actionbar .btn-secondary {
+  font-size: 17px !important;
+  font-weight: 600;
+  padding: 12px 26px !important;
+  border-radius: 10px !important;
+  min-height: 48px;
+}
+
+/* ---------- detail (View) ---------- */
+.vx-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 1.25rem 1.5rem;
+}
+.vx-facts > div { min-width: 0; }
+.vx-value {
+  font-size: 18px;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.vx-prose {
+  white-space: pre-wrap;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.vx-divider {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5rem 0;
+}
+.vx-report-title {
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: var(--color-text-primary);
+}
+.vx-report-company {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-info);
+}
+.vx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .vx-actionbar { left: 0; padding-left: 1rem; padding-right: 1rem; }
+  .vx-actionbar .btn-primary,
+  .vx-actionbar .btn-secondary { flex: 1; padding: 12px 14px !important; }
+  .vx-rephead .vx-ghost { flex: 1 1 auto; }
+}

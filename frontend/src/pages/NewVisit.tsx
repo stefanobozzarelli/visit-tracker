@@ -7,6 +7,8 @@ import { Client, Company } from '../types';
 import { encodeMetadata, VisitMetadata, decodeMetadata } from '../utils/visitMetadata';
 import { compressImages } from '../utils/compressImage';
 import '../styles/CrudPages.css';
+import '../styles/VisitForms.css';
+import { MeetingTypeChoice, VisitStatusChoice } from '../components/VisitChoices';
 
 export const NewVisit: React.FC = () => {
   const navigate = useNavigate();
@@ -699,19 +701,20 @@ export const NewVisit: React.FC = () => {
   if (isLoading) return <p>Loading...</p>;
 
   return (
-    <div className="crud-page">
-      <div className="page-header">
+    <div className="crud-page vx-page">
+      <button type="button" onClick={() => navigate(prefillParams.returnTo || '/visits')} className="vx-back">
+        ← {prefillParams.returnTo ? 'Back to Client' : 'Back to Client Meetings'}
+      </button>
+      <div className="vx-head">
         <h1>{isEditMode ? 'Edit Meeting' : 'Register Visit'}</h1>
-        <button onClick={() => navigate(prefillParams.returnTo || '/visits')} className="btn-secondary">
-          ← {prefillParams.returnTo ? 'Back to Client' : 'Back to Client Meetings'}
-        </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      <div className="form-card">
+      <div>
         <form onSubmit={handleSubmit}>
+          <div className="vx-card">
           <div className="form-group">
             <label>Client *</label>
             {!isEditMode && (
@@ -751,15 +754,14 @@ export const NewVisit: React.FC = () => {
                 type="button"
                 onClick={() => setShowNewClientForm(!showNewClientForm)}
                 disabled={isEditMode}
-                className="btn-secondary"
-                style={{ whiteSpace: 'nowrap' }}
+                className="vx-ghost"
               >
                 + New Client
               </button>
             </div>
 
             {showNewClientForm && (
-              <div style={{ padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '10px' }}>
+              <div style={{ padding: '18px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: '12px', marginBottom: '10px' }}>
                 <div className="form-group">
                   <label>Client Name</label>
                   <input
@@ -839,7 +841,7 @@ export const NewVisit: React.FC = () => {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+          <div className="vx-grid">
             <div className="form-group">
               <label>Visit Date *</label>
               <input
@@ -851,100 +853,91 @@ export const NewVisit: React.FC = () => {
               />
             </div>
             <div className="form-group">
-              <label>Meeting Type</label>
-              <select
-                value={formData.meeting_type}
-                onChange={(e) => setFormData(prev => ({ ...prev, meeting_type: e.target.value }))}
-              >
-                <option value="in_person">In Person</option>
-                <option value="call">Call</option>
-                <option value="video_call">Video Call</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="scheduled">Scheduled</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Meeting Participants</label>
-            <input
-              type="text"
-              value={formData.participants}
-              onChange={(e) => setFormData(prev => ({ ...prev, participants: e.target.value }))}
-              placeholder="Names of people attending the meeting..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Preparation / Pre-meeting Notes</label>
-            <textarea
-              value={formData.preparation}
-              onChange={(e) => setFormData(prev => ({ ...prev, preparation: e.target.value }))}
-              rows={5}
-              placeholder="Notes, agenda items, topics to discuss..."
-            />
-          </div>
-
-          {/* Visit Metadata */}
-          <div style={{ padding: '1rem', marginBottom: '1rem', border: '1px solid #e5e5e5', borderRadius: '8px', backgroundColor: '#fafbfc' }}>
-            <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem' }}>Visit Details</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Location</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Milan office, phone call..."
-                  value={metadata.location}
-                  onChange={e => setMetadata({ ...metadata, location: e.target.value })}
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Purpose</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Product presentation, follow-up..."
-                  value={metadata.purpose}
-                  onChange={e => setMetadata({ ...metadata, purpose: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="form-group" style={{ marginTop: '0.75rem' }}>
-              <label>Outcome</label>
+              <label>Meeting Participants</label>
               <input
                 type="text"
-                placeholder="e.g. Positive, order placed, need follow-up..."
-                value={metadata.outcome}
-                onChange={e => setMetadata({ ...metadata, outcome: e.target.value })}
+                value={formData.participants}
+                onChange={(e) => setFormData(prev => ({ ...prev, participants: e.target.value }))}
+                placeholder="Names of people attending..."
               />
             </div>
-            {/* Next Action and Follow-up removed — use Tasks page to create follow-ups */}
           </div>
 
-          <h3>Report per Company</h3>
+          <div className="form-group">
+            <label>Meeting Type</label>
+            <MeetingTypeChoice
+              value={formData.meeting_type}
+              onChange={(v) => setFormData(prev => ({ ...prev, meeting_type: v }))}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Status</label>
+            <VisitStatusChoice
+              value={formData.status}
+              onChange={(v) => setFormData(prev => ({ ...prev, status: v }))}
+            />
+          </div>
+
+          <details
+            className="vx-details"
+            open={!!(formData.preparation || metadata.location || metadata.purpose || metadata.outcome) || undefined}
+          >
+            <summary>Preparation and visit details <small>optional</small></summary>
+            <div className="vx-details-body">
+              <div className="form-group">
+                <label>Preparation / Pre-meeting Notes</label>
+                <textarea
+                  value={formData.preparation}
+                  onChange={(e) => setFormData(prev => ({ ...prev, preparation: e.target.value }))}
+                  rows={4}
+                  placeholder="Notes, agenda items, topics to discuss..."
+                />
+              </div>
+              <div className="vx-grid">
+                <div className="form-group">
+                  <label>Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Milan office, phone call..."
+                    value={metadata.location}
+                    onChange={e => setMetadata({ ...metadata, location: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Purpose</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Product presentation..."
+                    value={metadata.purpose}
+                    onChange={e => setMetadata({ ...metadata, purpose: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Outcome</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Positive, need follow-up..."
+                    value={metadata.outcome}
+                    onChange={e => setMetadata({ ...metadata, outcome: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          </details>
+          </div>
+
+          <div className="vx-section">
+            <h2>Report per Company</h2>
+            <span>One card for each brand you discussed</span>
+          </div>
 
           {formData.reports.map((report, index) => (
-            <div
-              key={index}
-              style={{
-                padding: '1rem',
-                marginBottom: '1rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: '#fafafa',
-              }}
-            >
+            <div key={index} className="vx-card vx-report">
               <div className="form-group">
                 <label>Represented Company *</label>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
+                <div className="vx-rephead">
+                  <div className="vx-avatar">{(companies.find(c => c.id === report.companyId)?.name || '?').charAt(0)}</div>
                   <select
                     value={report.companyId}
                     onChange={(e) => handleReportChange(index, 'companyId', e.target.value)}
@@ -961,15 +954,19 @@ export const NewVisit: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowNewCompanyForm(!showNewCompanyForm)}
-                    className="btn-secondary"
-                    style={{ whiteSpace: 'nowrap' }}
+                    className="vx-ghost"
                   >
                     + New Company
                   </button>
+                  {formData.reports.length > 1 && (
+                    <button type="button" onClick={() => handleRemoveReport(index)} className="vx-link-danger">
+                      Remove
+                    </button>
+                  )}
                 </div>
 
                 {showNewCompanyForm && (
-                  <div style={{ padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '10px' }}>
+                  <div style={{ padding: '18px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: '12px', marginTop: '12px' }}>
                     <div className="form-group">
                       <label>Company Name</label>
                       <input
@@ -1017,41 +1014,12 @@ export const NewVisit: React.FC = () => {
                 )}
               </div>
 
-              {/* Action buttons - only in create mode (edit mode uses VisitDetail buttons) */}
-              {!isEditMode && report.companyId && (
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', marginTop: '0.5rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTasks([...tasks, {
-                        title: '',
-                        companyId: report.companyId,
-                        dueDate: '',
-                        assignedToUserId: user?.id || '',
-                        files: [],
-                      }]);
-                    }}
-                    style={{
-                      padding: '0.5rem 0.75rem',
-                      background: 'var(--color-info)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    + Task
-                  </button>
-                </div>
-              )}
-
               <div className="form-group">
-                <label>Report Section *</label>
+                <label>Section Title *</label>
                 <input
                   type="text"
-                  placeholder="E.g: Analysis, Proposals, Follow-up, etc."
+                  className="vx-title"
+                  placeholder="What was this about?"
                   value={report.section}
                   onChange={(e) => handleReportChange(index, 'section', e.target.value)}
                   required
@@ -1059,30 +1027,23 @@ export const NewVisit: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Report Content *</label>
+                <label>Report *</label>
                 <textarea
-                  placeholder="Describe the result of the visit for this company..."
+                  className="vx-report-text"
+                  placeholder="Write freely. Use - for bullet points."
                   value={report.content}
                   onChange={(e) => handleReportChange(index, 'content', e.target.value)}
-                  rows={5}
+                  rows={10}
                   required
                 />
               </div>
 
               {/* Report-level attachments */}
-              <div className="cv-attachments-section" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Attachments for this section</label>
+              <div className="cv-attachments-section" style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                <label>Attachments for this section</label>
                 <div
                   className="cv-attachment-dropzone"
-                  style={{
-                    border: '2px dashed var(--color-border)',
-                    borderRadius: '4px',
-                    padding: '1.5rem',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    backgroundColor: 'var(--color-bg-tertiary)',
-                    marginBottom: '0.5rem',
-                  }}
+                  style={{ marginBottom: '0.5rem' }}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
@@ -1099,10 +1060,10 @@ export const NewVisit: React.FC = () => {
                     input.click();
                   }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
-                  Drag files here or click to upload
+                  <span>Drag files here or click to upload</span>
                 </div>
                 {(reportAttachments[index] || []).length > 0 && (
                   <div className="cv-attachment-list">
@@ -1266,14 +1227,24 @@ export const NewVisit: React.FC = () => {
                   </div>
               )}
 
-              {formData.reports.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveReport(index)}
-                  className="btn-danger"
-                >
-                  Remove Section
-                </button>
+              {!isEditMode && report.companyId && (
+                <div className="vx-extras">
+                  <button
+                    type="button"
+                    className="vx-ghost"
+                    onClick={() => {
+                      setTasks([...tasks, {
+                        title: '',
+                        companyId: report.companyId,
+                        dueDate: '',
+                        assignedToUserId: user?.id || '',
+                        files: [],
+                      }]);
+                    }}
+                  >
+                    + Task
+                  </button>
+                </div>
               )}
             </div>
           ))}
@@ -1281,16 +1252,20 @@ export const NewVisit: React.FC = () => {
           <button
             type="button"
             onClick={handleAddReport}
-            className="btn-secondary"
-            style={{ marginBottom: '1rem' }}
+            className="vx-add"
           >
-            + Add Another Company
+            + Add another company
           </button>
+
+          <div className="vx-section">
+            <h2>Tasks and attachments</h2>
+          </div>
+          <div className="vx-card">
 
           {/* Inline tasks section */}
           {tasks.length > 0 && (
             <>
-              <h3 style={{ marginTop: '1.5rem' }}>New Tasks</h3>
+              <h3 style={{ marginTop: 0, fontSize: '18px' }}>New Tasks</h3>
               <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', marginBottom: '0.75rem' }}>
                 {isEditMode ? 'Tasks will be created when you save.' : 'Tasks will be created when you register the visit.'}
               </p>
@@ -1389,16 +1364,16 @@ export const NewVisit: React.FC = () => {
             <button
               type="button"
               onClick={() => setTasks([...tasks, { title: '', companyId: formData.reports[0]?.companyId || '', dueDate: '', assignedToUserId: '', files: [] }])}
-              className="btn-secondary"
-              style={{ marginBottom: '1rem' }}
+              className="vx-ghost"
+              style={{ marginBottom: '0.5rem' }}
             >
               + Add Task
             </button>
           )}
 
           {/* Direct File Attachments */}
-          <div className="cv-attachments-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-            <label>Attachments {isEditMode && existingDirectAttachments.length > 0 ? `(${existingDirectAttachments.length})` : ''}</label>
+          <div className="cv-attachments-section" style={{ marginTop: '1.25rem', marginBottom: 0 }}>
+            <label>Visit attachments {isEditMode && existingDirectAttachments.length > 0 ? `(${existingDirectAttachments.length})` : ''}</label>
 
             {isEditMode && existingDirectAttachments.length > 0 && (
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 0.75rem 0' }}>
@@ -1478,6 +1453,8 @@ export const NewVisit: React.FC = () => {
             )}
           </div>
 
+          </div>
+
           {/* Visit-level Tasks (edit mode - tasks not linked to any report) */}
           {isEditMode && visitLevelTasks.length > 0 && (
             <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
@@ -1507,17 +1484,19 @@ export const NewVisit: React.FC = () => {
             </div>
           )}
 
-          <div className="form-actions">
-            <button type="submit" disabled={isSubmitting} className="btn-primary">
-              {isEditMode ? (isSubmitting ? 'Saving...' : 'Save Changes') : (isSubmitting ? 'Registering...' : 'Register Visit')}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/visits')}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
+          <div className="vx-actionbar">
+            <div className="vx-actionbar-inner">
+              <button
+                type="button"
+                onClick={() => navigate('/visits')}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button type="submit" disabled={isSubmitting} className="btn-primary">
+                {isEditMode ? (isSubmitting ? 'Saving...' : 'Save Changes') : (isSubmitting ? 'Registering...' : 'Register Visit')}
+              </button>
+            </div>
           </div>
         </form>
       </div>

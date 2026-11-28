@@ -5,6 +5,7 @@ import { openSignedLink } from '../utils/openSignedLink';
 import { config } from '../config';
 import { CompanyVisit, CompanyVisitAttachment } from '../types';
 import '../styles/CrudPages.css';
+import '../styles/VisitForms.css';
 import { fmtNum } from '../utils/numberFormat';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
@@ -22,6 +23,7 @@ export const CompanyVisitDetail: React.FC = () => {
   const [offers, setOffers] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<CompanyVisitAttachment[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -54,6 +56,10 @@ export const CompanyVisitDetail: React.FC = () => {
           if (tasksRes.success && tasksRes.data) {
             setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
           }
+        } catch {}
+        try {
+          const usersRes: any = await apiService.getUsers();
+          if (usersRes?.success && Array.isArray(usersRes.data)) setUsers(usersRes.data);
         } catch {}
         try {
           const attRes = await apiService.getCompanyVisitAttachments(id);
@@ -127,30 +133,33 @@ export const CompanyVisitDetail: React.FC = () => {
   const renderAttachmentSection = (title: string, type: string) => {
     const filtered = attachments.filter((a: any) => (a.attachment_type || 'post_visit') === type);
     return (
-      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
-        <h2 style={{ margin: '0 0 1rem', fontSize: '1.125rem' }}>{title} ({filtered.length})</h2>
+      <div style={{ marginTop: '1.25rem', paddingTop: '1.1rem', borderTop: '1px solid var(--color-border)' }}>
+        <div className="vx-label">{title} ({filtered.length})</div>
         {filtered.length > 0 && (
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
             {filtered.map((att: any) => (
-              <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.875rem', padding: '0.4rem 0', borderBottom: '1px solid #eee' }}>
+              <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '15px', padding: '0.5rem 0', borderBottom: '1px solid var(--color-border)' }}>
                 <span>📎</span>
-                <span style={{ flex: 1, wordBreak: 'break-word' }}>{att.filename}</span>
-                <span style={{ color: '#888', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{att.file_size ? formatFileSize(att.file_size) : ''}</span>
-                <button onClick={() => handleViewAttachment(att.id)} style={{ padding: '2px 8px', border: '1px solid #ccc', borderRadius: '3px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>
-                <button onClick={() => handleDownloadAttachment(att.id, att.filename)} style={{ padding: '2px 8px', border: 'none', borderRadius: '3px', background: '#007bff', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>Download</button>
-                <button onClick={() => handleDeleteAttachment(att.id)} style={{ padding: '2px 6px', border: 'none', background: 'transparent', color: '#c00', cursor: 'pointer', fontSize: '0.9rem' }} title="Delete">✕</button>
+                <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{att.filename}</span>
+                <span style={{ color: 'var(--color-text-tertiary)', fontSize: '13px', whiteSpace: 'nowrap' }}>{att.file_size ? formatFileSize(att.file_size) : ''}</span>
+                <button className="vx-btn vx-sm" onClick={() => handleViewAttachment(att.id)}>View</button>
+                <button className="vx-btn vx-sm vx-primary" onClick={() => handleDownloadAttachment(att.id, att.filename)}>Download</button>
+                <button className="vx-link-danger" style={{ marginLeft: 0 }} onClick={() => handleDeleteAttachment(att.id)} title="Delete">✕</button>
               </div>
             ))}
           </div>
         )}
         <div
+          className={`cv-attachment-dropzone ${dragOver ? 'drag-over' : ''}`}
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={e => { e.preventDefault(); setDragOver(false); Array.from(e.dataTransfer.files).forEach(f => handleUploadAttachment(f, type)); }}
           onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.onchange = (ev: any) => { const files = ev.target?.files; if (files) Array.from(files).forEach((f: any) => handleUploadAttachment(f, type)); }; input.click(); }}
-          style={{ border: `2px dashed ${dragOver ? '#007bff' : '#ccc'}`, borderRadius: '8px', padding: '1rem', textAlign: 'center', cursor: 'pointer', fontSize: '0.85rem', color: '#888', background: dragOver ? '#f0f7ff' : 'transparent' }}
         >
-          {uploading ? 'Uploading...' : '📎 Drop files here or click to upload'}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <span>{uploading ? 'Uploading...' : 'Drop files here or click to upload'}</span>
         </div>
       </div>
     );
@@ -159,84 +168,74 @@ export const CompanyVisitDetail: React.FC = () => {
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
   if (!visit) return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>Not found</div>;
 
+  const v: any = visit;
+  const statusTone: Record<string, { color: string; bg: string; label: string }> = {
+    scheduled: { color: '#8a7630', bg: 'rgba(176, 152, 64, 0.14)', label: 'Scheduled' },
+    completed: { color: 'var(--color-success)', bg: 'rgba(91, 138, 101, 0.13)', label: 'Completed' },
+    cancelled: { color: 'var(--color-error)', bg: 'rgba(158, 90, 82, 0.12)', label: 'Cancelled' },
+  };
+  const st = statusTone[visit.status] || statusTone.scheduled;
+  let internalNames = '';
+  try {
+    const ids: string[] = visit.participants_user_ids ? JSON.parse(visit.participants_user_ids) : [];
+    internalNames = ids.map(uid => users.find(u => u.id === uid)?.name || '').filter(Boolean).join(', ');
+  } catch {}
+
   return (
-    <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-      <button onClick={() => navigate('/company-visits')} style={{ marginBottom: '1rem', padding: '0.5rem 1rem', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}>
-        ← Back
-      </button>
-
-      <h1 style={{ marginBottom: '1.5rem' }}>Supplier Meeting Details</h1>
-
-      {/* Alerts */}
-      {error && <div style={{ padding: '0.75rem 1rem', background: '#fdecea', color: '#c00', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
-      {success && <div style={{ padding: '0.75rem 1rem', background: '#eaf6ec', color: '#2e7d32', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.875rem' }}>{success}</div>}
-
-      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Supplier</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>{visit.company?.name || '-'}</p>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Date</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>{formatDate(visit.date)}</p>
-          </div>
+    <div className="vx-page vx-detail">
+      <button className="vx-back" onClick={() => navigate('/company-visits')}>← Back to Supplier Meetings</button>
+      <div className="vx-head">
+        <div>
+          <h1>{visit.company?.name || 'Supplier Meeting'}</h1>
+          <div className="vx-sub">Supplier meeting · {formatDate(visit.date)}</div>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Status</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>{visit.status || '-'}</p>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Meeting Type</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>
-              {visit.meeting_type === 'call' ? '\uD83D\uDCDE Call' : visit.meeting_type === 'video_call' ? '\uD83D\uDCF9 Video Call' : '\uD83C\uDFE2 In Person'}
-            </p>
-          </div>
-          {visit.zone && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Zone / Sales Area</label>
-              <p style={{ margin: 0, fontSize: '1rem' }}>{visit.zone}</p>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Subject</label>
-          <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.subject || '-'}</p>
-        </div>
-
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Participants</label>
-          <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.participants || '-'}</p>
-        </div>
-
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Notes</label>
-          <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.notes || '-'}</p>
-        </div>
-
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Preparation / Pre-meeting Notes</label>
-          <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.preparation || '-'}</p>
-        </div>
-
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e0e0e0' }}>
-          <button
-            onClick={() => navigate(`/company-visits/${visit.id}/edit`)}
-            style={{ padding: '0.6rem 1.2rem', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1rem' }}
-          >
-            Edit
-          </button>
+        <div className="vx-head-actions">
+          <button className="vx-btn" onClick={() => navigate(`/todos/new?companyVisitId=${id}&companyId=${visit.company_id}&returnTo=/company-visits/${id}`)}>+ Task</button>
+          <button className="vx-btn vx-primary" onClick={() => navigate(`/company-visits/${visit.id}/edit`)}>Edit</button>
         </div>
       </div>
 
-      {/* Pre-Visit Attachments */}
-      {renderAttachmentSection('Pre-Visit Attachments', 'pre_visit')}
+      {error && <div style={{ padding: '0.75rem 1rem', background: '#fdecea', color: '#c00', borderRadius: '10px', marginBottom: '1rem', fontSize: '15px' }}>{error}</div>}
+      {success && <div style={{ padding: '0.75rem 1rem', background: '#eaf6ec', color: '#2e7d32', borderRadius: '10px', marginBottom: '1rem', fontSize: '15px' }}>{success}</div>}
 
-      {/* Post-Visit Attachments */}
-      {renderAttachmentSection('Post-Visit Attachments', 'post_visit')}
+      <div className="vx-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            <div className="vx-avatar">{(visit.company?.name || '?').charAt(0)}</div>
+            <div className="vx-value" style={{ fontWeight: 600 }}>{visit.company?.name || '-'}</div>
+          </div>
+          <span className="vx-pill" style={{ color: st.color, background: st.bg }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor' }} />
+            {st.label}
+          </span>
+        </div>
+        <div className="vx-facts">
+          <div><div className="vx-label">Date</div><p className="vx-value">{formatDate(visit.date)}</p></div>
+          <div><div className="vx-label">Meeting Type</div><p className="vx-value">{visit.meeting_type === 'call' ? '📞 Call' : visit.meeting_type === 'video_call' ? '📹 Video Call' : '🏢 In Person'}</p></div>
+          {v.zone && <div><div className="vx-label">Zone / Sales Area</div><p className="vx-value">{v.zone}</p></div>}
+          {visit.created_by_user?.name && <div><div className="vx-label">Created By</div><p className="vx-value">{visit.created_by_user.name}</p></div>}
+          {internalNames && <div><div className="vx-label">Participants - Internal</div><p className="vx-value">{internalNames}</p></div>}
+          {visit.participants_external && <div><div className="vx-label">Participants - External</div><p className="vx-value" style={{ whiteSpace: 'pre-wrap' }}>{visit.participants_external}</p></div>}
+        </div>
+      </div>
+
+      {visit.preparation && (
+        <div className="vx-card">
+          <div className="vx-label">Preparation / Pre-meeting Notes</div>
+          <p className="vx-prose" style={{ color: 'var(--color-text-secondary)' }}>{visit.preparation}</p>
+        </div>
+      )}
+
+      <div className="vx-section"><h2>Report</h2></div>
+      <div className="vx-card vx-report">
+        <h3 className="vx-report-title">{visit.subject || '-'}</h3>
+        <div className="vx-report-company" style={{ marginBottom: '1rem' }}>{visit.company?.name}</div>
+        {visit.report
+          ? <p className="vx-prose">{visit.report}</p>
+          : <p style={{ color: 'var(--color-text-tertiary)', fontSize: '16px', margin: 0 }}>No report written yet. Click Edit to add it.</p>}
+        {renderAttachmentSection('Pre-visit attachments', 'pre_visit')}
+        {renderAttachmentSection('Post-visit attachments', 'post_visit')}
+      </div>
 
       {/* Offers section */}
       <div style={{ marginBottom: '2rem' }}>
@@ -244,7 +243,7 @@ export const CompanyVisitDetail: React.FC = () => {
           <h2 style={{ margin: 0 }}>Offers ({offers.length})</h2>
           <button
             onClick={() => navigate(`/offers/new?companyVisitId=${id}&companyId=${visit.company_id}`)}
-            style={{ padding: '0.4rem 0.8rem', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+            style={{ padding: '0.4rem 0.8rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
           >
             + New Offer
           </button>
@@ -272,7 +271,7 @@ export const CompanyVisitDetail: React.FC = () => {
                     <span style={{ fontWeight: 'bold', color: '#007aff' }}>
                       {offer.total_amount != null ? `${offer.currency || '\u20AC'} ${fmtNum(offer.total_amount, { minimumFractionDigits: 2 })}` : '-'}
                     </span>
-                    <span style={{ fontSize: '0.8rem', color: '#007bff', fontWeight: '600' }}>View →</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-info)', fontWeight: '600' }}>View →</span>
                   </div>
                 </div>
               </div>
@@ -284,7 +283,7 @@ export const CompanyVisitDetail: React.FC = () => {
       </div>
 
       {/* Tasks section */}
-      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
+      <div className="vx-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.125rem' }}>Tasks ({tasks.length})</h2>
           <button

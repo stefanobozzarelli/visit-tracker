@@ -3,7 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Company, User, CompanyVisitAttachment, TodoItem } from '../types';
+import '../styles/CrudPages.css';
 import '../styles/CompanyVisits.css';
+import '../styles/VisitForms.css';
+import { MeetingTypeChoice, VisitStatusChoice } from '../components/VisitChoices';
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
 
@@ -355,135 +358,137 @@ export const CompanyVisitForm: React.FC = () => {
   }
 
   return (
-    <div className="cv-form-page">
-      {/* Header */}
-      <div className="cv-form-header">
+    <div className="cv-form-page vx-page">
+      <button type="button" className="vx-back" onClick={() => navigate(-1)}>
+        &larr; Back
+      </button>
+      <div className="vx-head">
         <h1>{isEdit ? 'Edit Supplier Meeting' : 'New Supplier Meeting'}</h1>
-        <button className="cv-form-back" onClick={() => navigate(-1)}>
-          &larr; Back
-        </button>
       </div>
 
       {/* Alerts */}
       {error && <div className="claims-alert claims-alert-error">{error}</div>}
       {success && <div className="claims-alert claims-alert-success">{success}</div>}
 
-      {/* Form */}
-      <div className="cv-form-card">
+      <div>
         <form onSubmit={handleSubmit}>
-          <div className="cv-form-row">
+          <div className="vx-card">
             <div className="form-group">
               <label>Company *</label>
-              <select value={companyId} onChange={e => setCompanyId(e.target.value)} required>
-                <option value="">Select a company</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <div className="vx-rephead">
+                <div className="vx-avatar">{(companies.find(c => c.id === companyId)?.name || '?').charAt(0)}</div>
+                <select value={companyId} onChange={e => setCompanyId(e.target.value)} required>
+                  <option value="">Select a company</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="form-group">
-              <label>Date *</label>
-              <input
-                type="date"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                required
-              />
-            </div>
-          </div>
 
-          <div className="cv-form-row">
             <div className="form-group">
               <label>Subject *</label>
               <input
                 type="text"
+                className="vx-title"
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
-                placeholder="Visit subject..."
+                placeholder="What was this meeting about?"
                 required
               />
             </div>
+
+            <div className="vx-grid">
+              <div className="form-group">
+                <label>Date *</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Zone / Sales Area</label>
+                <select value={zone} onChange={e => setZone(e.target.value)}>
+                  <option value="">No zone (all areas)</option>
+                  {zoneCountries.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="form-group">
               <label>Meeting Type</label>
-              <select value={meetingType} onChange={e => setMeetingType(e.target.value)}>
-                <option value="in_person">In Person</option>
-                <option value="call">Call</option>
-                <option value="video_call">Video Call</option>
-              </select>
+              <MeetingTypeChoice value={meetingType} onChange={setMeetingType} />
             </div>
+
             <div className="form-group">
               <label>Status</label>
-              <select value={status} onChange={e => setStatus(e.target.value)}>
-                <option value="scheduled">Scheduled</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+              <VisitStatusChoice value={status} onChange={setStatus} />
             </div>
+
+            {/* Internal Participants */}
             <div className="form-group">
-              <label>Zone / Sales Area</label>
-              <select value={zone} onChange={e => setZone(e.target.value)}>
-                <option value="">No zone (all areas)</option>
-                {zoneCountries.map(c => (
-                  <option key={c} value={c}>{c}</option>
+              <label>Participants - Internal</label>
+              <div className="cv-participants-checkboxes">
+                {allUsers.map(u => (
+                  <label key={u.id} className="cv-participant-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={participantsUserIds.includes(u.id)}
+                      onChange={() => toggleParticipant(u.id)}
+                    />
+                    <span>{u.name}</span>
+                  </label>
                 ))}
-              </select>
+                {allUsers.length === 0 && (
+                  <span style={{ fontSize: '0.813rem', color: 'var(--color-text-tertiary)' }}>
+                    No users available
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Internal Participants */}
-          <div className="form-group">
-            <label>Participants - Internal</label>
-            <div className="cv-participants-checkboxes">
-              {allUsers.map(u => (
-                <label key={u.id} className="cv-participant-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={participantsUserIds.includes(u.id)}
-                    onChange={() => toggleParticipant(u.id)}
+            {/* External Participants */}
+            <div className="form-group">
+              <label>Participants - External</label>
+              <input
+                type="text"
+                value={participantsExternal}
+                onChange={e => setParticipantsExternal(e.target.value)}
+                placeholder="Names of the supplier's people..."
+              />
+            </div>
+
+            <details className="vx-details" open={!!preparation || undefined}>
+              <summary>Preparation / pre-meeting notes <small>optional</small></summary>
+              <div className="vx-details-body">
+                <div className="form-group">
+                  <textarea
+                    value={preparation}
+                    onChange={e => setPreparation(e.target.value)}
+                    rows={4}
+                    placeholder="Topics to discuss, questions to ask, materials to bring..."
                   />
-                  <span>{u.name}</span>
-                </label>
-              ))}
-              {allUsers.length === 0 && (
-                <span style={{ fontSize: '0.813rem', color: 'var(--color-text-tertiary)' }}>
-                  No users available
-                </span>
-              )}
-            </div>
+                </div>
+              </div>
+            </details>
           </div>
 
-          {/* External Participants */}
-          <div className="form-group">
-            <label>Participants - External</label>
-            <textarea
-              value={participantsExternal}
-              onChange={e => setParticipantsExternal(e.target.value)}
-              rows={3}
-              placeholder="External participant names (one per line or comma-separated)..."
-            />
+          <div className="vx-section">
+            <h2>Report</h2>
           </div>
-
-          {/* Preparation / Pre-meeting Notes */}
-          <div className="form-group">
-            <label>Preparation / Pre-meeting Notes</label>
-            <textarea
-              className="cv-report-textarea"
-              value={preparation}
-              onChange={e => setPreparation(e.target.value)}
-              rows={5}
-              placeholder="Topics to discuss, questions to ask, materials to bring..."
-            />
-          </div>
-
-          {/* Report */}
+          <div className="vx-card vx-report">
           <div className="form-group">
             <label>Report</label>
             <textarea
-              className="cv-report-textarea"
+              className="vx-report-text"
               value={report}
               onChange={e => setReport(e.target.value)}
-              rows={8}
-              placeholder="Detailed meeting report..."
+              rows={10}
+              placeholder="Write freely. Use - for bullet points."
             />
           </div>
 
@@ -572,9 +577,13 @@ export const CompanyVisitForm: React.FC = () => {
             )}
           </div>
 
+          </div>
+
           {/* ---- Tasks Section ---- */}
-          <div className="cv-tasks-section">
-            <h3>Tasks</h3>
+          <div className="vx-section">
+            <h2>Tasks</h2>
+          </div>
+          <div className="cv-tasks-section vx-card">
 
             {/* Existing tasks linked to this company visit */}
             {isEdit && existingTasks.length > 0 && (
@@ -626,7 +635,7 @@ export const CompanyVisitForm: React.FC = () => {
             {isEdit && id && (
               <button
                 type="button"
-                className="cv-add-task-btn"
+                className="vx-ghost"
                 onClick={() => navigate(`/todos/new?companyId=${companyId}&companyVisitId=${id}`)}
               >
                 + Add Task
@@ -640,13 +649,15 @@ export const CompanyVisitForm: React.FC = () => {
           </div>
 
           {/* Form actions */}
-          <div className="claim-form-actions">
-            <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? 'Saving...' : isEdit ? 'Update Visit' : 'Create Visit'}
-            </button>
-            <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>
-              Cancel
-            </button>
+          <div className="vx-actionbar">
+            <div className="vx-actionbar-inner">
+              <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary" disabled={submitting}>
+                {submitting ? 'Saving...' : isEdit ? 'Update Visit' : 'Create Visit'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
