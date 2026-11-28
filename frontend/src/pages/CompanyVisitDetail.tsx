@@ -28,6 +28,28 @@ export const CompanyVisitDetail: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!visit) return;
+    setPdfLoading(true);
+    try {
+      const blob = await apiService.exportCompanyVisitPdf(visit.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const slug = (visit.company?.name || 'fornitore').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      a.download = `report-${slug}-${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(`Errore generazione PDF: ${e?.message || 'Errore sconosciuto'}`);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -190,6 +212,9 @@ export const CompanyVisitDetail: React.FC = () => {
           <div className="vx-sub">Supplier meeting · {formatDate(visit.date)}</div>
         </div>
         <div className="vx-head-actions">
+          <button className="vx-btn" onClick={handleDownloadPdf} disabled={pdfLoading} title="Scarica il report PDF di questa visita">
+            {pdfLoading ? '⏳…' : '📄 PDF'}
+          </button>
           <button className="vx-btn" onClick={() => navigate(`/todos/new?companyVisitId=${id}&companyId=${visit.company_id}&returnTo=/company-visits/${id}`)}>+ Task</button>
           <button className="vx-btn vx-primary" onClick={() => navigate(`/company-visits/${visit.id}/edit`)}>Edit</button>
         </div>

@@ -1103,6 +1103,14 @@ class ApiService {
   }
 
   // Email PDF for a visit (whole visit or a single section)
+  async exportCompanyVisitPdf(companyVisitId: string) {
+    const response = await this.api.get(`/company-visits/${companyVisitId}/pdf`, {
+      responseType: 'blob',
+      timeout: 120000,
+    });
+    return response.data as Blob;
+  }
+
   async exportVisitEmailPdf(visitId: string, reportId?: string) {
     try {
       const response = await this.api.get(`/visits/${visitId}/email-pdf`, {
