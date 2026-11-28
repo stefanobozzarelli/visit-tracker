@@ -208,7 +208,7 @@ export class ArticleService {
   /* ─────────────── Catalogue and statistics ─────────────── */
 
   async listArticles(f: SalesFilters & {
-    search?: string; only_sold?: boolean; sort?: string; page?: number; limit?: number;
+    search?: string; code_search?: string; description_search?: string; only_sold?: boolean; sort?: string; page?: number; limit?: number;
   }) {
     const params: any[] = [];
     const sales = salesWhere({ ...f, company_id: undefined, company_ids: undefined }, params);
@@ -226,6 +226,22 @@ export class ArticleService {
         conds.push(`a.normalized_code LIKE $${params.length}`, `a.match_code LIKE $${params.length}`, `a.alt_code LIKE $${params.length}`);
       }
       aw.push(`(${conds.join(' OR ')})`);
+    }
+    // Separate fields: the code only in the codes, the words only in the description
+    if (f.code_search?.trim()) {
+      const term = f.code_search.trim();
+      const nc = normalizeCode(term);
+      params.push(`%${term}%`);
+      const conds = [`a.code ILIKE $${params.length}`];
+      if (nc) {
+        params.push(`%${nc}%`);
+        conds.push(`a.normalized_code LIKE $${params.length}`, `a.match_code LIKE $${params.length}`, `a.alt_code LIKE $${params.length}`);
+      }
+      aw.push(`(${conds.join(' OR ')})`);
+    }
+    for (const word of (f.description_search || '').trim().split(/\s+/).filter(Boolean).slice(0, 8)) {
+      params.push(`%${word}%`);
+      aw.push(`a.description ILIKE $${params.length}`);
     }
     if (f.only_sold) aw.push('s.article_id IS NOT NULL');
     const order = ({

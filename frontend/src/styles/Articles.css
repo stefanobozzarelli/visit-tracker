@@ -226,6 +226,7 @@
 }
 .art-actions { display: flex; flex-direction: column; gap: 0.3rem; align-items: stretch; }
 .art-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.art-search-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.6rem; }
 .art-successor { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
 .art-status { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; margin-top: 0.4rem; font-size: var(--text-sm); }
 
