@@ -21,6 +21,11 @@ export class Company {
   @Column({ nullable: true })
   rapporto: string;
 
+  // Other companies whose price lists are also used for this company's invoices
+  // (e.g. a group that invoices the articles of its brands)
+  @Column({ type: 'text', array: true, nullable: true })
+  price_list_sources: string[] | null;
+
   @CreateDateColumn()
   created_at: Date;
 

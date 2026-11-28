@@ -52,6 +52,27 @@ function salesWhere(f: SalesFilters, params: any[], alias = 'inv'): string {
   return w.join(' AND ');
 }
 
+/**
+ * The companies whose articles can be used for each company's invoices: the
+ * company itself first, then the ones chosen in "price_list_sources".
+ */
+export async function articleCompanies(companyIds: string[]): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (!companyIds.length) return out;
+  const rows: { id: string; sources: string[] | null }[] = await AppDataSource.query(
+    `SELECT id::text AS id, price_list_sources AS sources FROM companies WHERE id::text = ANY($1::text[])`, [companyIds]);
+  for (const id of companyIds) out.set(id, [id]);
+  for (const r of rows) out.set(r.id, [r.id, ...(r.sources || []).filter(x => x && x !== r.id)]);
+  return out;
+}
+
+/** Companies that use the price lists of companyId (besides itself). */
+async function companiesUsing(companyId: string): Promise<string[]> {
+  const rows = await AppDataSource.query(
+    `SELECT id::text AS id FROM companies WHERE $1 = ANY(price_list_sources)`, [companyId]);
+  return rows.map((r: any) => r.id);
+}
+
 export class ArticleService {
   /**
    * Links invoice lines to articles. Pass invoiceIds to match some invoices,
@@ -61,7 +82,11 @@ export class ArticleService {
     const params: any[] = [];
     const where: string[] = [];
     if (scope.invoiceIds?.length) { params.push(scope.invoiceIds); where.push(`li.invoice_id::text = ANY($${params.length}::text[])`); }
-    if (scope.companyId) { params.push(scope.companyId); where.push(`inv.company_id::text = $${params.length}`); }
+    if (scope.companyId) {
+      // also the companies that use this company's price lists
+      params.push([scope.companyId, ...await companiesUsing(scope.companyId)]);
+      where.push(`inv.company_id::text = ANY($${params.length}::text[])`);
+    }
     if (scope.normalizedCode) { params.push(scope.normalizedCode); where.push(`${SQL_NORMALIZE('li.article_code')} = $${params.length}`); }
     if (!where.length) throw new Error('matchLineItems needs a scope');
 
@@ -80,7 +105,9 @@ export class ArticleService {
       const base = raw.includes('_') ? normalizeCode(raw.replace(/_[^_]*$/, '')) : '';
       return { nc, base: base && base !== nc ? base : '', nozeros: nc.replace(/^0+/, '') };
     };
-    const companies = [...new Set(lines.map(l => l.company_id))];
+    const invoiceCompanies = [...new Set(lines.map(l => l.company_id))];
+    const sourcesOf = await articleCompanies(invoiceCompanies);
+    const companies = [...new Set([...sourcesOf.values()].flat())];
     const keys = new Set<string>();
     const zkeys = new Set<string>();
     for (const l of lines) {
@@ -114,7 +141,7 @@ export class ArticleService {
       ? await AppDataSource.query(
         `SELECT company_id::text AS company_id, normalized_code, article_id::text AS article_id
          FROM article_aliases WHERE company_id::text = ANY($1::text[]) AND normalized_code = ANY($2::text[])`,
-        [companies, keyList])
+        [invoiceCompanies, keyList])
       : [];
     const aliases = new Map(aliasRows.map(a => [`${a.company_id}|${a.normalized_code}`, a.article_id]));
 
@@ -143,13 +170,18 @@ export class ArticleService {
       if (!k.nc) {
         status = 'no_code';
       } else {
-        const mine = candidates.filter(c => c.company_id === l.company_id);
+        // the company's own articles first, then those of the companies whose
+        // price lists it uses (e.g. a group invoicing its brands' articles)
+        const own = candidates.filter(c => c.company_id === l.company_id);
+        const others = (sourcesOf.get(l.company_id) || []).slice(1);
+        const group = candidates.filter(c => others.includes(c.company_id));
+        const find = (test: (c: Cand) => boolean) => pick(own.filter(test), l.description) || pick(group.filter(test), l.description);
         const steps: (() => string | null)[] = [
-          () => pick(mine.filter(c => c.match_code === k.nc), l.description) || pick(mine.filter(c => c.alt_code === k.nc), l.description),
+          () => find(c => c.match_code === k.nc) || find(c => c.alt_code === k.nc),
           () => aliases.get(`${l.company_id}|${k.nc}`) || null,
-          () => pick(mine.filter(c => c.base_code === k.nc), l.description),
-          () => k.base ? pick(mine.filter(c => c.match_code === k.base || c.base_code === k.base), l.description) : null,
-          () => k.nozeros ? pick(mine.filter(c => (c.match_code || '').replace(/^0+/, '') === k.nozeros), l.description) : null,
+          () => find(c => c.base_code === k.nc),
+          () => k.base ? find(c => c.match_code === k.base || c.base_code === k.base) : null,
+          () => k.nozeros ? find(c => (c.match_code || '').replace(/^0+/, '') === k.nozeros) : null,
         ];
         for (let s = 0; s < steps.length && !articleId; s++) {
           articleId = steps[s]();
@@ -162,6 +194,21 @@ export class ArticleService {
       if (status === 'no_code') counts.no_code++;
       else if (status === 'unmatched') counts.unmatched++;
       else counts.matched++;
+    }
+
+    // Codes still not found: try the same number written another way (e.g.
+    // 0013288 on the invoice, PF60013288 in the list), but only when the
+    // descriptions say it is the same article
+    const pending = lines.map((l, i) => ({ l, i })).filter(x => statuses[x.i] === 'unmatched');
+    if (pending.length) {
+      const found = await this.similarCodeMatches(pending.map(x => x.l), sourcesOf);
+      pending.forEach((x, j) => {
+        if (!found[j]) return;
+        articleIds[x.i] = found[j];
+        statuses[x.i] = 'matched';
+        counts.unmatched--;
+        counts.matched++;
+      });
     }
 
     await AppDataSource.query(
@@ -190,6 +237,77 @@ export class ArticleService {
     return counts;
   }
 
+  /**
+   * For each line, the article whose code ends with the invoice code (or the
+   * other way round), ignoring leading zeros and letters such as "PF600", when
+   * the descriptions match too. Null when there is no such article or more than one.
+   */
+  private async similarCodeMatches(
+    lines: { company_id: string; article_code: string | null; description: string | null }[],
+    sourcesOf: Map<string, string[]>,
+  ): Promise<(string | null)[]> {
+    const MIN = 5; // shorter numbers match too many articles
+    const tail = (code: string) => code.replace(/^0+/, '');
+    const usable = lines.map(l => {
+      const nc = normalizeCode(l.article_code);
+      const words = wordsOf(l.description || '');
+      return nc && tail(nc).length >= MIN && words.size >= 2 ? { nc, words } : null;
+    });
+    const companies = [...new Set(lines.filter((_, i) => usable[i]).flatMap(l => sourcesOf.get(l.company_id) || [l.company_id]))];
+    if (!companies.length) return lines.map(() => null);
+
+    const articles: { id: string; company_id: string; match_code: string; description: string | null }[] = await AppDataSource.query(
+      `SELECT id::text AS id, company_id::text AS company_id, match_code, description
+       FROM articles WHERE company_id::text = ANY($1::text[]) AND match_code IS NOT NULL`, [companies]);
+    // only the keys the invoices need: their code, and its endings for list
+    // codes shorter than the invoice code
+    const wanted = new Set<string>();
+    const wantedEndings = new Set<string>();
+    for (const u of usable) {
+      if (!u) continue;
+      wanted.add(tail(u.nc));
+      for (let k = 1; k <= u.nc.length - MIN; k++) wantedEndings.add(tail(u.nc.slice(k)));
+    }
+    const byEnding = new Map<string, number[]>();
+    const byCode = new Map<string, number[]>();
+    const add = (map: Map<string, number[]>, key: string, i: number) => {
+      const list = map.get(key);
+      if (!list) map.set(key, [i]);
+      else if (list[list.length - 1] !== i) list.push(i);
+    };
+    articles.forEach((a, i) => {
+      const code = a.match_code;
+      for (let k = 0; k <= code.length - MIN; k++) {
+        const end = tail(code.slice(k));
+        if (wanted.has(end)) add(byEnding, end, i);
+      }
+      const whole = tail(code);
+      if (wantedEndings.has(whole)) add(byCode, whole, i);
+    });
+
+    return lines.map((l, j) => {
+      const u = usable[j];
+      if (!u) return null;
+      const allowed = sourcesOf.get(l.company_id) || [l.company_id];
+      const found = new Set<number>(byEnding.get(tail(u.nc)) || []);
+      // the invoice code is the longer one: the list code is one of its endings
+      for (let k = 1; k <= u.nc.length - MIN; k++) (byCode.get(tail(u.nc.slice(k))) || []).forEach(i => found.add(i));
+      const good = [...found]
+        .filter(i => allowed.includes(articles[i].company_id))
+        .filter(i => {
+          const words = wordsOf(articles[i].description || '');
+          let same = 0;
+          u.words.forEach(w => { if (words.has(w)) same++; });
+          return same / u.words.size >= 0.7;
+        });
+      if (!good.length) return null;
+      // prefer the company's own articles; more than one candidate is a doubt
+      const own = good.filter(i => articles[i].company_id === l.company_id);
+      const pickFrom = own.length ? own : good;
+      return pickFrom.length === 1 ? articles[pickFrom[0]].id : null;
+    });
+  }
+
   /** Updates articles.list_price / price_list_id to the most recent list of the company. */
   async refreshCurrentPrices(companyId: string, runner = AppDataSource.manager): Promise<void> {
     await runner.query(
@@ -213,7 +331,7 @@ export class ArticleService {
     const params: any[] = [];
     const sales = salesWhere({ ...f, company_id: undefined, company_ids: undefined }, params);
     const aw: string[] = [];
-    if (f.company_id) { params.push(f.company_id); aw.push(`a.company_id::text = $${params.length}`); }
+    if (f.company_id) { params.push(await this.withSources(f.company_id)); aw.push(`a.company_id::text = ANY($${params.length}::text[])`); }
     if (f.company_ids?.length) { params.push(f.company_ids); aw.push(`a.company_id::text = ANY($${params.length}::text[])`); }
     // Every word must be found in the code or in the description, so "nd603",
     // "satinato indigo" and "nd603 satinato" all work
@@ -314,7 +432,7 @@ export class ArticleService {
 
     const cParams: any[] = [];
     const cw: string[] = [];
-    if (f.company_id) { cParams.push(f.company_id); cw.push(`a.company_id::text = $${cParams.length}`); }
+    if (f.company_id) { cParams.push(await this.withSources(f.company_id)); cw.push(`a.company_id::text = ANY($${cParams.length}::text[])`); }
     if (f.company_ids?.length) { cParams.push(f.company_ids); cw.push(`a.company_id::text = ANY($${cParams.length}::text[])`); }
     const catalogue = await AppDataSource.query(
       `SELECT a.company_id, c.name AS company_name, COUNT(*)::int AS articles
@@ -446,7 +564,9 @@ export class ArticleService {
     if (!nc) throw new Error('Codice non valido');
     const [article] = await AppDataSource.query(`SELECT id, company_id FROM articles WHERE id::text = $1`, [articleId]);
     if (!article) throw new Error('Articolo non trovato');
-    if (String(article.company_id) !== String(companyId)) throw new Error("L'articolo è di un'altra azienda");
+    if (!(await this.withSources(companyId)).includes(String(article.company_id))) {
+      throw new Error("L'articolo è di un'azienda di cui non si usano i listini");
+    }
     await AppDataSource.query(
       `INSERT INTO article_aliases (id, company_id, normalized_code, article_id, created_at)
        VALUES ($1, $2, $3, $4, now())
@@ -511,7 +631,22 @@ export class ArticleService {
   private async checkSameCompany(articleId: string, companyId: string) {
     const [other] = await AppDataSource.query(`SELECT company_id FROM articles WHERE id::text = $1`, [articleId]);
     if (!other) throw new Error('Articolo sostitutivo non trovato');
-    if (String(other.company_id) !== String(companyId)) throw new Error("L'articolo sostitutivo è di un'altra azienda");
+    if (!(await this.withSources(companyId)).includes(String(other.company_id))) throw new Error("L'articolo sostitutivo è di un'altra azienda");
+  }
+
+  /** The company plus the companies whose price lists it uses. */
+  async withSources(companyId: string): Promise<string[]> {
+    return (await articleCompanies([companyId])).get(companyId) || [companyId];
+  }
+
+  /** Chooses the companies whose price lists are also used for this company, then re-matches its invoices. */
+  async setPriceListSources(companyId: string, sourceIds: string[]) {
+    const ids = [...new Set(sourceIds.map(String))].filter(id => id && id !== companyId);
+    await AppDataSource.query(
+      `UPDATE companies SET price_list_sources = $2::text[] WHERE id::text = $1`, [companyId, ids.length ? ids : null]);
+    const invoices = await AppDataSource.query(`SELECT id::text AS id FROM invoices WHERE company_id::text = $1`, [companyId]);
+    if (!invoices.length) return { matched: 0, unmatched: 0, no_code: 0 };
+    return this.matchLineItems({ invoiceIds: invoices.map((r: any) => r.id) });
   }
 
   async unlinkCode(articleId: string, normalizedCode: string) {
