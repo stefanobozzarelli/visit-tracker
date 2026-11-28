@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
+import { itNumberFormat } from '../utils/numberFormat';
 
 const formatPercent = (n: number) =>
-  new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
+  itNumberFormat({ minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
 
 export const CommissionRates: React.FC = () => {
   const [rates, setRates] = useState<any[]>([]);

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import '../styles/Revenue.css';
 import '../styles/Articles.css';
+import { fmtNum, itNumberFormat } from '../utils/numberFormat';
 
 type Tab = 'invoices' | 'statistics' | 'assistant';
 
@@ -191,7 +192,7 @@ export const InvoicesTab: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
+    itNumberFormat({ style: 'currency', currency: 'EUR' }).format(amount);
 
   const formatDate = (date?: string) => {
     if (!date) return '–';
@@ -352,7 +353,7 @@ export const InvoicesTab: React.FC = () => {
 /* Invoice Detail (expanded row) — EDITABLE */
 const InvoiceDetail: React.FC<{ invoice: InvoiceItem; clients: any[]; onUpdate?: () => void }> = ({ invoice, clients, onUpdate }) => {
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
+    itNumberFormat({ style: 'currency', currency: 'EUR' }).format(amount);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
@@ -566,7 +567,7 @@ const InvoiceDetail: React.FC<{ invoice: InvoiceItem; clients: any[]; onUpdate?:
                     )}
                   </td>
                   <td>{item.description}</td>
-                  <td className="num">{Number(item.quantity).toFixed(2)}</td>
+                  <td className="num">{fmtNum(item.quantity, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td>{item.unit}</td>
                   <td className="num">{formatCurrency(item.unit_price)}</td>
                   <td className="num">{item.discount_percent ? `${item.discount_percent}%` : '–'}</td>
@@ -709,10 +710,10 @@ export const StatisticsTab: React.FC = () => {
   useEffect(() => { loadStats(); }, [loadStats]);
 
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(amount) || 0);
+    itNumberFormat({ style: 'currency', currency: 'EUR' }).format(Number(amount) || 0);
 
   const formatNum = (n: number) =>
-    new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(Number(n) || 0);
+    itNumberFormat({ maximumFractionDigits: 2 }).format(Number(n) || 0);
 
   if (loading) return <div className="revenue-tab-content"><div className="revenue-empty">Caricamento statistiche...</div></div>;
   if (!stats) return <div className="revenue-tab-content"><div className="revenue-empty">Nessun dato disponibile</div></div>;
@@ -741,7 +742,7 @@ export const StatisticsTab: React.FC = () => {
           <div className="stats-kpi-label">FATTURATO TOTALE</div>
         </div>
         <div className="stats-kpi-card">
-          <div className="stats-kpi-value">{stats.invoice_count}</div>
+          <div className="stats-kpi-value">{fmtNum(stats.invoice_count)}</div>
           <div className="stats-kpi-label">FATTURE</div>
         </div>
         <div className="stats-kpi-card">
@@ -770,7 +771,7 @@ export const StatisticsTab: React.FC = () => {
               {stats.revenue_by_company.map((r: any) => (
                 <tr key={r.company_id}>
                   <td><strong>{r.company_name}</strong></td>
-                  <td>{r.count}</td>
+                  <td>{fmtNum(r.count)}</td>
                   <td className="num">{formatCurrency(r.total)}</td>
                 </tr>
               ))}
@@ -791,7 +792,7 @@ export const StatisticsTab: React.FC = () => {
               {stats.revenue_by_country.map((r: any) => (
                 <tr key={r.country}>
                   <td><strong>{r.country}</strong></td>
-                  <td>{r.count}</td>
+                  <td>{fmtNum(r.count)}</td>
                   <td className="num">{formatCurrency(r.total)}</td>
                 </tr>
               ))}
@@ -812,7 +813,7 @@ export const StatisticsTab: React.FC = () => {
               {stats.revenue_by_client.map((r: any) => (
                 <tr key={r.client_id}>
                   <td><strong>{r.client_name}</strong></td>
-                  <td>{r.count}</td>
+                  <td>{fmtNum(r.count)}</td>
                   <td className="num">{formatCurrency(r.total)}</td>
                 </tr>
               ))}
@@ -833,7 +834,7 @@ export const StatisticsTab: React.FC = () => {
               {stats.revenue_by_month.map((r: any) => (
                 <tr key={r.month}>
                   <td>{r.month}</td>
-                  <td>{r.count}</td>
+                  <td>{fmtNum(r.count)}</td>
                   <td className="num">{formatCurrency(r.total)}</td>
                 </tr>
               ))}

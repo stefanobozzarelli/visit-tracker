@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { apiService } from '../services/api';
+import { itNumberFormat, fmtNum } from '../utils/numberFormat';
 
 const ABK_GROUP_NAMES = ['materia', 'abk stone', 'abk group', 'gardenia ariana', 'versace', 'abk', 'flaviker'];
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(amount) || 0);
+  itNumberFormat({ style: 'currency', currency: 'EUR' }).format(Number(amount) || 0);
 
 const STATUSES = [
   { value: 'aggiunta', label: 'Aggiunta' },
@@ -150,7 +151,7 @@ export const CommissionDashboard: React.FC = () => {
               {byStatus.map((row: any) => (
                 <tr key={row.status}>
                   <td><span className={`comm-status comm-status-${row.status}`}>{statusLabel(row.status)}</span></td>
-                  <td className="num">{row.count}</td>
+                  <td className="num">{fmtNum(row.count)}</td>
                   <td className="num admin-amount">{formatCurrency(row.total_gross)}</td>
                   <td className="num admin-amount">{formatCurrency(row.total_net)}</td>
                 </tr>
@@ -168,7 +169,7 @@ export const CommissionDashboard: React.FC = () => {
             <thead><tr><th>AZIENDA</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr></thead>
             <tbody>
               {byCompany.map((row: any) => (
-                <tr key={row.company_id}><td><strong>{row.company_name}</strong></td><td className="num">{row.count}</td><td className="num admin-amount">{formatCurrency(row.total_gross)}</td><td className="num admin-amount">{formatCurrency(row.total_net)}</td></tr>
+                <tr key={row.company_id}><td><strong>{row.company_name}</strong></td><td className="num">{fmtNum(row.count)}</td><td className="num admin-amount">{formatCurrency(row.total_gross)}</td><td className="num admin-amount">{formatCurrency(row.total_net)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -183,7 +184,7 @@ export const CommissionDashboard: React.FC = () => {
             <thead><tr><th>NAZIONE</th><th className="num">FATTURE</th><th className="num">LORDO</th><th className="num">NETTO</th></tr></thead>
             <tbody>
               {byCountry.map((row: any) => (
-                <tr key={row.country}><td><strong>{row.country}</strong></td><td className="num">{row.count}</td><td className="num admin-amount">{formatCurrency(row.total_gross)}</td><td className="num admin-amount">{formatCurrency(row.total_net)}</td></tr>
+                <tr key={row.country}><td><strong>{row.country}</strong></td><td className="num">{fmtNum(row.count)}</td><td className="num admin-amount">{formatCurrency(row.total_gross)}</td><td className="num admin-amount">{formatCurrency(row.total_net)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -198,7 +199,7 @@ export const CommissionDashboard: React.FC = () => {
             <thead><tr><th>SUBAGENTE</th><th className="num">FATTURE</th><th className="num">PROVVIGIONI</th></tr></thead>
             <tbody>
               {bySubAgent.map((row: any) => (
-                <tr key={row.sub_agent_id}><td><strong>{row.sub_agent_name}</strong></td><td className="num">{row.count}</td><td className="num admin-amount">{formatCurrency(row.total)}</td></tr>
+                <tr key={row.sub_agent_id}><td><strong>{row.sub_agent_name}</strong></td><td className="num">{fmtNum(row.count)}</td><td className="num admin-amount">{formatCurrency(row.total)}</td></tr>
               ))}
             </tbody>
           </table>

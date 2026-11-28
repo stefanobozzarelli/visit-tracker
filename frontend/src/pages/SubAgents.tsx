@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
 import { SubAgentDetail } from './SubAgentDetail';
+import { itNumberFormat } from '../utils/numberFormat';
 
 const formatPercent = (n: number) =>
-  new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
+  itNumberFormat({ minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
 
 export const SubAgents: React.FC = () => {
   const [agents, setAgents] = useState<any[]>([]);

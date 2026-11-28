@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { OfferItem } from '../types';
 import '../styles/OfferForm.css';
+import { fmtNum } from '../utils/numberFormat';
 
 export const OfferItemForm: React.FC = () => {
   const navigate = useNavigate();
@@ -227,7 +228,7 @@ export const OfferItemForm: React.FC = () => {
             <label>Total</label>
             <input
               type="text"
-              value={formData.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+              value={fmtNum(formData.total_amount, { minimumFractionDigits: 2 })}
               readOnly
               disabled
               style={{ background: 'var(--color-bg-secondary)', fontWeight: 600 }}

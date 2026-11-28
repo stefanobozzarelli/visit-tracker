@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import { Opportunity, Client, Company } from '../types';
 import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Opportunities.css';
+import { itNumberFormat } from '../utils/numberFormat';
 
 // ---- Status helpers ----
 type OppStatus = 'open' | 'in_progress' | 'qualified' | 'negotiation' | 'closed_won' | 'closed_lost';
@@ -22,7 +23,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
 
 const formatCurrency = (val?: number, currency?: string) => {
   if (val == null) return '-';
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: currency || 'EUR' }).format(val);
+  return itNumberFormat({ style: 'currency', currency: currency || 'EUR' }).format(val);
 };
 
 // ---- Component ----

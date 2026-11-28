@@ -8,11 +8,12 @@ import { config } from '../config';
 import { Project, Company, Client } from '../types';
 import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Projects.css';
+import { itNumberFormat, fmtNum } from '../utils/numberFormat';
 
 const API_BASE_URL = config.API_BASE_URL;
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
-const formatCurrency = (v?: number) => v != null ? new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v) : '-';
+const formatCurrency = (v?: number) => v != null ? itNumberFormat({ style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v) : '-';
 
 const STATUS_DOT: Record<string, string> = { ATTIVO: '#4caf50', COMPLETATO: '#1565c0', SOSPESO: '#e65100', CANCELLATO: '#c62828' };
 
@@ -311,7 +312,7 @@ export const Projects: React.FC = () => {
       <div className="projects-kpi-row">
         <div className="projects-kpi-card">
           <div className="projects-kpi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-          <div><div className="projects-kpi-value">{kpis.total}</div><div className="projects-kpi-label">Total Projects</div></div>
+          <div><div className="projects-kpi-value">{fmtNum(kpis.total)}</div><div className="projects-kpi-label">Total Projects</div></div>
         </div>
         <div className="projects-kpi-card">
           <div className="projects-kpi-icon" style={{ color: '#4caf50' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CustomerOrderItem } from '../types';
 import '../styles/OrderLineItems.css';
+import { fmtEur, fmtNum } from '../utils/numberFormat';
 
 interface OrderLineItemsProps {
   items: CustomerOrderItem[];
@@ -247,8 +248,8 @@ export const OrderLineItems: React.FC<OrderLineItemsProps> = ({
                         <td className="description-cell">{item.description}</td>
                         <td>{item.format || '-'}</td>
                         <td>{item.unit_of_measure}</td>
-                        <td className="number-cell">{item.quantity}</td>
-                        <td className="number-cell">€ {typeof item.unit_price === 'number' ? item.unit_price.toFixed(2) : parseFloat(String(item.unit_price)).toFixed(2)}</td>
+                        <td className="number-cell">{fmtNum(item.quantity, { maximumFractionDigits: 2 })}</td>
+                        <td className="number-cell">{fmtEur(item.unit_price, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>
                         <td>{item.discount || '-'}</td>
                         {isEditable && (
                           <td className="azioni-cell">

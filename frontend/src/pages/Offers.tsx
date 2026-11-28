@@ -7,6 +7,7 @@ import { config } from '../config';
 import { Offer, Client, Company } from '../types';
 import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Offers.css';
+import { fmtNum } from '../utils/numberFormat';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -278,7 +279,7 @@ export const Offers: React.FC = () => {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
           <div className="off-kpi-body">
-            <div className="off-kpi-value">{kpis.total}</div>
+            <div className="off-kpi-value">{fmtNum(kpis.total)}</div>
             <div className="off-kpi-label">Total</div>
           </div>
         </div>
@@ -462,7 +463,7 @@ export const Offers: React.FC = () => {
                       </td>
                       <td style={{ textAlign: 'center' }}>{itemCount}</td>
                       <td style={{ fontWeight: 600 }}>
-                        {offer.total_amount != null ? `${offer.currency || '\u20AC'} ${Number(offer.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                        {offer.total_amount != null ? `${offer.currency || '\u20AC'} ${fmtNum(offer.total_amount, { minimumFractionDigits: 2 })}` : '-'}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         {(offer.attachments?.length || 0) > 0 ? (

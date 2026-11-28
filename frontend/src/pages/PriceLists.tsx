@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiService } from '../services/api';
 import '../styles/Revenue.css';
 import '../styles/Articles.css';
+import { fmtNum, itNumberFormat } from '../utils/numberFormat';
 
 /* ============================================================
    LISTINI — upload supplier price lists (Excel, CSV, PDF)
@@ -47,7 +48,7 @@ const colName = (i: number) => {
 };
 
 const formatPrice = (n: number | null | undefined) =>
-  n === null || n === undefined ? '–' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 4 }).format(Number(n));
+  n === null || n === undefined ? '–' : itNumberFormat({ style: 'currency', currency: 'EUR', maximumFractionDigits: 4 }).format(Number(n));
 
 const formatDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString('it-IT') : '–');
 
@@ -159,7 +160,7 @@ export const PriceListsTab: React.FC = () => {
         const m = d.match || {};
         setMessage({
           type: 'ok',
-          text: `Listino "${d.price_list.name}" caricato: ${Number(d.price_list.article_count).toLocaleString('it-IT')} articoli.` +
+          text: `Listino "${d.price_list.name}" caricato: ${fmtNum(d.price_list.article_count)} articoli.` +
             (m.matched !== undefined ? ` Righe fattura di questa azienda abbinate: ${m.matched}, non trovate a listino: ${m.unmatched}.` : ''),
         });
       }
@@ -271,7 +272,7 @@ export const PriceListsTab: React.FC = () => {
               <span className="pl-muted">
                 {isPdf
                   ? `${preview.pdf?.pages} pagine · ${preview.pdf?.lines} righe di testo`
-                  : `${preview.total_rows.toLocaleString('it-IT')} righe`}
+                  : `${fmtNum(preview.total_rows)} righe`}
               </span>
               {previewing && <span className="pl-muted">aggiornamento…</span>}
             </div>
@@ -338,7 +339,7 @@ export const PriceListsTab: React.FC = () => {
             {isPdf && (
               <div className="pl-pdf-info">
                 <p>
-                  Lettura automatica del PDF: <strong>{preview.result.articles.toLocaleString('it-IT')} articoli</strong> riconosciuti
+                  Lettura automatica del PDF: <strong>{fmtNum(preview.result.articles)} articoli</strong> riconosciuti
                   (righe che iniziano con un codice e finiscono con un prezzo). Controlla gli esempi qui sotto.
                 </p>
                 {preview.pdf?.unparsed_samples?.length ? (
@@ -365,9 +366,9 @@ export const PriceListsTab: React.FC = () => {
                 <span>Gli articoli verranno letti dall'AI dopo il caricamento.</span>
               ) : (
                 <>
-                  <span className="pl-result-main">{preview.result.articles.toLocaleString('it-IT')} articoli pronti</span>
+                  <span className="pl-result-main">{fmtNum(preview.result.articles)} articoli pronti</span>
                   <span className="pl-muted">
-                    {preview.result.rows_skipped > 0 && ` · ${preview.result.rows_skipped.toLocaleString('it-IT')} righe scartate`}
+                    {preview.result.rows_skipped > 0 && ` · ${fmtNum(preview.result.rows_skipped)} righe scartate`}
                     {preview.result.duplicates > 0 && ` · ${preview.result.duplicates} codici ripetuti (vale l'ultima riga)`}
                   </span>
                 </>
@@ -418,7 +419,7 @@ export const PriceListsTab: React.FC = () => {
                   onClick={doImport}
                   disabled={importing || previewing || (!useAi && preview.result.articles === 0)}
                 >
-                  {importing ? 'Caricamento…' : useAi ? 'Carica e leggi con AI' : `Carica ${preview.result.articles.toLocaleString('it-IT')} articoli`}
+                  {importing ? 'Caricamento…' : useAi ? 'Carica e leggi con AI' : `Carica ${fmtNum(preview.result.articles)} articoli`}
                 </button>
               </div>
             </div>
@@ -467,7 +468,7 @@ export const PriceListsTab: React.FC = () => {
                       />
                     </td>
                     <td className="num">
-                      {Number(l.article_count).toLocaleString('it-IT')}
+                      {fmtNum(l.article_count)}
                       {l.rows_skipped > 0 && <div className="invoice-cell-secondary">{l.rows_skipped} righe scartate</div>}
                     </td>
                     <td>
