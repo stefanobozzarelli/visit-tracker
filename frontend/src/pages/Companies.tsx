@@ -101,6 +101,35 @@ export const Companies: React.FC = () => {
     return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [companies, search]);
 
+  // Rows of the table: each group (e.g. "Gruppo ABK") is followed by its
+  // companies, indented; the other companies are listed normally
+  const rows = useMemo(() => {
+    const byName = (a: Company, b: Company) => a.name.localeCompare(b.name);
+    const byId = new Map(companies.map(c => [c.id, c]));
+    const matches = (c: Company) => !search || c.name.toLowerCase().includes(search.toLowerCase());
+    const groups = companies.filter(c => (c.group_members || []).some(id => byId.has(id) && id !== c.id)).sort(byName);
+    const isGroup = new Set(groups.map(g => g.id));
+    const memberOf = new Map<string, string>();
+    for (const g of groups) {
+      for (const id of g.group_members || []) {
+        if (!memberOf.has(id) && byId.has(id) && id !== g.id && !isGroup.has(id)) memberOf.set(id, g.id);
+      }
+    }
+    const out: { company: Company; kind: 'group' | 'member' | 'plain'; count?: number }[] = [];
+    for (const c of [...companies].sort(byName)) {
+      if (isGroup.has(c.id)) {
+        const members = (c.group_members || []).filter(id => memberOf.get(id) === c.id).map(id => byId.get(id)!).sort(byName);
+        const shown = matches(c) ? members : members.filter(matches);
+        if (!matches(c) && !shown.length) continue;
+        out.push({ company: c, kind: 'group', count: members.length });
+        shown.forEach(m => out.push({ company: m, kind: 'member' }));
+      } else if (!memberOf.has(c.id) && matches(c)) {
+        out.push({ company: c, kind: 'plain' });
+      }
+    }
+    return out;
+  }, [companies, search]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -358,11 +387,20 @@ export const Companies: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(company => {
+                {rows.map(({ company, kind, count }) => {
                   const lastVisit = lastVisits.get(company.id);
                   return (
-                    <tr key={company.id} onDoubleClick={() => navigate(`/companies/${company.id}`)} style={{ cursor: 'pointer' }}>
-                      <td className="co-name">{company.name}</td>
+                    <tr
+                      key={company.id}
+                      className={kind === 'group' ? 'co-row-group' : kind === 'member' ? 'co-row-member' : undefined}
+                      onDoubleClick={() => navigate(`/companies/${company.id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="co-name">
+                        {kind === 'member' && <span className="co-member-mark" aria-hidden="true">└</span>}
+                        {company.name}
+                        {kind === 'group' && <span className="co-group-badge">Gruppo · {count} aziende</span>}
+                      </td>
                       <td>{company.country}</td>
                       <td>{company.industry || <span className="co-muted">-</span>}</td>
                       {isAdmin && (
