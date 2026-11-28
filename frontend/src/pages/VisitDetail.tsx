@@ -8,6 +8,7 @@ import { decodeMetadata, filterDisplayReports } from '../utils/visitMetadata';
 import { compressImages } from '../utils/compressImage';
 import { openEmailWithPdf } from '../utils/openEmailWithPdf';
 import '../styles/CrudPages.css';
+import '../styles/VisitForms.css';
 import { fmtNum } from '../utils/numberFormat';
 
 type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'completed';
@@ -316,19 +317,18 @@ export const VisitDetail: React.FC = () => {
   const statusConf = VISIT_STATUS_CONFIG[visit.status as VisitStatus] || VISIT_STATUS_CONFIG.scheduled;
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button onClick={() => navigate('/visits')} style={{ padding: '0.5rem 1rem', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}>
-            ← Back
-          </button>
-          <h1 style={{ margin: 0 }}>Client Meeting - {visit.client?.name}</h1>
+    <div className="vx-page vx-detail">
+      <button className="vx-back" onClick={() => navigate('/visits')}>← Back to Client Meetings</button>
+      <div className="vx-head">
+        <div>
+          <h1>{visit.client?.name || 'Client Meeting'}</h1>
+          <div className="vx-sub">Client meeting · {new Date(visit.visit_date).toLocaleDateString('it-IT')}</div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="vx-head-actions">
           <button
             onClick={() => handleDownloadPdf()}
             disabled={emailLoading !== null}
-            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'pdf-all' ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            className="vx-btn"
             title="Scarica PDF con il report dell'intera visita"
           >
             {emailLoading === 'pdf-all' ? '⏳…' : '📄 PDF'}
@@ -336,7 +336,7 @@ export const VisitDetail: React.FC = () => {
           <button
             onClick={() => handleGenerateEmail()}
             disabled={emailLoading !== null}
-            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'eml-all' ? '#999' : '#2E7D32', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            className="vx-btn"
             title="Condividi PDF (apre il share sheet di sistema)"
           >
             {emailLoading === 'eml-all' ? '⏳…' : '✉️ Condividi'}
@@ -344,89 +344,98 @@ export const VisitDetail: React.FC = () => {
           <button
             onClick={() => handleOutlookDraft()}
             disabled={emailLoading !== null}
-            style={{ padding: '0.6rem 1.2rem', background: emailLoading === 'outlook-all' ? '#999' : '#0F6CBD', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            className="vx-btn"
             title="Crea una bozza in Outlook con il PDF allegato"
           >
             {emailLoading === 'outlook-all' ? '⏳…' : '📧 Bozza Outlook'}
           </button>
           <button
             onClick={() => navigate(`/todos/new?visitId=${id}&clientId=${visit.client_id}&returnTo=/visits/${id}`)}
-            style={{ padding: '0.6rem 1.2rem', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+            className="vx-btn"
           >
-            + Add Task
+            + Task
           </button>
+          <button className="vx-btn vx-primary" onClick={() => navigate(`/visits/${id}/edit`)}>Edit</button>
         </div>
       </div>
 
       {error && <div style={{ padding: '0.75rem', marginBottom: '1rem', background: '#fee', border: '1px solid #fcc', borderRadius: '4px', color: '#c00' }}>{error}</div>}
       {successMsg && <div style={{ padding: '0.75rem', marginBottom: '1rem', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '4px', color: '#2E7D32' }}>{successMsg}</div>}
 
-      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h3 style={{ margin: 0 }}>Meeting Information</h3>
+      <div className="vx-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            <div className="vx-avatar">{(visit.client?.name || '?').charAt(0)}</div>
+            <div>
+              <div className="vx-value" style={{ fontWeight: 600 }}>{visit.client?.name || '-'}</div>
+              {visit.client?.country && <div style={{ fontSize: '15px', color: 'var(--color-text-secondary)' }}>{visit.client.country}</div>}
+            </div>
+          </div>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.3rem 0.75rem', borderRadius: '9999px', background: `rgba(${statusConf.color === '#947E35' ? '148, 126, 53' : statusConf.color === '#4A7653' ? '74, 118, 83' : '110, 110, 115'}, 0.1)`, color: statusConf.color, fontSize: '0.813rem', fontWeight: 600 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusConf.color }} />
             {statusConf.label}
           </span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '1.5rem' }}>
+        <div className="vx-facts" style={{ marginBottom: '0.25rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Client</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>{visit.client?.name || '-'}</p>
+            <label className="vx-label">Date</label>
+            <p className="vx-value">{new Date(visit.visit_date).toLocaleDateString('it-IT')}</p>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Date</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>{new Date(visit.visit_date).toLocaleDateString('it-IT')}</p>
+            <label className="vx-label">Visited By</label>
+            <p className="vx-value">{visit.visited_by_user?.name || '-'}</p>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Visited By</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>{visit.visited_by_user?.name || '-'}</p>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Meeting Type</label>
-            <p style={{ margin: 0, fontSize: '1rem' }}>
+            <label className="vx-label">Meeting Type</label>
+            <p className="vx-value">
               {visit.meeting_type === 'call' ? '\uD83D\uDCDE Call' : visit.meeting_type === 'video_call' ? '\uD83D\uDCF9 Video Call' : '\uD83C\uDFE2 In Person'}
             </p>
           </div>
           {visit.participants && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Meeting Participants</label>
-              <p style={{ margin: 0, fontSize: '1rem', whiteSpace: 'pre-wrap' }}>{visit.participants}</p>
+            <div>
+              <label className="vx-label">Meeting Participants</label>
+              <p className="vx-value" style={{ whiteSpace: 'pre-wrap' }}>{visit.participants}</p>
             </div>
           )}
         </div>
         {visitMetadata && (
-          <div style={{ paddingTop: '1.5rem', borderTop: '1px solid #e0e0e0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {visitMetadata.location && <div><label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Location</label><p style={{ margin: 0, fontSize: '1rem' }}>{visitMetadata.location}</p></div>}
-              {visitMetadata.purpose && <div><label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Purpose</label><p style={{ margin: 0, fontSize: '1rem' }}>{visitMetadata.purpose}</p></div>}
-              {visitMetadata.outcome && <div><label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Outcome</label><p style={{ margin: 0, fontSize: '1rem' }}>{visitMetadata.outcome}</p></div>}
-              {visitMetadata.nextAction && <div><label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Next Action</label><p style={{ margin: 0, fontSize: '1rem' }}>{visitMetadata.nextAction}</p></div>}
+          <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
+            <div className="vx-facts">
+              {visitMetadata.location && <div><label className="vx-label">Location</label><p className="vx-value">{visitMetadata.location}</p></div>}
+              {visitMetadata.purpose && <div><label className="vx-label">Purpose</label><p className="vx-value">{visitMetadata.purpose}</p></div>}
+              {visitMetadata.outcome && <div><label className="vx-label">Outcome</label><p className="vx-value">{visitMetadata.outcome}</p></div>}
+              {visitMetadata.nextAction && <div><label className="vx-label">Next Action</label><p className="vx-value">{visitMetadata.nextAction}</p></div>}
             </div>
-            {visitMetadata.followUpRequired && <div style={{ marginTop: '1rem' }}><label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#666', marginBottom: '0.5rem' }}>Follow-up</label><p style={{ margin: 0, fontSize: '1rem', color: 'var(--color-warning)', fontWeight: 500 }}>Required</p></div>}
+            {visitMetadata.followUpRequired && <div style={{ marginTop: '1rem' }}><label className="vx-label">Follow-up</label><p style={{ margin: 0, fontSize: '1rem', color: 'var(--color-warning)', fontWeight: 500 }}>Required</p></div>}
           </div>
         )}
       </div>
 
       {visit.preparation && (
-        <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
-          <h3 style={{ marginBottom: '1rem', marginTop: 0 }}>Preparation / Pre-meeting Notes</h3>
-          <p style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: '0.875rem', lineHeight: 1.6, color: '#555' }}>{visit.preparation}</p>
+        <div className="vx-card">
+          <div className="vx-label">Preparation / Pre-meeting Notes</div>
+          <p className="vx-prose" style={{ color: 'var(--color-text-secondary)' }}>{visit.preparation}</p>
         </div>
       )}
 
       {displayReports.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
-          <h2>Supplier Reports</h2>
-          <div style={{ display: 'grid', gap: '1.5rem' }}>
+        <div>
+          <div className="vx-section"><h2>Report per Company</h2><span>{displayReports.length} {displayReports.length === 1 ? 'company' : 'companies'}</span></div>
+          <div>
             {displayReports.map((report) => {
               const reportTasks = getTasksForReport(report.id);
               return (
-                <div key={report.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '2rem' }}>
+                <div key={report.id} className="vx-card vx-report">
                   <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.9rem' }}>
+                      <div className="vx-avatar">{(report.company?.name || '?').charAt(0)}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="vx-report-company">{report.company?.name}</div>
+                        <h3 className="vx-report-title" style={{ margin: 0 }}>{report.section}</h3>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       <div>
-                        <h3 style={{ margin: '0 0 0.5rem 0' }}>{report.company?.name} - {report.section}</h3>
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                           <span style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.875rem', backgroundColor: report.status === 'draft' ? '#fff3cd' : report.status === 'submitted' ? '#d1ecf1' : '#d4edda', color: report.status === 'draft' ? '#856404' : report.status === 'submitted' ? '#0c5460' : '#155724' }}>{report.status}</span>
                           {report.delivered_at ? (
@@ -474,7 +483,7 @@ export const VisitDetail: React.FC = () => {
                         <button
                           onClick={() => handleDownloadPdf(report.id)}
                           disabled={emailLoading !== null}
-                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === `pdf-${report.id}` ? '#999' : '#4A6078', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          className="vx-btn vx-sm"
                           title="Scarica PDF con questa sezione (testo, allegati e ordini del fornitore)"
                         >
                           {emailLoading === `pdf-${report.id}` ? '⏳…' : '📄 PDF'}
@@ -482,7 +491,7 @@ export const VisitDetail: React.FC = () => {
                         <button
                           onClick={() => handleGenerateEmail(report.id, `${report.company?.name} - ${report.section}`)}
                           disabled={emailLoading !== null}
-                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === `eml-${report.id}` ? '#999' : '#2E7D32', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          className="vx-btn vx-sm"
                           title="Condividi PDF (apre il share sheet di sistema)"
                         >
                           {emailLoading === `eml-${report.id}` ? '⏳…' : '✉️ Condividi'}
@@ -490,34 +499,34 @@ export const VisitDetail: React.FC = () => {
                         <button
                           onClick={() => handleOutlookDraft(report.id)}
                           disabled={emailLoading !== null}
-                          style={{ padding: '0.4rem 0.8rem', background: emailLoading === `outlook-${report.id}` ? '#999' : '#0F6CBD', color: 'white', border: 'none', borderRadius: '4px', cursor: emailLoading !== null ? 'wait' : 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          className="vx-btn vx-sm"
                           title="Crea una bozza in Outlook con questa sezione in PDF"
                         >
                           {emailLoading === `outlook-${report.id}` ? '⏳…' : '📧 Bozza Outlook'}
                         </button>
                         <button
                           onClick={() => navigate(`/todos/new?visitReportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}&returnTo=/visits/${id}`)}
-                          style={{ padding: '0.4rem 0.8rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          className="vx-btn vx-sm"
                         >
                           + Task
                         </button>
                         <button
                           onClick={() => navigate(`/orders/new/${id}?supplierId=${report.company_id}`)}
-                          style={{ padding: '0.4rem 0.8rem', background: 'var(--color-warning)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                          className="vx-btn vx-sm"
                         >
                           + Order
                         </button>
                         {reportOpportunities[report.id]?.length > 0 ? (
                           <button
                             onClick={() => navigate(`/opportunities/${reportOpportunities[report.id][0].id}`)}
-                            style={{ padding: '0.4rem 0.8rem', background: '#7B68AE', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                            className="vx-btn vx-sm"
                           >
                             View Opportunity →
                           </button>
                         ) : (
                           <button
                             onClick={() => navigate(`/opportunities/new?visitId=${id}&reportId=${report.id}&clientId=${visit.client_id}&companyId=${report.company_id}`)}
-                            style={{ padding: '0.4rem 0.8rem', background: '#7B68AE', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                            className="vx-btn vx-sm"
                           >
                             + Opportunity
                           </button>
@@ -525,9 +534,9 @@ export const VisitDetail: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <p style={{ whiteSpace: 'pre-wrap', color: '#555', margin: '1rem 0 0 0' }}>{report.content}</p>
+                  <p className="vx-prose" style={{ marginTop: '1.25rem' }}>{report.content}</p>
                   {/* Attachments section - always show for upload capability */}
-                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                       <h4 style={{ margin: 0 }}>
                         Attachments ({report.attachments?.length || 0})
@@ -590,7 +599,7 @@ export const VisitDetail: React.FC = () => {
                     )}
                   </div>
                   {reportTasks.length > 0 && (
-                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
+                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
                       <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem' }}>Tasks ({reportTasks.length})</h4>
                       <TaskTable tasks={reportTasks} onNavigate={handleTaskNavigate} />
                     </div>
@@ -599,7 +608,7 @@ export const VisitDetail: React.FC = () => {
                   {(() => {
                     const reportOrders = getOrdersForReport(report.company_id);
                     return reportOrders.length > 0 ? (
-                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
                         <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem' }}>Orders ({reportOrders.length})</h4>
                         <div style={{ display: 'grid', gap: '0.75rem' }}>
                           {reportOrders.map((order) => (
@@ -710,7 +719,7 @@ export const VisitDetail: React.FC = () => {
           <h2 style={{ margin: 0 }}>Offers ({offers.length})</h2>
           <button
             onClick={() => navigate(`/offers/new?visitId=${id}&clientId=${visit.client_id}`)}
-            style={{ padding: '0.4rem 0.8rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+            className="vx-btn vx-sm"
           >
             + New Offer
           </button>
@@ -749,10 +758,10 @@ export const VisitDetail: React.FC = () => {
         )}
       </div>
 
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e0e0e0' }}>
+      <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
         <button
           onClick={() => navigate(`/visits/${id}/edit`)}
-          style={{ padding: '0.6rem 1.2rem', background: 'var(--color-info)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1rem' }}
+          className="vx-btn vx-primary"
         >
           Edit
         </button>
