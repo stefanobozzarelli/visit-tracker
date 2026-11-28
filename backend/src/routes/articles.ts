@@ -30,6 +30,8 @@ router.get('/', async (req: Request, res: Response) => {
     const data = await service.listArticles({
       ...filters(req),
       search: req.query.search as string,
+      code_search: req.query.code as string,
+      description_search: req.query.description as string,
       only_sold: req.query.only_sold === 'true',
       sort: req.query.sort as string,
       page: Number(req.query.page) || 1,

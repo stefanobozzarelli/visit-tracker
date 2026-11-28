@@ -510,24 +510,38 @@ const ArticleSearch: React.FC<{
   companyId: string; initial?: string; actionLabel: string; excludeId?: string;
   disabled?: boolean; onPick: (a: any) => void;
 }> = ({ companyId, initial, actionLabel, excludeId, disabled, onPick }) => {
-  const [q, setQ] = useState(initial || '');
+  // Two separate fields: the code is searched only in the codes, the
+  // description only in the descriptions; when both are filled both must match
+  const [code, setCode] = useState(initial || '');
+  const [desc, setDesc] = useState('');
   const [results, setResults] = useState<any[]>([]);
+  const filled = !!(code.trim() || desc.trim());
 
   useEffect(() => {
     const t = setTimeout(async () => {
-      if (!q.trim()) { setResults([]); return; }
+      if (!code.trim() && !desc.trim()) { setResults([]); return; }
       try {
-        const r = await apiService.getArticles({ company_id: companyId, search: q.trim(), only_sold: false, sort: 'code', limit: 25 });
+        const r = await apiService.getArticles({
+          company_id: companyId, code: code.trim() || undefined, description: desc.trim() || undefined,
+          only_sold: false, sort: 'code', limit: 25,
+        });
         setResults((r.data?.articles || []).filter((a: any) => a.id !== excludeId));
       } catch (e) { console.error(e); }
     }, 300);
     return () => clearTimeout(t);
-  }, [q, companyId, excludeId]);
+  }, [code, desc, companyId, excludeId]);
 
   return (
     <>
-      <input className="art-search" value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca per codice e/o descrizione, es. nd603 satinato" />
-      {q.trim() && (results.length === 0 ? <p className="no-items">Nessun articolo trovato: prova con parte del codice o della descrizione.</p> : (
+      <div className="art-search-fields">
+        <label className="art-field">Codice
+          <input className="art-search" value={code} onChange={e => setCode(e.target.value)} placeholder="es. nd603" />
+        </label>
+        <label className="art-field">Descrizione
+          <input className="art-search" value={desc} onChange={e => setDesc(e.target.value)} placeholder="es. deviatore satinato" />
+        </label>
+      </div>
+      {filled && (results.length === 0 ? <p className="no-items">Nessun articolo trovato.</p> : (
         <ul className="art-link-results">
           {results.map(a => (
             <li key={a.id}>

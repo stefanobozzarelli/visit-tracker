@@ -1653,7 +1653,7 @@ class ApiService {
     return response.data;
   }
 
-  async getArticles(params: { company_id?: string; company_ids?: string; client_id?: string; start_date?: string; end_date?: string; search?: string; only_sold?: boolean; sort?: string; page?: number; limit?: number }) {
+  async getArticles(params: { company_id?: string; company_ids?: string; client_id?: string; start_date?: string; end_date?: string; search?: string; code?: string; description?: string; only_sold?: boolean; sort?: string; page?: number; limit?: number }) {
     const response = await this.api.get<ApiResponse<any>>('/articles', { params, timeout: 30000 });
     return response.data;
   }
