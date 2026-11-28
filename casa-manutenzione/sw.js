@@ -1,6 +1,6 @@
 // Service worker: tiene in cache la "shell" dell'app per l'uso offline.
 // Le chiamate a Firebase non passano di qui (altro dominio).
-const CACHE = 'casa-v1';
+const CACHE = 'casa-v2';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'catalog.js',
   'firebase-config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 

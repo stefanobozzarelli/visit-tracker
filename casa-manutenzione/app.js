@@ -982,26 +982,60 @@ function householdScreen() {
 async function startCloud() {
   S.store.unsub?.();
   S.hhName = await S.store.householdName().catch(() => '');
-  S.members = await S.store.members().catch(() => []);
-  S.hh = await S.store.household().catch(() => ({}));
+  S.members = await withTimeout(S.store.members(), 10000, 'Membri').catch(() => []);
+  S.hh = await withTimeout(S.store.household(), 10000, 'Famiglia').catch(() => ({}));
   S.store.subscribe((db) => { S.db = db; S.ready = true; render(); remind(); });
+}
+
+// Schermata di attesa e di errore: la pagina non resta mai vuota.
+function loadingScreen(msg = 'Caricamento…') {
+  root.innerHTML = `<div class="auth"><div class="card" style="text-align:center">
+    <img src="icons/icon-192.png" alt=""><h1>Casa Manutenzione</h1><p class="muted">${esc(msg)}</p></div></div>`;
+}
+function errorScreen(msg) {
+  S.ready = false;
+  root.innerHTML = `<div class="auth"><div class="card">
+    <img src="icons/icon-192.png" alt=""><h1>Casa Manutenzione</h1>
+    <p class="err" style="margin:8px 0 16px">${esc(msg)}</p>
+    <div class="btnrow"><button class="btn primary" id="retry" style="flex:1">Riprova</button></div></div></div>`;
+  $('#retry').addEventListener('click', () => location.reload());
+}
+// Se un passaggio non risponde entro `ms`, fallisce invece di lasciare la pagina vuota.
+const withTimeout = (p, ms, what) => Promise.race([p,
+  new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(what + ': nessuna risposta'), { code: 'timeout' })), ms))]);
+const NOCACHE = 'casa.nocache';
+// Al primo blocco del database si riparte senza cache locale (noto problema di Safari con IndexedDB).
+function recoverOrFail(e, msg) {
+  console.error(e);
+  let tried = false; try { tried = localStorage.getItem(NOCACHE) === '1'; } catch { /* */ }
+  if (e?.code === 'timeout' && !tried) {
+    try { localStorage.setItem(NOCACHE, '1'); } catch { /* */ }
+    loadingScreen('Riavvio senza cache…'); setTimeout(() => location.reload(), 300); return;
+  }
+  errorScreen(msg + ': ' + (e?.message || e));
 }
 
 async function boot() {
   applyPrefs();
+  loadingScreen();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
   const startLocal = () => { S.store = new LocalStore(); S.store.subscribe((db) => { S.db = db; S.ready = true; render(); remind(); }); };
   if (!firebaseConfig) return startLocal();
+  let noCache = false; try { noCache = localStorage.getItem(NOCACHE) === '1'; } catch { /* */ }
   try {
-    S.store = new CloudStore(firebaseConfig); await S.store.init();
+    S.store = new CloudStore(firebaseConfig, { noCache }); await withTimeout(S.store.init(), 20000, 'Avvio di Firebase');
   } catch (e) { console.error(e); toast('Sincronizzazione non disponibile: modalità locale'); return startLocal(); }
+  let first = true;
+  const authTimer = setTimeout(() => { if (first) recoverOrFail({ code: 'timeout', message: 'nessuna risposta' }, 'Accesso'); }, 20000);
   S.store.onUser(async (u) => {
+    first = false; clearTimeout(authTimer);
     if (!u) { S.store.unsub?.(); return authScreen(); }
+    loadingScreen('Apro i tuoi dati…');
     try {
-      const hid = await S.store.loadHousehold();
+      const hid = await withTimeout(S.store.loadHousehold(), 15000, 'Lettura del database');
       if (!hid) return householdScreen();
-      startCloud();
-    } catch (e) { console.error(e); authScreen('Errore di accesso al database: ' + (e.message || e)); }
+      await startCloud();
+    } catch (e) { recoverOrFail(e, 'Errore di accesso al database'); }
   });
 }
 boot();

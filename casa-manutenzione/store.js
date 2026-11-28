@@ -51,8 +51,8 @@ export class LocalStore {
 const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
 
 export class CloudStore {
-  constructor(config) {
-    this.mode = 'cloud'; this.config = config; this.db = emptyDb(); this.cb = () => {};
+  constructor(config, opts = {}) {
+    this.mode = 'cloud'; this.config = config; this.noCache = !!opts.noCache; this.db = emptyDb(); this.cb = () => {};
     this.user = null; this.hid = null; this.fs = null;
   }
   async init() {
@@ -62,6 +62,7 @@ export class CloudStore {
     this.A = auth; this.F = fs;
     this.app = app.initializeApp(this.config);
     this.auth = auth.getAuth(this.app);
+    if (this.noCache) { this.fs = fs.initializeFirestore(this.app, { localCache: fs.memoryLocalCache() }); return; }
     try {
       this.fs = fs.initializeFirestore(this.app, {
         localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),

@@ -18,6 +18,22 @@
   <div id="root"></div>
   <dialog id="dlg"></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
+  <script>
+    // Rete di sicurezza: se l'app non parte, mostra il motivo invece di una pagina vuota.
+    (function () {
+      var errs = [];
+      window.addEventListener('error', function (e) { errs.push((e.message || 'Errore') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')); });
+      window.addEventListener('unhandledrejection', function (e) { errs.push(String((e.reason && e.reason.message) || e.reason)); });
+      setTimeout(function () {
+        var r = document.getElementById('root');
+        if (r && !r.children.length) {
+          r.innerHTML = '<div class="auth"><div class="card"><h1>Casa Manutenzione</h1><p class="err">L\'app non è riuscita a partire.</p>' +
+            '<p class="muted" style="font-size:13px;word-break:break-word"></p><div class="btnrow"><button class="btn primary" style="flex:1" onclick="location.reload()">Riprova</button></div></div></div>';
+          r.querySelector('.muted').textContent = errs.join(' · ') || 'Nessun dettaglio disponibile.';
+        }
+      }, 8000);
+    })();
+  </script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
