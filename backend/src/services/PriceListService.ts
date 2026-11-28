@@ -371,7 +371,8 @@ Return ONLY valid JSON: {"articles": [{"code": "article code exactly as printed"
        JOIN invoices inv ON inv.id::text = li.invoice_id::text
        JOIN companies c ON c.id::text = inv.company_id::text
        -- also the invoices of companies that use this company's price lists (e.g. a group)
-       WHERE (c.id::text = $1 OR $1 = ANY(c.price_list_sources))
+       WHERE (c.id::text = $1 OR $1 = ANY(c.price_list_sources)
+              OR EXISTS (SELECT 1 FROM companies g WHERE $1 = ANY(g.group_members) AND c.id::text = ANY(g.group_members)))
          AND li.article_code IS NOT NULL AND li.article_code <> ''
        LIMIT 50000`, [companyId]);
     const set = new Set<string>();

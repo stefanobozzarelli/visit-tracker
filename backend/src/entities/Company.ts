@@ -26,6 +26,11 @@ export class Company {
   @Column({ type: 'text', array: true, nullable: true })
   price_list_sources: string[] | null;
 
+  // A group of companies (e.g. "Gruppo ABK"): selecting it in the statistics
+  // shows the data of all its member companies together
+  @Column({ type: 'text', array: true, nullable: true })
+  group_members: string[] | null;
+
   @CreateDateColumn()
   created_at: Date;
 

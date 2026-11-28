@@ -272,7 +272,7 @@ export class CommissionService {
   // ─── Invoice Commission Management ─────────────────────
 
   async getInvoiceCommissions(filters?: {
-    company_id?: string; client_id?: string; status?: string;
+    company_id?: string; company_ids?: string[]; client_id?: string; status?: string;
     start_date?: string; end_date?: string;
   }): Promise<any[]> {
     const qb = this.commissionRepo.createQueryBuilder('ic')
@@ -285,6 +285,7 @@ export class CommissionService {
       .orderBy('inv.invoice_date', 'DESC');
 
     if (filters?.company_id) qb.andWhere('inv.company_id = :cid', { cid: filters.company_id });
+    if (filters?.company_ids?.length) qb.andWhere('inv.company_id IN (:...cids)', { cids: filters.company_ids });
     if (filters?.client_id) qb.andWhere('inv.client_id = :clid', { clid: filters.client_id });
     if (filters?.status) qb.andWhere('ic.commission_status = :st', { st: filters.status });
     if (filters?.start_date) qb.andWhere('inv.invoice_date >= :sd', { sd: filters.start_date });

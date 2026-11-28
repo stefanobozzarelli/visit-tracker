@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, roleMiddleware } from '../middleware/auth';
+import { expandCompanyGroups } from '../middleware/companyGroups';
 import { InvoiceService } from '../services/InvoiceService';
 import multer from 'multer';
 import { MAX_UPLOAD_BYTES } from '../config/uploads';
@@ -10,6 +11,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX
 
 // All routes require auth + revenue access (master_admin or admin with can_view_revenue)
 router.use(authMiddleware);
+router.use(expandCompanyGroups(['/', '/stats']));
 router.use((req: Request, res: Response, next) => {
   const user = req.user as any;
   if (user?.role === 'master_admin') return next();
@@ -46,6 +48,7 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const filters = {
       company_id: req.query.company_id as string,
+      company_ids: req.query.company_ids ? (req.query.company_ids as string).split(',') : undefined,
       client_id: req.query.client_id as string,
       status: req.query.status as string,
       start_date: req.query.start_date as string,

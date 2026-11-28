@@ -69,8 +69,21 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const data: Partial<CreateCompanyRequest> = req.body;
-    const company = await companyService.updateCompany(req.params.id, data);
+    const data: Partial<CreateCompanyRequest> & { group_members?: string[] | null } = req.body;
+    const groupChanged = 'group_members' in (req.body || {});
+    if (groupChanged) {
+      const ids = Array.isArray(data.group_members) ? data.group_members.map(String).filter(id => id && id !== req.params.id) : [];
+      data.group_members = ids.length ? [...new Set(ids)] : null;
+    }
+    const company = await companyService.updateCompany(req.params.id, data as any);
+    if (groupChanged && data.group_members?.length) {
+      // companies of a group share their price lists: link their invoice lines again
+      const { ArticleService } = require('../services/ArticleService');
+      const articles = new ArticleService();
+      // one call covers the whole group: it includes the companies sharing the lists
+      articles.matchLineItems({ companyId: data.group_members[0] })
+        .catch((e: Error) => console.log('Group rematch note:', e.message));
+    }
     const response: ApiResponse<any> = { success: true, data: company };
     res.json(response);
   } catch (error) {
