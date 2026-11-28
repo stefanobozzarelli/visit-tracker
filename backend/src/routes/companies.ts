@@ -102,13 +102,38 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
+const canManage = (req: Request) => ['master_admin', 'admin'].includes((req.user as any)?.role);
+
+// What still uses a company (visits, reports, invoices...), to explain why it can't be deleted
+router.get('/:id/usage', async (req: Request, res: Response) => {
+  try {
+    const usage = await companyService.getUsage(req.params.id);
+    res.json({ success: true, data: usage });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+// Merge a duplicate company into another one, then delete the duplicate
+router.post('/:id/merge', async (req: Request, res: Response) => {
+  try {
+    if (!canManage(req)) return res.status(403).json({ success: false, error: 'Solo un amministratore può unire le aziende' });
+    const result = await companyService.mergeCompany(req.params.id, String(req.body?.target_id || ''));
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(400).json({ success: false, error: (error as Error).message });
+  }
+});
+
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    if (!canManage(req)) return res.status(403).json({ success: false, error: 'Solo un amministratore può eliminare le aziende' });
     await companyService.deleteCompany(req.params.id);
     const response: ApiResponse<any> = { success: true, message: 'Company deleted' };
     res.json(response);
   } catch (error) {
-    res.status(400).json({ success: false, error: (error as Error).message });
+    const e = error as any;
+    res.status(e.status || 400).json({ success: false, error: e.message, usage: e.usage });
   }
 });
 

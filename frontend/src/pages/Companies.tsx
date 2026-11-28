@@ -45,6 +45,7 @@ export const Companies: React.FC = () => {
   const [newSectorInput, setNewSectorInput] = useState('');
   const [search, setSearch] = useSessionState('companies__search', '');
   const [openMoreId, setOpenMoreId] = useState<string | null>(null);
+  const [merge, setMerge] = useState<{ id: string; targetId: string; usage: { label: string }[] | null; busy: boolean } | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -138,14 +139,50 @@ export const Companies: React.FC = () => {
     setShowForm(true);
   };
 
+  const apiError = (err: any) => err?.response?.data?.error || (err as Error).message;
+
   const handleDelete = async (id: string) => {
     setOpenMoreId(null);
-    if (!confirm('Delete this company and all associated data?')) return;
+    setError('');
+    const name = companies.find(c => c.id === id)?.name || 'this company';
+    if (!confirm(`Eliminare ${name}?`)) return;
     try {
       await apiService.deleteCompany(id);
-      setSuccess('Company deleted');
+      setSuccess(`${name} eliminata`);
       loadData();
-    } catch (err) { setError((err as Error).message); }
+    } catch (err) {
+      setError(apiError(err));
+      // still used somewhere: offer to merge it into another company
+      if ((err as any)?.response?.status === 409) openMerge(id);
+    }
+  };
+
+  const openMerge = async (id: string) => {
+    setOpenMoreId(null);
+    setMerge({ id, targetId: '', usage: null, busy: false });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+      const r = await apiService.getCompanyUsage(id);
+      setMerge(m => (m && m.id === id ? { ...m, usage: r.data || [] } : m));
+    } catch { setMerge(m => (m && m.id === id ? { ...m, usage: [] } : m)); }
+  };
+
+  const handleMerge = async () => {
+    if (!merge?.targetId) return;
+    const source = companies.find(c => c.id === merge.id);
+    const target = companies.find(c => c.id === merge.targetId);
+    if (!confirm(`Spostare tutto di ${source?.name} su ${target?.name} ed eliminare ${source?.name}?`)) return;
+    setMerge({ ...merge, busy: true });
+    try {
+      await apiService.mergeCompany(merge.id, merge.targetId);
+      setError('');
+      setSuccess(`${source?.name} unita a ${target?.name}`);
+      setMerge(null);
+      loadData();
+    } catch (err) {
+      setError(apiError(err));
+      setMerge(m => (m ? { ...m, busy: false } : m));
+    }
   };
 
   const resetForm = () => {
@@ -251,6 +288,47 @@ export const Companies: React.FC = () => {
         </div>
       )}
 
+      {/* Merge a duplicate into another company */}
+      {merge && isAdmin && (() => {
+        const source = companies.find(c => c.id === merge.id);
+        if (!source) return null;
+        const lower = source.name.trim().toLowerCase();
+        const others = companies.filter(c => c.id !== merge.id).sort((a, b) => {
+          const sa = a.name.trim().toLowerCase() === lower ? 0 : 1;
+          const sb = b.name.trim().toLowerCase() === lower ? 0 : 1;
+          return sa - sb || a.name.localeCompare(b.name);
+        });
+        return (
+          <div className="co-form-card">
+            <h3>Unisci {source.name} a…</h3>
+            <p className="co-group-hint">
+              Visite, report, fatture, offerte, articoli e ogni altro collegamento di <strong>{source.name}</strong> vengono
+              spostati sull'azienda che scegli, poi <strong>{source.name}</strong> viene eliminata.
+            </p>
+            <p className="co-group-hint">
+              {merge.usage === null ? 'Controllo cosa usa questa azienda…'
+                : merge.usage.length ? `Da spostare: ${merge.usage.map(u => u.label).join(', ')}.`
+                : 'Non è usata da nessuna parte: puoi anche semplicemente eliminarla.'}
+            </p>
+            <div className="co-form-row">
+              <div className="co-form-group">
+                <label>Azienda da tenere</label>
+                <select value={merge.targetId} onChange={e => setMerge({ ...merge, targetId: e.target.value })}>
+                  <option value="">Scegli…</option>
+                  {others.map(c => <option key={c.id} value={c.id}>{c.name}{c.country ? ` (${c.country})` : ''}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="co-form-actions">
+              <button type="button" className="co-btn-save" disabled={!merge.targetId || merge.busy} onClick={handleMerge}>
+                {merge.busy ? 'Unisco…' : 'Unisci ed elimina'}
+              </button>
+              <button type="button" className="co-btn-cancel" onClick={() => setMerge(null)}>Annulla</button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Search */}
       <div className="co-toolbar">
         <input type="text" className="co-search" placeholder="Search companies..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -301,6 +379,7 @@ export const Companies: React.FC = () => {
                           {isAdmin && (
                             <>
                               <button className="co-action-btn" onClick={() => handleEdit(company)}>Edit</button>
+                              <button className="co-action-btn" onClick={() => openMerge(company.id)}>Unisci a…</button>
                               <button className="co-action-btn danger" onClick={() => handleDelete(company.id)}>Delete</button>
                             </>
                           )}

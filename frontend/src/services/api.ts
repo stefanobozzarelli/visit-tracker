@@ -615,6 +615,19 @@ class ApiService {
 
   async deleteCompany(id: string) {
     const response = await this.api.delete<ApiResponse<any>>(`/companies/${id}`);
+    this.memoryCache.clear();
+    return response.data;
+  }
+
+  /** Moves everything of a duplicate company onto `targetId`, then deletes the duplicate. */
+  async mergeCompany(id: string, targetId: string) {
+    const response = await this.api.post<ApiResponse<any>>(`/companies/${id}/merge`, { target_id: targetId });
+    this.memoryCache.clear();
+    return response.data;
+  }
+
+  async getCompanyUsage(id: string) {
+    const response = await this.api.get<ApiResponse<any>>(`/companies/${id}/usage`);
     return response.data;
   }
 
