@@ -386,6 +386,92 @@ export class PdfService {
   }
 
   /**
+   * Single supplier-meeting PDF (Supplier Meeting view → "PDF").
+   * Same look as the client single-section report: a cover with the meeting
+   * header, then the report text with embedded images, links to other files,
+   * and finally any PDF attachments appended.
+   */
+  async generateCompanyVisitPdf(cv: any, opts: { internalParticipants?: string } = {}): Promise<Buffer> {
+    const s3 = new S3Service();
+    const parts: Buffer[] = [];
+    parts.push(await this._buildCompanyVisitCoverPdf(cv, opts.internalParticipants || ''));
+
+    // Re-use the client-visit section renderer: map the supplier meeting onto
+    // the visit/report shape it expects.
+    const visitLike: any = {
+      visit_date: cv.date,
+      client: { name: 'Visita fornitore' },
+      visited_by_user: cv.created_by_user,
+    };
+    const atts = [...(cv.attachments || [])].sort((a: any, b: any) =>
+      (a.attachment_type === 'pre_visit' ? 0 : 1) - (b.attachment_type === 'pre_visit' ? 0 : 1));
+    const reportLike: any = {
+      company: cv.company,
+      company_id: cv.company_id,
+      section: cv.subject || '',
+      content: cv.report || '',
+      attachments: atts,
+    };
+    parts.push(...(await this._buildSectionEmailParts(visitLike, reportLike, [], s3)));
+    return await this._mergePdfBuffers(parts);
+  }
+
+  private _buildCompanyVisitCoverPdf(cv: any, internalParticipants: string): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const bufs: Buffer[] = [];
+      const doc = new PDFDocument({ margin: 50 });
+      doc.on('data', (c: Buffer) => bufs.push(c));
+      doc.on('end', () => resolve(Buffer.concat(bufs)));
+      doc.on('error', reject);
+
+      const d = cv.date ? new Date(cv.date) : null;
+      const dateStr = d && !isNaN(d.getTime()) ? d.toLocaleDateString('it-IT') : '';
+      const typeLabel = cv.meeting_type === 'call' ? 'Call' : cv.meeting_type === 'video_call' ? 'Video call' : 'In person';
+
+      doc.moveDown(2);
+      doc.fontSize(28).font('Helvetica-Bold').fillColor('#000000')
+        .text(cv.company?.name || 'N/A', { align: 'center' });
+      doc.moveDown(0.5);
+      const cx = 50;
+      const cw = doc.page.width - 100;
+      doc.moveTo(cx, doc.y).lineTo(cx + cw, doc.y).lineWidth(1.5).strokeColor('#cccccc').stroke();
+      doc.moveDown(0.8);
+
+      doc.fontSize(18).font('Helvetica-Bold').fillColor('#333333')
+        .text(cv.subject || 'Visita fornitore', { align: 'center' });
+      doc.moveDown(0.8);
+
+      doc.fontSize(11).font('Helvetica').fillColor('#666666')
+        .text([dateStr, typeLabel, cv.created_by_user?.name].filter(Boolean).join('   ·   '), { align: 'center' });
+      if (cv.zone) {
+        doc.moveDown(0.3);
+        doc.text(`Zona: ${cv.zone}`, { align: 'center' });
+      }
+      if (internalParticipants) {
+        doc.moveDown(0.3);
+        doc.text(`Partecipanti interni: ${internalParticipants}`, { align: 'center' });
+      }
+      if (cv.participants_external) {
+        doc.moveDown(0.3);
+        doc.text(`Partecipanti esterni: ${String(cv.participants_external)}`, { align: 'center' });
+      }
+      doc.moveDown(0.4);
+      doc.fontSize(8).font('Helvetica-Oblique').fillColor('#999999')
+        .text(`Generato il: ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
+
+      if (cv.preparation) {
+        doc.moveDown(2);
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#000').text('Preparazione', 50);
+        doc.moveDown(0.2);
+        doc.fontSize(10).font('Helvetica').fillColor('#222')
+          .text(String(cv.preparation), { width: 495 });
+      }
+
+      doc.end();
+    });
+  }
+
+  /**
    * Combined report for MULTIPLE visits (Reports page: Export PDF / Condividi /
    * Bozza Outlook). Each visit contributes its full email PDF — same rich output
    * as the single-visit report, so section attachments (images, PDFs, file

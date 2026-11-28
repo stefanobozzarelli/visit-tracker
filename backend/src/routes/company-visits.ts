@@ -4,6 +4,7 @@ import { PermissionService } from '../services/PermissionService';
 import { S3Service } from '../services/S3Service';
 import { PdfService } from '../services/PdfService';
 import { ExcelService } from '../services/ExcelService';
+import { UserService } from '../services/UserService';
 import { authMiddleware } from '../middleware/auth';
 import multer from 'multer';
 import { canAccessCompanyVisit, deny } from '../utils/access';
@@ -37,6 +38,7 @@ async function filterVisitsForUser(visits: any[], userId: string, userRole: stri
 }
 const pdfService = new PdfService();
 const excelService = new ExcelService();
+const userService = new UserService();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 
@@ -235,6 +237,38 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json({ success: true, data: visit });
   } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/company-visits/:id/pdf
+ * PDF report of a single supplier meeting (cover + report + attachments)
+ */
+router.get('/:id/pdf', async (req: Request, res: Response) => {
+  try {
+    const visit = await visitService.getVisitById(req.params.id);
+    if (!visit) {
+      return res.status(404).json({ success: false, error: 'Company visit not found' });
+    }
+    if (!(await canAccessCompanyVisit(req, visit as any))) return deny(res, 'Access denied to this meeting');
+
+    let internalNames = '';
+    try {
+      const ids: string[] = visit.participants_user_ids ? JSON.parse(visit.participants_user_ids) : [];
+      if (Array.isArray(ids) && ids.length > 0) {
+        const users = await userService.getUsers();
+        internalNames = ids.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(', ');
+      }
+    } catch { /* ignore malformed participants */ }
+
+    const buffer = await pdfService.generateCompanyVisitPdf(visit, { internalParticipants: internalNames });
+    const slug = (visit.company?.name || 'fornitore').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'fornitore';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="report-${slug}-${Date.now()}.pdf"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('company-visit pdf error:', error);
     res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
