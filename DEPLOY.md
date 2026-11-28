@@ -90,6 +90,21 @@ Note: un task finisce nel Todoist del suo **assegnatario**, nei progetti "Visit 
 Le colonne nuove (`users.todoist_*`, `todo_items.todoist_*`) vengono create in automatico (`synchronize: true`).
 Se un task viene cancellato su Todoist, in Visit Tracker resta con l'avviso "Cancellato da Todoist" e due pulsanti: "Ripristina" (lo ricrea su Todoist) o "Elimina definitivamente".
 
+## 🏖️ Ferie Primula (calendario ferie dell'ufficio)
+
+Sezione **Ferie** nel menu (gruppo "Ufficio"). Nessuna variabile d'ambiente nuova: le tabelle
+`leave_entries`, `company_closures`, `custom_holidays` e le colonne `users.leave_*` si creano da sole (`synchronize: true`).
+
+- **Primo avvio**: il master admin apre Ferie → *Impostazioni*, attiva chi deve comparire nel calendario e accende
+  "Responsabile" per Patrizia (i responsabili segnano e modificano le ferie di tutti).
+- **Collaboratori senza account TradeFlow**: si creano da Ferie → *Impostazioni → Nuovo collaboratore*; vedono solo la sezione Ferie
+  (il backend blocca tutte le altre API per questi account).
+- **Festività**: Italia + San Giorgio (patrono di Sassuolo, 23/4) e Cina, Corea del Sud, Taiwan, Singapore, Hong Kong, Giappone,
+  Filippine, Vietnam, Cambogia, Thailandia, Malesia (libreria `date-holidays`). La Cambogia è inserita a mano nel codice
+  (`HolidayService.ts`): le feste lunari sono presenti per 2025-2026, per gli anni successivi si aggiungono da Ferie → *Festività*.
+- **Google Calendar**: ogni utente ha un link iCal personale (`/api/leave/calendar/<token>.ics`) da Ferie → *Google Calendar*.
+  Google aggiorna i calendari esterni ogni qualche ora.
+
 ## 🔧 Troubleshooting
 
 **Errore: Database connection refused**

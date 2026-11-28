@@ -15,7 +15,8 @@ export function useDataPreload() {
   // The api.ts response interceptor automatically caches GET responses into IndexedDB,
   // so we just need to trigger the API calls - no manual saveData needed.
   const prefetchData = useCallback(async () => {
-    if (!user) return;
+    // Ferie-only accounts cannot read the TradeFlow data
+    if (!user || user.leave_only) return;
 
     try {
       setIsPreloading(true);

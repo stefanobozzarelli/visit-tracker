@@ -13,6 +13,15 @@ import { getJwtSecret } from '../config/jwtSecret';
 import { isLoginBlocked, recordLoginFailure, clearLoginFailures } from '../services/loginThrottle';
 
 const router = Router();
+
+// Ferie module flags the frontend needs (menu entry, Ferie-only accounts)
+function leaveFlags(u: any) {
+  return {
+    leave_enabled: !!u?.leave_enabled,
+    leave_admin: u?.role === 'master_admin' || !!u?.leave_admin,
+    leave_only: !!u?.leave_only,
+  };
+}
 const authService = new AuthService();
 const userService = new UserService();
 const permissionService = new PermissionService();
@@ -43,6 +52,7 @@ router.post('/register', authMiddleware, async (req: Request, res: Response) => 
           name: result.user.name,
           role: result.user.role,
           can_view_revenue: !!(result.user as any).can_view_revenue,
+          ...leaveFlags(result.user),
         },
         token: result.token,
       },
@@ -82,6 +92,7 @@ router.post('/login', async (req: Request, res: Response) => {
           name: result.user.name,
           role: result.user.role,
           can_view_revenue: !!(result.user as any).can_view_revenue,
+          ...leaveFlags(result.user),
         },
         token: result.token,
       },
@@ -117,7 +128,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
     }
     res.json({
       success: true,
-      data: { id: user.id, email: user.email, name: user.name, role: user.role, can_view_revenue: !!(user as any).can_view_revenue },
+      data: { id: user.id, email: user.email, name: user.name, role: user.role, can_view_revenue: !!(user as any).can_view_revenue, ...leaveFlags(user) },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: (error as Error).message });

@@ -130,6 +130,9 @@ export const Sidebar: React.FC = () => {
   const isManager = user.role === 'manager' || isMasterAdmin;
   const canViewRevenue = isMasterAdmin || (user.role === 'admin' && !!user.can_view_revenue);
 
+  const leaveOnly = !!user.leave_only;
+  const showLeave = !!(user.leave_enabled || user.leave_admin || isMasterAdmin);
+
   const closeSidebar = () => setOpen(false);
   const toggleCollapse = () => setCollapsed(!collapsed);
 
@@ -153,7 +156,7 @@ export const Sidebar: React.FC = () => {
       <aside className={`sidebar ${open ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
         {/* Logo */}
         <div className="sidebar-header">
-          <Link to="/dashboard" className="sidebar-logo" onClick={closeSidebar}>
+          <Link to={leaveOnly ? '/ferie' : '/dashboard'} className="sidebar-logo" onClick={closeSidebar}>
             <div className="sidebar-logo-icon">TF</div>
             {!collapsed && <span className="sidebar-logo-text">TradeFlow</span>}
           </Link>
@@ -169,6 +172,20 @@ export const Sidebar: React.FC = () => {
 
         {/* Navigation */}
         <nav className="sidebar-nav">
+          {showLeave && (
+            <div className="sidebar-section">
+              <div className="sidebar-section-label">Ufficio</div>
+              <NavLink
+                to="/ferie"
+                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                onClick={closeSidebar}
+              >
+                <span className="sidebar-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+                Ferie
+              </NavLink>
+            </div>
+          )}
+          {!leaveOnly && (
           <div className="sidebar-section">
             <div className="sidebar-section-label">Main</div>
             {menuOrder.map((itemKey) => {
@@ -212,8 +229,9 @@ export const Sidebar: React.FC = () => {
               );
             })}
           </div>
+          )}
 
-          {(isAdmin || isManager) && (
+          {!leaveOnly && (isAdmin || isManager) && (
             <>
               <div className="sidebar-divider" />
               <div className="sidebar-section">
@@ -269,7 +287,7 @@ export const Sidebar: React.FC = () => {
             {!collapsed && (
               <div>
                 <div className="sidebar-user-name">{user.name}</div>
-                <div className="sidebar-user-role">{user.role}</div>
+                <div className="sidebar-user-role">{leaveOnly ? 'Ferie' : user.role}</div>
               </div>
             )}
           </NavLink>

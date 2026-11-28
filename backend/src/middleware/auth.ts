@@ -33,10 +33,17 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   try {
     const user = await AppDataSource.getRepository(User).findOne({
       where: { id: decoded.id },
-      select: ['id', 'email', 'name', 'role', 'can_view_revenue'] as any,
+      select: ['id', 'email', 'name', 'role', 'can_view_revenue', 'leave_only'] as any,
     });
     if (!user) {
       return res.status(401).json({ success: false, error: 'Invalid token' });
+    }
+    // Accounts created from the Ferie module use only that section
+    if ((user as any).leave_only) {
+      const path = req.originalUrl || '';
+      if (!path.startsWith('/api/leave') && !path.startsWith('/api/auth')) {
+        return res.status(403).json({ success: false, error: 'Account abilitato solo alla sezione Ferie' });
+      }
     }
     req.user = {
       id: user.id,

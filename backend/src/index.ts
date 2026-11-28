@@ -26,6 +26,7 @@ import todoistRoutes from './routes/todoist';
 import mcpRoutes from './routes/mcp';
 import priceListRoutes from './routes/priceLists';
 import articleRoutes from './routes/articles';
+import leaveRoutes from './routes/leave';
 import { WeeklyScheduler } from './services/WeeklyScheduler';
 
 require('dotenv').config();
@@ -66,6 +67,7 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/parse-booking', parseBookingRoutes);
 app.use('/api/integrations/todoist', todoistRoutes);
+app.use('/api/leave', leaveRoutes);
 
 // Claude connector: /mcp, /oauth/* and /.well-known/oauth-* (read-only)
 app.use(mcpRoutes);
