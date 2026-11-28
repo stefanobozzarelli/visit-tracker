@@ -217,6 +217,23 @@ const ArticleList: React.FC<{ filters: any }> = ({ filters }) => {
   );
 };
 
+/** Price of one purchase with its quantity and date (last / lowest / highest). */
+const PricePoint: React.FC<{ p: any; withClient?: boolean }> = ({ p, withClient }) => {
+  if (!p) return <span className="pl-muted">–</span>;
+  return (
+    <span className="art-point">
+      <strong>{eur(p.price, 2)}</strong>
+      <small>
+        {qty(p.quantity)}{p.unit ? ` ${p.unit}` : ''} · {date(p.date)}
+      </small>
+      <small>
+        {withClient && p.client_name ? <>{p.client_name} · </> : null}
+        {p.invoice_number ? <>fatt. {p.invoice_number}</> : null}
+      </small>
+    </span>
+  );
+};
+
 const ArticleDetail: React.FC<{ id: string; filters: any }> = ({ id, filters }) => {
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
@@ -268,6 +285,50 @@ const ArticleDetail: React.FC<{ id: string; filters: any }> = ({ id, filters }) 
         </div>
       </div>
 
+      {t.lines > 0 && (
+        <div>
+          <h4>Prezzi di vendita</h4>
+          <div className="art-price-cards">
+            <div><span>Ultimo</span><PricePoint p={t.prices?.last} withClient /></div>
+            <div><span>Minimo</span><PricePoint p={t.prices?.min} withClient /></div>
+            <div><span>Massimo</span><PricePoint p={t.prices?.max} withClient /></div>
+            <div><span>Medio</span><span className="art-point"><strong>{eur(t.avg_net_price, 2)}</strong><small>su {qty(t.quantity)} venduti · {t.clients || 0} clienti</small></span></div>
+          </div>
+        </div>
+      )}
+
+      {d.by_client.length > 0 && (
+        <div>
+          <h4>Clienti che l'hanno comprato ({d.by_client.length})</h4>
+          <div className="pl-table-wrap">
+            <table className="line-items-table art-clients-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th><th className="num">Fatture</th><th className="num">Qtà</th><th className="num">Fatturato</th>
+                  <th className="num">Ultimo prezzo</th><th className="num">Minimo</th><th className="num">Massimo</th>
+                  <th className="num">Medio</th><th className="num">Sconto medio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.by_client.map((c: any, i: number) => (
+                  <tr key={c.client_key || i}>
+                    <td>{c.client_name}{c.country ? <span className="pl-muted"> · {c.country}</span> : null}</td>
+                    <td className="num">{c.invoices}</td>
+                    <td className="num">{qty(c.quantity)}</td>
+                    <td className="num">{eur(c.revenue)}</td>
+                    <td className="num"><PricePoint p={c.prices?.last} /></td>
+                    <td className="num"><PricePoint p={c.prices?.min} /></td>
+                    <td className="num"><PricePoint p={c.prices?.max} /></td>
+                    <td className="num"><strong>{eur(c.avg_net_price, 2)}</strong></td>
+                    <td className="num">{pct(c.avg_discount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="art-detail-grid">
         <div>
           <h4>Storico prezzi di listino</h4>
@@ -288,23 +349,6 @@ const ArticleDetail: React.FC<{ id: string; filters: any }> = ({ id, filters }) 
               <tbody>
                 {d.by_month.map((m: any) => (
                   <tr key={m.month}><td>{m.month}</td><td className="num">{qty(m.quantity)}</td><td className="num">{eur(m.revenue)}</td><td className="num">{eur(m.avg_net_price, 4)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        <div>
-          <h4>Per cliente</h4>
-          {d.by_client.length === 0 ? <p className="no-items">Nessuna vendita</p> : (
-            <table className="line-items-table">
-              <thead><tr><th>Cliente</th><th className="num">Qtà</th><th className="num">Fatturato</th><th className="num">Prezzo medio</th><th className="num">Sconto</th></tr></thead>
-              <tbody>
-                {d.by_client.map((c: any, i: number) => (
-                  <tr key={c.client_id || i}>
-                    <td>{c.client_name}{c.country ? <span className="pl-muted"> · {c.country}</span> : null}</td>
-                    <td className="num">{qty(c.quantity)}</td><td className="num">{eur(c.revenue)}</td>
-                    <td className="num">{eur(c.avg_net_price, 4)}</td><td className="num">{pct(c.avg_discount)}</td>
-                  </tr>
                 ))}
               </tbody>
             </table>

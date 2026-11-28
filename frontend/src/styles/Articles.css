@@ -198,6 +198,25 @@
 .art-link-results li { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .art-link-results button { margin-left: auto; }
 
+.art-price-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; }
+.art-price-cards > div {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.art-price-cards > div > span:first-child { font-size: var(--text-2xs); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.03em; }
+.art-point { display: inline-flex; flex-direction: column; gap: 0.1rem; }
+.art-point strong { font-size: var(--text-sm); }
+.art-point small { font-size: var(--text-2xs); color: var(--color-text-tertiary); white-space: normal; }
+.art-clients-table td.num .art-point { align-items: flex-end; }
+.art-clients-table { min-width: 1040px; }
+.art-clients-table td:first-child { min-width: 170px; }
+.art-clients-table td.num .art-point small { white-space: nowrap; }
+
 /* Invoice line: link to price list */
 .li-match { display: block; font-size: var(--text-2xs); white-space: nowrap; }
 .li-match-ok { color: var(--color-success); }

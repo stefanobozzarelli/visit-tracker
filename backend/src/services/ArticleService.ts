@@ -36,6 +36,9 @@ function wordsOf(text: string): Set<string> {
   return new Set(String(text).toUpperCase().split(/[^A-Z0-9Ø]+/).filter(w => w.length >= 2));
 }
 
+// One buyer: the client record, or the name on the invoice when no client is linked
+const CLIENT_KEY = `COALESCE(inv.client_id::text, 'name:' || COALESCE(inv.customer_name, ''))`;
+
 const num = (v: any) => (v === null || v === undefined ? 0 : Number(v));
 const numOrNull = (v: any) => (v === null || v === undefined ? null : Number(v));
 
@@ -330,20 +333,40 @@ export class ArticleService {
                  1 - SUM(li.line_total) FILTER (WHERE li.list_price > 0)
                      / NULLIF(SUM(li.quantity * li.list_price) FILTER (WHERE li.list_price > 0), 0) AS avg_discount`;
 
-    const [totals, byMonth, byClient, lines, aliases] = await Promise.all([
+    // Last, lowest and highest net price with the quantity, date and invoice of
+    // that purchase: for the article overall and for each client
+    const point = `jsonb_build_object('price', li.line_total / li.quantity, 'quantity', li.quantity, 'unit', li.unit,
+                     'date', inv.invoice_date, 'invoice_number', inv.invoice_number,
+                     'client_name', COALESCE(cl.name, inv.customer_name))`;
+    const pricePoints = (partition: string) => AppDataSource.query(
+      `SELECT DISTINCT ON (k) k AS client_key, last, min, max FROM (
+         SELECT ${partition} AS k,
+           first_value(${point}) OVER (PARTITION BY ${partition} ORDER BY inv.invoice_date DESC NULLS LAST, inv.invoice_number DESC, li.line_number DESC) AS last,
+           first_value(${point}) OVER (PARTITION BY ${partition} ORDER BY li.line_total / li.quantity ASC, inv.invoice_date DESC NULLS LAST) AS min,
+           first_value(${point}) OVER (PARTITION BY ${partition} ORDER BY li.line_total / li.quantity DESC, inv.invoice_date DESC NULLS LAST) AS max
+         ${from} AND li.quantity > 0 AND li.line_total IS NOT NULL
+       ) x`, params);
+
+    const [totals, byMonth, byClient, lines, aliases, overallPoints, clientPoints] = await Promise.all([
       AppDataSource.query(`SELECT ${agg}, COUNT(DISTINCT inv.id)::int AS invoices, COUNT(DISTINCT inv.client_id)::int AS clients,
                            MIN(li.line_total / NULLIF(li.quantity, 0)) AS min_net_price, MAX(li.line_total / NULLIF(li.quantity, 0)) AS max_net_price,
                            MAX(inv.invoice_date) AS last_date ${from}`, params),
       AppDataSource.query(`SELECT TO_CHAR(inv.invoice_date, 'YYYY-MM') AS month, ${agg} ${from} AND inv.invoice_date IS NOT NULL
                            GROUP BY 1 ORDER BY 1 DESC`, params),
-      AppDataSource.query(`SELECT inv.client_id, COALESCE(cl.name, inv.customer_name, 'Cliente non assegnato') AS client_name, cl.country,
-                           ${agg}, MAX(inv.invoice_date) AS last_date ${from}
-                           GROUP BY inv.client_id, cl.name, inv.customer_name, cl.country ORDER BY revenue DESC NULLS LAST`, params),
+      AppDataSource.query(`SELECT ${CLIENT_KEY} AS client_key, MAX(inv.client_id::text) AS client_id,
+                           COALESCE(MAX(cl.name), MAX(inv.customer_name), 'Cliente non assegnato') AS client_name, MAX(cl.country) AS country,
+                           ${agg}, COUNT(DISTINCT inv.id)::int AS invoices, MAX(inv.invoice_date) AS last_date ${from}
+                           GROUP BY 1 ORDER BY revenue DESC NULLS LAST`, params),
       AppDataSource.query(`SELECT li.id, li.invoice_id, inv.invoice_number, inv.invoice_date, COALESCE(cl.name, inv.customer_name) AS client_name,
                            li.article_code, li.description, li.quantity, li.unit, li.unit_price, li.discount_percent, li.line_total, li.list_price, li.match_status
                            ${from} ORDER BY inv.invoice_date DESC NULLS LAST, li.line_number LIMIT 200`, params),
       AppDataSource.query(`SELECT normalized_code FROM article_aliases WHERE article_id::text = $1 ORDER BY normalized_code`, [id]),
+      pricePoints(`'all'`),
+      pricePoints(CLIENT_KEY),
     ]);
+    const fixPoint = (p: any) => (p ? { ...p, price: Number(p.price), quantity: Number(p.quantity) } : null);
+    const points = (p: any) => ({ last: fixPoint(p?.last), min: fixPoint(p?.min), max: fixPoint(p?.max) });
+    const pointsByClient = new Map(clientPoints.map((p: any) => [p.client_key, points(p)]));
 
     const fix = (r: any) => ({
       ...r,
@@ -354,9 +377,12 @@ export class ArticleService {
       article: { ...article, list_price: numOrNull(article.list_price) },
       prices: prices.map((p: any) => ({ ...p, price: Number(p.price) })),
       aliases: aliases.map((a: any) => a.normalized_code),
-      totals: { ...fix(totals[0] || {}), min_net_price: numOrNull(totals[0]?.min_net_price), max_net_price: numOrNull(totals[0]?.max_net_price) },
+      totals: {
+        ...fix(totals[0] || {}), min_net_price: numOrNull(totals[0]?.min_net_price), max_net_price: numOrNull(totals[0]?.max_net_price),
+        prices: points(overallPoints[0]),
+      },
       by_month: byMonth.map(fix),
-      by_client: byClient.map(fix),
+      by_client: byClient.map((c: any) => ({ ...fix(c), prices: pointsByClient.get(c.client_key) || points(null) })),
       lines: lines.map((l: any) => ({
         ...l,
         quantity: num(l.quantity), unit_price: num(l.unit_price), line_total: num(l.line_total), list_price: numOrNull(l.list_price),

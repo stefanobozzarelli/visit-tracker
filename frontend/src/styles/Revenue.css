@@ -245,7 +245,7 @@
 }
 
 /* Invoice Detail (expanded) */
-.invoice-detail-row td {
+.invoice-detail-row > td {
   padding: 0 !important;
   border-bottom: 2px solid var(--color-border);
 }
