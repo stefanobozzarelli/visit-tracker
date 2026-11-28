@@ -1986,6 +1986,84 @@ class ApiService {
     const response = await this.api.delete<ApiResponse<any>>(`/trips/${id}`);
     return response.data;
   }
+
+  // ---- Ferie (leave planner) ----
+  async leaveBootstrap() {
+    const response = await this.api.get<ApiResponse<any>>('/leave/bootstrap');
+    return response.data;
+  }
+
+  async leaveOverview(from: string, to: string) {
+    const response = await this.api.get<ApiResponse<any>>('/leave/overview', { params: { from, to }, timeout: 20000 });
+    return response.data;
+  }
+
+  async createLeave(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/leave/entries', data);
+    return response.data;
+  }
+
+  async updateLeave(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/leave/entries/${id}`, data);
+    return response.data;
+  }
+
+  async deleteLeave(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/leave/entries/${id}`);
+    return response.data;
+  }
+
+  async createClosure(data: any) {
+    const response = await this.api.post<ApiResponse<any>>('/leave/closures', data);
+    return response.data;
+  }
+
+  async updateClosure(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/leave/closures/${id}`, data);
+    return response.data;
+  }
+
+  async deleteClosure(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/leave/closures/${id}`);
+    return response.data;
+  }
+
+  async createCustomHoliday(data: { country: string; date: string; name: string }) {
+    const response = await this.api.post<ApiResponse<any>>('/leave/holidays', data);
+    return response.data;
+  }
+
+  async deleteCustomHoliday(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/leave/holidays/${id}`);
+    return response.data;
+  }
+
+  async getLeaveCalendarToken(reset = false) {
+    const response = reset
+      ? await this.api.post<ApiResponse<{ token: string }>>('/leave/calendar-token/reset')
+      : await this.api.get<ApiResponse<{ token: string }>>('/leave/calendar-token');
+    return response.data;
+  }
+
+  async getLeaveUsers() {
+    const response = await this.api.get<ApiResponse<any[]>>('/leave/users');
+    return response.data;
+  }
+
+  async updateLeaveUser(id: string, data: any) {
+    const response = await this.api.put<ApiResponse<any>>(`/leave/users/${id}`, data);
+    return response.data;
+  }
+
+  async createLeaveUser(data: { name: string; email: string; password: string }) {
+    const response = await this.api.post<ApiResponse<any>>('/leave/users', data);
+    return response.data;
+  }
+
+  async setLeaveUserPassword(id: string, password: string) {
+    const response = await this.api.patch<ApiResponse<any>>(`/leave/users/${id}/password`, { password });
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

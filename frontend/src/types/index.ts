@@ -4,6 +4,9 @@ export interface User {
   name: string;
   role: 'master_admin' | 'admin' | 'manager' | 'sales_rep';
   can_view_revenue?: boolean;
+  leave_enabled?: boolean;
+  leave_admin?: boolean;
+  leave_only?: boolean;
 }
 
 export interface AuthContextType {

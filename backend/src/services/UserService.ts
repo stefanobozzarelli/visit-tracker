@@ -71,7 +71,7 @@ export class UserService {
   async getUserById(id: string): Promise<User | null> {
     return await this.userRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'name', 'role', 'company_id', 'created_at', 'can_view_revenue'],
+      select: ['id', 'email', 'name', 'role', 'company_id', 'created_at', 'can_view_revenue', 'leave_enabled', 'leave_admin', 'leave_only'],
     });
   }
 

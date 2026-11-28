@@ -62,6 +62,26 @@ export class User {
   @Column({ type: 'simple-json', nullable: true })
   todoist_project_ids: Record<string, string> | null;
 
+  // ---- Ferie (leave planner) ----
+  // Appears in the Primula leave calendar
+  @Column({ default: false })
+  leave_enabled: boolean;
+
+  // Can add/edit everyone's leave and manage the module (master_admin always can)
+  @Column({ default: false })
+  leave_admin: boolean;
+
+  // Account created from the leave module: can use only the Ferie section
+  @Column({ default: false })
+  leave_only: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  leave_color: string | null;
+
+  // Secret token of the personal calendar feed (iCal) — select: false
+  @Column({ type: 'varchar', nullable: true, select: false })
+  leave_ics_token: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

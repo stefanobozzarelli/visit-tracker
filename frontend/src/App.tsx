@@ -52,6 +52,7 @@ import { Statistics } from './pages/Statistics';
 import { MobileTasks } from './pages/MobileTasks';
 import { Trips } from './pages/Trips';
 import { TripDetail } from './pages/TripDetail';
+import { Ferie } from './pages/Ferie';
 import './styles/App.css';
 
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -129,6 +130,7 @@ const AppContent: React.FC = () => {
           <Route path="/orders/:id/edit" element={<OrderForm />} />
           <Route path="/trips" element={<Trips />} />
           <Route path="/trips/:id" element={<TripDetail />} />
+          <Route path="/ferie" element={<Ferie />} />
         </Route>
 
         {/* Redirects from old paths */}
