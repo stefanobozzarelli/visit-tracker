@@ -9,6 +9,24 @@ import '../styles/Companies.css';
 const SECTOR_OPTIONS = ['Tiles', 'Slabs', 'Bathroom Furniture'];
 const RAPPORTO_OPTIONS = ['AGENZIA', 'PROCACCERIA', 'OCCASIONALE', 'CHIUSO'];
 
+/** A checkbox for each company, to choose some of them. */
+const CompanyChecks: React.FC<{
+  companies: Company[]; exclude: string | null; selected: string[]; onChange: (ids: string[]) => void;
+}> = ({ companies, exclude, selected, onChange }) => (
+  <div className="co-group-list">
+    {[...companies].filter(c => c.id !== exclude).sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+      <label key={c.id} className="co-group-item">
+        <input
+          type="checkbox"
+          checked={selected.includes(c.id)}
+          onChange={() => onChange(selected.includes(c.id) ? selected.filter(x => x !== c.id) : [...selected, c.id])}
+        />
+        {c.name}
+      </label>
+    ))}
+  </div>
+);
+
 export const Companies: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -22,7 +40,7 @@ export const Companies: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', country: '', industry: '', rapporto: '', group_members: [] as string[] });
+  const [formData, setFormData] = useState({ name: '', country: '', industry: '', rapporto: '', group_members: [] as string[], price_list_sources: [] as string[] });
   const [isAddingSector, setIsAddingSector] = useState(false);
   const [newSectorInput, setNewSectorInput] = useState('');
   const [search, setSearch] = useSessionState('companies__search', '');
@@ -91,13 +109,14 @@ export const Companies: React.FC = () => {
       } else {
         await apiService.createCompany(formData.name, formData.country, formData.industry);
         // Update rapporto and group separately if set
-        if (formData.rapporto || formData.group_members.length) {
+        if (formData.rapporto || formData.group_members.length || formData.price_list_sources.length) {
           const res = await apiService.getCompanies();
           const newCompany = res.data?.find((c: Company) => c.name === formData.name);
           if (newCompany) {
             await apiService.updateCompany(newCompany.id, {
               rapporto: formData.rapporto || undefined,
               group_members: formData.group_members.length ? formData.group_members : null,
+              price_list_sources: formData.price_list_sources,
             } as any);
           }
         }
@@ -113,6 +132,7 @@ export const Companies: React.FC = () => {
     setFormData({
       name: company.name, country: company.country, industry: company.industry || '', rapporto: company.rapporto || '',
       group_members: company.group_members || [],
+      price_list_sources: company.price_list_sources || [],
     });
     setEditingId(company.id);
     setShowForm(true);
@@ -129,7 +149,7 @@ export const Companies: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', country: '', industry: '', rapporto: '', group_members: [] });
+    setFormData({ name: '', country: '', industry: '', rapporto: '', group_members: [], price_list_sources: [] });
     setEditingId(null);
     setShowForm(false);
     setIsAddingSector(false);
@@ -201,27 +221,26 @@ export const Companies: React.FC = () => {
             </div>
             {isAdmin && (
               <div className="co-form-group co-group">
-                <label>Gruppo di aziende</label>
+                <label>Gruppo per le statistiche</label>
                 <p className="co-group-hint">
-                  Se questa voce rappresenta un gruppo (per esempio "Gruppo ABK"), spunta le aziende che ne fanno parte.
-                  Scegliendo il gruppo nelle statistiche di fatturato, provvigioni e articoli vedrai i dati di tutte
-                  queste aziende insieme, e le aziende del gruppo useranno anche i listini delle altre.
+                  Solo se questa voce è un gruppo che serve per le statistiche (per esempio "Gruppo ABK"): spunta le aziende
+                  che ne fanno parte. Scegliendo il gruppo in fatturato, provvigioni e articoli vedrai i dati di tutte
+                  queste aziende insieme. Non cambia i listini.
                 </p>
-                <div className="co-group-list">
-                  {[...companies].filter(c => c.id !== editingId).sort((a, b) => a.name.localeCompare(b.name)).map(c => (
-                    <label key={c.id} className="co-group-item">
-                      <input
-                        type="checkbox"
-                        checked={formData.group_members.includes(c.id)}
-                        onChange={() => setFormData(f => ({
-                          ...f,
-                          group_members: f.group_members.includes(c.id) ? f.group_members.filter(x => x !== c.id) : [...f.group_members, c.id],
-                        }))}
-                      />
-                      {c.name}
-                    </label>
-                  ))}
-                </div>
+                <CompanyChecks companies={companies} exclude={editingId} selected={formData.group_members}
+                  onChange={ids => setFormData(f => ({ ...f, group_members: ids }))} />
+              </div>
+            )}
+            {isAdmin && (
+              <div className="co-form-group co-group">
+                <label>Usa anche i listini di</label>
+                <p className="co-group-hint">
+                  Se questa azienda fattura articoli di altre aziende (per esempio ABK Group, che vende i prodotti di Abk,
+                  Flaviker, Versace...), spunta le aziende di cui usare i listini. Le righe delle sue fatture verranno
+                  abbinate anche agli articoli di quei listini.
+                </p>
+                <CompanyChecks companies={companies} exclude={editingId} selected={formData.price_list_sources}
+                  onChange={ids => setFormData(f => ({ ...f, price_list_sources: ids }))} />
               </div>
             )}
             <div className="co-form-actions">

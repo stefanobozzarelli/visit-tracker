@@ -56,6 +56,7 @@ export interface Company {
   industry?: string;
   rapporto?: string;
   group_members?: string[] | null;
+  price_list_sources?: string[] | null;
   created_at: string;
 }
 

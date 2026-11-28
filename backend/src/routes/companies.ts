@@ -69,20 +69,31 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const data: Partial<CreateCompanyRequest> & { group_members?: string[] | null } = req.body;
-    const groupChanged = 'group_members' in (req.body || {});
-    if (groupChanged) {
-      const ids = Array.isArray(data.group_members) ? data.group_members.map(String).filter(id => id && id !== req.params.id) : [];
-      data.group_members = ids.length ? [...new Set(ids)] : null;
-    }
-    const company = await companyService.updateCompany(req.params.id, data as any);
-    if (groupChanged && data.group_members?.length) {
-      // companies of a group share their price lists: link their invoice lines again
+    const { price_list_sources, ...data }: Partial<CreateCompanyRequest> & {
+      group_members?: string[] | null; price_list_sources?: string[] | null;
+    } = req.body || {};
+    const ids = (v: any) => {
+      const list = Array.isArray(v) ? [...new Set(v.map(String))].filter(id => id && id !== req.params.id) : [];
+      return list.length ? list : null;
+    };
+    // a group (e.g. "Gruppo ABK") only puts together the statistics of its companies
+    if ('group_members' in data) data.group_members = ids(data.group_members);
+    let company: any = Object.keys(data).length
+      ? await companyService.updateCompany(req.params.id, data as any)
+      : await companyService.getCompanyById(req.params.id);
+    if (!company) return res.status(404).json({ success: false, error: 'Company not found' });
+    if (price_list_sources !== undefined) {
+      // price lists of other companies used for this company's invoices (e.g.
+      // ABK Group invoicing the articles of its brands): link its lines again
       const { ArticleService } = require('../services/ArticleService');
-      const articles = new ArticleService();
-      // one call covers the whole group: it includes the companies sharing the lists
-      articles.matchLineItems({ companyId: data.group_members[0] })
-        .catch((e: Error) => console.log('Group rematch note:', e.message));
+      const sources = ids(price_list_sources) || [];
+      const before = (company as any).price_list_sources || [];
+      const changed = sources.length !== before.length || sources.some((id: string) => !before.includes(id));
+      if (changed) {
+        new ArticleService().setPriceListSources(req.params.id, sources)
+          .catch((e: Error) => console.log('Price list sources note:', e.message));
+        company = { ...company, price_list_sources: sources.length ? sources : null } as any;
+      }
     }
     const response: ApiResponse<any> = { success: true, data: company };
     res.json(response);
