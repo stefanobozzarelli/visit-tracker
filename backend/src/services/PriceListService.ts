@@ -88,8 +88,11 @@ async function readRows(file: Express.Multer.File, opts: PreviewOptions) {
   let source: CodeCheck['source'] = 'auto';
   let confident = false;
   if (opts.mapping?.code !== undefined) { code = opts.mapping.code; source = 'user'; confident = true; }
-  else if (m.code !== undefined && m.code >= 0) { code = m.code; source = 'saved'; confident = true; }
-  else {
+  // a saved choice is reused unless that column repeats the same few values on
+  // almost every row (e.g. a list imported earlier with the wrong column)
+  else if (m.code !== undefined && m.code >= 0 && analysis.candidates.some(c => c.index === m.code && (c.unique_ratio >= 0.1 || c.invoice_hits > 0))) {
+    code = m.code; source = 'saved'; confident = true;
+  } else {
     const byHeader = analysis.candidates.find(c => c.index === guessed.code);
     const best = analysis.candidates[0];
     // keep the column whose header says "codice" unless almost every row repeats
