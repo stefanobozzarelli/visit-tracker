@@ -194,6 +194,8 @@
 
 .art-rematch { margin-bottom: 1rem; }
 .art-link { display: flex; flex-direction: column; gap: 0.6rem; font-size: var(--text-sm); }
+.art-link .art-search { flex: none; }
+.invoice-detail-row > td > .art-link { padding: 0.9rem 1rem; max-width: min(100%, calc(100vw - 5.5rem)); }
 .art-link-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
 .art-link-results li { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .art-link-results button { margin-left: auto; }
@@ -216,6 +218,16 @@
 .art-clients-table { min-width: 1040px; }
 .art-clients-table td:first-child { min-width: 170px; }
 .art-clients-table td.num .art-point small { white-space: nowrap; }
+
+/* Articles not in the price lists, out of production, replacements */
+.art-badge {
+  display: inline-block; margin-left: 0.4rem; padding: 0.05rem 0.4rem; border-radius: 999px;
+  font-size: var(--text-2xs); background: var(--color-bg-secondary); color: var(--color-text-secondary); white-space: nowrap;
+}
+.art-actions { display: flex; flex-direction: column; gap: 0.3rem; align-items: stretch; }
+.art-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.art-successor { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.art-status { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; margin-top: 0.4rem; font-size: var(--text-sm); }
 
 /* Invoice line: link to price list */
 .li-match { display: block; font-size: var(--text-2xs); white-space: nowrap; }

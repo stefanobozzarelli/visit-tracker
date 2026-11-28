@@ -215,10 +215,17 @@ export class ArticleService {
     const aw: string[] = [];
     if (f.company_id) { params.push(f.company_id); aw.push(`a.company_id::text = $${params.length}`); }
     if (f.company_ids?.length) { params.push(f.company_ids); aw.push(`a.company_id::text = ANY($${params.length}::text[])`); }
-    if (f.search?.trim()) {
-      const term = f.search.trim();
-      params.push(`%${term}%`, `%${normalizeCode(term)}%`);
-      aw.push(`(a.description ILIKE $${params.length - 1} OR a.code ILIKE $${params.length - 1} OR a.normalized_code LIKE $${params.length})`);
+    // Every word must be found in the code or in the description, so "nd603",
+    // "satinato indigo" and "nd603 satinato" all work
+    for (const word of (f.search || '').trim().split(/\s+/).filter(Boolean).slice(0, 8)) {
+      const nc = normalizeCode(word);
+      params.push(`%${word}%`);
+      const conds = [`a.description ILIKE $${params.length}`, `a.code ILIKE $${params.length}`];
+      if (nc) {
+        params.push(`%${nc}%`);
+        conds.push(`a.normalized_code LIKE $${params.length}`, `a.match_code LIKE $${params.length}`, `a.alt_code LIKE $${params.length}`);
+      }
+      aw.push(`(${conds.join(' OR ')})`);
     }
     if (f.only_sold) aw.push('s.article_id IS NOT NULL');
     const order = ({
@@ -254,6 +261,7 @@ export class ArticleService {
     const [rows, count] = await Promise.all([
       AppDataSource.query(
         `SELECT a.id, a.company_id, c.name AS company_name, a.code, a.description, a.unit, a.list_price, a.extra,
+                a.manual, a.discontinued,
                 s.quantity, s.revenue, s.lines, s.invoices, s.clients, s.last_date, s.avg_net_price, s.avg_discount
          ${base} ORDER BY ${order} LIMIT ${limit} OFFSET ${(page - 1) * limit}`, params),
       AppDataSource.query(`SELECT count(*)::int AS n ${base}`, params),
@@ -364,6 +372,10 @@ export class ArticleService {
       pricePoints(`'all'`),
       pricePoints(CLIENT_KEY),
     ]);
+    const related = await AppDataSource.query(
+      `SELECT id::text AS id, code, description, discontinued, (id::text = $2) AS is_successor
+       FROM articles WHERE id::text = $2 OR replaced_by_id::text = $1
+       ORDER BY code`, [id, article.replaced_by_id ? String(article.replaced_by_id) : '']);
     const fixPoint = (p: any) => (p ? { ...p, price: Number(p.price), quantity: Number(p.quantity) } : null);
     const points = (p: any) => ({ last: fixPoint(p?.last), min: fixPoint(p?.min), max: fixPoint(p?.max) });
     const pointsByClient = new Map(clientPoints.map((p: any) => [p.client_key, points(p)]));
@@ -377,6 +389,8 @@ export class ArticleService {
       article: { ...article, list_price: numOrNull(article.list_price) },
       prices: prices.map((p: any) => ({ ...p, price: Number(p.price) })),
       aliases: aliases.map((a: any) => a.normalized_code),
+      replaced_by: related.find((r: any) => r.is_successor) || null,
+      replaces: related.filter((r: any) => !r.is_successor),
       totals: {
         ...fix(totals[0] || {}), min_net_price: numOrNull(totals[0]?.min_net_price), max_net_price: numOrNull(totals[0]?.max_net_price),
         prices: points(overallPoints[0]),
@@ -423,6 +437,65 @@ export class ArticleService {
        ON CONFLICT (company_id, normalized_code) DO UPDATE SET article_id = EXCLUDED.article_id`,
       [uuidv4(), companyId, nc, articleId]);
     return this.matchLineItems({ companyId, normalizedCode: nc });
+  }
+
+  /**
+   * Creates an article that is not in any price list from a code found on
+   * invoices (e.g. an old version out of production), so its sales get their
+   * own statistics. Then links the invoice lines with that code to it.
+   */
+  async createManualArticle(data: {
+    company_id: string; code: string; description?: string | null; unit?: string | null;
+    discontinued?: boolean; replaced_by_id?: string | null;
+  }) {
+    const code = String(data.code || '').trim();
+    const nc = normalizeCode(code);
+    if (!nc) throw new Error('Codice non valido');
+    const [exists] = await AppDataSource.query(
+      `SELECT id FROM articles WHERE company_id::text = $1 AND (normalized_code = $2 OR match_code = $2)`, [data.company_id, nc]);
+    if (exists) throw new Error(`Esiste già un articolo con il codice ${code}`);
+    if (data.replaced_by_id) await this.checkSameCompany(data.replaced_by_id, data.company_id);
+    const id = uuidv4();
+    await AppDataSource.query(
+      `INSERT INTO articles (id, company_id, code, normalized_code, match_code, base_code, description, unit,
+                             manual, discontinued, replaced_by_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $4, $4, $5, $6, true, $7, $8, now(), now())`,
+      [id, data.company_id, code.replace(/^[._\s]+/, '') || code, nc, data.description?.trim() || null, data.unit?.trim() || null,
+        data.discontinued !== false, data.replaced_by_id || null]);
+    const result = await this.matchLineItems({ companyId: data.company_id, normalizedCode: nc });
+    return { id, ...result };
+  }
+
+  /** Marks an article as out of production and/or replaced by another one. */
+  async updateStatus(id: string, data: { discontinued?: boolean; replaced_by_id?: string | null }) {
+    const [article] = await AppDataSource.query(`SELECT id, company_id FROM articles WHERE id::text = $1`, [id]);
+    if (!article) throw new Error('Articolo non trovato');
+    if (data.replaced_by_id) {
+      if (String(data.replaced_by_id) === String(id)) throw new Error('Un articolo non può sostituire sé stesso');
+      await this.checkSameCompany(data.replaced_by_id, String(article.company_id));
+    }
+    const sets: string[] = [];
+    const params: any[] = [id];
+    if (typeof data.discontinued === 'boolean') { params.push(data.discontinued); sets.push(`discontinued = $${params.length}`); }
+    if (data.replaced_by_id !== undefined) { params.push(data.replaced_by_id || null); sets.push(`replaced_by_id = $${params.length}::uuid`); }
+    if (!sets.length) return;
+    await AppDataSource.query(`UPDATE articles SET ${sets.join(', ')}, updated_at = now() WHERE id::text = $1`, params);
+  }
+
+  /** Deletes an article created by hand; its invoice lines go back to "not found". */
+  async deleteManualArticle(id: string) {
+    const [article] = await AppDataSource.query(`SELECT company_id, manual FROM articles WHERE id::text = $1`, [id]);
+    if (!article) throw new Error('Articolo non trovato');
+    if (!article.manual) throw new Error('Si possono eliminare solo gli articoli creati a mano');
+    const lines = await AppDataSource.query(`SELECT DISTINCT invoice_id::text AS id FROM invoice_line_items WHERE article_id::text = $1`, [id]);
+    await AppDataSource.query(`DELETE FROM articles WHERE id::text = $1`, [id]);
+    if (lines.length) await this.matchLineItems({ invoiceIds: lines.map((l: any) => l.id) });
+  }
+
+  private async checkSameCompany(articleId: string, companyId: string) {
+    const [other] = await AppDataSource.query(`SELECT company_id FROM articles WHERE id::text = $1`, [articleId]);
+    if (!other) throw new Error('Articolo sostitutivo non trovato');
+    if (String(other.company_id) !== String(companyId)) throw new Error("L'articolo sostitutivo è di un'altra azienda");
   }
 
   async unlinkCode(articleId: string, normalizedCode: string) {

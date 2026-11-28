@@ -52,6 +52,19 @@ export class Article {
   @Column({ type: 'uuid', nullable: true })
   price_list_id: string | null;
 
+  // Created by hand from a code found on invoices, not from a price list
+  // (e.g. an old version no longer in the list). Kept when lists are removed.
+  @Column({ type: 'boolean', default: false })
+  manual: boolean;
+
+  // No longer produced
+  @Column({ type: 'boolean', default: false })
+  discontinued: boolean;
+
+  // The article that replaces this one, if any
+  @Column({ type: 'uuid', nullable: true })
+  replaced_by_id: string | null;
+
   // Other columns of the price list (collection, size, pieces per box, ...)
   @Column({ type: 'jsonb', nullable: true })
   extra: Record<string, any> | null;
@@ -65,6 +78,10 @@ export class Article {
   @ManyToOne(() => Company, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'company_id' })
   company: Company;
+
+  @ManyToOne(() => Article, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'replaced_by_id' })
+  replaced_by: Article | null;
 
   @ManyToOne(() => PriceList, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'price_list_id' })
