@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Project } from '../types';
+import { fmtNum, itNumberFormat } from '../utils/numberFormat';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
-const formatCurrency = (v?: number) => v != null ? new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v) : '-';
+const formatCurrency = (v?: number) => v != null ? itNumberFormat({ style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v) : '-';
 const formatBytes = (b?: number) => {
   if (b == null) return '';
   if (b < 1024) return `${b} B`;
@@ -354,7 +355,7 @@ export const ProjectDetail: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <span style={{ fontWeight: 'bold', color: '#007aff' }}>
-                      {offer.total_amount != null ? `${offer.currency || '€'} ${Number(offer.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                      {offer.total_amount != null ? `${offer.currency || '€'} ${fmtNum(offer.total_amount, { minimumFractionDigits: 2 })}` : '-'}
                     </span>
                     <span style={{ fontSize: '0.8rem', color: '#007bff', fontWeight: '600' }}>View →</span>
                   </div>

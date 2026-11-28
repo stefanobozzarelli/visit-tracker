@@ -5,6 +5,7 @@ import { openSignedLink } from '../utils/openSignedLink';
 import { config } from '../config';
 import { CompanyVisit, CompanyVisitAttachment } from '../types';
 import '../styles/CrudPages.css';
+import { fmtNum } from '../utils/numberFormat';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
 
@@ -269,7 +270,7 @@ export const CompanyVisitDetail: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <span style={{ fontWeight: 'bold', color: '#007aff' }}>
-                      {offer.total_amount != null ? `${offer.currency || '\u20AC'} ${Number(offer.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}` : '-'}
+                      {offer.total_amount != null ? `${offer.currency || '\u20AC'} ${fmtNum(offer.total_amount, { minimumFractionDigits: 2 })}` : '-'}
                     </span>
                     <span style={{ fontSize: '0.8rem', color: '#007bff', fontWeight: '600' }}>View →</span>
                   </div>

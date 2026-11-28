@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+import { itNumberFormat } from '../utils/numberFormat';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
-const fmtCur = (n: any) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n) || 0);
-const fmtPct = (n: any) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
+const fmtCur = (n: any) => itNumberFormat({ style: 'currency', currency: 'EUR' }).format(Number(n) || 0);
+const fmtPct = (n: any) => itNumberFormat({ minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
 const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('it-IT') : '–';
 
 interface SubAgentDetailProps {

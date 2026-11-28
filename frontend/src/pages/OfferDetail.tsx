@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import { Offer, OfferItem, OfferAttachment, OfferStatus } from '../types';
 import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/Offers.css';
+import { fmtNum } from '../utils/numberFormat';
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
 const formatFileSize = (bytes: number) => {
@@ -251,7 +252,7 @@ export const OfferDetail: React.FC = () => {
           <div className="off-detail-item">
             <span className="off-detail-label">Total Amount</span>
             <span className="off-detail-value" style={{ fontWeight: 600, fontSize: '1.125rem' }}>
-              {offer.currency || '\u20AC'} {Number(offer.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+              {offer.currency || '\u20AC'} {fmtNum(offer.total_amount || 0, { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="off-detail-item">
@@ -334,10 +335,10 @@ export const OfferDetail: React.FC = () => {
                     <td>{item.finitura || '-'}</td>
                     <td>{item.formato || '-'}</td>
                     <td>{item.spessore_mm != null ? item.spessore_mm : '-'}</td>
-                    <td>{Number(item.prezzo_unitario || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</td>
+                    <td>{fmtNum(item.prezzo_unitario || 0, { minimumFractionDigits: 2 })}</td>
                     <td>{item.unita_misura || '-'}</td>
-                    <td>{Number(item.quantita || 0).toLocaleString('it-IT')}</td>
-                    <td style={{ fontWeight: 600 }}>€ {Number(item.total_amount || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</td>
+                    <td>{fmtNum(item.quantita || 0)}</td>
+                    <td style={{ fontWeight: 600 }}>€ {fmtNum(item.total_amount || 0, { minimumFractionDigits: 2 })}</td>
                     <td>
                       <span className={`off-item-tipo ${item.tipo_offerta}`}>
                         {item.tipo_offerta === 'progetto' ? 'Prog.' : 'Retail'}

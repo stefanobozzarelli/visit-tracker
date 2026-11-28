@@ -5,6 +5,7 @@ import { downloadBlob } from '../utils/downloadBlob';
 import { openEmailWithPdf } from '../utils/openEmailWithPdf';
 import { useAuth } from '../context/AuthContext';
 import '../styles/Reports.css';
+import { fmtNum } from '../utils/numberFormat';
 
 type TabKey = 'visits' | 'clients' | 'showrooms' | 'projects' | 'claims' | 'orders' | 'company-visits' | 'tasks';
 
@@ -674,7 +675,7 @@ export const Reports: React.FC = () => {
                   <td>{p.status}</td>
                   <td>{p.country || '-'}</td>
                   <td>{p.project_type || '-'}</td>
-                  <td>{p.project_value ? `${Number(p.project_value).toLocaleString()}` : '-'}</td>
+                  <td>{p.project_value ? `${fmtNum(p.project_value)}` : '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -709,7 +710,7 @@ export const Reports: React.FC = () => {
                   <td>{o.client_name || o.client?.name || '-'}</td>
                   <td>{o.status}</td>
                   <td>{o.payment_method || '-'}</td>
-                  <td>{o.total_amount ? `${Number(o.total_amount).toLocaleString()}` : '-'}</td>
+                  <td>{o.total_amount ? `${fmtNum(o.total_amount)}` : '-'}</td>
                 </tr>
               ))}
             </tbody>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import '../styles/Statistics.css';
 import { apiService } from '../services/api';
+import { fmtNum } from '../utils/numberFormat';
 
 export const Statistics: React.FC = () => {
   const { user } = useAuth();
@@ -32,7 +33,7 @@ export const Statistics: React.FC = () => {
   useEffect(() => { loadData(); }, []);
 
   // Format currency
-  const fmtCurrency = (val: number) => val ? `\u20AC ${Number(val).toLocaleString('it-IT', { minimumFractionDigits: 0 })}` : '-';
+  const fmtCurrency = (val: number) => val ? `\u20AC ${fmtNum(val, { minimumFractionDigits: 0 })}` : '-';
 
   // Format date
   const fmtDate = (val: string) => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import '../styles/CommissionSummaryDashboard.css';
+import { itNumberFormat } from '../utils/numberFormat';
 
 interface CommissionStats {
   total_gross: number;
@@ -61,7 +62,7 @@ export const CommissionSummaryDashboard: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('it-IT', {
+    return itNumberFormat({
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 2,

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { apiService } from '../services/api';
 import '../styles/Revenue.css';
 import '../styles/Articles.css';
+import { fmtNum, itNumberFormat } from '../utils/numberFormat';
 
 /* ============================================================
    ARTICOLI — sales and prices of every single article,
@@ -9,9 +10,9 @@ import '../styles/Articles.css';
    ============================================================ */
 
 const eur = (n: any, digits = 2) =>
-  n === null || n === undefined ? '–' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: digits }).format(Number(n));
-const qty = (n: any) => (n === null || n === undefined ? '–' : new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(Number(n)));
-const pct = (n: any) => (n === null || n === undefined ? '–' : `${(Number(n) * 100).toLocaleString('it-IT', { maximumFractionDigits: 1 })}%`);
+  n === null || n === undefined ? '–' : itNumberFormat({ style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: digits }).format(Number(n));
+const qty = (n: any) => (n === null || n === undefined ? '–' : itNumberFormat({ maximumFractionDigits: 2 }).format(Number(n)));
+const pct = (n: any) => (n === null || n === undefined ? '–' : `${fmtNum(Number(n) * 100, { maximumFractionDigits: 1 })}%`);
 const date = (d: any) => (d ? new Date(d).toLocaleDateString('it-IT') : '–');
 const errorText = (err: any) => err?.response?.data?.error || err?.message || 'Errore';
 
@@ -66,11 +67,11 @@ export const ArticlesTab: React.FC = () => {
       {summary && (
         <div className="stats-kpi-row">
           <div className="stats-kpi-card">
-            <div className="stats-kpi-value">{Number(summary.catalogue_articles).toLocaleString('it-IT')}</div>
+            <div className="stats-kpi-value">{fmtNum(summary.catalogue_articles)}</div>
             <div className="stats-kpi-label">ARTICOLI A LISTINO</div>
           </div>
           <div className="stats-kpi-card">
-            <div className="stats-kpi-value">{Number(summary.articles_sold).toLocaleString('it-IT')}</div>
+            <div className="stats-kpi-value">{fmtNum(summary.articles_sold)}</div>
             <div className="stats-kpi-label">ARTICOLI VENDUTI</div>
           </div>
           <div className="stats-kpi-card" title={`${summary.matched_lines} righe su ${summary.lines} · ${eur(summary.matched_revenue)} su ${eur(summary.revenue)}`}>
@@ -156,7 +157,7 @@ const ArticleList: React.FC<{ filters: any }> = ({ filters }) => {
           <option value="price">Ordina per prezzo di listino</option>
           <option value="code">Ordina per codice</option>
         </select>
-        <span className="invoice-count art-count">{data ? `${Number(data.total).toLocaleString('it-IT')} articoli` : ''}{loading ? ' · caricamento…' : ''}</span>
+        <span className="invoice-count art-count">{data ? `${fmtNum(data.total)} articoli` : ''}{loading ? ' · caricamento…' : ''}</span>
       </div>
 
       {data && data.articles.length === 0 ? (

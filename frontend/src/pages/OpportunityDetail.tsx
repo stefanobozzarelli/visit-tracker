@@ -5,12 +5,13 @@ import { openSignedLink } from '../utils/openSignedLink';
 import { config } from '../config';
 import { Opportunity, OpportunityAdvance } from '../types';
 import '../styles/Opportunities.css';
+import { itNumberFormat } from '../utils/numberFormat';
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('it-IT') : '-';
 
 const formatCurrency = (val?: number, currency?: string) => {
   if (val == null) return '-';
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: currency || 'EUR' }).format(val);
+  return itNumberFormat({ style: 'currency', currency: currency || 'EUR' }).format(val);
 };
 
 const STATUS_LABELS: Record<string, string> = {

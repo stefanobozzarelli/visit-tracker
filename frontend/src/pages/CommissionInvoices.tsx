@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
+import { itNumberFormat } from '../utils/numberFormat';
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(amount) || 0);
+  itNumberFormat({ style: 'currency', currency: 'EUR' }).format(Number(amount) || 0);
 
 const formatDate = (date?: string) => {
   if (!date) return '-';
@@ -10,7 +11,7 @@ const formatDate = (date?: string) => {
 };
 
 const formatPercent = (n: number) =>
-  new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
+  itNumberFormat({ minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(n) || 0) + '%';
 
 const STATUSES = [
   { value: 'aggiunta', label: 'Aggiunta' },

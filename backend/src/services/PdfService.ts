@@ -3,6 +3,7 @@ import { Readable } from 'stream';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import { Visit } from '../entities/Visit';
 import { S3Service } from './S3Service';
+import { fmtEur, fmtNum } from '../utils/numberFormat';
 
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png']);
 const EMBEDDABLE_IMAGE_EXTS = IMAGE_EXTS; // pdfkit only supports JPG/PNG
@@ -281,10 +282,10 @@ export class PdfService {
           xPos += columnWidths[2];
           doc.text(unitOfMeasure.substring(0, 8), xPos, yBefore, { width: columnWidths[3], align: 'center', lineBreak: false });
           xPos += columnWidths[3];
-          const qtyStr = quantity % 1 === 0 ? quantity.toFixed(0) : quantity.toFixed(2);
+          const qtyStr = fmtNum(quantity, { maximumFractionDigits: 2 });
           doc.text(qtyStr, xPos, yBefore, { width: columnWidths[4], align: 'right', lineBreak: false });
           xPos += columnWidths[4];
-          doc.text(`€ ${unitPrice.toFixed(2)}`, xPos, yBefore, { width: columnWidths[5], align: 'right', lineBreak: false });
+          doc.text(fmtEur(unitPrice), xPos, yBefore, { width: columnWidths[5], align: 'right', lineBreak: false });
           xPos += columnWidths[5];
           doc.text((item.discount || '-').toString().substring(0, 10), xPos, yBefore, { width: columnWidths[6], align: 'right', lineBreak: false });
         }
@@ -1131,7 +1132,7 @@ export class PdfService {
       p.status || '',
       p.country || '',
       p.project_type || '',
-      p.project_value != null ? Number(p.project_value).toLocaleString() : '',
+      p.project_value != null ? fmtNum(p.project_value, { maximumFractionDigits: 2 }) : '',
     ]);
     return this._generateTablePdf(options.title || 'Projects Report', headers, rows, {
       groupByIndex: 2, // group by Supplier column
@@ -1185,7 +1186,7 @@ export class PdfService {
       o.client_name || o.client?.name || '',
       o.status || '',
       o.payment_method || '',
-      o.total != null ? `€ ${Number(o.total).toFixed(2)}` : '',
+      o.total != null ? fmtEur(o.total) : '',
     ]);
     return this._generateTablePdf(options.title || 'Orders Summary', headers, rows, {
       groupByIndex: 1, // group by Supplier column
@@ -1272,7 +1273,7 @@ export class PdfService {
       o.project?.project_name || '',
       o.status || '',
       String(o.items?.length || 0),
-      o.total_amount != null ? Number(o.total_amount).toLocaleString() : '0',
+      o.total_amount != null ? fmtNum(o.total_amount, { maximumFractionDigits: 2 }) : '0',
       o.valid_until ? new Date(o.valid_until).toLocaleDateString('en-US') : '',
     ]);
     return this._generateTablePdf(options.title || 'Offers Report', headers, rows, {

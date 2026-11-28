@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { downloadBlob } from '../utils/downloadBlob';
 import '../styles/CrudPages.css';
+import { fmtEur } from '../utils/numberFormat';
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('it-IT');
 
@@ -134,7 +135,7 @@ export const Orders: React.FC = () => {
           Show shipped
         </label>
         <div style={{ fontSize: '0.9rem', color: '#666' }}>
-          {filtered.length} orders | Total: <strong style={{ color: 'var(--color-info)' }}>€ {totalAmount.toFixed(2)}</strong>
+          {filtered.length} orders | Total: <strong style={{ color: 'var(--color-info)' }}>{fmtEur(totalAmount)}</strong>
         </div>
       </div>
 
@@ -184,7 +185,7 @@ export const Orders: React.FC = () => {
                       {order.payment_method || '-'}
                     </td>
                     <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold', color: 'var(--color-info)' }}>
-                      € {isNaN(amount) ? '0.00' : amount.toFixed(2)}
+                      {fmtEur(isNaN(amount) ? 0 : amount)}
                     </td>
                     <td style={{ padding: '0.75rem' }}>
                       <span style={{
