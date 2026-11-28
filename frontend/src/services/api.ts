@@ -1683,6 +1683,21 @@ class ApiService {
     return response.data;
   }
 
+  async createManualArticle(data: { company_id: string; code: string; description?: string | null; unit?: string | null; discontinued?: boolean; replaced_by_id?: string | null }) {
+    const response = await this.api.post<ApiResponse<any>>('/articles/manual', data, { timeout: 60000 });
+    return response.data;
+  }
+
+  async updateArticleStatus(id: string, data: { discontinued?: boolean; replaced_by_id?: string | null }) {
+    const response = await this.api.patch<ApiResponse<any>>(`/articles/${id}`, data);
+    return response.data;
+  }
+
+  async deleteManualArticle(id: string) {
+    const response = await this.api.delete<ApiResponse<any>>(`/articles/${id}`, { timeout: 60000 });
+    return response.data;
+  }
+
   async rematchArticles(companyId: string) {
     const response = await this.api.post<ApiResponse<any>>('/articles/rematch', { company_id: companyId }, { timeout: 120000 });
     return response.data;

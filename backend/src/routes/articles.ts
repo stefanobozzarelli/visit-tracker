@@ -56,6 +56,15 @@ router.post('/link-code', async (req: Request, res: Response) => {
   } catch (e) { fail(res, e, 400); }
 });
 
+// Creates an article that is not in the price lists (e.g. an old version) from a code on invoices
+router.post('/manual', async (req: Request, res: Response) => {
+  try {
+    const { company_id, code, description, unit, discontinued, replaced_by_id } = req.body || {};
+    if (!company_id || !code) return res.status(400).json({ success: false, error: 'company_id and code are required' });
+    res.json({ success: true, data: await service.createManualArticle({ company_id, code, description, unit, discontinued, replaced_by_id }) });
+  } catch (e) { fail(res, e, 400); }
+});
+
 // Re-runs the matching for all invoice lines of a company (or of all companies)
 router.post('/rematch', async (req: Request, res: Response) => {
   try {
@@ -71,6 +80,21 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!data) return res.status(404).json({ success: false, error: 'Article not found' });
     res.json({ success: true, data });
   } catch (e) { fail(res, e); }
+});
+
+router.patch('/:id', async (req: Request, res: Response) => {
+  try {
+    const { discontinued, replaced_by_id } = req.body || {};
+    await service.updateStatus(req.params.id, { discontinued, replaced_by_id });
+    res.json({ success: true });
+  } catch (e) { fail(res, e, 400); }
+});
+
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    await service.deleteManualArticle(req.params.id);
+    res.json({ success: true });
+  } catch (e) { fail(res, e, 400); }
 });
 
 router.delete('/:id/aliases/:code', async (req: Request, res: Response) => {

@@ -216,6 +216,7 @@ export class PriceListService {
              match_code = EXCLUDED.match_code,
              base_code = EXCLUDED.base_code,
              alt_code = EXCLUDED.alt_code,
+             manual = false,
              updated_at = now()
            RETURNING id, normalized_code`, values);
         const idByCode = new Map(ids.map(x => [x.normalized_code, x.id]));
@@ -346,7 +347,7 @@ Return ONLY valid JSON: {"articles": [{"code": "article code exactly as printed"
     await AppDataSource.transaction(async (m) => {
       await m.query(`DELETE FROM price_lists WHERE id = $1`, [id]); // cascades to article_prices
       await m.query(
-        `DELETE FROM articles a WHERE a.company_id::text = $1
+        `DELETE FROM articles a WHERE a.company_id::text = $1 AND NOT a.manual
            AND NOT EXISTS (SELECT 1 FROM article_prices ap WHERE ap.article_id = a.id)`, [pl.company_id]);
       await this.articles.refreshCurrentPrices(pl.company_id, m);
     });

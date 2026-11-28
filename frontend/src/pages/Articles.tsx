@@ -180,7 +180,11 @@ const ArticleList: React.FC<{ filters: any }> = ({ filters }) => {
                 <React.Fragment key={a.id}>
                   <tr className={`invoice-row ${openId === a.id ? 'expanded' : ''}`} onClick={() => setOpenId(openId === a.id ? null : a.id)}>
                     <td className="article-code">{a.code}</td>
-                    <td>{a.description || '–'}</td>
+                    <td>
+                      {a.description || '–'}
+                      {a.manual && <span className="art-badge">fuori listino</span>}
+                      {a.discontinued && <span className="art-badge">fuori produzione</span>}
+                    </td>
                     <td>{a.company_name}</td>
                     <td>{a.unit || '–'}</td>
                     <td className="num">{eur(a.list_price, 4)}</td>
@@ -195,7 +199,7 @@ const ArticleList: React.FC<{ filters: any }> = ({ filters }) => {
                     <tr className="invoice-detail-row">
                       <td colSpan={11} className="art-detail-cell">
                         <div className="art-detail-pin" style={visibleWidth ? { width: visibleWidth - 24 } : undefined}>
-                          <ArticleDetail id={a.id} filters={filters} />
+                          <ArticleDetail id={a.id} filters={filters} onDeleted={() => { setOpenId(null); load(); }} />
                         </div>
                       </td>
                     </tr>
@@ -235,9 +239,10 @@ const PricePoint: React.FC<{ p: any; withClient?: boolean }> = ({ p, withClient 
   );
 };
 
-const ArticleDetail: React.FC<{ id: string; filters: any }> = ({ id, filters }) => {
+const ArticleDetail: React.FC<{ id: string; filters: any; onDeleted?: () => void }> = ({ id, filters, onDeleted }) => {
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
+  const [pickSuccessor, setPickSuccessor] = useState(false);
 
   const load = useCallback(() => {
     apiService.getArticle(id, { client_id: filters.client_id, start_date: filters.start_date, end_date: filters.end_date })
@@ -248,6 +253,14 @@ const ArticleDetail: React.FC<{ id: string; filters: any }> = ({ id, filters }) 
   const unlink = async (code: string) => {
     if (!window.confirm(`Scollegare il codice ${code} da questo articolo?`)) return;
     try { await apiService.unlinkArticleCode(id, code); load(); } catch (e) { alert(errorText(e)); }
+  };
+
+  const setStatus = async (data: { discontinued?: boolean; replaced_by_id?: string | null }) => {
+    try { await apiService.updateArticleStatus(id, data); setPickSuccessor(false); load(); } catch (e) { alert(errorText(e)); }
+  };
+  const remove = async () => {
+    if (!window.confirm('Eliminare questo articolo creato a mano? Le sue righe fattura torneranno tra i codici non trovati.')) return;
+    try { await apiService.deleteManualArticle(id); onDeleted?.(); } catch (e) { alert(errorText(e)); }
   };
 
   if (error) return <div className="invoice-error-msg">{error}</div>;
@@ -261,9 +274,31 @@ const ArticleDetail: React.FC<{ id: string; filters: any }> = ({ id, filters }) 
         <div>
           <div className="art-detail-title"><span className="article-code">{a.code}</span> {a.description}</div>
           <div className="pl-muted">
-            {a.company_name} · listino attuale: <strong>{eur(a.list_price, 4)}</strong>{a.unit ? ` / ${a.unit}` : ''}
-            {a.price_list_name ? ` (${a.price_list_name})` : ''}
+            {a.company_name} · {a.manual && !a.price_list_id ? <>articolo fuori listino, creato a mano</> : (
+              <>listino attuale: <strong>{eur(a.list_price, 4)}</strong>{a.unit ? ` / ${a.unit}` : ''}{a.price_list_name ? ` (${a.price_list_name})` : ''}</>
+            )}
           </div>
+          <div className="art-status">
+            <label className="pl-checkbox"><input type="checkbox" checked={!!a.discontinued} onChange={e => setStatus({ discontinued: e.target.checked })} /> Fuori produzione</label>
+            {d.replaced_by ? (
+              <span>Sostituito da <span className="article-code">{d.replaced_by.code}</span> {d.replaced_by.description}
+                <button className="btn-icon" title="Togli" onClick={() => setStatus({ replaced_by_id: null })}>×</button></span>
+            ) : (
+              <button className="suggestion-btn" onClick={() => setPickSuccessor(!pickSuccessor)}>Indica l'articolo che lo sostituisce</button>
+            )}
+            {a.manual && <button className="suggestion-btn" onClick={remove}>Elimina articolo</button>}
+          </div>
+          {pickSuccessor && !d.replaced_by && (
+            <div className="art-link">
+              <ArticleSearch companyId={a.company_id} excludeId={a.id} actionLabel="Scegli" onPick={x => setStatus({ replaced_by_id: x.id })} />
+            </div>
+          )}
+          {d.replaces.length > 0 && (
+            <div className="art-extra">
+              Sostituisce:{' '}
+              {d.replaces.map((r: any) => <span key={r.id}><span className="article-code">{r.code}</span> {r.description}</span>)}
+            </div>
+          )}
           {a.extra && Object.keys(a.extra).length > 0 && (
             <div className="art-extra">{Object.entries(a.extra).map(([k, v]) => <span key={k}><em>{k}</em> {String(v)}</span>)}</div>
           )}
@@ -390,6 +425,13 @@ const ArticleDetail: React.FC<{ id: string; filters: any }> = ({ id, filters }) 
 const UnmatchedList: React.FC<{ filters: any; onLinked: () => void }> = ({ filters, onLinked }) => {
   const [rows, setRows] = useState<any[] | null>(null);
   const [linking, setLinking] = useState<string | null>(null);
+  const [mode, setMode] = useState<'link' | 'create'>('link');
+  // On a phone the table scrolls sideways: bring the form that opens under the row into view
+  const toLeft = (e: React.MouseEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    const wrap = [el.closest('table'), el.closest('.pl-table-wrap')];
+    setTimeout(() => wrap.forEach(w => w?.scrollTo({ left: 0, behavior: 'smooth' })), 0);
+  };
   const [rematching, setRematching] = useState(false);
 
   const load = useCallback(async () => {
@@ -407,9 +449,10 @@ const UnmatchedList: React.FC<{ filters: any; onLinked: () => void }> = ({ filte
   return (
     <div className="revenue-card">
       <p className="pl-hint">
-        Codici scritti sulle fatture che non corrispondono a nessun articolo dei listini caricati. Di solito sono articoli
-        fuori listino o codici scritti in modo diverso: puoi collegarli a mano all'articolo giusto e da quel momento
-        tutte le righe con quel codice (anche delle prossime fatture) verranno contate su quell'articolo.
+        Codici scritti sulle fatture che non corrispondono a nessun articolo dei listini caricati. Se è lo stesso articolo
+        scritto in modo diverso, collegalo all'articolo giusto. Se è un articolo che nel listino non c'è (per esempio una
+        versione vecchia fuori produzione), crealo come articolo fuori listino: avrà le sue statistiche. In entrambi i casi
+        anche le prossime fatture con quel codice verranno abbinate da sole.
       </p>
       {filters.company_id && (
         <button className="admin-btn admin-btn-secondary art-rematch" onClick={rematch} disabled={rematching}>
@@ -437,12 +480,17 @@ const UnmatchedList: React.FC<{ filters: any; onLinked: () => void }> = ({ filte
                       <td className="num">{qty(r.quantity)} {r.unit || ''}</td>
                       <td className="num">{eur(r.revenue)}</td>
                       <td>{date(r.last_date)}</td>
-                      <td><button className="suggestion-btn" onClick={() => setLinking(linking === key ? null : key)}>Collega a un articolo</button></td>
+                      <td className="art-actions">
+                        <button className="suggestion-btn" onClick={e => { toLeft(e); setMode('link'); setLinking(linking === key && mode === 'link' ? null : key); }}>Collega a un articolo</button>
+                        <button className="suggestion-btn" onClick={e => { toLeft(e); setMode('create'); setLinking(linking === key && mode === 'create' ? null : key); }}>Crea articolo fuori listino</button>
+                      </td>
                     </tr>
                     {linking === key && (
                       <tr className="invoice-detail-row">
                         <td colSpan={8}>
-                          <LinkPicker row={r} onDone={async () => { setLinking(null); await load(); onLinked(); }} />
+                          {mode === 'link'
+                            ? <LinkPicker row={r} onDone={async () => { setLinking(null); await load(); onLinked(); }} />
+                            : <ManualArticleForm row={r} onDone={async () => { setLinking(null); await load(); onLinked(); }} />}
                         </td>
                       </tr>
                     )}
@@ -457,22 +505,45 @@ const UnmatchedList: React.FC<{ filters: any; onLinked: () => void }> = ({ filte
   );
 };
 
-const LinkPicker: React.FC<{ row: any; onDone: () => void }> = ({ row, onDone }) => {
-  const [q, setQ] = useState(row.description || row.code || '');
+/** Search box over the articles of one supplier, with one action button per result. */
+const ArticleSearch: React.FC<{
+  companyId: string; initial?: string; actionLabel: string; excludeId?: string;
+  disabled?: boolean; onPick: (a: any) => void;
+}> = ({ companyId, initial, actionLabel, excludeId, disabled, onPick }) => {
+  const [q, setQ] = useState(initial || '');
   const [results, setResults] = useState<any[]>([]);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(async () => {
       if (!q.trim()) { setResults([]); return; }
       try {
-        const r = await apiService.getArticles({ company_id: row.company_id, search: q.trim(), only_sold: false, sort: 'code', limit: 10 });
-        setResults(r.data?.articles || []);
+        const r = await apiService.getArticles({ company_id: companyId, search: q.trim(), only_sold: false, sort: 'code', limit: 25 });
+        setResults((r.data?.articles || []).filter((a: any) => a.id !== excludeId));
       } catch (e) { console.error(e); }
     }, 300);
     return () => clearTimeout(t);
-  }, [q, row.company_id]);
+  }, [q, companyId, excludeId]);
 
+  return (
+    <>
+      <input className="art-search" value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca per codice e/o descrizione, es. nd603 satinato" />
+      {q.trim() && (results.length === 0 ? <p className="no-items">Nessun articolo trovato: prova con parte del codice o della descrizione.</p> : (
+        <ul className="art-link-results">
+          {results.map(a => (
+            <li key={a.id}>
+              <span className="article-code">{a.code}</span> {a.description} <span className="pl-muted">{eur(a.list_price, 4)}</span>
+              {a.discontinued && <span className="art-badge">fuori produzione</span>}
+              <button className="suggestion-btn suggestion-btn-primary" disabled={disabled} onClick={() => onPick(a)}>{actionLabel}</button>
+            </li>
+          ))}
+        </ul>
+      ))}
+    </>
+  );
+};
+
+const LinkPicker: React.FC<{ row: any; onDone: () => void }> = ({ row, onDone }) => {
+  const [saving, setSaving] = useState(false);
   const link = async (articleId: string) => {
     setSaving(true);
     try {
@@ -481,21 +552,59 @@ const LinkPicker: React.FC<{ row: any; onDone: () => void }> = ({ row, onDone })
     } catch (e) { alert(errorText(e)); }
     setSaving(false);
   };
-
   return (
     <div className="art-link">
       <div>Cerca nel listino di <strong>{row.company_name}</strong> l'articolo a cui corrisponde il codice <span className="article-code">{row.code}</span>:</div>
-      <input className="art-search" value={q} onChange={e => setQ(e.target.value)} autoFocus />
-      {results.length === 0 ? <p className="no-items">Nessun articolo trovato: prova con parte del codice o della descrizione.</p> : (
-        <ul className="art-link-results">
-          {results.map(a => (
-            <li key={a.id}>
-              <span className="article-code">{a.code}</span> {a.description} <span className="pl-muted">{eur(a.list_price, 4)}</span>
-              <button className="suggestion-btn suggestion-btn-primary" disabled={saving} onClick={() => link(a.id)}>Collega</button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ArticleSearch companyId={row.company_id} initial={String(row.code || '').replace(/^[._\s]+/, '')} actionLabel="Collega" disabled={saving} onPick={a => link(a.id)} />
+    </div>
+  );
+};
+
+/** Creates an article that is not in the price lists from a code found on invoices. */
+const ManualArticleForm: React.FC<{ row: any; onDone: () => void }> = ({ row, onDone }) => {
+  const [description, setDescription] = useState(row.description || '');
+  const [discontinued, setDiscontinued] = useState(true);
+  const [successor, setSuccessor] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await apiService.createManualArticle({
+        company_id: row.company_id, code: row.code, description, unit: row.unit || null,
+        discontinued, replaced_by_id: successor?.id || null,
+      });
+      onDone();
+    } catch (e) { alert(errorText(e)); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="art-link">
+      <div>
+        Crea l'articolo <span className="article-code">{row.code}</span> per <strong>{row.company_name}</strong> anche se non è nei listini.
+        Le righe con questo codice, anche delle prossime fatture, verranno contate su questo articolo, con le sue statistiche.
+      </div>
+      <label className="art-field">Descrizione
+        <input className="art-search" value={description} onChange={e => setDescription(e.target.value)} />
+      </label>
+      <label className="pl-checkbox"><input type="checkbox" checked={discontinued} onChange={e => setDiscontinued(e.target.checked)} /> Fuori produzione</label>
+      <div className="art-field">
+        Sostituito da (facoltativo)
+        {successor ? (
+          <div className="art-successor">
+            <span className="article-code">{successor.code}</span> {successor.description}
+            <button className="btn-icon" title="Togli" onClick={() => setSuccessor(null)}>×</button>
+          </div>
+        ) : (
+          <ArticleSearch companyId={row.company_id} actionLabel="Scegli" onPick={setSuccessor} />
+        )}
+      </div>
+      <div>
+        <button className="admin-btn admin-btn-primary" disabled={saving || !description.trim()} onClick={save}>
+          {saving ? 'Creazione…' : 'Crea articolo'}
+        </button>
+      </div>
     </div>
   );
 };
