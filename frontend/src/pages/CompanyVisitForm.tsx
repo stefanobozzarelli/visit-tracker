@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Company, User, CompanyVisitAttachment, TodoItem } from '../types';
@@ -79,6 +79,8 @@ export const CompanyVisitForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const { user } = useAuth();
 
   // Data
@@ -86,7 +88,7 @@ export const CompanyVisitForm: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
 
   // Form state
-  const [companyId, setCompanyId] = useState('');
+  const [companyId, setCompanyId] = useState(searchParams.get('companyId') || '');
   const [date, setDate] = useState('');
   const [subject, setSubject] = useState('');
   const [status, setStatus] = useState<string>('scheduled');
@@ -317,7 +319,7 @@ export const CompanyVisitForm: React.FC = () => {
         const res = await apiService.updateCompanyVisit(id, payload);
         if (res.success) {
           setSuccess('Company meeting updated');
-          navigate('/company-visits');
+          navigate(returnTo || '/company-visits');
         } else {
           setError(res.error || 'Error updating company meeting');
         }
@@ -336,7 +338,7 @@ export const CompanyVisitForm: React.FC = () => {
             }
           }
           setSuccess('Company meeting created');
-          navigate('/company-visits');
+          navigate(returnTo || '/company-visits');
         } else {
           setError(res.error || 'Error creating company meeting');
         }
