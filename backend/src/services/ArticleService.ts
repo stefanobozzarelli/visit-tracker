@@ -62,15 +62,24 @@ export async function articleCompanies(companyIds: string[]): Promise<Map<string
   const rows: { id: string; sources: string[] | null }[] = await AppDataSource.query(
     `SELECT id::text AS id, price_list_sources AS sources FROM companies WHERE id::text = ANY($1::text[])`, [companyIds]);
   for (const id of companyIds) out.set(id, [id]);
-  for (const r of rows) out.set(r.id, [r.id, ...(r.sources || []).filter(x => x && x !== r.id)]);
+  // companies of the same group (e.g. "Gruppo ABK") also share their price lists
+  const groups: { members: string[] }[] = await AppDataSource.query(
+    `SELECT group_members AS members FROM companies WHERE group_members && $1::text[]`, [companyIds]);
+  for (const r of rows) {
+    const siblings = groups.filter(g => g.members.includes(r.id)).flatMap(g => g.members);
+    const others = [...(r.sources || []), ...siblings].filter(x => x && x !== r.id);
+    out.set(r.id, [r.id, ...new Set(others)]);
+  }
   return out;
 }
 
 /** Companies that use the price lists of companyId (besides itself). */
 async function companiesUsing(companyId: string): Promise<string[]> {
   const rows = await AppDataSource.query(
-    `SELECT id::text AS id FROM companies WHERE $1 = ANY(price_list_sources)`, [companyId]);
-  return rows.map((r: any) => r.id);
+    `SELECT id::text AS id FROM companies WHERE $1 = ANY(price_list_sources)
+     UNION
+     SELECT unnest(group_members) FROM companies WHERE $1 = ANY(group_members)`, [companyId]);
+  return rows.map((r: any) => r.id).filter((id: string) => id !== companyId);
 }
 
 export class ArticleService {

@@ -241,6 +241,7 @@ CRITICAL — how to identify quantity and unit_price:
 
   async getInvoices(filters: {
     company_id?: string;
+    company_ids?: string[];
     client_id?: string;
     status?: string;
     start_date?: string;
@@ -254,6 +255,7 @@ CRITICAL — how to identify quantity and unit_price:
       .leftJoinAndSelect('inv.uploaded_by_user', 'user');
 
     if (filters.company_id) qb.andWhere('inv.company_id = :companyId', { companyId: filters.company_id });
+    if (filters.company_ids?.length) qb.andWhere('inv.company_id IN (:...companyIds)', { companyIds: filters.company_ids });
     if (filters.client_id) qb.andWhere('inv.client_id = :clientId', { clientId: filters.client_id });
     if (filters.status) qb.andWhere('inv.status = :status', { status: filters.status });
     if (filters.start_date) qb.andWhere('inv.invoice_date >= :startDate', { startDate: filters.start_date });

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
+import { expandCompanyGroups } from '../middleware/companyGroups';
 import { CommissionService } from '../services/CommissionService';
 
 const router = Router();
@@ -7,6 +8,7 @@ const commissionService = new CommissionService();
 
 // Auth: master_admin or admin with can_view_revenue
 router.use(authMiddleware);
+router.use(expandCompanyGroups(['/stats', '/invoices', '/expense-allocation']));
 router.use((req: Request, res: Response, next) => {
   const user = req.user as any;
   if (user?.role === 'master_admin') return next();
@@ -95,6 +97,7 @@ router.get('/invoices', async (req: Request, res: Response) => {
   try {
     const commissions = await commissionService.getInvoiceCommissions({
       company_id: req.query.company_id as string,
+      company_ids: req.query.company_ids ? (req.query.company_ids as string).split(',') : undefined,
       client_id: req.query.client_id as string,
       status: req.query.status as string,
       start_date: req.query.start_date as string,

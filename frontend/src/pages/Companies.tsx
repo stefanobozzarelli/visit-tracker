@@ -22,7 +22,7 @@ export const Companies: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', country: '', industry: '', rapporto: '' });
+  const [formData, setFormData] = useState({ name: '', country: '', industry: '', rapporto: '', group_members: [] as string[] });
   const [isAddingSector, setIsAddingSector] = useState(false);
   const [newSectorInput, setNewSectorInput] = useState('');
   const [search, setSearch] = useSessionState('companies__search', '');
@@ -86,15 +86,20 @@ export const Companies: React.FC = () => {
     e.preventDefault();
     try {
       if (editingId) {
-        await apiService.updateCompany(editingId, formData);
+        await apiService.updateCompany(editingId, { ...formData, group_members: formData.group_members.length ? formData.group_members : null } as any);
         setSuccess('Company updated');
       } else {
         await apiService.createCompany(formData.name, formData.country, formData.industry);
-        // Update rapporto separately if set
-        if (formData.rapporto) {
+        // Update rapporto and group separately if set
+        if (formData.rapporto || formData.group_members.length) {
           const res = await apiService.getCompanies();
           const newCompany = res.data?.find((c: Company) => c.name === formData.name);
-          if (newCompany) await apiService.updateCompany(newCompany.id, { rapporto: formData.rapporto });
+          if (newCompany) {
+            await apiService.updateCompany(newCompany.id, {
+              rapporto: formData.rapporto || undefined,
+              group_members: formData.group_members.length ? formData.group_members : null,
+            } as any);
+          }
         }
         setSuccess('Company created');
       }
@@ -105,7 +110,10 @@ export const Companies: React.FC = () => {
 
   const handleEdit = (company: Company) => {
     setOpenMoreId(null);
-    setFormData({ name: company.name, country: company.country, industry: company.industry || '', rapporto: company.rapporto || '' });
+    setFormData({
+      name: company.name, country: company.country, industry: company.industry || '', rapporto: company.rapporto || '',
+      group_members: company.group_members || [],
+    });
     setEditingId(company.id);
     setShowForm(true);
   };
@@ -121,7 +129,7 @@ export const Companies: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', country: '', industry: '', rapporto: '' });
+    setFormData({ name: '', country: '', industry: '', rapporto: '', group_members: [] });
     setEditingId(null);
     setShowForm(false);
     setIsAddingSector(false);
@@ -191,6 +199,31 @@ export const Companies: React.FC = () => {
                 </div>
               )}
             </div>
+            {isAdmin && (
+              <div className="co-form-group co-group">
+                <label>Gruppo di aziende</label>
+                <p className="co-group-hint">
+                  Se questa voce rappresenta un gruppo (per esempio "Gruppo ABK"), spunta le aziende che ne fanno parte.
+                  Scegliendo il gruppo nelle statistiche di fatturato, provvigioni e articoli vedrai i dati di tutte
+                  queste aziende insieme, e le aziende del gruppo useranno anche i listini delle altre.
+                </p>
+                <div className="co-group-list">
+                  {[...companies].filter(c => c.id !== editingId).sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                    <label key={c.id} className="co-group-item">
+                      <input
+                        type="checkbox"
+                        checked={formData.group_members.includes(c.id)}
+                        onChange={() => setFormData(f => ({
+                          ...f,
+                          group_members: f.group_members.includes(c.id) ? f.group_members.filter(x => x !== c.id) : [...f.group_members, c.id],
+                        }))}
+                      />
+                      {c.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="co-form-actions">
               <button type="submit" className="co-btn-save">{editingId ? 'Save Changes' : 'Create Company'}</button>
               <button type="button" className="co-btn-cancel" onClick={resetForm}>Cancel</button>

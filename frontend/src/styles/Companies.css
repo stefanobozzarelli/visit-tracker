@@ -25,6 +25,11 @@
 .co-form-group input, .co-form-group select { width: 100%; padding: 0.5rem 0.625rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.9375rem; font-family: inherit; }
 .co-form-group input:focus, .co-form-group select:focus { outline: none; border-color: var(--color-info); box-shadow: 0 0 0 2px rgba(74, 96, 120, 0.08); }
 .co-form-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.co-group { margin-top: 0.5rem; }
+.co-group-hint { margin: 0 0 0.5rem; font-size: 0.8125rem; color: var(--color-text-secondary); }
+.co-group-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.35rem 1rem; }
+.co-form-group .co-group-item { display: flex; align-items: center; gap: 0.45rem; font-weight: normal; font-size: 0.875rem; margin: 0; cursor: pointer; }
+.co-form-group .co-group-item input { width: auto; padding: 0; }
 .co-btn-save { padding: 0.5rem 1rem; background: var(--color-info); color: #fff; border: none; border-radius: var(--radius-md); font-size: 0.9375rem; font-weight: var(--font-weight-medium); font-family: inherit; cursor: pointer; }
 .co-btn-save:hover { background: #3D5068; }
 .co-btn-cancel { padding: 0.5rem 0.75rem; background: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 0.9375rem; font-family: inherit; cursor: pointer; }

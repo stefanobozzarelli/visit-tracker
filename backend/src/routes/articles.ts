@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
+import { expandCompanyGroups } from '../middleware/companyGroups';
 import { ArticleService, SalesFilters } from '../services/ArticleService';
 
 const router = Router();
@@ -7,6 +8,7 @@ const service = new ArticleService();
 
 // Same access as invoices: master_admin, or admin with revenue access
 router.use(authMiddleware);
+router.use(expandCompanyGroups(['/', '/summary', '/unmatched']));
 router.use((req: Request, res: Response, next) => {
   const user = req.user as any;
   if (user?.role === 'master_admin') return next();

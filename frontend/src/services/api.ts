@@ -1611,17 +1611,6 @@ class ApiService {
     return response.data;
   }
 
-  /** Other companies whose price lists are also used for this company's invoices. */
-  async getPriceListSources(companyId: string) {
-    const response = await this.api.get<ApiResponse<string[]>>(`/price-lists/sources/${companyId}`);
-    return response.data;
-  }
-
-  async setPriceListSources(companyId: string, sourceIds: string[]) {
-    const response = await this.api.put<ApiResponse<any>>(`/price-lists/sources/${companyId}`, { source_ids: sourceIds });
-    return response.data;
-  }
-
   async getLastPriceListMapping(companyId: string) {
     const response = await this.api.get<ApiResponse<any>>('/price-lists/last-mapping', { params: { company_id: companyId } });
     return response.data;
