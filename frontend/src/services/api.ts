@@ -1617,9 +1617,10 @@ class ApiService {
   }
 
   /** Reads the file on the server and shows what would be imported; saves nothing. */
-  async previewPriceList(file: File, options: { sheet?: string; mapping?: any; previous?: any } = {}) {
+  async previewPriceList(file: File, options: { sheet?: string; mapping?: any; previous?: any; company_id?: string } = {}) {
     const formData = new FormData();
     formData.append('file', file);
+    if (options.company_id) formData.append('company_id', options.company_id);
     if (options.sheet) formData.append('sheet', options.sheet);
     if (options.mapping) formData.append('mapping', JSON.stringify(options.mapping));
     if (options.previous) formData.append('previous', JSON.stringify(options.previous));

@@ -102,6 +102,21 @@
 .pl-raw .col-code2 { background: rgba(74, 96, 120, 0.06); }
 
 .pl-result { font-size: var(--text-sm); }
+.pl-code-ok { font-size: var(--text-sm); margin: 0.4rem 0; }
+.pl-code-ask {
+  border: 1px solid var(--color-warning, #d9a400); background: var(--color-warning-bg, #fff8e1);
+  border-radius: var(--radius-md); padding: 0.8rem 1rem; margin: 0.6rem 0; font-size: var(--text-sm);
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.pl-code-ask p { margin: 0; }
+.pl-code-options { display: flex; flex-direction: column; gap: 0.35rem; }
+.pl-code-option {
+  text-align: left; padding: 0.5rem 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-white); cursor: pointer; font: inherit; color: var(--color-text-primary);
+}
+.pl-code-option:hover { border-color: var(--color-text-secondary); }
+.pl-code-option.selected { border-color: var(--color-success); box-shadow: 0 0 0 1px var(--color-success); }
+.pl-hits { color: var(--color-success); font-weight: 600; }
 .pl-result-main { font-weight: 700; color: var(--color-success); }
 
 .pl-pdf-info { font-size: var(--text-sm); color: var(--color-text-secondary); display: flex; flex-direction: column; gap: 0.5rem; }
