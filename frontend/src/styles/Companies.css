@@ -56,6 +56,18 @@
 .co-table tbody tr:last-child td { border-bottom: none; }
 
 .co-name { font-weight: var(--font-weight-semibold); color: var(--color-text-primary); font-size: 1.0625rem; }
+
+/* Groups of companies (e.g. Gruppo ABK) with their companies below */
+.co-table tbody tr.co-row-group { background: var(--color-bg-secondary); }
+.co-table tbody tr.co-row-group td { border-bottom-color: transparent; }
+.co-table tbody tr.co-row-member { background: color-mix(in srgb, var(--color-bg-secondary) 45%, transparent); }
+.co-table tbody tr.co-row-member .co-name { padding-left: 2rem; font-weight: var(--font-weight-medium, 500); }
+.co-member-mark { color: var(--color-text-secondary); margin-right: 0.5rem; }
+.co-group-badge {
+  display: inline-block; margin-left: 0.6rem; padding: 0.1rem 0.55rem; border-radius: 999px;
+  font-size: 0.75rem; font-weight: var(--font-weight-semibold); vertical-align: middle;
+  background: var(--color-info, #4a6078); color: #fff; white-space: nowrap;
+}
 .co-muted { color: var(--color-text-tertiary); }
 .co-next-action { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .co-result-count { padding: 0.5rem 1rem; font-size: 0.8125rem; color: var(--color-text-tertiary); border-bottom: 1px solid var(--color-border); background: var(--color-bg-primary); }
