@@ -46,6 +46,7 @@ router.post('/preview', upload.single('file'), async (req: Request, res: Respons
       sheet: req.body.sheet || undefined,
       mapping: parseJson(req.body.mapping),
       previous: parseJson(req.body.previous),
+      companyId: req.body.company_id || undefined,
     });
     res.json({ success: true, data });
   } catch (e) { fail(res, e, 400); }

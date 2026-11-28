@@ -42,6 +42,7 @@ export interface BuildResult {
   rows_skipped: number;
   duplicates: number;
   skipped_samples: { row: number; reason: string; values: Cell[] }[];
+  skipped_reasons: Record<string, number>;
 }
 
 function numberToCode(n: number): string {
@@ -246,6 +247,68 @@ export function guessMapping(rows: Cell[][], headerRow: number): Omit<ColumnMapp
   return { header_row: headerRow, code, description, price, unit, variant, internal_code };
 }
 
+export interface CodeCandidate {
+  index: number;
+  header: string | null;
+  filled: number;          // rows with a value
+  distinct: number;        // different values
+  unique_ratio: number;    // distinct / filled
+  invoice_hits: number;    // codes found on this supplier's invoices
+  samples: string[];
+  score: number;
+}
+
+const CODE_HEADER = /^(cod|art|item|sku|ref|riferimento|article|code|product|prodotto|part)/;
+
+/**
+ * Ranks the columns that could hold the article code: one different value per
+ * row, short code-like values, and above all values found among the codes
+ * written on this supplier's invoices. `confident` is false when the choice
+ * is not clear and the user should confirm it.
+ */
+export function analyzeCodeColumns(rows: Cell[][], headerRow: number, invoiceCodes: Set<string> = new Set()):
+  { candidates: CodeCandidate[]; best: number; confident: boolean } {
+  const data = rows.slice(headerRow + 1).filter(r => r && r.some(c => c !== null && c !== undefined && c !== ''));
+  const width = Math.max(0, ...data.slice(0, 500).map(r => r.length));
+  const headers = headerRow >= 0 ? rows[headerRow] || [] : [];
+  const candidates: CodeCandidate[] = [];
+  for (let i = 0; i < width; i++) {
+    const vals = data.map(r => r[i]).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    if (!vals.length || vals.length < data.length * 0.5) continue;
+    // code-like: short, at most a few words, with a digit, not a decimal number (a price)
+    const codeLike = vals.filter(v => {
+      const s = displayCode(v);
+      return s.length >= 2 && s.length <= 40 && s.split(/\s+/).length <= 3 && /\d/.test(s) && !(typeof v === 'number' && !Number.isInteger(v));
+    }).length / vals.length;
+    if (codeLike < 0.6) continue;
+    const norm = vals.map(normalizeCode);
+    const set = new Set(norm.filter(Boolean));
+    let hits = 0;
+    if (invoiceCodes.size) invoiceCodes.forEach(c => { if (set.has(c)) hits++; });
+    const unique = set.size / vals.length;
+    const header = headers[i] !== null && headers[i] !== undefined && String(headers[i]).trim() ? String(headers[i]).trim() : null;
+    const headerBonus = header && CODE_HEADER.test(textOf(header)) ? 0.05 : 0;
+    candidates.push({
+      index: i, header, filled: vals.length, distinct: set.size, unique_ratio: unique, invoice_hits: hits,
+      samples: [...set].slice(0, 3).map(c => displayCode(vals[norm.indexOf(c)])),
+      score: hits * 10 + unique * codeLike * (vals.length / data.length) + headerBonus,
+    });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  const [first, second] = candidates;
+  let confident = false;
+  if (first) {
+    if (first.invoice_hits > 0) {
+      // codes found on the invoices decide, when clearly more than in any other column
+      confident = !second || first.invoice_hits >= second.invoice_hits * 2;
+    } else {
+      // no help from the invoices: sure only when a single column has one value per row
+      confident = first.unique_ratio >= 0.95 && !candidates.some(c => c !== first && c.unique_ratio >= 0.9);
+    }
+  }
+  return { candidates, best: first ? first.index : -1, confident };
+}
+
 /** Code plus version as printed on invoices: "LEMUD111198" + "_6" → "LEMUD111198_6". */
 export function codeWithVariant(code: any, variant: any): string {
   const c = displayCode(code);
@@ -273,6 +336,7 @@ export function buildArticles(rows: Cell[][], mapping: ColumnMapping): BuildResu
   let skipped = 0;
   let duplicates = 0;
   const skippedSamples: BuildResult['skipped_samples'] = [];
+  const skippedReasons: Record<string, number> = {};
 
   for (let r = start; r < rows.length; r++) {
     const row = rows[r];
@@ -293,6 +357,7 @@ export function buildArticles(rows: Cell[][], mapping: ColumnMapping): BuildResu
     else if (normalized.length > 120) reason = 'codice troppo lungo';
     if (reason) {
       skipped++;
+      skippedReasons[reason] = (skippedReasons[reason] || 0) + 1;
       if (skippedSamples.length < 20) skippedSamples.push({ row: r + 1, reason, values: row.slice(0, 8) });
       continue;
     }
@@ -315,7 +380,7 @@ export function buildArticles(rows: Cell[][], mapping: ColumnMapping): BuildResu
       extra: Object.keys(extra).length ? extra : null,
     });
   }
-  return { articles: [...byCode.values()], rows_read: rowsRead, rows_skipped: skipped, duplicates, skipped_samples: skippedSamples };
+  return { articles: [...byCode.values()], rows_read: rowsRead, rows_skipped: skipped, duplicates, skipped_samples: skippedSamples, skipped_reasons: skippedReasons };
 }
 
 /* ─────────────── PDF ─────────────── */

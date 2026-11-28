@@ -20,6 +20,18 @@ interface Mapping {
   extra_columns?: number[];
 }
 
+interface CodeCandidate {
+  index: number; header: string | null; filled: number; distinct: number;
+  unique_ratio: number; invoice_hits: number; samples: string[];
+}
+
+interface CodeCheck {
+  source: 'user' | 'saved' | 'auto';
+  confident: boolean;
+  candidates: CodeCandidate[];
+  invoice_codes: number;
+}
+
 interface Preview {
   kind: 'excel' | 'csv' | 'pdf';
   sheets: string[];
@@ -35,7 +47,9 @@ interface Preview {
     duplicates: number;
     sample: { code: string; description: string | null; unit: string | null; price: number; extra: any }[];
     skipped_samples: { row: number; reason: string; values: any[] }[];
+    skipped_reasons?: Record<string, number>;
   };
+  code_check?: CodeCheck | null;
   pdf: { pages: number; lines: number; unparsed_samples: string[] } | null;
   ai_available: boolean;
 }
@@ -98,7 +112,7 @@ export const PriceListsTab: React.FC = () => {
     setPreviewing(true);
     setMessage(null);
     try {
-      const res = await apiService.previewPriceList(f, opts);
+      const res = await apiService.previewPriceList(f, { ...opts, company_id: companyId || undefined });
       setPreview(res.data);
       setMapping(res.data.mapping);
     } catch (err) {
@@ -215,6 +229,7 @@ export const PriceListsTab: React.FC = () => {
   };
 
   const isPdf = preview?.kind === 'pdf';
+  const needsCodeChoice = !!preview?.code_check && !preview.code_check.confident && preview.code_check.source === 'auto';
 
   return (
     <div className="revenue-tab-content">
@@ -313,6 +328,51 @@ export const PriceListsTab: React.FC = () => {
               </div>
             )}
 
+            {!isPdf && preview.code_check && (() => {
+              const cc = preview.code_check!;
+              const r = preview.result;
+              const manyRepeated = r.rows_read > 20 && r.duplicates > r.rows_read * 0.2;
+              const ask = (!cc.confident && cc.source === 'auto') || manyRepeated;
+              const current = cc.candidates.find(c => c.index === mapping.code);
+              const describe = (c: CodeCandidate) => (
+                <>
+                  <strong>{colName(c.index)}{c.header ? ` · ${c.header}` : ''}</strong>
+                  <span className="pl-muted">
+                    {' '}{fmtNum(c.distinct)} codici diversi su {fmtNum(c.filled)} righe · es. {c.samples.join(', ')}
+                    {cc.invoice_codes > 0 && <> · <span className={c.invoice_hits ? 'pl-hits' : ''}>{fmtNum(c.invoice_hits)} trovati nelle fatture</span></>}
+                  </span>
+                </>
+              );
+              if (!ask) {
+                return current && cc.source === 'auto' ? (
+                  <p className="pl-code-ok">
+                    Codice articolo riconosciuto nella colonna {describe(current)}
+                  </p>
+                ) : null;
+              }
+              return (
+                <div className="pl-code-ask">
+                  {manyRepeated ? (
+                    <p>
+                      <strong>Attenzione:</strong> con la colonna {colName(mapping.code)} come codice, {fmtNum(r.duplicates)} righe su {fmtNum(r.rows_read)} hanno
+                      un codice già presente in un'altra riga, quindi verrebbero caricati solo {fmtNum(r.articles)} articoli.
+                      Probabilmente non è la colonna del codice articolo.
+                    </p>
+                  ) : (
+                    <p>Non sono sicuro di quale colonna contenga il <strong>codice articolo che compare in fattura</strong>. Scegli quella giusta:</p>
+                  )}
+                  <div className="pl-code-options">
+                    {cc.candidates.filter(c => c.index !== mapping.code || !manyRepeated).slice(0, 5).map(c => (
+                      <button key={c.index} className={`pl-code-option ${c.index === mapping.code ? 'selected' : ''}`} onClick={() => changeMapping({ code: c.index })}>
+                        {describe(c)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="pl-muted">La scelta viene ricordata per i prossimi listini di questa azienda.</p>
+                </div>
+              );
+            })()}
+
             {!isPdf && (
               <div className="pl-raw-wrap">
                 <table className="pl-raw">
@@ -369,6 +429,8 @@ export const PriceListsTab: React.FC = () => {
                   <span className="pl-result-main">{fmtNum(preview.result.articles)} articoli pronti</span>
                   <span className="pl-muted">
                     {preview.result.rows_skipped > 0 && ` · ${fmtNum(preview.result.rows_skipped)} righe scartate`}
+                    {preview.result.rows_skipped > 0 && preview.result.skipped_reasons &&
+                      ` (${Object.entries(preview.result.skipped_reasons).map(([k, v]) => `${fmtNum(v)} ${k}`).join(', ')})`}
                     {preview.result.duplicates > 0 && ` · ${preview.result.duplicates} codici ripetuti (vale l'ultima riga)`}
                   </span>
                 </>
@@ -417,7 +479,8 @@ export const PriceListsTab: React.FC = () => {
                 <button
                   className="admin-btn admin-btn-primary"
                   onClick={doImport}
-                  disabled={importing || previewing || (!useAi && preview.result.articles === 0)}
+                  disabled={importing || previewing || (!useAi && preview.result.articles === 0) || needsCodeChoice}
+                  title={needsCodeChoice ? 'Scegli prima la colonna del codice articolo' : undefined}
                 >
                   {importing ? 'Caricamento…' : useAi ? 'Carica e leggi con AI' : `Carica ${fmtNum(preview.result.articles)} articoli`}
                 </button>

@@ -3,8 +3,8 @@ import { PriceList, PriceListStatus } from '../entities/PriceList';
 import { ArticleService } from './ArticleService';
 import { S3Service } from './S3Service';
 import {
-  Cell, ColumnMapping, ParsedArticle, buildArticles, chunkText, detectHeaderRow, fileKind,
-  guessMapping, parsePdfLines, pdfText, readWorkbook, sheetRows,
+  Cell, CodeCandidate, ColumnMapping, ParsedArticle, analyzeCodeColumns, buildArticles, chunkText, detectHeaderRow, fileKind,
+  guessMapping, normalizeCode, parsePdfLines, pdfText, readWorkbook, sheetRows,
 } from './PriceListParser';
 import Anthropic from '@anthropic-ai/sdk';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,6 +24,16 @@ export interface PreviewOptions {
   mapping?: Partial<ColumnMapping>;
   // mapping of the previous list of the same supplier, matched again by header text
   previous?: SavedMapping | null;
+  // codes written on this supplier's invoices, to recognise the code column
+  invoiceCodes?: Set<string>;
+}
+
+/** How the code column was chosen, shown in the preview. */
+export interface CodeCheck {
+  source: 'user' | 'saved' | 'auto';
+  confident: boolean;           // false: ask the user to confirm the column
+  candidates: CodeCandidate[];  // best first
+  invoice_codes: number;        // codes known from this supplier's invoices
 }
 
 export interface ImportOptions {
@@ -55,7 +65,7 @@ async function readRows(file: Express.Multer.File, opts: PreviewOptions) {
     }
     const parsed = parsePdfLines(text);
     const mapping: ColumnMapping = { header_row: 0, code: 0, description: 1, unit: 2, price: 3, extra_columns: [] };
-    return { kind, sheets: [] as string[], sheet: undefined, rows: parsed.rows, mapping, pdf: { pages, lines: parsed.lines, unparsed_samples: parsed.unparsed_samples, text } };
+    return { kind, sheets: [] as string[], sheet: undefined, rows: parsed.rows, mapping, codeCheck: null as CodeCheck | null, pdf: { pages, lines: parsed.lines, unparsed_samples: parsed.unparsed_samples, text } };
   }
 
   const wb = readWorkbook(file.buffer, kind);
@@ -66,18 +76,52 @@ async function readRows(file: Express.Multer.File, opts: PreviewOptions) {
   const headerRow = opts.mapping?.header_row ?? detectHeaderRow(rows);
   const guessed = guessMapping(rows, headerRow);
   const m: Partial<ColumnMapping> = opts.mapping || reuseByHeaderName(rows, headerRow, opts.previous);
+
+  // The code column: chosen by the user, the one used last time for this
+  // supplier, or recognised from the data (one code per row, found on invoices)
+  const analysis = analyzeCodeColumns(rows, headerRow, opts.invoiceCodes);
+  // a price column is never the code
+  const priceCol = m.price ?? guessed.price;
+  analysis.candidates = analysis.candidates.filter(c => c.index !== priceCol);
+  const invoiceCount = opts.invoiceCodes?.size || 0;
+  let code = guessed.code;
+  let source: CodeCheck['source'] = 'auto';
+  let confident = false;
+  if (opts.mapping?.code !== undefined) { code = opts.mapping.code; source = 'user'; confident = true; }
+  else if (m.code !== undefined && m.code >= 0) { code = m.code; source = 'saved'; confident = true; }
+  else {
+    const byHeader = analysis.candidates.find(c => c.index === guessed.code);
+    const best = analysis.candidates[0];
+    // keep the column whose header says "codice" unless almost every row repeats
+    // the same few values (a category, e.g. "Cod. merceologico") or the invoices
+    // point clearly to another column
+    const headerOk = byHeader && byHeader.unique_ratio >= 0.1 && (!best || byHeader.invoice_hits >= best.invoice_hits);
+    if (headerOk) {
+      // the column named "codice" looks right: keep it
+      code = guessed.code;
+      confident = byHeader!.invoice_hits > 0 || byHeader!.unique_ratio >= 0.9 || (guessed.internal_code ?? -1) >= 0;
+    } else if (best) {
+      code = best.index;
+      const second = analysis.candidates[1];
+      confident = best.invoice_hits > 0
+        ? !second || best.invoice_hits >= second.invoice_hits * 2
+        : best.unique_ratio >= 0.95 && !analysis.candidates.some(c => c !== best && c.unique_ratio >= 0.9);
+    }
+  }
+  const sameAsHeader = code === guessed.code;
   const mapping: ColumnMapping = {
     sheet,
     header_row: headerRow,
-    code: m.code ?? guessed.code,
-    description: m.description ?? guessed.description,
+    code,
+    description: m.description ?? (guessed.description === code ? -1 : guessed.description),
     price: m.price ?? guessed.price,
     unit: m.unit ?? guessed.unit,
-    variant: m.variant ?? guessed.variant ?? -1,
-    internal_code: m.internal_code ?? guessed.internal_code ?? -1,
+    variant: m.variant ?? (sameAsHeader ? guessed.variant ?? -1 : -1),
+    internal_code: m.internal_code ?? (sameAsHeader ? guessed.internal_code ?? -1 : -1),
     extra_columns: m.extra_columns,
   };
-  return { kind, sheets: wb.SheetNames, sheet, rows, mapping, pdf: null as null | { pages: number; lines: number; unparsed_samples: string[]; text: string } };
+  const codeCheck: CodeCheck = { source, confident, candidates: analysis.candidates.slice(0, 6), invoice_codes: invoiceCount };
+  return { kind, sheets: wb.SheetNames, sheet, rows, mapping, codeCheck, pdf: null as null | { pages: number; lines: number; unparsed_samples: string[]; text: string } };
 }
 
 const headerKey = (v: any) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -116,8 +160,9 @@ export class PriceListService {
   private s3 = new S3Service();
 
   /** What the file contains and what an import with this mapping would give. */
-  async preview(file: Express.Multer.File, opts: PreviewOptions) {
-    const r = await readRows(file, opts);
+  async preview(file: Express.Multer.File, opts: PreviewOptions & { companyId?: string }) {
+    const invoiceCodes = opts.companyId ? await this.invoiceCodes(opts.companyId) : undefined;
+    const r = await readRows(file, { ...opts, invoiceCodes });
     const result = buildArticles(r.rows, r.mapping);
     const width = Math.max(0, ...r.rows.slice(0, 200).map(row => row.length));
     return {
@@ -135,7 +180,9 @@ export class PriceListService {
         duplicates: result.duplicates,
         sample: result.articles.slice(0, 15),
         skipped_samples: result.skipped_samples,
+        skipped_reasons: result.skipped_reasons,
       },
+      code_check: r.codeCheck,
       pdf: r.pdf ? { pages: r.pdf.pages, lines: r.pdf.lines, unparsed_samples: r.pdf.unparsed_samples } : null,
       ai_available: !!process.env.ANTHROPIC_API_KEY,
     };
@@ -314,6 +361,22 @@ Return ONLY valid JSON: {"articles": [{"code": "article code exactly as printed"
   }
 
   /** Mapping of the last list imported for the company, to propose it again. */
+  /** Article codes written on the invoices of a supplier (normalized, also without "_x"). */
+  private async invoiceCodes(companyId: string): Promise<Set<string>> {
+    const rows: { code: string }[] = await AppDataSource.query(
+      `SELECT DISTINCT li.article_code AS code FROM invoice_line_items li
+       JOIN invoices inv ON inv.id::text = li.invoice_id::text
+       WHERE inv.company_id::text = $1 AND li.article_code IS NOT NULL AND li.article_code <> ''
+       LIMIT 50000`, [companyId]);
+    const set = new Set<string>();
+    for (const r of rows) {
+      const nc = normalizeCode(r.code);
+      if (nc) set.add(nc);
+      if (r.code.includes('_')) { const base = normalizeCode(r.code.replace(/_[^_]*$/, '')); if (base) set.add(base); }
+    }
+    return set;
+  }
+
   async lastMapping(companyId: string): Promise<ColumnMapping | null> {
     const last = await this.repo.createQueryBuilder('pl')
       .where('pl.company_id = :companyId', { companyId })
